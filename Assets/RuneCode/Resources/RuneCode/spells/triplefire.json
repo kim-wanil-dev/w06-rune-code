@@ -1,0 +1,58 @@
+{
+  "_id": "triplefire",
+  "_name": "삼연 화염",
+  "_version": 1,
+  "_nodes": [
+    {
+      "_id": "core",
+      "_runeId": "core.cast",
+      "_x": 70,
+      "_y": 150,
+      "_params": []
+    },
+    {
+      "_id": "form",
+      "_runeId": "form.bolt",
+      "_x": 330,
+      "_y": 150,
+      "_params": []
+    },
+    {
+      "_id": "mod0",
+      "_runeId": "elem.fire",
+      "_x": 140,
+      "_y": 320,
+      "_params": []
+    },
+    {
+      "_id": "mod1",
+      "_runeId": "mod.multi",
+      "_x": 340,
+      "_y": 320,
+      "_params": []
+    }
+  ],
+  "_edges": [
+    {
+      "_id": "exec",
+      "_fromNode": "core",
+      "_fromPort": "exec",
+      "_toNode": "form",
+      "_toPort": "exec"
+    },
+    {
+      "_id": "attach0",
+      "_fromNode": "mod0",
+      "_fromPort": "mod",
+      "_toNode": "form",
+      "_toPort": "mod"
+    },
+    {
+      "_id": "attach1",
+      "_fromNode": "mod1",
+      "_fromPort": "mod",
+      "_toNode": "form",
+      "_toPort": "mod"
+    }
+  ]
+}

@@ -1,0 +1,872 @@
+{
+  "_entries": [
+    {
+      "_key": "ui.title",
+      "_value": "RUNE CODE"
+    },
+    {
+      "_key": "ui.subtitle",
+      "_value": "하나의 마법을 노드로 확장하고 밀려오는 적을 돌파하세요"
+    },
+    {
+      "_key": "ui.start",
+      "_value": "작업실 입장"
+    },
+    {
+      "_key": "ui.editor",
+      "_value": "룬 설계"
+    },
+    {
+      "_key": "ui.bench",
+      "_value": "기반 강화"
+    },
+    {
+      "_key": "ui.deploy",
+      "_value": "시간제 전투"
+    },
+    {
+      "_key": "ui.settings",
+      "_value": "설정"
+    },
+    {
+      "_key": "ui.library",
+      "_value": "보관함"
+    },
+    {
+      "_key": "ui.new",
+      "_value": "새 마법"
+    },
+    {
+      "_key": "ui.save",
+      "_value": "저장"
+    },
+    {
+      "_key": "ui.duplicate",
+      "_value": "복제"
+    },
+    {
+      "_key": "ui.delete",
+      "_value": "삭제"
+    },
+    {
+      "_key": "ui.rename",
+      "_value": "이름 변경"
+    },
+    {
+      "_key": "ui.share",
+      "_value": "공유 코드"
+    },
+    {
+      "_key": "ui.import",
+      "_value": "가져오기"
+    },
+    {
+      "_key": "ui.export",
+      "_value": "복사"
+    },
+    {
+      "_key": "ui.equip",
+      "_value": "장착"
+    },
+    {
+      "_key": "ui.palette",
+      "_value": "룬 팔레트"
+    },
+    {
+      "_key": "ui.search",
+      "_value": "룬 검색"
+    },
+    {
+      "_key": "ui.all",
+      "_value": "전체"
+    },
+    {
+      "_key": "ui.inspector",
+      "_value": "인스펙터"
+    },
+    {
+      "_key": "ui.selectNode",
+      "_value": "노드를 선택하면 설정을 조정할 수 있습니다"
+    },
+    {
+      "_key": "ui.validation",
+      "_value": "검증 결과"
+    },
+    {
+      "_key": "ui.valid",
+      "_value": "컴파일 성공"
+    },
+    {
+      "_key": "ui.test",
+      "_value": "시험"
+    },
+    {
+      "_key": "ui.autofire",
+      "_value": "자동 발사"
+    },
+    {
+      "_key": "ui.reset",
+      "_value": "리셋"
+    },
+    {
+      "_key": "ui.adaptation",
+      "_value": "AI 적응"
+    },
+    {
+      "_key": "ui.scenario",
+      "_value": "시나리오"
+    },
+    {
+      "_key": "ui.dps",
+      "_value": "5초 DPS"
+    },
+    {
+      "_key": "ui.damage",
+      "_value": "누적 피해"
+    },
+    {
+      "_key": "ui.energy",
+      "_value": "에너지"
+    },
+    {
+      "_key": "ui.peak",
+      "_value": "최대 엔티티"
+    },
+    {
+      "_key": "ui.ram",
+      "_value": "RAM"
+    },
+    {
+      "_key": "ui.cooldown",
+      "_value": "쿨다운"
+    },
+    {
+      "_key": "ui.undo",
+      "_value": "실행 취소"
+    },
+    {
+      "_key": "ui.redo",
+      "_value": "다시 실행"
+    },
+    {
+      "_key": "ui.arrange",
+      "_value": "자동 정렬"
+    },
+    {
+      "_key": "ui.copy",
+      "_value": "복사"
+    },
+    {
+      "_key": "ui.paste",
+      "_value": "붙여넣기"
+    },
+    {
+      "_key": "ui.locked",
+      "_value": "미해금"
+    },
+    {
+      "_key": "ui.reward",
+      "_value": "첫 단계 완료 보상"
+    },
+    {
+      "_key": "ui.parameters",
+      "_value": "파라미터"
+    },
+    {
+      "_key": "ui.controls",
+      "_value": "드래그: 이동 · 포트 드래그: 연결 · 중간 버튼: 화면 이동 · 휠: 확대 · Shift: 다중 선택 · Del: 삭제"
+    },
+    {
+      "_key": "ui.missionControls",
+      "_value": "자동 조준 · 자동 시전 · Esc 일시정지"
+    },
+    {
+      "_key": "ui.fragments",
+      "_value": "RAM"
+    },
+    {
+      "_key": "ui.capacity",
+      "_value": "노드 RAM 용량"
+    },
+    {
+      "_key": "ui.slot",
+      "_value": "마법 슬롯"
+    },
+    {
+      "_key": "ui.hp",
+      "_value": "HP"
+    },
+    {
+      "_key": "ui.upgrade",
+      "_value": "업그레이드"
+    },
+    {
+      "_key": "ui.buy",
+      "_value": "구매"
+    },
+    {
+      "_key": "ui.balance",
+      "_value": "잔액"
+    },
+    {
+      "_key": "ui.launch",
+      "_value": "시간제 전투 시작"
+    },
+    {
+      "_key": "ui.sector",
+      "_value": "폐허가 된 데이터센터 지구"
+    },
+    {
+      "_key": "ui.sectorDescription",
+      "_value": "4개 전투방과 거버너를 돌파하세요. 터미널에서 회복하고 마법을 재설계할 수 있습니다"
+    },
+    {
+      "_key": "ui.back",
+      "_value": "작업실로"
+    },
+    {
+      "_key": "ui.pause",
+      "_value": "일시정지"
+    },
+    {
+      "_key": "ui.resume",
+      "_value": "계속"
+    },
+    {
+      "_key": "ui.terminal",
+      "_value": "안전 터미널"
+    },
+    {
+      "_key": "ui.editTerminal",
+      "_value": "마법 재설계"
+    },
+    {
+      "_key": "ui.nextRoom",
+      "_value": "다음 방"
+    },
+    {
+      "_key": "ui.result",
+      "_value": "작전 결과"
+    },
+    {
+      "_key": "ui.report",
+      "_value": "AI 학습 리포트"
+    },
+    {
+      "_key": "ui.alternative",
+      "_value": "높은 학습도를 보이는 속성이나 형태를 다른 룬으로 바꿔보세요"
+    },
+    {
+      "_key": "ui.return",
+      "_value": "작업실 복귀"
+    },
+    {
+      "_key": "ui.shake",
+      "_value": "화면 흔들림"
+    },
+    {
+      "_key": "ui.hitstop",
+      "_value": "히트스톱"
+    },
+    {
+      "_key": "ui.resetSave",
+      "_value": "저장 초기화"
+    },
+    {
+      "_key": "ui.close",
+      "_value": "닫기"
+    },
+    {
+      "_key": "ui.help",
+      "_value": "노드 강화 → 시간제 전투 → RAM 획득"
+    },
+    {
+      "_key": "ui.tutorial1",
+      "_value": "1 / 3 · 현재 마법에 형태 룬을 추가하고 시전 포트를 연결하세요"
+    },
+    {
+      "_key": "ui.tutorial2",
+      "_value": "2 / 3 · 화염을 추가하고 mod 포트를 볼트에 연결하세요"
+    },
+    {
+      "_key": "ui.tutorial3",
+      "_value": "3 / 3 · 시험 도크에서 마법을 발사하세요"
+    },
+    {
+      "_key": "ui.complete",
+      "_value": "설계가 준비되었습니다. 전투로 RAM을 얻고 같은 마법을 계속 확장하세요"
+    },
+    {
+      "_key": "ui.empty",
+      "_value": "비어 있음"
+    },
+    {
+      "_key": "ui.cost",
+      "_value": "비용"
+    },
+    {
+      "_key": "ui.unlock",
+      "_value": "해금"
+    },
+    {
+      "_key": "ui.warning",
+      "_value": "주의"
+    },
+    {
+      "_key": "ui.on",
+      "_value": "ON"
+    },
+    {
+      "_key": "ui.off",
+      "_value": "OFF"
+    },
+    {
+      "_key": "ui.debug",
+      "_value": "디버그"
+    },
+    {
+      "_key": "ui.grant",
+      "_value": "조각 +200"
+    },
+    {
+      "_key": "ui.unlockAll",
+      "_value": "전체 룬 해금"
+    },
+    {
+      "_key": "ui.invulnerable",
+      "_value": "무적"
+    },
+    {
+      "_key": "ui.spawn",
+      "_value": "적 소환"
+    },
+    {
+      "_key": "scenario.dummy_single",
+      "_value": "단일 더미"
+    },
+    {
+      "_key": "scenario.dummy_line",
+      "_value": "일렬 더미"
+    },
+    {
+      "_key": "scenario.dummy_swarm",
+      "_value": "이동 무리"
+    },
+    {
+      "_key": "scenario.aegis",
+      "_value": "이지스 방패"
+    },
+    {
+      "_key": "scenario.adapt_loop",
+      "_value": "적응 실험"
+    },
+    {
+      "_key": "category.core",
+      "_value": "시전"
+    },
+    {
+      "_key": "category.form",
+      "_value": "형태"
+    },
+    {
+      "_key": "category.element",
+      "_value": "속성"
+    },
+    {
+      "_key": "category.modifier",
+      "_value": "수식"
+    },
+    {
+      "_key": "category.flow",
+      "_value": "흐름"
+    },
+    {
+      "_key": "category.action",
+      "_value": "행동"
+    },
+    {
+      "_key": "room.r1",
+      "_value": "R1 · 탐색 드론"
+    },
+    {
+      "_key": "room.r2",
+      "_value": "R2 · 보안 경계"
+    },
+    {
+      "_key": "room.r3",
+      "_value": "R3 · 이지스 방어선"
+    },
+    {
+      "_key": "room.r4",
+      "_value": "R4 · 릴레이 네트워크"
+    },
+    {
+      "_key": "room.boss",
+      "_value": "거버너 · 중앙 제어실"
+    },
+    {
+      "_key": "mission.patch",
+      "_value": "PATCH 적용 중"
+    },
+    {
+      "_key": "mission.resumeRequired",
+      "_value": "미션을 계속하거나 철수한 뒤 작업실로 돌아갈 수 있습니다"
+    },
+    {
+      "_key": "save.recovered",
+      "_value": "저장 파일이 손상되어 백업을 보존하고 새 진행을 시작했습니다"
+    },
+    {
+      "_key": "save.unavailable",
+      "_value": "저장 파일을 읽거나 쓸 수 없습니다"
+    },
+    {
+      "_key": "editor.emptySlot",
+      "_value": "보관함 마법을 선택한 뒤 빈 슬롯에 장착하세요"
+    },
+    {
+      "_key": "editor.libraryFull",
+      "_value": "보관함은 최대 30개까지 저장할 수 있습니다"
+    },
+    {
+      "_key": "editor.newSpell",
+      "_value": "새 마법"
+    },
+    {
+      "_key": "editor.copySuffix",
+      "_value": " 사본"
+    },
+    {
+      "_key": "editor.keepOne",
+      "_value": "보관함에 마법을 하나 이상 남겨주세요"
+    },
+    {
+      "_key": "editor.invalidEquip",
+      "_value": "오류를 해결한 뒤 마법을 장착하세요"
+    },
+    {
+      "_key": "editor.ramBlocked",
+      "_value": "장착한 마법의 RAM 합계가 완드 용량을 초과합니다"
+    },
+    {
+      "_key": "editor.invalidConnection",
+      "_value": "입력·포트·순환·수식 슬롯 규칙에 맞지 않는 연결입니다"
+    },
+    {
+      "_key": "editor.invalidCast",
+      "_value": "오류를 해결한 뒤 마법을 시험하세요"
+    },
+    {
+      "_key": "result.cleared",
+      "_value": "섹터 1 돌파 성공"
+    },
+    {
+      "_key": "result.dead",
+      "_value": "작전 실패"
+    },
+    {
+      "_key": "result.retreat",
+      "_value": "미션에서 철수했습니다"
+    },
+    {
+      "_key": "result.fragments",
+      "_value": "정산 RAM"
+    },
+    {
+      "_key": "bench.maxed",
+      "_value": "최대 단계에 도달했습니다"
+    },
+    {
+      "_key": "bench.insufficient",
+      "_value": "RAM 조각이 부족합니다"
+    },
+    {
+      "_key": "share.invalid",
+      "_value": "유효한 RC1 공유 코드가 아닙니다"
+    },
+    {
+      "_key": "share.tooLarge",
+      "_value": "공유 데이터가 허용 크기를 초과합니다"
+    },
+    {
+      "_key": "issue.E1",
+      "_value": "시전 Core는 정확히 하나여야 합니다"
+    },
+    {
+      "_key": "issue.E2",
+      "_value": "exec 입력에는 한 개의 연결만 허용됩니다"
+    },
+    {
+      "_key": "issue.E3",
+      "_value": "포트 종류 또는 연결 방향이 맞지 않습니다"
+    },
+    {
+      "_key": "issue.E4",
+      "_value": "실행 그래프에 순환이 있습니다"
+    },
+    {
+      "_key": "issue.E5",
+      "_value": "형태의 수식 슬롯은 최대 3개입니다"
+    },
+    {
+      "_key": "issue.E6",
+      "_value": "하나의 형태에는 속성을 하나만 부착할 수 있습니다"
+    },
+    {
+      "_key": "issue.E7",
+      "_value": "마법의 RAM이 완드 용량을 초과합니다"
+    },
+    {
+      "_key": "issue.E8",
+      "_value": "최악 에너지 비용 또는 중첩 실행량이 허용 한도를 초과합니다"
+    },
+    {
+      "_key": "issue.E9",
+      "_value": "파라미터 범위 또는 그래프 데이터가 유효하지 않습니다"
+    },
+    {
+      "_key": "issue.E10",
+      "_value": "미해금 룬이 있어 장착할 수 없습니다"
+    },
+    {
+      "_key": "issue.W1",
+      "_value": "Core에서 도달할 수 없는 노드도 RAM을 차지합니다"
+    },
+    {
+      "_key": "issue.W2",
+      "_value": "현재 형태에는 효과가 없는 수식입니다"
+    },
+    {
+      "_key": "issue.W3",
+      "_value": "onHit 경로 밖에서는 대상 조건이 항상 false입니다"
+    },
+    {
+      "_key": "issue.W4",
+      "_value": "속성 또는 수식이 어느 형태에도 연결되지 않았습니다"
+    },
+    {
+      "_key": "param.seconds",
+      "_value": "지연 시간"
+    },
+    {
+      "_key": "param.times",
+      "_value": "반복 횟수"
+    },
+    {
+      "_key": "param.interval",
+      "_value": "반복 간격"
+    },
+    {
+      "_key": "param.type",
+      "_value": "조건 종류"
+    },
+    {
+      "_key": "param.pct",
+      "_value": "HP 기준 (%)"
+    },
+    {
+      "_key": "param.status",
+      "_value": "대상 상태"
+    },
+    {
+      "_key": "param.px",
+      "_value": "대상 거리"
+    },
+    {
+      "_key": "param.distance",
+      "_value": "점멸 거리"
+    },
+    {
+      "_key": "condition.targetHpBelow",
+      "_value": "대상 HP 미만"
+    },
+    {
+      "_key": "condition.targetHasStatus",
+      "_value": "대상 상태 보유"
+    },
+    {
+      "_key": "condition.targetDistanceBelow",
+      "_value": "대상 거리 미만"
+    },
+    {
+      "_key": "condition.selfHpBelow",
+      "_value": "자신 HP 미만"
+    },
+    {
+      "_key": "status.burn",
+      "_value": "화상"
+    },
+    {
+      "_key": "status.chill",
+      "_value": "냉기"
+    },
+    {
+      "_key": "status.freeze",
+      "_value": "빙결"
+    },
+    {
+      "_key": "status.emp",
+      "_value": "EMP"
+    },
+    {
+      "_key": "element.fire",
+      "_value": "화염"
+    },
+    {
+      "_key": "element.ice",
+      "_value": "냉기"
+    },
+    {
+      "_key": "element.arc",
+      "_value": "전격"
+    },
+    {
+      "_key": "element.raw",
+      "_value": "무속성"
+    },
+    {
+      "_key": "form.bolt",
+      "_value": "볼트"
+    },
+    {
+      "_key": "form.burst",
+      "_value": "버스트"
+    },
+    {
+      "_key": "form.orbit",
+      "_value": "오비트"
+    },
+    {
+      "_key": "form.zone",
+      "_value": "존"
+    },
+    {
+      "_key": "tag.fire",
+      "_value": "화염"
+    },
+    {
+      "_key": "tag.ice",
+      "_value": "냉기"
+    },
+    {
+      "_key": "tag.arc",
+      "_value": "전격"
+    },
+    {
+      "_key": "tag.raw",
+      "_value": "무속성"
+    },
+    {
+      "_key": "tag.bolt",
+      "_value": "볼트"
+    },
+    {
+      "_key": "tag.burst",
+      "_value": "버스트"
+    },
+    {
+      "_key": "tag.orbit",
+      "_value": "오비트"
+    },
+    {
+      "_key": "tag.zone",
+      "_value": "존"
+    },
+    {
+      "_key": "boss.patch",
+      "_value": "PATCH 적용 중 · 학습한 공격을 재설계하세요"
+    },
+    {
+      "_key": "boss.governor",
+      "_value": "거버너"
+    },
+    {
+      "_key": "ui.introCode",
+      "_value": "2076 / 고대 마법 · 현대의 메모리"
+    },
+    {
+      "_key": "ui.sectorPath",
+      "_value": "R1 → 터미널 → R2 → 터미널 → R3 → 터미널 → R4 → 터미널 → 거버너"
+    },
+    {
+      "_key": "save.invalidValues",
+      "_value": "저장 값의 범위가 올바르지 않습니다"
+    },
+    {
+      "_key": "save.invalidStructure",
+      "_value": "저장 데이터의 구조 또는 참조가 유효하지 않습니다"
+    },
+    {
+      "_key": "editor.graphLimit",
+      "_value": "그래프의 노드 또는 연결 수가 허용 상한을 초과합니다"
+    },
+    {
+      "_key": "ui.retreat",
+      "_value": "전투 중단 · 획득 RAM 70% 회수"
+    },
+    {
+      "_key": "ui.unequip",
+      "_value": "장착 해제"
+    },
+    {
+      "_key": "ui.tutorial",
+      "_value": "노드 연결 도움말"
+    },
+    {
+      "_key": "ui.singleSpell",
+      "_value": "계속 강화할 마법"
+    },
+    {
+      "_key": "ui.incrementalLoop",
+      "_value": "적 처치로 RAM 획득 · 노드 용량 / 에너지 / 전투 시간 강화 · 더 높은 단계 도전"
+    },
+    {
+      "_key": "ui.importCurrent",
+      "_value": "가져오기는 현재 마법의 노드 설계를 교체합니다. 기존 설계는 실행 취소로 복구할 수 있습니다"
+    },
+    {
+      "_key": "ui.duration",
+      "_value": "전투 시간"
+    },
+    {
+      "_key": "ui.capacityDescription",
+      "_value": "현재 마법에 더 많은 룬 노드를 배치할 수 있습니다"
+    },
+    {
+      "_key": "ui.energyDescription",
+      "_value": "최대 에너지와 초당 회복량을 함께 높입니다"
+    },
+    {
+      "_key": "ui.durationDescription",
+      "_value": "다음 전투에서 더 오래 처치하고 RAM을 획득합니다"
+    },
+    {
+      "_key": "ui.regen",
+      "_value": "회복"
+    },
+    {
+      "_key": "ui.maxed",
+      "_value": "최대 단계"
+    },
+    {
+      "_key": "ui.runeUnlocks",
+      "_value": "새 룬 해금 · 새로운 노드로 현재 마법을 확장하세요"
+    },
+    {
+      "_key": "ui.timedBattle",
+      "_value": "오른쪽에서 밀려오는 적을 상대하세요"
+    },
+    {
+      "_key": "ui.battleDescription",
+      "_value": "WASD로 이동하고 마우스로 조준하며 같은 마법을 연속 시전합니다. 제한시간 동안 살아남으면 다음 단계가 열립니다. 단계가 높아질수록 적이 강해집니다"
+    },
+    {
+      "_key": "ui.highestStage",
+      "_value": "최고 완료 단계"
+    },
+    {
+      "_key": "ui.stage",
+      "_value": "스테이지"
+    },
+    {
+      "_key": "ui.autoBattle",
+      "_value": "자동 전투 · 왼쪽에서 방어"
+    },
+    {
+      "_key": "ui.manualBattle",
+      "_value": "직접 이동·조준 / 연속 시전"
+    },
+    {
+      "_key": "ui.autoBattleControls",
+      "_value": "왼쪽 시작 · 자동 조준 / 연속 시전 · 오른쪽에서 적 유입 · Esc 일시정지"
+    },
+    {
+      "_key": "ui.manualBattleControls",
+      "_value": "WASD 이동 · 마우스 조준 · 전투 영역에서 연속 시전 · Space 대시 · Esc 일시정지"
+    },
+    {
+      "_key": "ui.incoming",
+      "_value": "적 유입 ← 오른쪽"
+    },
+    {
+      "_key": "ui.kills",
+      "_value": "처치"
+    },
+    {
+      "_key": "ui.remaining",
+      "_value": "남은 시간"
+    },
+    {
+      "_key": "ui.nextStage",
+      "_value": "다음 도전 단계"
+    },
+    {
+      "_key": "ui.improveHint",
+      "_value": "획득한 RAM으로 기반을 강화하고, 현재 마법의 노드를 추가하거나 연결을 바꿔 다음 전투를 준비하세요"
+    },
+    {
+      "_key": "ui.improveSpell",
+      "_value": "노드 강화로 돌아가기"
+    },
+    {
+      "_key": "ui.retryStage",
+      "_value": "같은 스테이지 재도전"
+    },
+    {
+      "_key": "editor.singleSpell",
+      "_value": "현재 마법 하나를 계속 강화합니다"
+    },
+    {
+      "_key": "editor.combatLocked",
+      "_value": "전투가 끝난 뒤 마법 노드를 편집할 수 있습니다"
+    },
+    {
+      "_key": "result.timed",
+      "_value": "전투 시간 종료 · 생존 성공"
+    },
+    {
+      "_key": "result.stageClear",
+      "_value": "다음 스테이지 해금"
+    },
+    {
+      "_key": "param.sizeScale",
+      "_value": "크기 배율"
+    },
+    {
+      "_key": "param.rangeScale",
+      "_value": "사거리 배율"
+    },
+    {
+      "_key": "param.speedScale",
+      "_value": "속도 배율"
+    },
+    {
+      "_key": "ui.scaleBounds",
+      "_value": "조절 범위"
+    },
+    {
+      "_key": "ui.mod.expandHint",
+      "_value": "크기를 조절합니다. 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
+    },
+    {
+      "_key": "ui.mod.rangeHint",
+      "_value": "볼트의 비행 거리, 버스트·존의 생성 거리, 오비트의 궤도 거리를 조절합니다"
+    },
+    {
+      "_key": "ui.mod.speedHint",
+      "_value": "볼트의 이동 속도와 오비트의 회전 속도를 조절합니다. 볼트의 비행 거리는 유지됩니다"
+    },
+    {
+      "_key": "ui.spellRange",
+      "_value": "사거리 / 배치 거리"
+    },
+    {
+      "_key": "ui.spellRadius",
+      "_value": "충돌 반경"
+    },
+    {
+      "_key": "ui.spellSpeed",
+      "_value": "이동 / 회전 속도"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "_reinforcementInterval": 12,
+  "_reinforcementCount": 4,
+  "_phaseThreeMultiplier": 1.3,
+  "_radialInterval": 3,
+  "_patchSeconds": 2.5,
+  "_phaseThreeThreshold": 0.34,
+  "_phaseTwoThreshold": 0.67,
+  "_hazardLifetime": 3,
+  "_aimInterval": 2.4,
+  "_hazardRadius": 68,
+  "_hazardDamage": 12,
+  "_hazardWarning": 1,
+  "_radialCount": 8,
+  "_hazardInterval": 4,
+  "_preferredDistance": 190
+}
