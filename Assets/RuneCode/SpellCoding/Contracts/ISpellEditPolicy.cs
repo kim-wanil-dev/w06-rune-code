@@ -1,0 +1,31 @@
+namespace RuneCode
+{
+    /// <summary>
+    /// 마법 편집에 적용되는 게임 진행 규칙(해금, RAM 용량, 튜토리얼, 상태 표시)을 주입하는 경계다.
+    /// 마법 코딩 영역은 성장·경제 규칙을 직접 계산하지 않고 이 인터페이스에 묻는다.
+    /// </summary>
+    public interface ISpellEditPolicy
+    {
+        int MaxLibrary { get; }
+
+        /// <summary>현재 진행 상태로 컴파일 문맥을 만든다.</summary>
+        SpellCompileContext GetCompileContext();
+
+        bool IsRuneUnlocked(string runeId);
+
+        /// <summary>후보 그래프가 장착 RAM 규칙을 지키는지 반환한다.</summary>
+        bool IsWithinRam(SpellGraph candidate);
+
+        /// <summary>룬 배치 후 튜토리얼 등 진행 반응을 처리한다.</summary>
+        void OnRunePlaced(string runeId);
+
+        /// <summary>연결 성공 후 출발 노드 룬 ID로 진행 반응을 처리한다.</summary>
+        void OnConnected(string sourceRuneId);
+
+        /// <summary>문자열 키에 해당하는 상태 메시지를 표시한다.</summary>
+        void ReportStatus(string key);
+
+        /// <summary>이미 번역된 상태 문구를 표시한다.</summary>
+        void ReportStatusText(string text);
+    }
+}

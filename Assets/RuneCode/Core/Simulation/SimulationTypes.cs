@@ -120,6 +120,9 @@ namespace RuneCode
         internal double Hurt(double damage, double time, double invulnerability)
         { if (time < _invulnerableUntil) return 0; double absorbed = Math.Min(_shield, damage); _shield -= absorbed; double actual = Math.Min(_hp, damage - absorbed); _hp -= actual; _invulnerableUntil = time + invulnerability; return actual; }
 
+        /// <summary>회복량을 최대 체력 범위로 제한하여 플레이어 체력에 적용한다.</summary>
+        internal void Heal(double amount) { _hp = Math.Min(_maxHp, _hp + Math.Max(0, amount)); }
+
         /// <summary>보호막 수치와 만료 시간을 룬 설정에 따라 갱신한다.</summary>
         internal void GiveShield(double amount, double seconds, double time) { _shield = Math.Max(_shield, amount); _shieldUntil = time + seconds; }
 
@@ -250,11 +253,14 @@ namespace RuneCode
     {
         private readonly int _id;
         private readonly SpellAction _action;
+        private readonly SpellStats _stats;
         private readonly string _element;
         private readonly string _castNoiseElement;
         private readonly bool _fromEvent;
         private readonly double _visualSeconds;
         private readonly SimVector _anchor;
+        private readonly SpellEventScope _callEvents;
+        private readonly SpellModifierValues _modifiers;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
         private SimVector _position;
         private SimVector _direction;
@@ -268,13 +274,16 @@ namespace RuneCode
         public string Element => _element;
         public SimVector Position => _position;
         public SimVector Direction => _direction;
-        public double Radius => _action.Stats.Radius;
+        public double Radius => _stats.Radius;
         public double Age => _age;
-        public double Lifetime => _action.Form == "burst" ? _visualSeconds : _action.Stats.Lifetime;
+        public double Lifetime => _action.Form == "burst" ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
+        internal SpellStats Stats => _stats;
         internal bool FromEvent => _fromEvent;
         internal string CastNoiseElement => _castNoiseElement;
+        internal SpellEventScope CallEvents => _callEvents;
+        internal SpellModifierValues Modifiers => _modifiers;
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
@@ -282,9 +291,25 @@ namespace RuneCode
         internal double Angle { get => _angle; set => _angle = value; }
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
 
-        /// <summary>컴파일된 Form, 속성, 위치, 방향 및 앵커 컨텍스트로 스펠 개체를 생성한다.</summary>
-        internal SimulationSpellEntity(int id, SpellAction action, string element, SimVector position, SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement, double visualSeconds)
-        { _id = id; _action = action; _element = element; _castNoiseElement = castNoiseElement; _position = position; _direction = direction; _fromEvent = fromEvent; _visualSeconds = visualSeconds; _anchor = anchor; _angle = angle; }
+        /// <summary>컴파일된 Form 수치와 호출 이벤트 문맥을 가진 독립 마법 개체를 생성한다.</summary>
+        internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
+            SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
+            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers)
+        {
+            _id = id;
+            _action = action;
+            _stats = stats;
+            _element = element;
+            _castNoiseElement = castNoiseElement;
+            _position = position;
+            _direction = direction;
+            _fromEvent = fromEvent;
+            _visualSeconds = visualSeconds;
+            _anchor = anchor;
+            _angle = angle;
+            _callEvents = callEvents;
+            _modifiers = modifiers ?? SpellModifierValues.None;
+        }
 
         /// <summary>스펠 개체의 위치와 진행 방향을 갱신한다.</summary>
         internal void Move(SimVector position, SimVector direction) { _position = position; _direction = direction; }
@@ -297,6 +322,9 @@ namespace RuneCode
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
             state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}"));
+            state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
+            _modifiers.AppendState(state);
+            _callEvents?.AppendState(state);
             var ids = new List<int>(_hitTimes.Keys); ids.Sort();
             foreach (int id in ids) state.Append(FormattableString.Invariant($"|{id}:{_hitTimes[id]:R}"));
         }

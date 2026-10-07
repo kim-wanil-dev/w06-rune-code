@@ -1,27 +1,40 @@
 {
   "_id": "firebolt",
   "_name": "파이어 볼트",
-  "_version": 1,
+  "_version": 2,
   "_nodes": [
     {
       "_id": "core",
       "_runeId": "core.cast",
-      "_x": 70,
+      "_x": 20,
+      "_y": 150,
+      "_params": [
+        {
+          "_key": "trigger",
+          "_number": 0.0,
+          "_text": "attack"
+        }
+      ]
+    },
+    {
+      "_id": "type",
+      "_runeId": "type.sphere",
+      "_x": 200,
+      "_y": 150,
+      "_params": []
+    },
+    {
+      "_id": "attr",
+      "_runeId": "element.fire",
+      "_x": 380,
       "_y": 150,
       "_params": []
     },
     {
       "_id": "form",
-      "_runeId": "form.bolt",
-      "_x": 330,
+      "_runeId": "shape.launch",
+      "_x": 560,
       "_y": 150,
-      "_params": []
-    },
-    {
-      "_id": "mod0",
-      "_runeId": "elem.fire",
-      "_x": 140,
-      "_y": 320,
       "_params": []
     }
   ],
@@ -30,15 +43,25 @@
       "_id": "exec",
       "_fromNode": "core",
       "_fromPort": "exec",
-      "_toNode": "form",
-      "_toPort": "exec"
+      "_toNode": "type",
+      "_toPort": "exec",
+      "_order": 0
     },
     {
-      "_id": "attach0",
-      "_fromNode": "mod0",
-      "_fromPort": "mod",
+      "_id": "chain0",
+      "_fromNode": "type",
+      "_fromPort": "next",
+      "_toNode": "attr",
+      "_toPort": "in",
+      "_order": 0
+    },
+    {
+      "_id": "chain1",
+      "_fromNode": "attr",
+      "_fromPort": "next",
       "_toNode": "form",
-      "_toPort": "mod"
+      "_toPort": "in",
+      "_order": 0
     }
   ]
 }

@@ -165,7 +165,8 @@ namespace RuneCode
                     || rune.Stats == null || rune.Ram < 0 || rune.Energy < 0f || !IsFinite(rune.Energy)
                     || rune.EnergyMult <= 0f || !IsFinite(rune.EnergyMult)
                     || (rune.Category != "core" && rune.Category != "form" && rune.Category != "element"
-                        && rune.Category != "modifier" && rune.Category != "flow" && rune.Category != "action")
+                        && rune.Category != "modifier" && rune.Category != "flow" && rune.Category != "action" && rune.Category != "magic"
+                        && rune.Category != "magicType" && rune.Category != "shape" && rune.Category != "method" && rune.Category != "internal")
                     || (rune.UnlockType != "start" && rune.UnlockType != "bench" && rune.UnlockType != "reward")
                     || rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
                     throw new FormatException("유효하지 않은 룬 정의입니다.");
@@ -176,20 +177,21 @@ namespace RuneCode
                 foreach (PortDefinition port in rune.Ports)
                 {
                     if (port == null || string.IsNullOrEmpty(port.Id) || !portIds.Add(port.Direction + ":" + port.Id)
-                        || (port.Kind != "exec" && port.Kind != "mod")
+                        || (port.Kind != "exec" && port.Kind != "mod" && port.Kind != "chain")
                         || (port.Direction != "in" && port.Direction != "out") || port.Max < 0
-                        || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1)
-                        || (port.Direction == "in" && port.Kind == "mod" && port.Max != 3))
+                        || (port.Kind == "chain" && port.Max != 1)
+                        || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1))
                         throw new FormatException("유효하지 않은 룬 포트: " + rune.Id);
                 }
                 HashSet<string> paramIds = new HashSet<string>();
                 foreach (ParameterDefinition param in rune.Params)
                 {
                     if (param == null || string.IsNullOrEmpty(param.Id) || !paramIds.Add(param.Id)
-                        || (param.Kind != "number" && param.Kind != "enum")
-                        || (param.Kind == "number" && (param.Min > param.Max || param.DefaultNumber < param.Min || param.DefaultNumber > param.Max
+                        || (param.Kind != "number" && param.Kind != "enum" && param.Kind != "text")
+                    || (param.Kind == "number" && (param.Min > param.Max || param.DefaultNumber < param.Min || param.DefaultNumber > param.Max
                             || !IsFinite(param.Min) || !IsFinite(param.Max) || !IsFinite(param.DefaultNumber) || param.Step <= 0f))
-                        || (param.Kind == "enum" && !ContainsOption(param)))
+                        || (param.Kind == "enum" && !ContainsOption(param))
+                        || (param.Kind == "text" && param.DefaultText != null && param.DefaultText.Length > 80))
                         throw new FormatException("유효하지 않은 룬 파라미터: " + rune.Id);
                 }
             }

@@ -2,7 +2,7 @@
   "_runes": [
     {
       "_id": "core.cast",
-      "_name": "시전",
+      "_name": "시작 조건",
       "_category": "core",
       "_ram": 0,
       "_energy": 0,
@@ -18,7 +18,24 @@
           "_max": 0
         }
       ],
-      "_params": [],
+      "_params": [
+        {
+          "_id": "trigger",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "attack",
+          "_options": [
+            "attack",
+            "move",
+            "dashInput",
+            "dashComplete",
+            "hit"
+          ]
+        }
+      ],
       "_stats": {
         "_damage": 0,
         "_speed": 0,
@@ -49,7 +66,7 @@
     {
       "_id": "form.bolt",
       "_name": "볼트",
-      "_category": "form",
+      "_category": "internal",
       "_ram": 1,
       "_energy": 8,
       "_energyMult": 1,
@@ -69,7 +86,7 @@
           "_id": "mod",
           "_kind": "mod",
           "_direction": "in",
-          "_max": 3
+          "_max": 0
         },
         {
           "_id": "onHit",
@@ -79,6 +96,12 @@
         },
         {
           "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -115,7 +138,7 @@
     {
       "_id": "form.burst",
       "_name": "버스트",
-      "_category": "form",
+      "_category": "internal",
       "_ram": 1,
       "_energy": 10,
       "_energyMult": 1,
@@ -135,7 +158,7 @@
           "_id": "mod",
           "_kind": "mod",
           "_direction": "in",
-          "_max": 3
+          "_max": 0
         },
         {
           "_id": "onHit",
@@ -145,6 +168,12 @@
         },
         {
           "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -181,12 +210,12 @@
     {
       "_id": "form.orbit",
       "_name": "오비트",
-      "_category": "form",
+      "_category": "internal",
       "_ram": 2,
       "_energy": 14,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 45,
+      "_unlockType": "start",
+      "_unlockCost": 0,
       "_tags": [
         "orbit"
       ],
@@ -201,7 +230,7 @@
           "_id": "mod",
           "_kind": "mod",
           "_direction": "in",
-          "_max": 3
+          "_max": 0
         },
         {
           "_id": "onHit",
@@ -211,6 +240,12 @@
         },
         {
           "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -247,12 +282,12 @@
     {
       "_id": "form.zone",
       "_name": "존",
-      "_category": "form",
+      "_category": "internal",
       "_ram": 2,
       "_energy": 16,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 35,
+      "_unlockType": "start",
+      "_unlockCost": 0,
       "_tags": [
         "zone"
       ],
@@ -267,7 +302,7 @@
           "_id": "mod",
           "_kind": "mod",
           "_direction": "in",
-          "_max": 3
+          "_max": 0
         },
         {
           "_id": "onHit",
@@ -277,6 +312,12 @@
         },
         {
           "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -313,7 +354,7 @@
     {
       "_id": "elem.fire",
       "_name": "화염",
-      "_category": "element",
+      "_category": "internal",
       "_ram": 1,
       "_energy": 2,
       "_energyMult": 1,
@@ -361,12 +402,12 @@
     {
       "_id": "elem.ice",
       "_name": "냉기",
-      "_category": "element",
+      "_category": "internal",
       "_ram": 1,
       "_energy": 2,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 25,
+      "_unlockType": "start",
+      "_unlockCost": 0,
       "_tags": [
         "ice"
       ],
@@ -409,12 +450,12 @@
     {
       "_id": "elem.arc",
       "_name": "전격",
-      "_category": "element",
+      "_category": "internal",
       "_ram": 1,
       "_energy": 2,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 40,
+      "_unlockType": "start",
+      "_unlockCost": 0,
       "_tags": [
         "arc"
       ],
@@ -456,7 +497,7 @@
     },
     {
       "_id": "mod.amplify",
-      "_name": "증폭",
+      "_name": "효과 증폭",
       "_category": "modifier",
       "_ram": 1,
       "_energy": 0,
@@ -696,63 +737,6 @@
       }
     },
     {
-      "_id": "mod.range",
-      "_name": "사거리",
-      "_category": "modifier",
-      "_ram": 1,
-      "_energy": 0,
-      "_energyMult": 1.15,
-      "_unlockType": "bench",
-      "_unlockCost": 20,
-      "_tags": [],
-      "_ports": [
-        {
-          "_id": "mod",
-          "_kind": "mod",
-          "_direction": "out",
-          "_max": 0
-        }
-      ],
-      "_params": [
-        {
-          "_id": "rangeScale",
-          "_kind": "number",
-          "_min": 0.5,
-          "_max": 3,
-          "_step": 0.1,
-          "_defaultNumber": 1.5,
-          "_defaultText": "",
-          "_options": []
-        }
-      ],
-      "_stats": {
-        "_damage": 0,
-        "_speed": 0,
-        "_radius": 0,
-        "_lifetime": 0,
-        "_offset": 0,
-        "_count": 0,
-        "_orbitCount": 0,
-        "_orbitRadius": 0,
-        "_angularSpeed": 0,
-        "_hitInterval": 0,
-        "_tickInterval": 0,
-        "_pierce": 0,
-        "_pierceLoss": 0,
-        "_homingTurn": 0,
-        "_homingRange": 0,
-        "_arcRange": 0,
-        "_arcTargets": 0,
-        "_arcMultiplier": 0,
-        "_spreadAngle": 0,
-        "_shieldAmount": 0,
-        "_shieldSeconds": 0,
-        "_damageMultiplier": 1,
-        "_radiusMultiplier": 1,
-        "_learningMultiplier": 1
-      }
-    },
-    {
       "_id": "mod.speed",
       "_name": "속도",
       "_category": "modifier",
@@ -807,52 +791,6 @@
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
-      }
-    },
-    {
-      "_id": "mod.noise",
-      "_name": "노이즈",
-      "_category": "modifier",
-      "_ram": 1,
-      "_energy": 0,
-      "_energyMult": 1,
-      "_unlockType": "reward",
-      "_unlockCost": 0,
-      "_tags": [],
-      "_ports": [
-        {
-          "_id": "mod",
-          "_kind": "mod",
-          "_direction": "out",
-          "_max": 0
-        }
-      ],
-      "_params": [],
-      "_stats": {
-        "_damage": 0,
-        "_speed": 0,
-        "_radius": 0,
-        "_lifetime": 0,
-        "_offset": 0,
-        "_count": 0,
-        "_orbitCount": 0,
-        "_orbitRadius": 0,
-        "_angularSpeed": 0,
-        "_hitInterval": 0,
-        "_tickInterval": 0,
-        "_pierce": 0,
-        "_pierceLoss": 0,
-        "_homingTurn": 0,
-        "_homingRange": 0,
-        "_arcRange": 0,
-        "_arcTargets": 0,
-        "_arcMultiplier": 0,
-        "_spreadAngle": 0,
-        "_shieldAmount": 0,
-        "_shieldSeconds": 0,
-        "_damageMultiplier": 1,
-        "_radiusMultiplier": 1,
-        "_learningMultiplier": 0.3
       }
     },
     {
@@ -1101,15 +1039,17 @@
       }
     },
     {
-      "_id": "act.blink",
-      "_name": "점멸",
-      "_category": "action",
-      "_ram": 1,
-      "_energy": 6,
+      "_id": "magic.inline",
+      "_name": "직접 마법",
+      "_category": "internal",
+      "_ram": 0,
+      "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 45,
-      "_tags": [],
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "magic"
+      ],
       "_ports": [
         {
           "_id": "exec",
@@ -1118,7 +1058,25 @@
           "_max": 1
         },
         {
-          "_id": "next",
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -1126,12 +1084,68 @@
       ],
       "_params": [
         {
-          "_id": "distance",
+          "_id": "magicType",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "sphere",
+          "_options": [
+            "sphere",
+            "box",
+            "buff"
+          ]
+        },
+        {
+          "_id": "element",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "normal",
+          "_options": [
+            "normal",
+            "fire",
+            "electric",
+            "ice",
+            "heal",
+            "protection"
+          ]
+        },
+        {
+          "_id": "form",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "launch",
+          "_options": [
+            "launch",
+            "explosion",
+            "orbit",
+            "remain"
+          ]
+        },
+        {
+          "_id": "power",
           "_kind": "number",
-          "_min": 140,
-          "_max": 220,
-          "_step": 10,
-          "_defaultNumber": 160,
+          "_min": 1,
+          "_max": 100,
+          "_step": 1,
+          "_defaultNumber": 20,
+          "_defaultText": "",
+          "_options": []
+        },
+        {
+          "_id": "buffDuration",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 30,
+          "_step": 0.5,
+          "_defaultNumber": 5,
           "_defaultText": "",
           "_options": []
         }
@@ -1164,14 +1178,156 @@
       }
     },
     {
-      "_id": "act.shield",
-      "_name": "방벽",
-      "_category": "action",
+      "_id": "spell.call",
+      "_name": "마법 메소드",
+      "_category": "method",
       "_ram": 1,
-      "_energy": 8,
+      "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "bench",
-      "_unlockCost": 45,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "call"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "spellId",
+          "_kind": "text",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "",
+          "_options": []
+        }
+      ],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "mod.duration",
+      "_name": "지속시간",
+      "_category": "modifier",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "duration"
+      ],
+      "_ports": [
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "durationScale",
+          "_kind": "number",
+          "_min": 0.5,
+          "_max": 3,
+          "_step": 0.1,
+          "_defaultNumber": 1.5,
+          "_defaultText": "",
+          "_options": []
+        }
+      ],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "type.sphere",
+      "_name": "구형",
+      "_category": "magicType",
+      "_ram": 0,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
       "_tags": [],
       "_ports": [
         {
@@ -1182,6 +1338,534 @@
         },
         {
           "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "type.box",
+      "_name": "사각",
+      "_category": "magicType",
+      "_ram": 0,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "type.buff",
+      "_name": "버프",
+      "_category": "magicType",
+      "_ram": 0,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.normal",
+      "_name": "일반",
+      "_category": "element",
+      "_ram": 0,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.fire",
+      "_name": "화염",
+      "_category": "element",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.electric",
+      "_name": "전격",
+      "_category": "element",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "bench",
+      "_unlockCost": 40,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.ice",
+      "_name": "얼음",
+      "_category": "element",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "bench",
+      "_unlockCost": 25,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.heal",
+      "_name": "회복",
+      "_category": "element",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [
+        {
+          "_id": "power",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 100,
+          "_step": 1,
+          "_defaultNumber": 20,
+          "_defaultText": "",
+          "_options": []
+        },
+        {
+          "_id": "buffDuration",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 30,
+          "_step": 0.5,
+          "_defaultNumber": 5,
+          "_defaultText": "",
+          "_options": []
+        }
+      ],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "element.protection",
+      "_name": "보호",
+      "_category": "element",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "next",
+          "_kind": "chain",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [
+        {
+          "_id": "power",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 100,
+          "_step": 1,
+          "_defaultNumber": 20,
+          "_defaultText": "",
+          "_options": []
+        },
+        {
+          "_id": "buffDuration",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 30,
+          "_step": 0.5,
+          "_defaultNumber": 5,
+          "_defaultText": "",
+          "_options": []
+        }
+      ],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "shape.launch",
+      "_name": "발사",
+      "_category": "shape",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
           "_kind": "exec",
           "_direction": "out",
           "_max": 0
@@ -1208,8 +1892,218 @@
         "_arcTargets": 0,
         "_arcMultiplier": 0,
         "_spreadAngle": 0,
-        "_shieldAmount": 20,
-        "_shieldSeconds": 3,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "shape.explosion",
+      "_name": "폭발",
+      "_category": "shape",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "shape.orbit",
+      "_name": "공전",
+      "_category": "shape",
+      "_ram": 2,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "shape.remain",
+      "_name": "잔류",
+      "_category": "shape",
+      "_ram": 2,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "bench",
+      "_unlockCost": 35,
+      "_tags": [],
+      "_ports": [
+        {
+          "_id": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_id": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onExpire",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "onComplete",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_damage": 0,
+        "_speed": 0,
+        "_radius": 0,
+        "_lifetime": 0,
+        "_offset": 0,
+        "_count": 0,
+        "_orbitCount": 0,
+        "_orbitRadius": 0,
+        "_angularSpeed": 0,
+        "_hitInterval": 0,
+        "_tickInterval": 0,
+        "_pierce": 0,
+        "_pierceLoss": 0,
+        "_homingTurn": 0,
+        "_homingRange": 0,
+        "_arcRange": 0,
+        "_arcTargets": 0,
+        "_arcMultiplier": 0,
+        "_spreadAngle": 0,
+        "_shieldAmount": 0,
+        "_shieldSeconds": 0,
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1

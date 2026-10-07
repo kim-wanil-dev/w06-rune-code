@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace RuneCode
 {
@@ -17,6 +19,140 @@ namespace RuneCode
             _code = code;
             _nodeId = nodeId;
             _message = detail == null ? GameData.L("issue." + code) : GameData.L("issue." + code) + " " + detail;
+        }
+    }
+
+    public sealed class SpellModifierValues
+    {
+        private static readonly SpellModifierValues _none = new SpellModifierValues(1f, 1f, 1f, 1f, 1f, 0, 0f, 0f, 0f);
+        private readonly float _damageMultiplier;
+        private readonly float _radiusMultiplier;
+        private readonly float _speedMultiplier;
+        private readonly float _durationMultiplier;
+        private readonly float _rangeMultiplier;
+        private readonly int _pierce;
+        private readonly float _homingTurn;
+        private readonly float _homingRange;
+        private readonly float _spreadAngle;
+        public static SpellModifierValues None => _none;
+        public float DamageMultiplier => _damageMultiplier;
+        public float RadiusMultiplier => _radiusMultiplier;
+        public float SpeedMultiplier => _speedMultiplier;
+        public float DurationMultiplier => _durationMultiplier;
+        public float RangeMultiplier => _rangeMultiplier;
+        public int Pierce => _pierce;
+        public float HomingTurn => _homingTurn;
+        public float HomingRange => _homingRange;
+        public float SpreadAngle => _spreadAngle;
+
+        /// <summary>시전 시 적용할 수식 배율과 관통·유도 값을 보관한다.</summary>
+        public SpellModifierValues(float damageMultiplier, float radiusMultiplier, float speedMultiplier,
+            float durationMultiplier, float rangeMultiplier, int pierce, float homingTurn, float homingRange, float spreadAngle)
+        {
+            _damageMultiplier = damageMultiplier;
+            _radiusMultiplier = radiusMultiplier;
+            _speedMultiplier = speedMultiplier;
+            _durationMultiplier = durationMultiplier;
+            _rangeMultiplier = rangeMultiplier;
+            _pierce = pierce;
+            _homingTurn = homingTurn;
+            _homingRange = homingRange;
+            _spreadAngle = spreadAngle;
+        }
+
+        /// <summary>수식 컨텍스트의 수치 값을 결정성 상태 해시에 기록한다.</summary>
+        internal void AppendState(StringBuilder state)
+        {
+            state.Append(_damageMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_radiusMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_speedMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_durationMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_rangeMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_pierce).Append('|').Append(_homingTurn.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_homingRange.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
+                .Append(_spreadAngle.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>중첩 SpellCall의 수식 효과를 곱셈·가산 규칙에 따라 결합한다.</summary>
+        public SpellModifierValues Combine(SpellModifierValues other)
+        {
+            return new SpellModifierValues(_damageMultiplier * other._damageMultiplier,
+                _radiusMultiplier * other._radiusMultiplier, _speedMultiplier * other._speedMultiplier,
+                _durationMultiplier * other._durationMultiplier, _rangeMultiplier * other._rangeMultiplier,
+                _pierce + other._pierce, Math.Max(_homingTurn, other._homingTurn), Math.Max(_homingRange, other._homingRange),
+                Math.Max(_spreadAngle, other._spreadAngle));
+        }
+
+        /// <summary>연결된 수식 룬과 노드별 숫자 파라미터로 호출부 수식 효과를 계산한다.</summary>
+        public static SpellModifierValues From(IReadOnlyList<RuneDefinition> modifiers, IReadOnlyList<GraphNode> modifierNodes)
+        {
+            float damage = 1f;
+            float radius = 1f;
+            float speed = 1f;
+            float duration = 1f;
+            float range = 1f;
+            int pierce = 0;
+            float homingTurn = 0f;
+            float homingRange = 0f;
+            float spreadAngle = 0f;
+            for (int index = 0; index < modifiers.Count; index++)
+            {
+                RuneDefinition modifier = modifiers[index];
+                GraphNode node = modifierNodes == null ? null : modifierNodes[index];
+                damage *= modifier.Stats.DamageMultiplier;
+                if (modifier.Id == "mod.expand") radius *= ReadNumber(modifier, node, "sizeScale", modifier.Stats.RadiusMultiplier);
+                else radius *= modifier.Stats.RadiusMultiplier;
+                if (modifier.Id == "mod.speed") speed *= ReadNumber(modifier, node, "speedScale", 1f);
+                if (modifier.Id == "mod.duration") duration *= ReadNumber(modifier, node, "durationScale", 1f);
+                if (modifier.Id == "mod.range") range *= ReadNumber(modifier, node, "rangeScale", 1f);
+                pierce += modifier.Stats.Pierce;
+                homingTurn = Math.Max(homingTurn, modifier.Stats.HomingTurn);
+                homingRange = Math.Max(homingRange, modifier.Stats.HomingRange);
+                spreadAngle = Math.Max(spreadAngle, modifier.Stats.SpreadAngle);
+            }
+            return new SpellModifierValues(damage, radius, speed, duration, range, pierce, homingTurn, homingRange, spreadAngle);
+        }
+
+        /// <summary>수식 룬의 사용자 값 또는 정의 기본값을 반환한다.</summary>
+        private static float ReadNumber(RuneDefinition rune, GraphNode node, string parameter, float fallback)
+        {
+            foreach (ParameterDefinition definition in rune.Params)
+                if (definition.Id == parameter) return node == null ? definition.DefaultNumber : node.GetNumber(parameter, definition.DefaultNumber);
+            return fallback;
+        }
+    }
+
+    public sealed class SpellEventScope
+    {
+        private readonly IReadOnlyList<SpellAction> _onHit;
+        private readonly IReadOnlyList<SpellAction> _onExpire;
+        private readonly SpellEventScope _parent;
+        private readonly SpellModifierValues _parentModifiers;
+        public IReadOnlyList<SpellAction> OnHit => _onHit;
+        public IReadOnlyList<SpellAction> OnExpire => _onExpire;
+        public SpellEventScope Parent => _parent;
+        public SpellModifierValues ParentModifiers => _parentModifiers;
+
+        /// <summary>호출 노드 이벤트 분기와 외부 호출 문맥을 불변 범위로 묶는다.</summary>
+        public SpellEventScope(IReadOnlyList<SpellAction> onHit, IReadOnlyList<SpellAction> onExpire,
+            SpellEventScope parent, SpellModifierValues parentModifiers)
+        {
+            _onHit = onHit;
+            _onExpire = onExpire;
+            _parent = parent;
+            _parentModifiers = parentModifiers ?? SpellModifierValues.None;
+        }
+
+        /// <summary>호출 범위 체인의 이벤트 노드 ID를 상태 해시 버퍼에 기록한다.</summary>
+        internal void AppendState(StringBuilder state)
+        {
+            for (SpellEventScope scope = this; scope != null; scope = scope.Parent)
+            {
+                foreach (SpellAction action in scope.OnHit) state.Append("|h:").Append(action.NodeId);
+                foreach (SpellAction action in scope.OnExpire) state.Append("|x:").Append(action.NodeId);
+                state.Append('|');
+                scope.ParentModifiers.AppendState(state);
+            }
         }
     }
 
@@ -66,6 +202,7 @@ namespace RuneCode
             float radiusMult = 1f;
             float rangeMult = 1f;
             float speedMult = 1f;
+            float durationMult = 1f;
             _learningMultiplier = 1f;
             for (int index = 0; index < mods.Count; index++)
             {
@@ -75,6 +212,7 @@ namespace RuneCode
                 radiusMult *= mod.Id == "mod.expand" ? ReadModifierNumber(mod, modifierNode, "sizeScale") : mod.Stats.RadiusMultiplier;
                 if (mod.Id == "mod.range") rangeMult *= ReadModifierNumber(mod, modifierNode, "rangeScale");
                 if (mod.Id == "mod.speed") speedMult *= ReadModifierNumber(mod, modifierNode, "speedScale");
+                if (mod.Id == "mod.duration") durationMult *= ReadModifierNumber(mod, modifierNode, "durationScale");
                 if (formKind == "bolt")
                 {
                     _pierce += mod.Stats.Pierce;
@@ -88,7 +226,7 @@ namespace RuneCode
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
             _radius = form.Radius * radiusMult;
-            _lifetime = formKind == "bolt" ? form.Lifetime * rangeMult / speedMult : form.Lifetime;
+            _lifetime = (formKind == "bolt" ? form.Lifetime * rangeMult / speedMult : form.Lifetime) * durationMult;
             _offset = form.Offset * rangeMult;
             _orbitRadius = form.OrbitRadius * radiusMult * rangeMult;
             _angularSpeed = form.AngularSpeed * speedMult;
@@ -100,6 +238,32 @@ namespace RuneCode
                 _arcTargets = element.ArcTargets;
                 _arcMultiplier = element.ArcMultiplier;
             }
+        }
+
+        /// <summary>SpellCall의 상속 수식을 기본 효과 수치에 적용한 새 읽기 전용 통계를 반환한다.</summary>
+        public SpellStats Apply(SpellModifierValues modifiers) => new SpellStats(this, modifiers);
+
+        /// <summary>기존 효과 수치에 호출부의 배율과 관통·유도 값을 적용한다.</summary>
+        private SpellStats(SpellStats source, SpellModifierValues modifiers)
+        {
+            _damage = source._damage * modifiers.DamageMultiplier;
+            _speed = source._speed * modifiers.SpeedMultiplier;
+            _radius = source._radius * modifiers.RadiusMultiplier;
+            _lifetime = source._lifetime * modifiers.DurationMultiplier * modifiers.RangeMultiplier;
+            _offset = source._offset * modifiers.RangeMultiplier;
+            _orbitRadius = source._orbitRadius * modifiers.RadiusMultiplier * modifiers.RangeMultiplier;
+            _angularSpeed = source._angularSpeed * modifiers.SpeedMultiplier;
+            _hitInterval = source._hitInterval;
+            _tickInterval = source._tickInterval;
+            _pierce = source._pierce + modifiers.Pierce;
+            _pierceLoss = source._pierceLoss;
+            _homingTurn = Math.Max(source._homingTurn, modifiers.HomingTurn);
+            _homingRange = Math.Max(source._homingRange, modifiers.HomingRange);
+            _arcRange = source._arcRange;
+            _arcTargets = source._arcTargets;
+            _arcMultiplier = source._arcMultiplier;
+            _learningMultiplier = source._learningMultiplier;
+            _spreadAngle = source._spreadAngle;
         }
 
         /// <summary>수식 노드에 저장한 숫자 배율을 반환하며 이전 설계에는 해당 파라미터의 데이터 기본값을 사용한다.</summary>
@@ -142,8 +306,11 @@ namespace RuneCode
     {
         private readonly string _kind;
         private readonly string _nodeId;
+        private readonly string _magicType;
         private readonly string _form;
         private readonly string _element;
+        private readonly string _sourceElement;
+        private readonly string _calledSpellId;
         private readonly bool _isNoise;
         private readonly int _count;
         private readonly SpellStats _stats;
@@ -155,10 +322,15 @@ namespace RuneCode
         private readonly float _distance;
         private readonly float _shieldAmount;
         private readonly float _shieldSeconds;
+        private readonly float _power;
+        private readonly float _buffDuration;
         private readonly float _ownEnergy;
+        private readonly SpellModifierValues _modifierValues;
+        private readonly CompiledSpell _calledSpell;
 
         private IReadOnlyList<SpellAction> _onHit = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _onExpire = new List<SpellAction>();
+        private IReadOnlyList<SpellAction> _onComplete = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _then = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _else = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _body = new List<SpellAction>();
@@ -166,8 +338,11 @@ namespace RuneCode
         private IReadOnlyList<string> _attachedNodeIds = new List<string>();
         public string Kind => _kind;
         public string NodeId => _nodeId;
+        public string MagicType => _magicType;
         public string Form => _form;
         public string Element => _element;
+        public string SourceElement => _sourceElement;
+        public string CalledSpellId => _calledSpellId;
         public bool Noise => _isNoise;
         public int Count => _count;
         public SpellStats Stats => _stats;
@@ -179,42 +354,95 @@ namespace RuneCode
         public float Distance => _distance;
         public float ShieldAmount => _shieldAmount;
         public float ShieldSeconds => _shieldSeconds;
+        public float Power => _power;
+        public float BuffDuration => _buffDuration;
         public float OwnEnergy => _ownEnergy;
+        public SpellModifierValues ModifierValues => _modifierValues;
+        public CompiledSpell CalledSpell => _calledSpell;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
         public IReadOnlyList<SpellAction> OnExpire => _onExpire;
+        public IReadOnlyList<SpellAction> OnComplete => _onComplete;
         public IReadOnlyList<SpellAction> Then => _then;
         public IReadOnlyList<SpellAction> Else => _else;
         public IReadOnlyList<SpellAction> Body => _body;
         public IReadOnlyList<SpellAction> Next => _next;
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
-        /// <summary>형태 또는 흐름 노드 정의와 연결 수식으로 실행 명령을 초기화한다.</summary>
-        public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition element, IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null)
+        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상 및 연결 수식으로 실행 명령을 초기화한다.</summary>
+        public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
+            IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null)
         {
             _nodeId = node.Id;
-            _kind = rune.Category == "form" ? "spawn" : rune.Id.Substring(rune.Id.IndexOf('.') + 1);
-            _form = rune.Category == "form" ? rune.Id.Substring(5) : "";
-            _element = element == null ? "raw" : element.Id.Substring(5);
-            _count = rune.Category == "form" ? rune.Stats.Count : 0;
-            _ownEnergy = rune.Energy;
+            _magicType = rune.Id == "magic.inline" ? node.GetText("magicType", "sphere") : rune.Category == "form" ? "sphere" : "";
+            _form = rune.Id == "magic.inline" ? MapForm(node.GetText("form", "launch")) : rune.Category == "form" ? rune.Id.Substring(5) : "";
+            _sourceElement = rune.Id == "magic.inline" ? node.GetText("element", "normal") : element == null ? "normal" : SourceElementFromRune(element.Id);
+            _element = rune.Id == "magic.inline" ? RuntimeElement(_sourceElement) : element == null ? "raw" : element.Id.Substring(5);
+            _calledSpellId = rune.Id == "spell.call" ? node.GetText("spellId").Trim() : "";
+            _calledSpell = calledSpell;
+            _kind = rune.Id == "spell.call" ? "call" : rune.Id == "magic.inline"
+                ? _magicType == "buff" ? "buff" : "spawn" : rune.Category == "form" ? "spawn" : rune.Id.Substring(rune.Id.IndexOf('.') + 1);
+            _count = rune.Category == "form" ? rune.Stats.Count : rune.Id == "magic.inline" ? effectForm.Stats.Count : rune.Id == "spell.call" ? 1 : 0;
+            float energyMultiplier = 1f;
             List<string> ids = new List<string>();
             foreach (RuneDefinition mod in mods)
             {
                 ids.Add(mod.Id);
-                _ownEnergy *= mod.EnergyMult;
+                energyMultiplier *= mod.EnergyMult;
                 if (mod.Id == "mod.multi") _count = _form == "orbit" ? mod.Stats.OrbitCount : mod.Stats.Count;
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;
+            _ownEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)
+                + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count : 0f)) * energyMultiplier;
             if (element != null) _ownEnergy += element.Energy;
-            if (_kind == "spawn") _stats = new SpellStats(rune.Stats, element?.Stats, mods, _form, modifierNodes);
+            _modifierValues = SpellModifierValues.From(mods, modifierNodes);
+            if (_kind == "spawn" || _kind == "buff") _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes);
             _seconds = node.GetNumber("seconds", DefaultNumber(rune, "seconds"));
             _times = (int)node.GetNumber("times", DefaultNumber(rune, "times"));
             _interval = node.GetNumber("interval", DefaultNumber(rune, "interval"));
             _distance = node.GetNumber("distance", DefaultNumber(rune, "distance"));
+            _power = node.GetNumber("power", DefaultNumber(rune, "power"));
+            _buffDuration = node.GetNumber("buffDuration", DefaultNumber(rune, "buffDuration"));
             _shieldAmount = rune.Stats.ShieldAmount;
             _shieldSeconds = rune.Stats.ShieldSeconds;
             if (_kind == "if") _condition = new SpellCondition(node, rune);
+        }
+
+        /// <summary>마법 문법의 Form 이름을 기존 런타임 Form ID에 연결한다.</summary>
+        private static string MapForm(string form)
+        {
+            switch (form)
+            {
+                case "launch": return "bolt";
+                case "explosion": return "burst";
+                case "orbit": return "orbit";
+                case "remain": return "zone";
+                default: return "";
+            }
+        }
+
+        /// <summary>마법 문법의 원소를 기존 시뮬레이션 원소 이름으로 연결한다.</summary>
+        private static string RuntimeElement(string element)
+        {
+            switch (element)
+            {
+                case "fire": return "fire";
+                case "electric": return "arc";
+                case "ice": return "ice";
+                default: return "raw";
+            }
+        }
+
+        /// <summary>기존 원소 룬 ID를 마법 문법의 원소 이름으로 반환한다.</summary>
+        private static string SourceElementFromRune(string runeId)
+        {
+            switch (runeId)
+            {
+                case "elem.fire": return "fire";
+                case "elem.arc": return "electric";
+                case "elem.ice": return "ice";
+                default: return "normal";
+            }
         }
 
         /// <summary>룬 파라미터 목록에서 숫자 기본값을 찾고 없으면 0을 반환한다.</summary>
@@ -232,6 +460,7 @@ namespace RuneCode
             {
                 case "onHit": _onHit = actions; break;
                 case "onExpire": _onExpire = actions; break;
+                case "onComplete": _onComplete = actions; break;
                 case "then": _then = actions; break;
                 case "else": _else = actions; break;
                 case "body": _body = actions; break;
@@ -245,18 +474,22 @@ namespace RuneCode
 
     public sealed class CompiledSpell
     {
+        private readonly string _id;
         private readonly string _name;
         private readonly string _signature;
         private readonly string _coreNodeId;
+        private readonly string _trigger;
         private readonly int _ramUsed;
         private readonly float _energyCost;
         private readonly float _cooldown;
         private readonly int _worstCaseEntities;
         private readonly IReadOnlyList<string> _tags;
         private readonly IReadOnlyList<SpellAction> _root;
+        public string Id => _id;
         public string Name => _name;
         public string Signature => _signature;
         public string CoreNodeId => _coreNodeId;
+        public string Trigger => _trigger;
         public int RamUsed => _ramUsed;
         public float EnergyCost => _energyCost;
         public float Cooldown => _cooldown;
@@ -266,11 +499,14 @@ namespace RuneCode
 
         /// <summary>검증된 그래프의 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
         public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, float energyCost,
-            float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root)
+            float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
+            string id = "", string trigger = "attack")
         {
+            _id = id;
             _name = name;
             _signature = signature;
             _coreNodeId = coreNodeId;
+            _trigger = trigger;
             _ramUsed = ramUsed;
             _energyCost = energyCost;
             _cooldown = cooldown;

@@ -52,7 +52,9 @@ namespace RuneCode
             {
                 ShareCodec.Deserialize(ReadResource("spells/firebolt")),
                 ShareCodec.Deserialize(ReadResource("spells/shockwave")),
-                ShareCodec.Deserialize(ReadResource("spells/triplefire"))
+                ShareCodec.Deserialize(ReadResource("spells/triplefire")),
+                ShareCodec.Deserialize(ReadResource("spells/magicmissile")),
+                ShareCodec.Deserialize(ReadResource("spells/barrier"))
             };
             foreach (SpellGraph graph in spells)
             {
@@ -62,6 +64,14 @@ namespace RuneCode
             _balance = balance;
             _spells = spells;
             _runes = runes;
+        }
+
+        /// <summary>시작 마법 템플릿 중 ID가 일치하는 그래프를 반환하며 없으면 null을 반환한다.</summary>
+        public static SpellGraph FindSpell(string id)
+        {
+            foreach (SpellGraph graph in _spells)
+                if (graph.Id == id) return graph;
+            return null;
         }
 
         /// <summary>현지화 키의 한국어 문구를 반환하고 누락된 키는 그대로 표시한다.</summary>

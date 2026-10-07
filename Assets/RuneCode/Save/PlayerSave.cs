@@ -9,6 +9,8 @@ namespace RuneCode
     [Serializable]
     public sealed class PlayerSave
     {
+        private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
+
         [Header("저장 버전")]
         [SerializeField] private int _version = 2;
 
@@ -52,18 +54,48 @@ namespace RuneCode
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
 
-        /// <summary>시작 룬과 계속 강화할 파이어 볼트 하나를 가진 새 진행 데이터를 반환한다.</summary>
+        /// <summary>시작 룬, 계속 강화할 파이어 볼트와 기본 마법 메소드(매직 미사일·방어막)를 가진 새 진행 데이터를 반환한다.</summary>
         public static PlayerSave CreateNew()
         {
             var save = new PlayerSave();
             foreach (var rune in GameData.Runes.All)
-                if (rune.UnlockType == "start") save._unlockedRunes.Add(rune.Id);
+                if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL) save._unlockedRunes.Add(rune.Id);
             save._library.Add(GameData.Spells[0].Clone());
             save._activeSpellId = save._library[0].Id;
             save._loadout.Add(save._library[0].Id);
             save._loadout.Add(null);
             save._loadout.Add(null);
+            save.AddDefaultMethods();
             return save;
+        }
+
+        /// <summary>
+        /// 이전 룬으로 만든 보관함 그래프를 문법 블록으로 변환하고, 해금 룬 ID를 새 블록으로 바꾸며
+        /// 카탈로그에 없는 ID를 정리한다. 기본 마법 메소드가 없으면 보관함 한도 안에서 추가한다. 여러 번 호출해도 결과가 같다.
+        /// </summary>
+        public void MigrateSpellGrammar()
+        {
+            if (_library == null || _unlockedRunes == null) return;
+            foreach (var graph in _library) SpellGraphMigration.Migrate(graph);
+            var unlocked = new List<string>();
+            foreach (var runeId in _unlockedRunes)
+                foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
+                    if (GameData.Runes.TryGet(mapped, out var rune) && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(mapped)) unlocked.Add(mapped);
+            foreach (var rune in GameData.Runes.All)
+                if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(rune.Id)) unlocked.Add(rune.Id);
+            _unlockedRunes = unlocked;
+            AddDefaultMethods();
+        }
+
+        /// <summary>기본 마법 메소드 템플릿 중 보관함에 없는 것을 한도 안에서 추가한다.</summary>
+        private void AddDefaultMethods()
+        {
+            foreach (var id in DEFAULT_METHOD_IDS)
+            {
+                if (FindGraph(id) != null || _library.Count >= GameData.Balance.Economy.MaxLibrary) continue;
+                var template = GameData.FindSpell(id);
+                if (template != null) _library.Add(template.Clone());
+            }
         }
 
         /// <summary>저장된 값과 룬·마법 참조를 검사하고 유효하지 않은 저장이면 원인을 반환한다.</summary>
@@ -165,6 +197,15 @@ namespace RuneCode
             return _library.FirstOrDefault(graph => graph.Id == id);
         }
 
+        /// <summary>라이브러리에 존재하는 Spell ID를 활성 편집·첫 슬롯 참조로 설정한다.</summary>
+        public bool SetActiveGraph(string id)
+        {
+            if (FindGraph(id) == null) return false;
+            _activeSpellId = id;
+            _loadout[0] = id;
+            return true;
+        }
+
         /// <summary>마법을 복사하여 보관함에 추가하거나 같은 ID의 저장본을 갱신한다.</summary>
         public bool StoreGraph(SpellGraph graph)
         {
@@ -202,15 +243,11 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>양수 RAM 보상을 누적하고 시간제 전투 완주 시 노이즈 룬을 해금한다.</summary>
+        /// <summary>양수 RAM 보상을 누적하고 시간제 전투 완주 기록을 남긴다.</summary>
         public void Settle(int fragments, bool cleared)
         {
             _currency = (int)Math.Min(100000000L, _currency + (long)Math.Max(0, fragments));
-            if (cleared)
-            {
-                _sectorCleared = true;
-                Unlock("mod.noise");
-            }
+            if (cleared) _sectorCleared = true;
         }
 
         /// <summary>처치한 적 ID별 기록에 전달된 횟수를 더한다.</summary>

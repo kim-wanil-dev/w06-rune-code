@@ -1,61 +1,51 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 using TMPro;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 
+using UnityEngine.InputSystem.UI;
+
 namespace RuneCode
 {
     public static class RuneCodeBuild
     {
-        private const string SCENE_PATH = "Assets/Scenes/RuneCodePoC.unity";
+        private const string BOOT_SCENE_PATH = "Assets/Scenes/Boot.unity";
         private const string FONT_PATH = "Assets/RuneCode/Resources/RuneCode/UIFont.asset";
         private const string BUILD_PATH = "Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe";
+        private const string SAMPLE_SCENE_PATH = "Assets/Scenes/SampleScene.unity";
 
-        /// <summary>기존 장면을 보존하여 PoC 전용 카메라와 앱이 연결된 장면 및 한글 글꼴을 생성한다.</summary>
-        [MenuItem("Rune Code/Prepare PoC Scene")]
-        public static void PrepareScene()
+        private static readonly string[] FEATURE_SCENE_PATHS = { "Assets/Scenes/Title.unity", "Assets/Scenes/Workshop.unity", "Assets/Scenes/Mission.unity" };
+
+        /// <summary>글꼴과 Boot 씬을 준비하고 3개 기능 씬을 베이크한 뒤 빌드 설정 씬 목록을 갱신하고 Boot 씬을 연다.</summary>
+        [MenuItem("Rune Code/Build Scenes")]
+        public static void BuildScenes()
         {
-            if (AssetDatabase.LoadAssetAtPath<TMP_Settings>("Assets/TextMesh Pro/Resources/TMP Settings.asset") == null)
-            {
-                TMP_PackageResourceImporter.ImportResources(true, false, false);
-                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            }
+            EnsureTmpResources();
             GameData.Load();
-            var font = PrepareFont();
-            var existing = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(SCENE_PATH);
-            if (existing.IsValid() && existing.isLoaded)
-            {
-                if (existing.isDirty) throw new InvalidOperationException("PoC 장면에 저장되지 않은 변경이 있습니다.");
-                UnityEngine.SceneManagement.SceneManager.SetActiveScene(existing);
-                return;
-            }
-            if (File.Exists(SCENE_PATH))
-            {
-                var loaded = EditorSceneManager.OpenScene(SCENE_PATH, OpenSceneMode.Additive);
-                UnityEngine.SceneManagement.SceneManager.SetActiveScene(loaded);
-                return;
-            }
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
-            UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
-            var cameraObject = new GameObject("RuneCode Camera", typeof(Camera));
-            cameraObject.tag = "MainCamera";
-            var camera = cameraObject.GetComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.025f, 0.035f, 0.06f);
-            camera.orthographic = true;
-            camera.transform.position = new Vector3(0, 0, -10);
-            var applicationObject = new GameObject("RuneCode PoC", typeof(RuneCodeApp));
-            var serialized = new SerializedObject(applicationObject.GetComponent<RuneCodeApp>());
-            serialized.FindProperty("_font").objectReferenceValue = font;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-            EditorSceneManager.SaveScene(scene, SCENE_PATH);
-            AssetDatabase.SaveAssets();
+            PrepareFont();
+            PrepareBootScene();
+            TitleLayout.BuildScene();
+            WorkshopLayout.BuildScene();
+            MissionLayout.BuildScene();
+            UpdateBuildSceneList();
+            EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
+        }
+
+        /// <summary>TMP 필수 리소스가 없으면 패키지 기본 리소스를 가져온다.</summary>
+        private static void EnsureTmpResources()
+        {
+            if (AssetDatabase.LoadAssetAtPath<TMP_Settings>("Assets/TextMesh Pro/Resources/TMP Settings.asset") != null) return;
+            TMP_PackageResourceImporter.ImportResources(true, false, false);
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
         }
 
         /// <summary>Windows 시스템 한글 글꼴로 UI 문구를 미리 렌더한 TMP 자산을 생성한다.</summary>
@@ -90,15 +80,76 @@ namespace RuneCode
             return font;
         }
 
-        /// <summary>PoC 전용 장면을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
+        /// <summary>Boot 씬을 열어 앱 오브젝트·카메라·EventSystem(InputSystemUIInputModule)을 확인하고 없는 것만 만들어 저장한다.</summary>
+        private static void PrepareBootScene()
+        {
+            Scene scene = SceneManager.GetSceneByPath(BOOT_SCENE_PATH);
+            if (!scene.IsValid() || !scene.isLoaded) scene = EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Additive);
+            if (!scene.IsValid()) throw new InvalidOperationException("Boot 씬을 열 수 없습니다: " + BOOT_SCENE_PATH);
+            SceneManager.SetActiveScene(scene);
+
+            RuneCodeApp app = SceneComponent<RuneCodeApp>(scene);
+            if (app == null)
+            {
+                GameObject appObject = new GameObject("RuneCodeApp");
+                appObject.AddComponent<RuneCodeApp>();
+            }
+            else if (app.gameObject.name != "RuneCodeApp")
+            {
+                app.gameObject.name = "RuneCodeApp";
+            }
+
+            if (SceneComponent<Camera>(scene) == null)
+            {
+                var cameraObject = new GameObject("RuneCode Camera", typeof(Camera));
+                cameraObject.tag = "MainCamera";
+                Camera camera = cameraObject.GetComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.025f, 0.035f, 0.06f);
+                camera.orthographic = true;
+                camera.transform.position = new Vector3(0, 0, -10);
+            }
+
+            EventSystem eventSystem = SceneComponent<EventSystem>(scene);
+            if (eventSystem == null) new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            else if (eventSystem.GetComponent<InputSystemUIInputModule>() == null && eventSystem.GetComponent<StandaloneInputModule>() == null)
+                eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+
+            EditorSceneManager.SaveScene(scene, BOOT_SCENE_PATH);
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>씬 안에서 지정 컴포넌트를 비활성 오브젝트까지 포함해 찾는다.</summary>
+        private static T SceneComponent<T>(Scene scene) where T : Component
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                T component = root.GetComponentInChildren<T>(true);
+                if (component != null) return component;
+            }
+            return null;
+        }
+
+        /// <summary>빌드 설정 씬 목록을 Boot·Title·Workshop·Mission(전부 enabled)과 기존처럼 disabled인 SampleScene 순으로 쓴다.</summary>
+        private static void UpdateBuildSceneList()
+        {
+            var paths = new List<string> { BOOT_SCENE_PATH };
+            paths.AddRange(FEATURE_SCENE_PATHS);
+            var scenes = paths.Select(path => new EditorBuildSettingsScene(path, true)).ToList();
+            if (EditorBuildSettings.scenes.Any(scene => scene.path == SAMPLE_SCENE_PATH))
+                scenes.Add(new EditorBuildSettingsScene(SAMPLE_SCENE_PATH, false));
+            EditorBuildSettings.scenes = scenes.ToArray();
+        }
+
+        /// <summary>모든 씬을 다시 베이크한 뒤 4개 씬을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
         [MenuItem("Rune Code/Build Windows PoC")]
         public static void BuildWindows()
         {
-            PrepareScene();
+            BuildScenes();
             Directory.CreateDirectory(Path.GetDirectoryName(BUILD_PATH));
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { SCENE_PATH },
+                scenes = new[] { BOOT_SCENE_PATH }.Concat(FEATURE_SCENE_PATHS).ToArray(),
                 locationPathName = BUILD_PATH,
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.DetailedBuildReport

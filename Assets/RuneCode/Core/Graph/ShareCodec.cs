@@ -11,19 +11,20 @@ namespace RuneCode
         private const int MAX_JSON_LENGTH = 131072;
         private const int MAX_NODE_COUNT = 256;
         private const int MAX_EDGE_COUNT = 1024;
-        private const string PREFIX = "RC1.";
+        private const string PREFIX_V1 = "RC1.";
+        private const string PREFIX_V2 = "RC2.";
 
         /// <summary>마법 그래프를 저장 또는 복제에 사용할 JSON 문자열로 직렬화한다.</summary>
         public static string Serialize(SpellGraph graph, bool pretty = false) => JsonUtility.ToJson(graph, pretty);
 
-        /// <summary>크기·필수 필드·ID·숫자를 검증한 JSON 그래프를 반환한다.</summary>
+        /// <summary>크기·필수 필드·ID·숫자를 검증하고 이전 룬을 문법 블록으로 변환한 JSON 그래프를 반환한다.</summary>
         public static SpellGraph Deserialize(string json)
         {
             string trimmed = json?.TrimStart();
             if (string.IsNullOrEmpty(trimmed) || json.Length > MAX_JSON_LENGTH || trimmed[0] != '{')
                 throw new FormatException(GameData.L("share.invalid"));
             SpellGraph graph = JsonUtility.FromJson<SpellGraph>(json);
-            if (graph == null || graph.Version != 1 || !IsIdentifier(graph.Id) || string.IsNullOrWhiteSpace(graph.Name)
+            if (graph == null || (graph.Version != 1 && graph.Version != 2) || !IsIdentifier(graph.Id) || string.IsNullOrWhiteSpace(graph.Name)
                 || graph.Name.Length > 80 || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count == 0 || graph.Nodes.Count > MAX_NODE_COUNT || graph.Edges.Count > MAX_EDGE_COUNT)
                 throw new FormatException(GameData.L("share.invalid"));
@@ -46,31 +47,34 @@ namespace RuneCode
             {
                 if (edge == null || !IsIdentifier(edge.Id) || !edgeIds.Add(edge.Id)
                     || !nodeIds.Contains(edge.FromNode) || !nodeIds.Contains(edge.ToNode)
-                    || !IsIdentifier(edge.FromPort) || !IsIdentifier(edge.ToPort))
+                    || !IsIdentifier(edge.FromPort) || !IsIdentifier(edge.ToPort) || edge.Order < 0)
                     throw new FormatException(GameData.L("share.invalid"));
             }
+            SpellGraphMigration.Migrate(graph);
             return graph;
         }
 
-        /// <summary>그래프 JSON을 RC1 접두사의 URL 안전 Base64 공유 코드로 인코딩한다.</summary>
+        /// <summary>그래프 JSON을 스키마 버전에 맞는 RC1 또는 RC2 접두사 공유 코드로 인코딩한다.</summary>
         public static string Encode(SpellGraph graph)
         {
             string json = Serialize(graph);
             if (json.Length > MAX_JSON_LENGTH) throw new FormatException(GameData.L("share.tooLarge"));
-            return PREFIX + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            string prefix = graph.Version == 1 ? PREFIX_V1 : PREFIX_V2;
+            return prefix + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         }
 
         /// <summary>공유 코드의 형식·크기·그래프 연결을 검증하고 실패 시 사용자 오류를 반환한다.</summary>
-        public static bool TryDecode(string code, out SpellGraph graph, out string error)
+        public static bool TryDecode(string code, out SpellGraph graph, out string error, IEnumerable<SpellGraph> library = null)
         {
             graph = null;
             error = null;
             try
             {
                 code = code?.Trim();
-                if (code == null || !code.StartsWith(PREFIX, StringComparison.Ordinal) || code.Length > MAX_JSON_LENGTH * 2)
+                string prefix = code != null && code.StartsWith(PREFIX_V2, StringComparison.Ordinal) ? PREFIX_V2 : PREFIX_V1;
+                if (code == null || !code.StartsWith(prefix, StringComparison.Ordinal) || code.Length > MAX_JSON_LENGTH * 2)
                     throw new FormatException(GameData.L("share.invalid"));
-                string payload = code.Substring(PREFIX.Length);
+                string payload = code.Substring(prefix.Length);
                 foreach (char value in payload)
                     if (!((value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z')
                         || (value >= '0' && value <= '9')) && value != '-' && value != '_')
@@ -83,7 +87,8 @@ namespace RuneCode
                 {
                     List<string> allRunes = new List<string>();
                     foreach (RuneDefinition rune in GameData.Runes.All) allRunes.Add(rune.Id);
-                    CompileResult result = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance, allRunes, int.MaxValue, float.MaxValue);
+                    CompileResult result = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance,
+                        allRunes, int.MaxValue, float.MaxValue, library);
                     if (!result.Ok) throw new FormatException(result.Errors[0].Message);
                 }
                 return true;

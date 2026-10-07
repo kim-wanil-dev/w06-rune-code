@@ -39,12 +39,14 @@ namespace RuneCode
             return PlayerSave.CreateNew();
         }
 
-        /// <summary>버전 1 설계를 단일 마법 진행으로 이전하고 알 수 없는 버전은 원본을 보존한다.</summary>
+        /// <summary>버전 1 설계를 단일 마법 진행으로 이전하고 마법 그래프를 문법 블록으로 변환한다. 알 수 없는 버전은 원본을 보존한다.</summary>
         private static PlayerSave Migrate(PlayerSave save)
         {
-            if (save == null || save.Version == 2) return save;
-            if (save.Version == 1) { save.MigrateToIncremental(); return save; }
-            throw new FormatException("지원하지 않는 룬 코드 저장 버전입니다.");
+            if (save == null) return null;
+            if (save.Version == 1) save.MigrateToIncremental();
+            else if (save.Version != 2) throw new FormatException("지원하지 않는 룬 코드 저장 버전입니다.");
+            save.MigrateSpellGrammar();
+            return save;
         }
 
         /// <summary>진행을 임시 파일에 기록한 뒤 이전 정상 파일 백업과 함께 교체한다.</summary>

@@ -33,6 +33,18 @@
       "_value": "보관함"
     },
     {
+      "_key": "ui.selectSpell",
+      "_value": "마법 함수 선택"
+    },
+    {
+      "_key": "ui.executionOrder",
+      "_value": "같은 실행 포트의 분기는 연결한 순서대로 실행됩니다"
+    },
+    {
+      "_key": "ui.missingSpell",
+      "_value": "대상을 찾을 수 없음"
+    },
+    {
       "_key": "ui.new",
       "_value": "새 마법"
     },
@@ -282,11 +294,11 @@
     },
     {
       "_key": "ui.tutorial1",
-      "_value": "1 / 3 · 현재 마법에 형태 룬을 추가하고 시전 포트를 연결하세요"
+      "_value": "1 / 3 · [구형] → [발사] 블록을 시작 조건에 이어 연결하세요"
     },
     {
       "_key": "ui.tutorial2",
-      "_value": "2 / 3 · 화염을 추가하고 mod 포트를 볼트에 연결하세요"
+      "_value": "2 / 3 · 마법 타입과 형태 사이에 [화염] 속성 블록을 넣으세요"
     },
     {
       "_key": "ui.tutorial3",
@@ -362,7 +374,7 @@
     },
     {
       "_key": "category.core",
-      "_value": "시전"
+      "_value": "시작 조건"
     },
     {
       "_key": "category.form",
@@ -370,11 +382,11 @@
     },
     {
       "_key": "category.element",
-      "_value": "속성"
+      "_value": "속성 부여"
     },
     {
       "_key": "category.modifier",
-      "_value": "수식"
+      "_value": "효과"
     },
     {
       "_key": "category.flow",
@@ -383,6 +395,10 @@
     {
       "_key": "category.action",
       "_value": "행동"
+    },
+    {
+      "_key": "category.magic",
+      "_value": "마법"
     },
     {
       "_key": "room.r1",
@@ -482,7 +498,7 @@
     },
     {
       "_key": "share.invalid",
-      "_value": "유효한 RC1 공유 코드가 아닙니다"
+      "_value": "유효한 RC1 또는 RC2 공유 코드가 아닙니다"
     },
     {
       "_key": "share.tooLarge",
@@ -506,7 +522,7 @@
     },
     {
       "_key": "issue.E5",
-      "_value": "형태의 수식 슬롯은 최대 3개입니다"
+      "_value": "효과 입력 포트에 허용된 연결 수를 초과했습니다"
     },
     {
       "_key": "issue.E6",
@@ -529,6 +545,34 @@
       "_value": "미해금 룬이 있어 장착할 수 없습니다"
     },
     {
+      "_key": "issue.E11",
+      "_value": "Spell Library에서 호출 대상을 찾을 수 없습니다"
+    },
+    {
+      "_key": "issue.E12",
+      "_value": "Spell Function 간 재귀 호출은 허용되지 않습니다"
+    },
+    {
+      "_key": "issue.E13",
+      "_value": "효과는 형태 또는 마법 메소드에만 연결할 수 있습니다"
+    },
+    {
+      "_key": "issue.E14",
+      "_value": "마법 타입·속성·형태 조합이 유효하지 않습니다"
+    },
+    {
+      "_key": "issue.E15",
+      "_value": "호출한 Spell Function을 컴파일할 수 없습니다"
+    },
+    {
+      "_key": "issue.E16",
+      "_value": "버프 Magic은 피격·만료 이벤트를 출력할 수 없습니다"
+    },
+    {
+      "_key": "issue.E17",
+      "_value": "최악 생성 Entity 수가 런타임 동시 개체 한도를 초과합니다"
+    },
+    {
       "_key": "issue.W1",
       "_value": "Core에서 도달할 수 없는 노드도 RAM을 차지합니다"
     },
@@ -547,6 +591,34 @@
     {
       "_key": "param.seconds",
       "_value": "지연 시간"
+    },
+    {
+      "_key": "param.trigger",
+      "_value": "시작 조건"
+    },
+    {
+      "_key": "param.magicType",
+      "_value": "Magic Type"
+    },
+    {
+      "_key": "param.element",
+      "_value": "속성"
+    },
+    {
+      "_key": "param.form",
+      "_value": "형태"
+    },
+    {
+      "_key": "param.spellId",
+      "_value": "호출 대상"
+    },
+    {
+      "_key": "param.power",
+      "_value": "효과량"
+    },
+    {
+      "_key": "param.buffDuration",
+      "_value": "보호막 지속시간"
     },
     {
       "_key": "param.times",
@@ -613,8 +685,72 @@
       "_value": "화염"
     },
     {
+      "_key": "element.normal",
+      "_value": "일반"
+    },
+    {
+      "_key": "element.electric",
+      "_value": "전격"
+    },
+    {
+      "_key": "element.heal",
+      "_value": "회복"
+    },
+    {
+      "_key": "element.protection",
+      "_value": "보호"
+    },
+    {
+      "_key": "magicType.sphere",
+      "_value": "구형"
+    },
+    {
+      "_key": "magicType.box",
+      "_value": "사각"
+    },
+    {
+      "_key": "magicType.buff",
+      "_value": "버프"
+    },
+    {
+      "_key": "magicForm.launch",
+      "_value": "발사"
+    },
+    {
+      "_key": "magicForm.explosion",
+      "_value": "폭발"
+    },
+    {
+      "_key": "magicForm.orbit",
+      "_value": "공전"
+    },
+    {
+      "_key": "magicForm.remain",
+      "_value": "잔류"
+    },
+    {
+      "_key": "trigger.attack",
+      "_value": "공격"
+    },
+    {
+      "_key": "trigger.move",
+      "_value": "이동"
+    },
+    {
+      "_key": "trigger.dashInput",
+      "_value": "대시 입력"
+    },
+    {
+      "_key": "trigger.dashComplete",
+      "_value": "대시 완료"
+    },
+    {
+      "_key": "trigger.hit",
+      "_value": "피격"
+    },
+    {
       "_key": "element.ice",
-      "_value": "냉기"
+      "_value": "얼음"
     },
     {
       "_key": "element.arc",
@@ -867,6 +1003,22 @@
     {
       "_key": "ui.spellSpeed",
       "_value": "이동 / 회전 속도"
+    },
+    {
+      "_key": "category.magicType",
+      "_value": "마법 타입"
+    },
+    {
+      "_key": "category.shape",
+      "_value": "형태"
+    },
+    {
+      "_key": "category.method",
+      "_value": "마법 메소드"
+    },
+    {
+      "_key": "issue.E18",
+      "_value": "마법 블록은 [마법 타입] → [속성 부여] → [형태] 순서로 하나씩 연결해야 합니다"
     }
   ]
 }

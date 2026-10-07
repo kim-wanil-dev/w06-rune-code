@@ -68,7 +68,7 @@ namespace RuneCode
         public string GetText(string key, string fallback = "")
         {
             foreach (NodeParameter param in _params)
-                if (param.Key == key) return param.Text;
+                if (param.Key == key) return param.Text ?? fallback;
             return fallback;
         }
 
@@ -109,20 +109,23 @@ namespace RuneCode
         [SerializeField] private string _fromPort;
         [SerializeField] private string _toNode;
         [SerializeField] private string _toPort;
+        [SerializeField] private int _order;
         public string Id => _id;
         public string FromNode => _fromNode;
         public string FromPort => _fromPort;
         public string ToNode => _toNode;
         public string ToPort => _toPort;
+        public int Order => _order;
 
         /// <summary>출력과 입력 노드의 포트 ID로 그래프 연결을 생성한다.</summary>
-        public GraphEdge(string id, string fromNode, string fromPort, string toNode, string toPort)
+        public GraphEdge(string id, string fromNode, string fromPort, string toNode, string toPort, int order = 0)
         {
             _id = id;
             _fromNode = fromNode;
             _fromPort = fromPort;
             _toNode = toNode;
             _toPort = toPort;
+            _order = order;
         }
     }
 
@@ -132,7 +135,7 @@ namespace RuneCode
         [Header("마법 구성")]
         [SerializeField] private string _id;
         [SerializeField] private string _name;
-        [SerializeField] private int _version = 1;
+        [SerializeField] private int _version = 2;
         [SerializeField] private List<GraphNode> _nodes = new List<GraphNode>();
         [SerializeField] private List<GraphEdge> _edges = new List<GraphEdge>();
         public string Id => _id;
@@ -199,8 +202,39 @@ namespace RuneCode
             return true;
         }
 
+        /// <summary>출력 포트의 다음 실행 순번을 반환한다.</summary>
+        public int NextEdgeOrder(string fromNode, string fromPort)
+        {
+            int order = 0;
+            foreach (GraphEdge edge in _edges)
+                if (edge.FromNode == fromNode && edge.FromPort == fromPort) order = Math.Max(order, edge.Order + 1);
+            return order;
+        }
+
         /// <summary>ID에 해당하는 엣지를 제거하고 제거 여부를 반환한다.</summary>
         public bool RemoveEdge(string id) => _edges.RemoveAll(edge => edge.Id == id) > 0;
+
+        /// <summary>같은 ID의 노드를 연결 엣지는 유지한 채 전달된 노드로 교체하고 성공 여부를 반환한다.</summary>
+        public bool ReplaceNode(GraphNode replacement)
+        {
+            if (replacement == null) return false;
+            for (int i = 0; i < _nodes.Count; i++)
+            {
+                if (_nodes[i].Id != replacement.Id) continue;
+                _nodes[i] = replacement;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>ID·이름·스키마 버전을 유지하고 노드와 엣지만 전달된 목록으로 바꾼 새 그래프를 반환한다. 컴파일 정규화에서만 사용한다.</summary>
+        internal SpellGraph CopyWith(IEnumerable<GraphNode> nodes, IEnumerable<GraphEdge> edges)
+        {
+            SpellGraph copy = new SpellGraph(_id, _name) { _version = _version };
+            copy._nodes.AddRange(nodes);
+            copy._edges.AddRange(edges);
+            return copy;
+        }
 
         /// <summary>노드와 파라미터가 독립된 복사본을 만들고 선택적으로 새 ID를 지정한다.</summary>
         public SpellGraph Clone(string id = null)
