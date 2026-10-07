@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a90cc01182dcd2845b7e00c00e279bc5, type: 3}
+  m_Name: Part_Arm_Claw
+  m_EditorClassIdentifier: Assembly-CSharp::PartDefinition
+  _id: arm_claw
+  _slot: 3
+  _displayName: "\uBC94\uC6A9 \uC9D1\uAC8C"
+  _baseStats:
+    _intelligence: 0
+    _strength: 1
+    _moveSpeed: 0
+    _durability: 0
+    _supportWeight: 0
+    _cargoBonus: 2
+  _coreLevelGrowth:
+    _intelligence: 0
+    _strength: 0
+    _moveSpeed: 0
+    _durability: 0
+    _supportWeight: 0
+    _cargoBonus: 0
+  _resourceEfficiencies: []
+  _drawWeight: 1
+  _requiresExpansion: 0
+  _icon: {fileID: 21300000, guid: 4ce0ef6f86efc9947912dbe7bc5d7b5c, type: 3}
+  _leftSprite: {fileID: 21300000, guid: 4ce0ef6f86efc9947912dbe7bc5d7b5c, type: 3}
+  _rightSprite: {fileID: 21300000, guid: 747c0ce8664b9d643884e624a13d3fac, type: 3}

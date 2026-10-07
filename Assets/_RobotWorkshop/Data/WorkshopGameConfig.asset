@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35b7c9c430e55f041a23d76f23f54679, type: 3}
+  m_Name: WorkshopGameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::WorkshopGameConfig
+  _startingCore: {fileID: 11400000, guid: 8549499794026674dba0fd3b1f764af9, type: 2}
+  _startingHead: {fileID: 11400000, guid: 0f5f8c795632bdd4aa51f01341135770, type: 2}
+  _startingLegs: {fileID: 11400000, guid: b166722bdb0965e4fad99ff977c68379, type: 2}
+  _startingMultiTool: {fileID: 11400000, guid: aa987909610efaa43af35feb21945f4e, type: 2}
+  _startingClaw: {fileID: 11400000, guid: c7f5a19ed5700a64bbd8a13da243c610, type: 2}
+  _gradeTable: {fileID: 11400000, guid: 57f57e85ccbc08e4b92d654b0c57142c, type: 2}
+  _partDefinitions:
+  - {fileID: 11400000, guid: 8549499794026674dba0fd3b1f764af9, type: 2}
+  - {fileID: 11400000, guid: eae5fc2631a95b3409fc8684f0d6db66, type: 2}
+  - {fileID: 11400000, guid: 0f5f8c795632bdd4aa51f01341135770, type: 2}
+  - {fileID: 11400000, guid: 929d75411067d8344a188130b171b7dd, type: 2}
+  - {fileID: 11400000, guid: b166722bdb0965e4fad99ff977c68379, type: 2}
+  - {fileID: 11400000, guid: 1085357d45ec5a646b2d6d83d1bc286f, type: 2}
+  - {fileID: 11400000, guid: aa987909610efaa43af35feb21945f4e, type: 2}
+  - {fileID: 11400000, guid: d70d754325386f9469768b067bc89fdc, type: 2}
+  - {fileID: 11400000, guid: 88ab240ee5d9d8f4abcfe32b56c4fae9, type: 2}
+  - {fileID: 11400000, guid: 6b930ad359f0a254ca489c5cde9bcaa1, type: 2}
+  - {fileID: 11400000, guid: c7f5a19ed5700a64bbd8a13da243c610, type: 2}
+  _resourceDefinitions:
+  - {fileID: 11400000, guid: 50fb8aacfd1d48f4190cd777bcf044a5, type: 2}
+  - {fileID: 11400000, guid: f3d51c1fe344fd64189f0dc13e467271, type: 2}
+  - {fileID: 11400000, guid: 6ada2817b8e59504aaa3e671f389ec5c, type: 2}
+  _startingScrap: 0
+  _baseCargoCapacity: 8
+  _initialStorageCapacity: 600
+  _startingPrimaryResource: 0
+  _baseOperatingSeconds: 60
+  _durabilitySecondsPerPoint: 6
+  _restSeconds: 30
+  _strengthSpeedFactor: 0.02
+  _minimumGatherSeconds: 0.25
+  _minimumMoveSpeed: 0.1
+  _midIntelligenceThreshold: 20
+  _highIntelligenceThreshold: 40
+  _levelOneExperience: 20
+  _experienceIncreasePerLevel: 10
+  _autoSaveSeconds: 30
+  _firstRobotName: UNIT-01
+  _cameraScrollDistance: 8

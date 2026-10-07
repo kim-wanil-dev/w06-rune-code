@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a90cc01182dcd2845b7e00c00e279bc5, type: 3}
+  m_Name: Part_Legs_Heavy
+  m_EditorClassIdentifier: Assembly-CSharp::PartDefinition
+  _id: legs_heavy
+  _slot: 2
+  _displayName: "\uC911\uB7C9\uD615 \uB2E4\uB9AC"
+  _baseStats:
+    _intelligence: 0
+    _strength: 3
+    _moveSpeed: 0.95
+    _durability: 22
+    _supportWeight: 20
+    _cargoBonus: 0
+  _coreLevelGrowth:
+    _intelligence: 0
+    _strength: 0
+    _moveSpeed: 0
+    _durability: 0
+    _supportWeight: 0
+    _cargoBonus: 0
+  _resourceEfficiencies: []
+  _drawWeight: 1
+  _requiresExpansion: 0
+  _icon: {fileID: 21300000, guid: 59c93354829680946bcc8bc32c8c1b96, type: 3}
+  _leftSprite: {fileID: 21300000, guid: 59c93354829680946bcc8bc32c8c1b96, type: 3}
+  _rightSprite: {fileID: 21300000, guid: 59c93354829680946bcc8bc32c8c1b96, type: 3}
