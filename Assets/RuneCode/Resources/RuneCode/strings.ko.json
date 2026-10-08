@@ -174,7 +174,7 @@
     },
     {
       "_key": "ui.controls",
-      "_value": "드래그: 이동 · 포트 드래그: 연결 · 중간 버튼: 화면 이동 · 휠: 확대 · Shift: 다중 선택 · Del: 삭제"
+      "_value": "마우스 좌클릭 시전 · 홀드 차징/유지 · R 도크 리셋"
     },
     {
       "_key": "ui.missionControls",
@@ -546,7 +546,7 @@
     },
     {
       "_key": "param.seconds",
-      "_value": "지연 시간"
+      "_value": "대기 시간 (초)"
     },
     {
       "_key": "param.times",
@@ -554,7 +554,7 @@
     },
     {
       "_key": "param.interval",
-      "_value": "반복 간격"
+      "_value": "최소 간격 (초)"
     },
     {
       "_key": "param.type",
@@ -566,7 +566,7 @@
     },
     {
       "_key": "param.status",
-      "_value": "대상 상태"
+      "_value": "상태 필터"
     },
     {
       "_key": "param.px",
@@ -778,11 +778,11 @@
     },
     {
       "_key": "ui.autoBattleControls",
-      "_value": "왼쪽 시작 · 자동 조준 / 연속 시전 · 오른쪽에서 적 유입 · Esc 일시정지"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭 시전 / 홀드 차징·유지 · Space 대시 · Esc 일시정지"
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 전투 영역에서 연속 시전 · Space 대시 · Esc 일시정지"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭 시전 / 홀드 차징·유지 · Space 대시 · Esc 일시정지"
     },
     {
       "_key": "ui.incoming",
@@ -867,6 +867,250 @@
     {
       "_key": "ui.spellSpeed",
       "_value": "이동 / 회전 속도"
+    },
+    {
+      "_key": "category.trigger",
+      "_value": "트리거"
+    },
+    {
+      "_key": "category.constraint",
+      "_value": "제약"
+    },
+    {
+      "_key": "port.event",
+      "_value": "사건"
+    },
+    {
+      "_key": "issue.M1",
+      "_value": "모듈은 v2 설계에서 사용합니다. PoC에서 행동 노드는 제외됩니다."
+    },
+    {
+      "_key": "issue.M2",
+      "_value": "이 형태가 공급하지 않는 사건입니다."
+    },
+    {
+      "_key": "issue.M3",
+      "_value": "제약 성공은 형태 하나에 직접 연결하세요. 전체 범위는 Root의 유일한 첫 관문입니다."
+    },
+    {
+      "_key": "issue.M4",
+      "_value": "최소 차징 시간이 최대 시간보다 큽니다."
+    },
+    {
+      "_key": "param.inputMode",
+      "_value": "시전 모드"
+    },
+    {
+      "_key": "param.repeatHold",
+      "_value": "홀드 연사"
+    },
+    {
+      "_key": "param.minCharge",
+      "_value": "최소 차징 (초)"
+    },
+    {
+      "_key": "param.maxCharge",
+      "_value": "완전 차징 (초)"
+    },
+    {
+      "_key": "param.prepCost",
+      "_value": "준비 EN"
+    },
+    {
+      "_key": "param.upkeep",
+      "_value": "유지 EN/초"
+    },
+    {
+      "_key": "param.variant",
+      "_value": "변형"
+    },
+    {
+      "_key": "param.landingDelay",
+      "_value": "착지 준비 (초)"
+    },
+    {
+      "_key": "param.maxDistance",
+      "_value": "연결 최대 거리"
+    },
+    {
+      "_key": "param.pullForce",
+      "_value": "당기기 힘"
+    },
+    {
+      "_key": "param.slow",
+      "_value": "영역 감속"
+    },
+    {
+      "_key": "param.eventType",
+      "_value": "발동 사건"
+    },
+    {
+      "_key": "param.threshold",
+      "_value": "피해 / 적중 임계값"
+    },
+    {
+      "_key": "param.limit",
+      "_value": "최대 횟수"
+    },
+    {
+      "_key": "param.policy",
+      "_value": "발동 정책"
+    },
+    {
+      "_key": "param.profile",
+      "_value": "제약 보상 프로필"
+    },
+    {
+      "_key": "param.scope",
+      "_value": "강화 범위"
+    },
+    {
+      "_key": "option.instant",
+      "_value": "즉시"
+    },
+    {
+      "_key": "option.charge",
+      "_value": "차징"
+    },
+    {
+      "_key": "option.maintain",
+      "_value": "유지"
+    },
+    {
+      "_key": "option.off",
+      "_value": "끄기"
+    },
+    {
+      "_key": "option.on",
+      "_value": "켜기"
+    },
+    {
+      "_key": "option.projectile",
+      "_value": "이동 선"
+    },
+    {
+      "_key": "option.beam",
+      "_value": "관통 광선"
+    },
+    {
+      "_key": "option.wall",
+      "_value": "고정 장벽"
+    },
+    {
+      "_key": "option.wave",
+      "_value": "이동 파동"
+    },
+    {
+      "_key": "option.hit",
+      "_value": "적중"
+    },
+    {
+      "_key": "option.range",
+      "_value": "거리 소진"
+    },
+    {
+      "_key": "option.terrain",
+      "_value": "지형 충돌"
+    },
+    {
+      "_key": "option.generated",
+      "_value": "생성"
+    },
+    {
+      "_key": "option.landed",
+      "_value": "착지"
+    },
+    {
+      "_key": "option.expired",
+      "_value": "정상 수명 종료"
+    },
+    {
+      "_key": "option.elapsed",
+      "_value": "N초 유지"
+    },
+    {
+      "_key": "option.tick",
+      "_value": "주기 틱"
+    },
+    {
+      "_key": "option.damage",
+      "_value": "실제 누적 피해"
+    },
+    {
+      "_key": "option.hitCount",
+      "_value": "누적 적중"
+    },
+    {
+      "_key": "option.status",
+      "_value": "상태 부여"
+    },
+    {
+      "_key": "option.kill",
+      "_value": "직접 처치"
+    },
+    {
+      "_key": "option.death",
+      "_value": "주입 대상 사망"
+    },
+    {
+      "_key": "option.deathOrTime",
+      "_value": "사망 또는 N초 (선착 1회)"
+    },
+    {
+      "_key": "option.disconnected",
+      "_value": "거리 / 지형 단절"
+    },
+    {
+      "_key": "option.enter",
+      "_value": "영역 진입"
+    },
+    {
+      "_key": "option.exit",
+      "_value": "영역 이탈"
+    },
+    {
+      "_key": "option.once",
+      "_value": "개체당 1회"
+    },
+    {
+      "_key": "option.perTarget",
+      "_value": "대상별 1회"
+    },
+    {
+      "_key": "option.limited",
+      "_value": "횟수 제한"
+    },
+    {
+      "_key": "option.any",
+      "_value": "모든 상태"
+    },
+    {
+      "_key": "option.resource",
+      "_value": "최대 EN 50% → 피해 2.5배 / 반경 3배"
+    },
+    {
+      "_key": "option.frozen",
+      "_value": "빙결 소모 → 피해 2배"
+    },
+    {
+      "_key": "option.lowHp",
+      "_value": "HP 30% 이하 → 피해 1.5배"
+    },
+    {
+      "_key": "option.next",
+      "_value": "다음 형태만"
+    },
+    {
+      "_key": "option.whole",
+      "_value": "전체 후속 계보"
+    },
+    {
+      "_key": "ui.pocTemplates",
+      "_value": "PoC 예시"
+    },
+    {
+      "_key": "ui.modular",
+      "_value": "모듈 v2"
     }
   ]
 }

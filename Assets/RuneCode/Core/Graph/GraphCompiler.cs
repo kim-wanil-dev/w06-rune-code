@@ -8,7 +8,7 @@ namespace RuneCode
 {
     public static class GraphCompiler
     {
-        /// <summary>그래프와 해금·RAM·에너지 조건을 검증하고 최악 비용의 실행 트리를 컴파일한다.</summary>
+        /// <summary>그래프와 해금·RAM·단계 지불 조건을 검증하고 최악 예상 비용을 포함한 실행 트리를 컴파일한다.</summary>
         public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, BalanceData balance,
             IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f)
         {
@@ -19,7 +19,7 @@ namespace RuneCode
                 errors.Add(new CompileIssue("E1"));
                 return new CompileResult(errors, warnings, null);
             }
-            if (graph.Version != 1 || graph.Nodes == null || graph.Edges == null
+            if ((graph.Version != 1 && graph.Version != 2) || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count > balance.Limits.MaxGraphNodes || graph.Edges.Count > balance.Limits.MaxGraphEdges)
             {
                 errors.Add(new CompileIssue("E9"));
@@ -49,6 +49,7 @@ namespace RuneCode
             if (!errors.Any(issue => issue.Code == "E3") && HasCycle(graph, nodes)) errors.Add(new CompileIssue("E4"));
             int limit = capacity < 0 ? balance.Economy.BaseCapacity : capacity;
             if (ramUsed > limit) errors.Add(new CompileIssue("E7"));
+            ValidateModularGraph(graph, definitions, errors, warnings);
             bool hasStructuralError = errors.Any(issue => issue.Code != "E7" && issue.Code != "E10");
             if (hasStructuralError) return new CompileResult(errors, warnings, null);
 
@@ -67,16 +68,16 @@ namespace RuneCode
                     && !graph.Edges.Any(edge => edge.FromNode == node.Id)) warnings.Add(new CompileIssue("W4", node.Id));
             }
             List<SpellAction> root = BuildBranch(graph, cores[0].Id, "exec", nodes, definitions, warnings);
-            float energy = Cost(root, balance.Limits.HitTriggerCap);
-            int entities = EntityCount(root, balance.Limits.HitTriggerCap);
             float energyLimit = maxEnergy < 0f ? balance.Player.MaxEnergy : maxEnergy;
+            float energy = Cost(root, balance.Limits.HitTriggerCap, energyLimit, runes);
+            int entities = EntityCount(root, balance.Limits.HitTriggerCap);
             long actionCeiling = balance.Limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, balance.Limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
-            if (energy > energyLimit || expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            if ((graph.Version == 1 && energy > energyLimit) || (graph.Version == 2 && !CanPayStages(root, energyLimit, runes)) || expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
             CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph), cores[0].Id, ramUsed, energy,
-                balance.Ram.CooldownBase + balance.Ram.CooldownPerRam * ramUsed, entities, tags.ToList(), root);
+                balance.Ram.CooldownBase + balance.Ram.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Version, new SpellAction(cores[0], definitions[cores[0].Id], null, Array.Empty<RuneDefinition>()));
             return new CompileResult(errors, warnings, compiled);
         }
 
@@ -99,7 +100,7 @@ namespace RuneCode
             else if (graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort
                 && current.ToNode == edge.ToNode && current.ToPort == edge.ToPort))
                 issue = new CompileIssue("E9", edge.ToNode);
-            else if (input.Kind == "exec" && graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort))
+            else if ((input.Kind == "exec" || input.Kind == "event") && graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort))
                 issue = new CompileIssue("E2", edge.ToNode);
             else if (input.Kind == "mod" && graph.Edges.Count(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort) >= input.Max)
                 issue = new CompileIssue("E5", edge.ToNode);
@@ -117,6 +118,74 @@ namespace RuneCode
         /// <summary>접속 후보 검증을 수행하고 연결 불가 사유를 반환한다.</summary>
         public static bool ValidateConnection(SpellGraph graph, GraphEdge edge, RuneCatalog runes, out CompileIssue issue)
             => CanConnect(graph, edge, runes, out issue);
+
+        /// <summary>모듈 그래프의 사건 공급 형태, 제약 범위와 입력 설정을 검사하여 오류와 경고를 추가한다.</summary>
+        private static void ValidateModularGraph(SpellGraph graph, Dictionary<string, RuneDefinition> definitions,
+            List<CompileIssue> errors, List<CompileIssue> warnings)
+        {
+            if (errors.Any(issue => issue.Code == "E3" || issue.Code == "E9")) return;
+            foreach (GraphNode node in graph.Nodes)
+            {
+                if (!definitions.TryGetValue(node.Id, out RuneDefinition rune)) continue;
+                bool isNew = rune.Category == "trigger" || rune.Category == "constraint"
+                    || rune.Id == "form.vector" || rune.Id == "form.construct" || rune.Id == "form.wall"
+                    || rune.Id == "form.tether" || rune.Id == "form.infusion" || rune.Id == "form.domain";
+                if (graph.Version == 1 && isNew) errors.Add(new CompileIssue("M1", node.Id));
+                if (graph.Version != 2) continue;
+                if (rune.Category == "action") errors.Add(new CompileIssue("M1", node.Id));
+                if (rune.Category == "trigger")
+                {
+                    GraphEdge source = graph.Edges.FirstOrDefault(edge => edge.ToNode == node.Id && edge.ToPort == "event");
+                    if (source == null) { warnings.Add(new CompileIssue("W1", node.Id)); continue; }
+                    string form = definitions[source.FromNode].Id;
+                    string type = node.GetText("eventType", "hit");
+                    bool supported = type == "hit" || type == "generated" || type == "expired" || type == "elapsed"
+                        || type == "tick" || type == "damage" || type == "hitCount" || type == "kill" || type == "status";
+                    supported |= (type == "range" || type == "terrain") && form == "form.vector";
+                    supported |= type == "landed" && form == "form.construct";
+                    supported |= (type == "death" || type == "deathOrTime") && form == "form.infusion";
+                    supported |= type == "disconnected" && form == "form.tether";
+                    supported |= (type == "enter" || type == "exit") && form == "form.domain";
+                    if (!supported) errors.Add(new CompileIssue("M2", node.Id));
+                }
+                if (rune.Category == "constraint")
+                {
+                    List<GraphEdge> next = graph.Edges.Where(edge => edge.FromNode == node.Id && edge.FromPort == "then").ToList();
+                    if (next.Count != 1 || definitions[next[0].ToNode].Category != "form")
+                        errors.Add(new CompileIssue("M3", node.Id));
+                    if (node.GetText("scope", "next") == "whole")
+                    {
+                        GraphEdge input = graph.Edges.FirstOrDefault(edge => edge.ToNode == node.Id && edge.ToPort == "exec");
+                        if (input == null || definitions[input.FromNode].Category != "core"
+                            || graph.Edges.Count(edge => edge.FromNode == input.FromNode && edge.FromPort == "exec") != 1)
+                            errors.Add(new CompileIssue("M3", node.Id));
+                    }
+                    if (node.GetText("profile", "resource") != "resource"
+                        && !graph.Edges.Any(edge => edge.ToNode == node.Id && edge.ToPort == "exec"
+                            && definitions[edge.FromNode].Category == "trigger"))
+                        warnings.Add(new CompileIssue("W3", node.Id));
+                }
+                if (rune.Category == "core" && node.GetText("inputMode", "instant") == "charge"
+                    && node.GetNumber("minCharge", 0.3f) > node.GetNumber("maxCharge", 2f))
+                    errors.Add(new CompileIssue("M4", node.Id));
+            }
+        }
+
+        /// <summary>각 단계와 제약의 첫 지불이 최대 EN 안에 들어가는지 검사하며 미래 후속의 합계는 거부하지 않는다.</summary>
+        private static bool CanPayStages(IReadOnlyList<SpellAction> actions, float maxEnergy, RuneCatalog runes)
+        {
+            foreach (SpellAction action in actions)
+            {
+                if (action.OwnEnergy > maxEnergy) return false;
+                if (action.Kind == "empower" && action.Text("profile") == "resource"
+                    && action.Then.Count == 1 && action.Then[0].OwnEnergy + maxEnergy * (runes.FindProfile(action.Text("profile"))?.EnergyFraction ?? 0) > maxEnergy) return false;
+                if (!CanPayStages(action.Events, maxEnergy, runes) || !CanPayStages(action.OnHit, maxEnergy, runes)
+                    || !CanPayStages(action.OnExpire, maxEnergy, runes) || !CanPayStages(action.Then, maxEnergy, runes)
+                    || !CanPayStages(action.Else, maxEnergy, runes) || !CanPayStages(action.Body, maxEnergy, runes)
+                    || !CanPayStages(action.Next, maxEnergy, runes)) return false;
+            }
+            return true;
+        }
 
         /// <summary>각 노드의 숫자·열거 파라미터 및 중복 키가 정의 범위를 지키는지 검증한다.</summary>
         private static void ValidateParameters(GraphNode node, RuneDefinition rune, List<CompileIssue> errors)
@@ -140,7 +209,7 @@ namespace RuneCode
                 {
                     isInvalid = float.IsNaN(value.Number) || float.IsInfinity(value.Number)
                         || value.Number < definition.Min || value.Number > definition.Max;
-                    if (value.Key == "times" && value.Number != (int)value.Number) isInvalid = true;
+                    if ((value.Key == "times" || value.Key == "limit") && value.Number != (int)value.Number) isInvalid = true;
                 }
                 if (!isInvalid && definition.Kind == "enum") isInvalid = !definition.Options.Contains(value.Text);
                 if (isInvalid) errors.Add(new CompileIssue("E9", node.Id, value.Key));
@@ -174,13 +243,13 @@ namespace RuneCode
                 string portKey = edge.ToNode + ":" + edge.ToPort;
                 int count = incoming.TryGetValue(portKey, out int previous) ? previous + 1 : 1;
                 incoming[portKey] = count;
-                if (input.Kind == "exec" && count > 1) errors.Add(new CompileIssue("E2", edge.ToNode));
+                if ((input.Kind == "exec" || input.Kind == "event") && count > 1) errors.Add(new CompileIssue("E2", edge.ToNode));
                 if (input.Kind != "mod") continue;
                 if (count > input.Max) errors.Add(new CompileIssue("E5", edge.ToNode));
                 if (!mods.Add(edge.ToNode + ":" + from.Id)) errors.Add(new CompileIssue("E9", edge.ToNode));
-                if ((from.Id == "mod.pierce" || from.Id == "mod.homing") && to.Id != "form.bolt")
+                if ((from.Id == "mod.pierce" || from.Id == "mod.homing") && to.Id != "form.bolt" && to.Id != "form.vector")
                     warnings.Add(new CompileIssue("W2", edge.FromNode));
-                if (from.Id == "mod.speed" && to.Id != "form.bolt" && to.Id != "form.orbit")
+                if (from.Id == "mod.speed" && to.Id != "form.bolt" && to.Id != "form.vector" && to.Id != "form.orbit" && to.Id != "form.wall")
                     warnings.Add(new CompileIssue("W2", edge.FromNode));
                 if (from.Category != "element") continue;
                 int elementCount = elements.TryGetValue(edge.ToNode, out int priorElements) ? priorElements + 1 : 1;
@@ -261,7 +330,7 @@ namespace RuneCode
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {
-                    if (output.Direction == "out" && output.Kind == "exec")
+                    if (output.Direction == "out" && (output.Kind == "exec" || output.Kind == "event"))
                         action.SetBranch(output.Id, BuildBranch(graph, node.Id, output.Id, nodes, definitions, warnings));
                 }
                 actions.Add(action);
@@ -270,7 +339,7 @@ namespace RuneCode
         }
 
         /// <summary>최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다.</summary>
-        private static float Cost(IReadOnlyList<SpellAction> actions, int hitCap)
+        private static float Cost(IReadOnlyList<SpellAction> actions, int hitCap, float maxEnergy, RuneCatalog runes)
         {
             float sum = 0f;
             foreach (SpellAction action in actions)
@@ -279,12 +348,14 @@ namespace RuneCode
                 {
                     case "spawn":
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        sum += action.OwnEnergy + action.Count * (Math.Min(maxHits, hitCap) * Cost(action.OnHit, hitCap) + Cost(action.OnExpire, hitCap));
+                        sum += action.OwnEnergy + action.Count * (Math.Min(maxHits, hitCap) * Cost(action.OnHit, hitCap, maxEnergy, runes) + Cost(action.OnExpire, hitCap, maxEnergy, runes) + Cost(action.Events, hitCap, maxEnergy, runes));
                         break;
-                    case "delay": sum += Cost(action.Then, hitCap); break;
-                    case "repeat": sum += action.Times * Cost(action.Body, hitCap); break;
-                    case "if": sum += Math.Max(Cost(action.Then, hitCap), Cost(action.Else, hitCap)); break;
-                    default: sum += action.OwnEnergy + Cost(action.Next, hitCap); break;
+                    case "delay": sum += Cost(action.Then, hitCap, maxEnergy, runes); break;
+                    case "repeat": sum += action.Times * Cost(action.Body, hitCap, maxEnergy, runes); break;
+                    case "if": sum += Math.Max(Cost(action.Then, hitCap, maxEnergy, runes), Cost(action.Else, hitCap, maxEnergy, runes)); break;
+                    case "listen": sum += (int)action.Number("limit") * Cost(action.Then, hitCap, maxEnergy, runes); break;
+                    case "empower": sum += Math.Max(Cost(action.Then, hitCap, maxEnergy, runes) + maxEnergy * (runes.FindProfile(action.Text("profile"))?.EnergyFraction ?? 0), Cost(action.Else, hitCap, maxEnergy, runes)); break;
+                    default: sum += action.OwnEnergy + Cost(action.Next, hitCap, maxEnergy, runes); break;
                 }
             }
             return sum;
@@ -300,11 +371,13 @@ namespace RuneCode
                 {
                     case "spawn":
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        sum += (long)action.Count * (1L + (long)Math.Min(maxHits, hitCap) * EntityCount(action.OnHit, hitCap) + EntityCount(action.OnExpire, hitCap));
+                        sum += (long)action.Count * (1L + (long)Math.Min(maxHits, hitCap) * EntityCount(action.OnHit, hitCap) + EntityCount(action.OnExpire, hitCap) + EntityCount(action.Events, hitCap));
                         break;
                     case "delay": sum += EntityCount(action.Then, hitCap); break;
                     case "repeat": sum += (long)action.Times * EntityCount(action.Body, hitCap); break;
                     case "if": sum += Math.Max(EntityCount(action.Then, hitCap), EntityCount(action.Else, hitCap)); break;
+                    case "listen": sum += (long)action.Number("limit") * EntityCount(action.Then, hitCap); break;
+                    case "empower": sum += Math.Max(EntityCount(action.Then, hitCap), EntityCount(action.Else, hitCap)); break;
                     default: sum += EntityCount(action.Next, hitCap); break;
                 }
                 if (sum > int.MaxValue) return int.MaxValue;
@@ -324,12 +397,14 @@ namespace RuneCode
                     case "spawn":
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
                         long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long eventWork = AddBounded(hitWork, ActionCount(action.OnExpire, hitCap, saturation), saturation);
+                        long eventWork = AddBounded(hitWork, AddBounded(ActionCount(action.OnExpire, hitCap, saturation), ActionCount(action.Events, hitCap, saturation), saturation), saturation);
                         count = AddBounded(count, MultiplyBounded(action.Count, eventWork, saturation), saturation);
                         break;
                     case "delay": count = AddBounded(count, ActionCount(action.Then, hitCap, saturation), saturation); break;
                     case "repeat": count = AddBounded(count, MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation), saturation); break;
                     case "if": count = AddBounded(count, Math.Max(ActionCount(action.Then, hitCap, saturation), ActionCount(action.Else, hitCap, saturation)), saturation); break;
+                    case "listen": count = AddBounded(count, MultiplyBounded((int)action.Number("limit"), ActionCount(action.Then, hitCap, saturation), saturation), saturation); break;
+                    case "empower": count = AddBounded(count, Math.Max(ActionCount(action.Then, hitCap, saturation), ActionCount(action.Else, hitCap, saturation)), saturation); break;
                     default: count = AddBounded(count, ActionCount(action.Next, hitCap, saturation), saturation); break;
                 }
                 sum = AddBounded(sum, count, saturation);
@@ -359,6 +434,7 @@ namespace RuneCode
                     tags.Add(action.Form);
                     tags.Add(action.Element);
                 }
+                GatherTags(action.Events, tags);
                 GatherTags(action.OnHit, tags);
                 GatherTags(action.OnExpire, tags);
                 GatherTags(action.Then, tags);
@@ -372,6 +448,7 @@ namespace RuneCode
         public static string Signature(SpellGraph graph)
         {
             StringBuilder canonical = new StringBuilder();
+            if (graph.Version == 2) canonical.Append("v2;");
             foreach (GraphNode node in graph.Nodes.OrderBy(node => node.Id, StringComparer.Ordinal))
             {
                 canonical.Append(node.Id).Append(':').Append(node.RuneId).Append(';');

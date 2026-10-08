@@ -138,3 +138,77 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 검증 후 v2 저장은 시작 시 자료와 JSON 동일, v1은 바이트 동일로 확인했다. 기존22994 RAM·용량10·에너지6·최고완료1·선택2와 설계를 보존했다. v1 SHA256:86fb2cf4a1cff68252fe9bd04b3d2c1667a10b5f64fbc8d83bac3da59cf9850d.
 
 - 최종 배포 검사: ZIP185항목/38.51MiB, CRC 오류 없음, 필수 EXE·런타임·Core·자료·화면 포함, DoNotShip 제외, ZIP 안 EXE 해시 일치. SHA256:17d00aa5c16e1954e5e784750c5b137a034c8bc3db15816a36423eb2f606198a.
+
+## 마법 리메이크 최소 PoC — 2026-10-07
+
+사용자 요청에 따라 PRD/PLAN의 전체 기능 중 T-06 행동·방어를 제외하고 연결 실행을 검증할 최소 범위를 구현했다. 이전 기록의 포인터 자동 시전을 클릭·홀드 입력으로 대체한다. 전체 P0~P7 완료를 의미하지 않으며 지원/보류 범위는 PLAN 첫 절에 기록했다.
+
+### 구현 결과
+
+- Core/Graph: 그래프 v2, 사건 포트, 트리거·제약 노드, 입력 파라미터, 유한 횟수·범위·사건 공급 검사, 단계 지불과 최악 예상 EN. v1 그래프와 RC1을 유지하고 새 설계는 RC2를 사용한다.
+- Core/Simulation: 기존 고정 틱 실행을 확장했다. `RuneSimulation.Magic.cs`에 시전 계보·유지 취소·형태 관측·유한 사건 큐를 연결했다. 여섯 기본 형태, 사망/시간 경쟁, 다음 형태/시전 전체 강화, 실제 장벽 이동/적 투사체 차단과 영역 감속·흡입을 구현했다.
+- Game/UI: 좌클릭 즉시 시전, 선택적 홀드 반복, 정지 차징, 홀드 유지. 영역 이탈·포커스 상실·종료 시 정리한다. 팔레트·포트·스크롤 인스펙터·실패 표시·사건 기록과 여섯 형태의 그림을 연결했다. 기존 이동·대시는 보존했다.
+- Resources: 여섯 형태와 트리거/제약 정의, 세 강화 프로필, 한국어 설명, `poc_impact/mark/link/charge` 4개 템플릿 및 meta. PoC 버튼은 저장하지 않는 도크 미리보기로 기존 활성 설계를 보존한다.
+- Save: v3 저장, v2/v1 읽기·이전. 기존 원본 파일을 덮어쓰지 않는다. 미리보기는 설계·튜토리얼 진행을 저장하지 않으며 일반 전투 출격을 차단한다.
+- 빌드/자료: 기존 BuildWindows 및 sim.ps1의 새 출력 폴더 `Builds/RuneCodePoC-MagicRemake`; README/PLAN/본 진행 기록. 기존 장면과 Prefab 구조를 재사용하며 새 Inspector 수동 연결은 없다.
+
+### 실제 검증
+
+테스트 코드·테스트 자산을 추가하지 않고 기존 CLI와 일회성 Unity eval로 관측했다.
+
+| 항목 | 관측 결과 |
+|---|---|
+| 컴파일·자산 연결 | Unity scriptCompilationFailed=false, PoC 장면 Missing Script 0, 글꼴 참조 존재, 장면 dirty=false. 네 신규 템플릿 컴파일 오류/경고 0 |
+| 자원 교환 | 최대 EN100 단일 시전: Vector10 + Domain14 + 추가50 = 74 EN. 시작 EN80에서는 성공하여6 남음. EN69에서는 Vector10만 소비하고 성공 단계의64는 차감하지 않음 |
+| 강화 범위 | 다음 형태는 Vector 피해50/반경21, 후속 Domain12/75. 전체 범위는 같은 Vector 이후 Domain30/225. 동일 강화가 후속마다 재곱해지지 않음 |
+| HP·상태 제약 | HP100에서는 후속 실패/EN10, HP30에서는 Domain 피해18/총 EN24. 동결 없음은 실패/EN10, 동결 있음은 상태 소비 후 Domain 피해24/총 EN24. 반사 호출은 검증의 초기 HP/동결 설정에만 사용하고 그래프 실행은 기존 Step 경로로 확인 |
+| 표식 경쟁·정리 | 빔이 적3명에 주입. 사망 시 각 가시1회, 이후300틱에도 시간 분기 중복 없음. 정상 시간 경로도 각 표식에서1회. Reset 시 개체·사건 기록 정리 |
+| 네 단일 시전 | 최대 EN100, 입력 더미300틱: impact EN74/피해300, mark EN64/피해168, link EN28/피해100, charge 준비비 포함 EN26/피해220. link의 장벽은 해당 시점에 아직 수명 중 |
+| 차징·유지 | 최소 미달/이동 취소는 준비 EN2만 소비·개체0. 완전 차징은 놓기 전 개체0, 놓은 뒤3배 가시 생성. 유지 해제 시 해당 계보 개체0 및 취소 기록 |
+| 생산 입력 경로 | 실제 Input System MouseState를 큐에 넣고 InputSystem.Update → App.Update로 전달. 포인터만 있을 때0, 클릭 때 Vector10, 즉시 홀드 동안 Root1회. 실제 차징 홀드/해제는 준비2→가시14 EN. 영역 이탈 후 다시 진입한 홀드는 준비2만 소비·개체0으로 취소 유지 |
+| 저장·공유 | 메모리의 v2→v3 이전 후 설계·재화 보존과 Validate 성공. RC1/RC2 왕복 문자열 동일·버전 일치. 현재 작업공간 UI 저장의 보유 RAM43 보존. 이전 기록의22994 저장 검증과 구분 |
+| 화면 | `Logs/magic-trigger.png`에서 사건 연결·제약 노드·8개 트리거 파라미터와 도크 표시 확인. 긴 이름은 말줄임, 인스펙터는 스크롤로 접근 |
+| 입력 설정 복구 | 검증용 임시 InputSettings의 배경/포커스 옵션을 기본값으로 복구. 저장된 설정 자산 없음, 프로젝트 입력 설정 파일 변경 없음. Play 종료 확인 |
+
+### 완료 범위와 남은 확인
+
+- T-06 및 PLAN의 보류 기능은 미구현이다. 일반 FirstOf/AllOfGroup, 자유 구간·중첩 강화, 무기 Aura·결계 핵·환경 반응 등 전체 PRD 확장은 후속 작업이다.
+- 실제 사람의 장시간 클릭/홀드·회피 플레이, 프레임 FPS/p95, 성장·해금·전투 밸런스는 미검증이다. Input System 이벤트 경로 및 고정 틱 관측을 사람의 조작 검증으로 해석하지 않는다.
+- Git 변경 상태는 미확인. Git CLI·커밋·push를 실행하지 않았다.
+
+### 배포 검증
+
+- Windows x64 빌드: Succeeded, 오류0, 경고1, 105,211,467bytes. 최종 증분 빌드는2.932초. 경고는 기존 Pipeline의 RuntimePipelineConfig 부재로 Player 원격 제어가 비활성화된다는 내용이다.
+- 첫 동기 eval 빌드 중 Pipeline의5초 요청 제한으로 도구 오류2건이 기록되어 detached job으로 재빌드했다. 최종 빌드 결과 오류0을 확인했다. 입력 검증용 임시 InputSettings 교체 직후 Play 종료에 Input System 내부 Assertion1건이 있었으며 기본 설정 복구·다음 Play/Stop 재실행에서는 추가 오류0/경고0이다. 게임 소스 예외는 없었다.
+- 실제 Windows Player와 Editor의 같은 CLI 입력/seed1/dummy_line/600틱 결과가 아래5개 모두 피해·EN·상태 해시 일치했다. 이는 자동 비교 입력이며 단일 클릭 결과와 구분한다.
+
+| 템플릿 | 피해 | EN | 최대 개체 | 실행 노드 | 해시 | 실행 생략 |
+|---|---:|---:|---:|---:|---|---:|
+| poc_impact | 300 | 299 | 4 | 304 | 53e7722e | 0 |
+| poc_mark | 300 | 290 | 13 | 421 | 672ecbc4 | 0 |
+| poc_link | 300 | 224 | 4 | 78 | e7edcfb0 | 0 |
+| poc_charge | 430 | 106 | 3 | 16 | 17cac6fe | 0 |
+| firebolt | 287.5 | 290 | 3 | 87 | dfa7b371 | 0 |
+
+- poc_mark Player 재실행의 해시672ecbc4 동일. 기존 firebolt의 피해·EN·최대 개체·실행 횟수는 이전 기록과 동일하다. 상태 해시는 신규 모듈 상태를 포함하도록 확장되어 이전 해시와 비교하지 않는다.
+- 숨김 그래픽 Player의 Mono·Input System·D3D12 초기화 및 게임 예외/Missing/글꼴 경고 부재를 확인했다. 기존 D3D12 정보 큐 진단은 동일하다. 검증을 위해 시작한 해당 Player만 종료했다.
+- 최종 재생/종료와 그래픽 Player 확인 전후 v1/v2/v3 저장의 SHA256 모두 동일했다. 이전 빌드·ZIP을 보존했다. 실행 파일은 `Builds/RuneCodePoC-MagicRemake/RuneCodePoC.exe`, 메트릭은 `Builds/magic-*.json`, 화면은 `Logs/magic-trigger.png`다.
+
+### 주요 작업 파일
+
+- Core/Data: RuneData.cs, GameData.cs. Core/Graph: SpellGraph.cs, CompiledSpell.cs, GraphCompiler.cs, ShareCodec.cs.
+- Core/Simulation: RuneSimulation.cs, 신규 RuneSimulation.Magic.cs와 meta, SimulationTypes.cs.
+- Game/UI: RuneCodeApp.cs, SimulationCli.cs, RuneArenaGraphic.cs, RuneCodeView.cs, RuneMesh.cs.
+- Save/Editor/도구: PlayerSave.cs, SaveStore.cs, RuneCodeBuild.cs, tools/sim.ps1.
+- 자산·자료: runes.json, strings.ko.json, 신규4종 spells JSON과 meta, 기존 UIFont.asset, README.md, PLAN_MAGIC_REMAKE.md, PROGRESS.md.
+
+## 원래 프로젝트에 리메이크 적용 — 2026-10-08
+
+- 적용 대상: `C:/Users/JUNGLE/Documents/GitHub/w06-rune-code`.
+- 원본 Editor가 닫힌 상태에서 파일 내용을 비교했다. 신규10개(소스/JSON5개와 meta5개), 기존 변경23개로 총33개를 적용했다. 기존 파일의 줄바꿈과 meta/GUID를 보존했다. RuneGraphCanvas.cs의 사건 포트 색상 변경도 포함했다.
+- 적용 전 기존 파일과 사용자 저장 백업: `C:/Users/JUNGLE/Documents/GitHub/w06-rune-code-backups/magic-remake-20261008-010942`. `before`에 기존 파일, `userdata-before`에 저장 파일, `manifest.json`에 신규/변경 경로와 해시를 기록했다.
+- 적용 대상 외215개 파일의 해시를 전후 비교하여 동일함을 확인했다. 기존 장면, Prefab, Packages, ProjectSettings와 기존 빌드는 보존했다. Git 변경 상태는 미확인이며 Git CLI·커밋·push를 실행하지 않았다.
+- 원본 Unity6000.3.22f1에서 실제 컴파일 실패=false, Missing Script0, 앱/글꼴 참조 연결, 장면 dirty=false. 네 PoC 템플릿 오류/경고0. Play/Stop 후 Console 오류/경고0.
+- 원본 작업실에서 네 PoC 도크 미리보기와 사건 실행을 확인했다. 닫은 뒤 기존 설계 문자열과 보유 RAM이 동일했다. v1/v2/v3 저장 SHA256도 검증 전후 동일했다. 수동 Inspector 작업은 없다.
+- 원본 Editor의600틱 CLI에서 네 PoC 및 firebolt의 피해·EN·상태 해시가 이전 검증과 모두 일치했다. 원본 경로의 Player poc_mark도 피해300/EN290/해시672ecbc4/실행 생략0으로 일치했다.
+- 검증한 Windows 배포 폴더를 원본의 `Builds/RuneCodePoC-MagicRemake`에 복사했다.179개 파일의 해시 일치를 확인했으며 이번 적용에서 원본 빌드를 다시 생성하지 않았다. 사람의 장시간 조작·밸런스·성능 확인 범위는 이전 PoC 기록과 같다.

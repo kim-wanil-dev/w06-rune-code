@@ -51,6 +51,10 @@ namespace RuneCode
         private readonly bool _castC;
         private readonly bool _dash;
         private readonly bool _interact;
+        private readonly bool _castHeld;
+        private readonly bool _castReleased;
+        public bool CastHeld => _castHeld;
+        public bool CastReleased => _castReleased;
         public SimVector Movement => _movement;
         public SimVector AimDirection => _aimDirection;
         public bool CastA => _castA;
@@ -60,8 +64,8 @@ namespace RuneCode
         public bool Interact => _interact;
 
         /// <summary>한 고정 틱의 이동, 조준, 슬롯 시전, 대시, 상호작용 입력을 보관한다.</summary>
-        public SimulationInput(SimVector movement, SimVector aimDirection, bool castA = false, bool castB = false, bool castC = false, bool dash = false, bool interact = false)
-        { _movement = movement; _aimDirection = aimDirection; _castA = castA; _castB = castB; _castC = castC; _dash = dash; _interact = interact; }
+        public SimulationInput(SimVector movement, SimVector aimDirection, bool castA = false, bool castB = false, bool castC = false, bool dash = false, bool interact = false, bool castHeld = false, bool castReleased = false)
+        { _movement = movement; _aimDirection = aimDirection; _castA = castA; _castB = castB; _castC = castC; _dash = dash; _interact = interact; _castHeld = castHeld; _castReleased = castReleased; }
     }
 
     public enum MissionStage { Bench, Combat, Terminal, Cleared, Dead }
@@ -104,6 +108,13 @@ namespace RuneCode
         /// <summary>쿨다운과 에너지를 확인하여 슬롯의 시전 비용을 선지불하고 성공 여부를 반환한다.</summary>
         internal bool Pay(CompiledSpell spell, int slot)
         { if (_cooldowns[slot] > 0.000001 || _energy + 0.000001 < spell.EnergyCost) return false; _energy -= spell.EnergyCost; _cooldowns[slot] = spell.Cooldown; return true; }
+
+        /// <summary>단계 EN을 원자적으로 차감하고 부족하면 아무 값도 바꾸지 않고 false를 반환한다.</summary>
+        internal bool PayStage(double amount)
+        { if (amount < 0 || _energy + 0.000001 < amount) return false; _energy = Math.Max(0, _energy - amount); return true; }
+
+        /// <summary>실제 효과가 발생한 Root 슬롯의 쿨다운을 설정한다.</summary>
+        internal void StartSpellCooldown(int slot, double seconds) { _cooldowns[slot] = seconds; }
 
         /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
@@ -233,6 +244,9 @@ namespace RuneCode
         /// <summary>실제로 받은 최근 피해의 속성과 형태를 기록하여 해당 적의 내성 아이콘에 사용한다.</summary>
         internal void SetDamageTags(string element, string form) { _lastDamageElement = element; _lastDamageForm = form; }
 
+        /// <summary>제약 성공 시 현재 빙결을 한 번 소모하고 빙결 상태를 해제한다.</summary>
+        internal void ConsumeFreeze(double time) { _freezeUntil = time; _chillStacks = 0; }
+
         /// <summary>조건 룬에서 요구하는 상태 보유 여부를 반환한다.</summary>
         public bool HasStatus(string status) => status == "burn" ? IsBurning : status == "chill" ? _chillStacks > 0 : status == "freeze" ? IsFrozen : status == "emp" && IsEmp;
 
@@ -254,6 +268,8 @@ namespace RuneCode
         private readonly string _castNoiseElement;
         private readonly bool _fromEvent;
         private readonly double _visualSeconds;
+        private readonly double _damageMultiplier;
+        private readonly double _radiusMultiplier;
         private readonly SimVector _anchor;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
         private SimVector _position;
@@ -265,17 +281,20 @@ namespace RuneCode
         private bool _hasExpired;
         public int Id => _id;
         public string Kind => _action.Form;
+        public string Variant => _action.Text("variant");
+        public float LandingDelay => _action.Number("landingDelay");
         public string Element => _element;
         public SimVector Position => _position;
         public SimVector Direction => _direction;
-        public double Radius => _action.Stats.Radius;
+        public double Radius => _action.Stats.Radius * _radiusMultiplier;
+        public double Damage => _action.Stats.Damage * _damageMultiplier;
         public double Age => _age;
-        public double Lifetime => _action.Form == "burst" ? _visualSeconds : _action.Stats.Lifetime;
+        public double Lifetime => _action.Form == "vector" && _action.Text("variant") == "beam" ? Math.Min(_visualSeconds, .15) : _action.Form == "burst" ? _visualSeconds : _action.Stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal bool FromEvent => _fromEvent;
         internal string CastNoiseElement => _castNoiseElement;
-        internal SimVector Anchor => _anchor;
+        public SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
         internal int TriggerCount { get => _triggerCount; set => _triggerCount = value; }
@@ -283,8 +302,8 @@ namespace RuneCode
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
 
         /// <summary>컴파일된 Form, 속성, 위치, 방향 및 앵커 컨텍스트로 스펠 개체를 생성한다.</summary>
-        internal SimulationSpellEntity(int id, SpellAction action, string element, SimVector position, SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement, double visualSeconds)
-        { _id = id; _action = action; _element = element; _castNoiseElement = castNoiseElement; _position = position; _direction = direction; _fromEvent = fromEvent; _visualSeconds = visualSeconds; _anchor = anchor; _angle = angle; }
+        internal SimulationSpellEntity(int id, SpellAction action, string element, SimVector position, SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement, double visualSeconds, double damageMultiplier = 1, double radiusMultiplier = 1)
+        { _damageMultiplier = damageMultiplier; _radiusMultiplier = radiusMultiplier; _id = id; _action = action; _element = element; _castNoiseElement = castNoiseElement; _position = position; _direction = direction; _fromEvent = fromEvent; _visualSeconds = visualSeconds; _anchor = anchor; _angle = angle; }
 
         /// <summary>스펠 개체의 위치와 진행 방향을 갱신한다.</summary>
         internal void Move(SimVector position, SimVector direction) { _position = position; _direction = direction; }
@@ -295,6 +314,7 @@ namespace RuneCode
         /// <summary>마법의 이동, 앵커, 수명, 적중 대상 및 이벤트 실행 상태를 결정성 해시 버퍼에 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
+            state.Append(FormattableString.Invariant($"|{_damageMultiplier:R}|{_radiusMultiplier:R}"));
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
             state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}"));
             var ids = new List<int>(_hitTimes.Keys); ids.Sort();

@@ -1,0 +1,103 @@
+{
+  "_id": "poc_link",
+  "_name": "PoC · 적중 → 연결 2초 → 장벽",
+  "_version": 2,
+  "_nodes": [
+    {
+      "_id": "core",
+      "_runeId": "core.cast",
+      "_x": 30,
+      "_y": 60,
+      "_params": []
+    },
+    {
+      "_id": "vector",
+      "_runeId": "form.vector",
+      "_x": 240,
+      "_y": 60,
+      "_params": []
+    },
+    {
+      "_id": "hit",
+      "_runeId": "trigger.listen",
+      "_x": 450,
+      "_y": 60,
+      "_params": [
+        {
+          "_key": "eventType",
+          "_number": 0,
+          "_text": "hit"
+        }
+      ]
+    },
+    {
+      "_id": "link",
+      "_runeId": "form.tether",
+      "_x": 660,
+      "_y": 60,
+      "_params": []
+    },
+    {
+      "_id": "wait",
+      "_runeId": "trigger.listen",
+      "_x": 870,
+      "_y": 60,
+      "_params": [
+        {
+          "_key": "eventType",
+          "_number": 0,
+          "_text": "elapsed"
+        },
+        {
+          "_key": "seconds",
+          "_number": 2,
+          "_text": null
+        }
+      ]
+    },
+    {
+      "_id": "wall",
+      "_runeId": "form.wall",
+      "_x": 1080,
+      "_y": 60,
+      "_params": []
+    }
+  ],
+  "_edges": [
+    {
+      "_id": "e_core_exec_vector",
+      "_fromNode": "core",
+      "_fromPort": "exec",
+      "_toNode": "vector",
+      "_toPort": "exec"
+    },
+    {
+      "_id": "e_vector_event_hit",
+      "_fromNode": "vector",
+      "_fromPort": "event",
+      "_toNode": "hit",
+      "_toPort": "event"
+    },
+    {
+      "_id": "e_hit_then_link",
+      "_fromNode": "hit",
+      "_fromPort": "then",
+      "_toNode": "link",
+      "_toPort": "exec"
+    },
+    {
+      "_id": "e_link_event_wait",
+      "_fromNode": "link",
+      "_fromPort": "event",
+      "_toNode": "wait",
+      "_toPort": "event"
+    },
+    {
+      "_id": "e_wait_then_wall",
+      "_fromNode": "wait",
+      "_fromPort": "then",
+      "_toNode": "wall",
+      "_toPort": "exec"
+    }
+  ]
+}

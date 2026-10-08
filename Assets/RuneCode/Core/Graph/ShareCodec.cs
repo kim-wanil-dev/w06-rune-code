@@ -23,7 +23,7 @@ namespace RuneCode
             if (string.IsNullOrEmpty(trimmed) || json.Length > MAX_JSON_LENGTH || trimmed[0] != '{')
                 throw new FormatException(GameData.L("share.invalid"));
             SpellGraph graph = JsonUtility.FromJson<SpellGraph>(json);
-            if (graph == null || graph.Version != 1 || !IsIdentifier(graph.Id) || string.IsNullOrWhiteSpace(graph.Name)
+            if (graph == null || (graph.Version != 1 && graph.Version != 2) || !IsIdentifier(graph.Id) || string.IsNullOrWhiteSpace(graph.Name)
                 || graph.Name.Length > 80 || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count == 0 || graph.Nodes.Count > MAX_NODE_COUNT || graph.Edges.Count > MAX_EDGE_COUNT)
                 throw new FormatException(GameData.L("share.invalid"));
@@ -52,12 +52,12 @@ namespace RuneCode
             return graph;
         }
 
-        /// <summary>그래프 JSON을 RC1 접두사의 URL 안전 Base64 공유 코드로 인코딩한다.</summary>
+        /// <summary>그래프 버전에 맞게 RC1 또는 RC2 접두사의 URL 안전 Base64 공유 코드로 인코딩한다.</summary>
         public static string Encode(SpellGraph graph)
         {
             string json = Serialize(graph);
             if (json.Length > MAX_JSON_LENGTH) throw new FormatException(GameData.L("share.tooLarge"));
-            return PREFIX + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+            return (graph.Version == 2 ? "RC2." : PREFIX) + Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         }
 
         /// <summary>공유 코드의 형식·크기·그래프 연결을 검증하고 실패 시 사용자 오류를 반환한다.</summary>
@@ -68,7 +68,7 @@ namespace RuneCode
             try
             {
                 code = code?.Trim();
-                if (code == null || !code.StartsWith(PREFIX, StringComparison.Ordinal) || code.Length > MAX_JSON_LENGTH * 2)
+                if (code == null || (!code.StartsWith(PREFIX, StringComparison.Ordinal) && !code.StartsWith("RC2.", StringComparison.Ordinal)) || code.Length > MAX_JSON_LENGTH * 2)
                     throw new FormatException(GameData.L("share.invalid"));
                 string payload = code.Substring(PREFIX.Length);
                 foreach (char value in payload)
@@ -79,6 +79,8 @@ namespace RuneCode
                 base64 = base64.PadRight((base64.Length + 3) / 4 * 4, '=');
                 string json = new UTF8Encoding(false, true).GetString(Convert.FromBase64String(base64));
                 graph = Deserialize(json);
+                if ((graph.Version == 2) != code.StartsWith("RC2.", StringComparison.Ordinal))
+                    throw new FormatException(GameData.L("share.invalid"));
                 if (GameData.IsLoaded)
                 {
                     List<string> allRunes = new List<string>();

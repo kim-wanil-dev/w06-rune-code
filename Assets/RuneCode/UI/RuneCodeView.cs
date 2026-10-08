@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using UnityEngine;
 
@@ -214,15 +215,18 @@ namespace RuneCode
         {
             Text(_page, 18, 91, 190, 30, L("ui.singleSpell"), 15, CYAN);
             _spellTitle = Text(_page, 222, 89, 390, 33, _app.EditingGraph.Name, 22, Color.white, FontStyles.Bold);
+            _spellTitle.textWrappingMode = TextWrappingModes.NoWrap;
+            _spellTitle.overflowMode = TextOverflowModes.Ellipsis;
             Button(_page, 628, 86, 116, 34, L("ui.rename"), OpenRename, MUTED, 13);
             Button(_page, 756, 86, 92, 34, L("ui.save"), _app.SaveGraph, CYAN, 13);
-            Button(_page, 862, 86, 132, 34, L("ui.share"), OpenShare, MUTED, 13);
+            Button(_page, 862, 86, 62, 34, "공유", OpenShare, MUTED, 13);
+            Button(_page, 932, 86, 62, 34, "PoC", OpenPocTemplates, CYAN, 13);
             _metrics = Text(_page, 224, 129, 766, 23, "", 12, CYAN);
             _palette = Panel(_page, 16, 136, 190, 526, PANEL);
             Text(_palette, 12, 12, 166, 26, L("ui.palette"), 17, Color.white, FontStyles.Bold);
             _search = Input(_palette, 10, 47, 170, 32, "", L("ui.search"));
             _search.onValueChanged.AddListener(_ => RefreshPalette());
-            string[] categories = { "all", "form", "element", "modifier", "flow", "action" };
+            string[] categories = _app.EditingGraph.Version == 2 ? new[] { "all", "form", "element", "modifier", "flow", "trigger", "constraint" } : new[] { "all", "form", "element", "modifier", "flow", "trigger", "constraint", "action" };
             for (int i = 0; i < categories.Length; i++)
             {
                 string category = categories[i];
@@ -259,13 +263,13 @@ namespace RuneCode
         {
             Transform existing = _palette.Find("RuneList");
             if (existing != null) { existing.gameObject.SetActive(false); Destroy(existing.gameObject); }
-            RectTransform list = ScrollList(_palette, "RuneList", 8, 153, 174, 362);
+            RectTransform list = ScrollList(_palette, "RuneList", 8, 180, 174, 335);
             string query = _search.text.Trim();
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (rune.Category == "core" || (_category != "all" && rune.Category != _category)) continue;
+                if (!IsPaletteRune(rune) || (_category != "all" && rune.Category != _category)) continue;
                 if (!string.IsNullOrEmpty(query) && rune.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0 && rune.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                bool unlocked = Contains(_app.Save.UnlockedRunes, rune.Id);
+                bool unlocked = _app.AvailableRunes.Contains(rune.Id);
                 RuneDefinition selected = rune;
                 string label = rune.Name + "   " + rune.Ram + " RAM";
                 if (!unlocked) label += "\n" + L("ui.locked") + " · " + (rune.UnlockType == "reward" ? L("ui.reward") : rune.UnlockCost + " " + L("ui.fragments"));
@@ -275,6 +279,14 @@ namespace RuneCode
                 Layout(button.gameObject, unlocked ? 40 : 53);
                 button.gameObject.AddComponent<RunePaletteDrag>().Initialize(_graph, rune.Id, unlocked);
             }
+        }
+
+        /// <summary>모듈 설계에서는 새 형태와 지원 노드만 노출하며 기존 설계의 팔레트는 유지한다.</summary>
+        private bool IsPaletteRune(RuneDefinition rune)
+        {
+            if (rune.Category == "core") return false;
+            if (_app.EditingGraph.Version != 2) return true;
+            return rune.Category != "action" && (rune.Category != "form" || rune.FindPort("event", "out") != null);
         }
 
         /// <summary>빈 편집 영역의 빠른 검색 입력과 검색된 룬의 현재 위치 배치를 제공한다.</summary>
@@ -288,7 +300,7 @@ namespace RuneCode
                 ClearChildren(list);
                 foreach (RuneDefinition rune in GameData.Runes.All)
                 {
-                    if (rune.Category == "core" || !Contains(_app.Save.UnlockedRunes, rune.Id)) continue;
+                    if (!IsPaletteRune(rune) || !_app.AvailableRunes.Contains(rune.Id)) continue;
                     if (!string.IsNullOrEmpty(query) && rune.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0 && rune.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
                     string id = rune.Id;
                     UnityEngine.UI.Button button = Button(list, 0, 0, 480, 36, rune.Name + " · " + rune.Ram + " RAM", () => { CloseModal(); _graph.PlaceRune(id, position); }, RuneMesh.CategoryColor(rune.Category));
@@ -305,34 +317,39 @@ namespace RuneCode
             if (_inspector == null) return;
             ClearChildren(_inspector);
             Text(_inspector, 14, 12, 222, 27, L("ui.inspector"), 17, Color.white, FontStyles.Bold);
-            float top = 50;
-            if (node == null) { Text(_inspector, 14, top, 224, 62, L("ui.selectNode"), 13, MUTED); top += 72; }
+            RectTransform body = ScrollList(_inspector, "InspectorScroll", 0, 46, 254, 474);
+            UnityEngine.UI.VerticalLayoutGroup bodyLayout = body.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            UnityEngine.UI.ContentSizeFitter bodyFitter = body.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            bodyLayout.enabled = false; bodyFitter.enabled = false;
+            Destroy(bodyLayout); Destroy(bodyFitter);
+            float top = 4;
+            if (node == null) { Text(body, 14, top, 224, 62, L("ui.selectNode"), 13, MUTED); top += 72; }
             else
             {
                 RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-                Text(_inspector, 14, top, 222, 28, rune.Name + " / " + rune.Ram + " RAM", 17, RuneMesh.CategoryColor(rune.Category)); top += 37;
+                Text(body, 14, top, 222, 28, rune.Name + " / " + rune.Ram + " RAM", 17, RuneMesh.CategoryColor(rune.Category)); top += 37;
                 foreach (ParameterDefinition param in rune.Params)
                 {
                     ParameterDefinition definition = param;
                     string nodeId = node.Id;
-                    Text(_inspector, 14, top, 224, 20, L("param." + param.Id), 12, MUTED); top += 24;
+                    Text(body, 14, top, 224, 20, L("param." + param.Id), 12, MUTED); top += 24;
                     if (param.Kind == "number")
                     {
                         bool isModifierScale = rune.Category == "modifier";
-                        TMP_InputField field = Input(_inspector, isModifierScale ? 56 : 14, top, isModifierScale ? 132 : 222, 30,
+                        TMP_InputField field = Input(body, isModifierScale ? 56 : 14, top, isModifierScale ? 132 : 222, 30,
                             node.GetNumber(param.Id, param.DefaultNumber).ToString("0.###"), "");
                         field.contentType = TMP_InputField.ContentType.DecimalNumber;
                         field.onEndEdit.AddListener(value => { if (float.TryParse(value, out float amount)) _app.SetNodeNumber(nodeId, definition.Id, Mathf.Clamp(amount, definition.Min, definition.Max)); });
                         if (isModifierScale)
                         {
-                            Button(_inspector, 14, top, 34, 30, "−", () => ChangeModifierNumber(nodeId, definition, -1), MUTED, 18);
-                            Button(_inspector, 196, top, 40, 30, "+", () => ChangeModifierNumber(nodeId, definition, 1), CYAN, 18);
+                            Button(body, 14, top, 34, 30, "−", () => ChangeModifierNumber(nodeId, definition, -1), MUTED, 18);
+                            Button(body, 196, top, 40, 30, "+", () => ChangeModifierNumber(nodeId, definition, 1), CYAN, 18);
                         }
                     }
                     else
                     {
                         string current = node.GetText(param.Id, param.DefaultText);
-                        Button(_inspector, 14, top, 222, 30, L((param.Id == "status" ? "status." : "condition.") + current), () =>
+                        Button(body, 14, top, 222, 30, L((param.Id == "status" && current != "any" ? "status." : param.Id == "type" ? "condition." : "option.") + current), () =>
                         {
                             int index = 0;
                             for (int i = 0; i < definition.Options.Count; i++) if (definition.Options[i] == current) index = i;
@@ -344,13 +361,13 @@ namespace RuneCode
                 if (rune.Category == "modifier" && rune.Params.Count > 0)
                 {
                     ParameterDefinition parameter = rune.Params[0];
-                    Text(_inspector, 14, top, 222, 26, L("ui.scaleBounds") + " " + parameter.Min.ToString("0.#") + "–" + parameter.Max.ToString("0.#") + "×", 12, CYAN);
+                    Text(body, 14, top, 222, 26, L("ui.scaleBounds") + " " + parameter.Min.ToString("0.#") + "–" + parameter.Max.ToString("0.#") + "×", 12, CYAN);
                     top += 30;
-                    Text(_inspector, 14, top, 222, 72, L("ui." + rune.Id + "Hint"), 12, MUTED); top += 78;
+                    Text(body, 14, top, 222, 72, L("ui." + rune.Id + "Hint"), 12, MUTED); top += 78;
                 }
                 if (rune.Params.Count == 0)
                 {
-                    Text(_inspector, 14, top, 222, 34, L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + L("ui.damage") + " " + rune.Stats.Damage.ToString("0.#"), 12, MUTED); top += 42;
+                    Text(body, 14, top, 222, 34, L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + L("ui.damage") + " " + rune.Stats.Damage.ToString("0.#"), 12, MUTED); top += 42;
                 }
                 if (rune.Category == "form")
                 {
@@ -358,23 +375,24 @@ namespace RuneCode
                     if (action != null)
                     {
                         SpellStats stats = action.Stats;
-                        float reach = action.Form == "bolt" ? stats.Speed * stats.Lifetime : action.Form == "orbit" ? stats.OrbitRadius : stats.Offset;
-                        Text(_inspector, 14, top, 222, 70,
+                        float reach = (action.Form == "bolt" || action.Form == "vector") ? stats.Speed * stats.Lifetime : action.Form == "orbit" ? stats.OrbitRadius : stats.Offset;
+                        Text(body, 14, top, 222, 70,
                             L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n" +
                             L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px\n" +
                             L("ui.spellSpeed") + " " + (action.Form == "orbit" ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s"), 12, CYAN);
                         top += 76;
                     }
                 }
-                if (rune.Category != "core") { Button(_inspector, 14, top, 222, 29, L("ui.delete"), () => _app.RemoveNode(node.Id), new Color(0.97f, 0.43f, 0.45f), 12); top += 42; }
+                if (rune.Category != "core") { Button(body, 14, top, 222, 29, L("ui.delete"), () => _app.RemoveNode(node.Id), new Color(0.97f, 0.43f, 0.45f), 12); top += 42; }
             }
-            Text(_inspector, 14, top, 222, 25, L("ui.validation"), 15, Color.white, FontStyles.Bold); top += 31;
-            RectTransform errors = ScrollList(_inspector, "Validation", 12, top, 228, Mathf.Max(80, 510 - top));
+            Text(body, 14, top, 222, 25, L("ui.validation"), 15, Color.white, FontStyles.Bold); top += 31;
+            RectTransform errors = ScrollList(body, "Validation", 12, top, 228, 160);
             CompileResult result = _app.CompileResult;
             if (result.Ok) AddIssueLabel(errors, L("ui.valid"), CYAN, null);
             foreach (CompileIssue issue in result.Errors) AddIssueLabel(errors, issue.Code + " · " + issue.Message, new Color(1, 0.41f, 0.44f), issue.NodeId);
             foreach (CompileIssue issue in result.Warnings) AddIssueLabel(errors, issue.Code + " · " + issue.Message, new Color(1, 0.76f, 0.38f), issue.NodeId);
             AddIssueLabel(errors, L("ui.controls"), MUTED, null);
+            body.sizeDelta = new Vector2(body.sizeDelta.x, top + 170);
         }
 
         /// <summary>선택 수식의 숫자 배율을 데이터의 한 단계만큼 조절하고 범위 안으로 제한하여 표시를 갱신한다.</summary>
@@ -396,6 +414,7 @@ namespace RuneCode
         /// <summary>시험 도크의 시나리오, 자동 발사, 적응, 속도와 리셋 조작을 생성한다.</summary>
         private void BuildDock()
         {
+            _scenario = _app.DockScenario;
             Panel(_page, 222, 512, 772, 143, PANEL);
             RectTransform arena = Rect(_page, "DockArena", 222, 541, 292, 110);
             _dockArena = arena.gameObject.AddComponent<RuneArenaGraphic>();
@@ -406,9 +425,36 @@ namespace RuneCode
             Button(_page, 528, 521, 128, 27, L("ui.autofire"), () => _app.SetDockOptions(!_app.DockAutoFire, _app.DockAdaptation, _app.DockSpeed), CYAN, 11);
             Button(_page, 666, 521, 124, 27, L("ui.adaptation"), () => _app.SetDockAdaptation(!_app.Dock.Adaptation.Enabled), CYAN, 11);
             Button(_page, 800, 521, 76, 27, "0.5 / 1 / 2×", () => _app.SetDockOptions(_app.DockAutoFire, _app.DockAdaptation, _app.DockSpeed == 1 ? 2 : _app.DockSpeed == 2 ? 0.5f : 1), MUTED, 10);
+            Button(_page, 886, 521, 94, 27, "사건 기록", OpenMagicTrace, MUTED, 11);
             _dockMetrics = Text(_page, 528, 562, 455, 46, "", 12, Color.white);
             _adaptation = Text(_page, 528, 605, 452, 45, "", 10, MUTED);
             if (_app.Dock == null) _app.StartDock(_scenario);
+        }
+
+        /// <summary>최근 사건의 계보·개체·비용·실패를 독립 목록으로 표시한다.</summary>
+        private void OpenMagicTrace()
+        {
+            RectTransform card = OpenModal("도크 사건 기록", 820, 530);
+            RectTransform list = ScrollList(card, "MagicTrace", 24, 82, 772, 418);
+            foreach (string line in _app.Dock.MagicTrace)
+            {
+                TMP_Text entry = Text(list, 0, 0, 746, 36, line, 12, CYAN);
+                Layout(entry.gameObject, 36);
+            }
+        }
+
+        /// <summary>보존한 설계를 바꾸지 않는 PoC 예시 선택과 원래 설계 복귀 조작을 표시한다.</summary>
+        private void OpenPocTemplates()
+        {
+            RectTransform card = OpenModal(L("ui.pocTemplates"), 700, 440);
+            Text(card, 24, 72, 652, 42, "별도 도크 미리보기 · 모든 룬 / RAM 256 · 현재 설계와 재화는 보존됩니다.", 15, CYAN);
+            for (int i = 0; i < GameData.PocSpells.Count; i++)
+            {
+                int index = i;
+                Button(card, 24, 124 + i * 52, 652, 42, GameData.PocSpells[i].Name,
+                    () => { CloseModal(); _app.PreviewPocSpell(index); }, MUTED, 15);
+            }
+            Button(card, 24, 352, 652, 42, "기존 설계로 돌아가기", () => { CloseModal(); _app.ClosePocPreview(); }, CYAN, 15);
         }
 
         /// <summary>시험 시나리오를 다음 항목으로 전환하고 독립 시뮬레이션을 다시 시작한다.</summary>
@@ -429,7 +475,7 @@ namespace RuneCode
             int ram = 0;
             foreach (GraphNode node in _app.EditingGraph.Nodes) ram += GameData.Runes.Get(node.RuneId).Ram;
             _metrics.text = L("ui.ram") + " " + _app.EquippedRam + "/" + _app.Capacity + "  ·  " + ram + " RAM" +
-                (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + L("ui.energy") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
+                (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + (spell.IsModular ? "예상 EN (단계 지불)" : L("ui.energy")) + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
         }
 
         /// <summary>마우스가 가리키는 룬의 기본 수치와 연결 시 계산되는 효과를 표시한다.</summary>
@@ -449,7 +495,7 @@ namespace RuneCode
             foreach (SpellAction action in actions)
             {
                 if (action.NodeId == id) return action;
-                SpellAction found = FindAction(action.OnHit, id) ?? FindAction(action.OnExpire, id) ?? FindAction(action.Then, id) ??
+                SpellAction found = FindAction(action.Events, id) ?? FindAction(action.OnHit, id) ?? FindAction(action.OnExpire, id) ?? FindAction(action.Then, id) ??
                     FindAction(action.Else, id) ?? FindAction(action.Body, id) ?? FindAction(action.Next, id);
                 if (found != null) return found;
             }
@@ -474,7 +520,7 @@ namespace RuneCode
             if (_isTutorialActive && hasBolt && hasFire && hasTested) { _isTutorialActive = false; _app.AdvanceTutorial(3); }
             if (_adaptation != null && _app.Dock != null)
             {
-                _adaptation.text = L("ui.autofire") + " " + L(_app.DockAutoFire ? "ui.on" : "ui.off") + "  ·  " + _app.DockSpeed.ToString("0.#") + "×  ·  " + L("ui.adaptation") + " " + L(_app.Dock.Adaptation.Enabled ? "ui.on" : "ui.off") + "\n" + AdaptationText(_app.Dock, false);
+                _adaptation.text = L("ui.autofire") + " " + L(_app.DockAutoFire ? "ui.on" : "ui.off") + "  ·  " + _app.DockSpeed.ToString("0.#") + "×  ·  " + L("ui.adaptation") + " " + L(_app.Dock.Adaptation.Enabled ? "ui.on" : "ui.off") + "\n" + AdaptationText(_app.Dock, false) + " · " + _app.Dock.CastState + "\n" + (_app.Dock.MagicTrace.Count > 0 ? _app.Dock.MagicTrace[_app.Dock.MagicTrace.Count - 1] : "");
             }
         }
 
@@ -532,7 +578,7 @@ namespace RuneCode
             {
                 if (rune.UnlockType == "start") continue;
                 RuneDefinition current = rune;
-                bool unlocked = Contains(_app.Save.UnlockedRunes, rune.Id);
+                bool unlocked = _app.AvailableRunes.Contains(rune.Id);
                 string cost = rune.UnlockType == "reward" ? L("ui.reward") : rune.UnlockCost + " " + L("ui.fragments");
                 UnityEngine.UI.Button button = Button(runes, 0, 0, 1198, 44, rune.Name + "  /  " + L("category." + rune.Category) + "  /  " + rune.Ram + " RAM  ·  " + (unlocked ? L("ui.complete") : cost),
                     () => { if (!unlocked) _app.BuyUpgrade(current.Id); }, unlocked ? MUTED : RuneMesh.CategoryColor(rune.Category), 15);
@@ -614,7 +660,7 @@ namespace RuneCode
             _missionTimer.text = L("ui.remaining") + " " + sim.RemainingTime.ToString("0.0") + "s";
             _missionTimer.color = sim.RemainingTime <= 5 ? new Color(1, 0.43f, 0.36f) : new Color(0.98f, 0.82f, 0.45f);
             _missionSpell.text = L("ui.singleSpell") + "  " + _missionSpellName + "  ·  " + L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") +
-                "s  ·  " + L("ui.cost") + " " + _missionSpellCost.ToString("0.#") + " EN";
+                "s  ·  " + L("ui.cost") + " " + _missionSpellCost.ToString("0.#") + " EN · " + sim.CastState;
             if (sim.EarnedFragments > _lastFragments)
             {
                 _fragmentToast.text = "+" + (sim.EarnedFragments - _lastFragments) + " " + L("ui.fragments");

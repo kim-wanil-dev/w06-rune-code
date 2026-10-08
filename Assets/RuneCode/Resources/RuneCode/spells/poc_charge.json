@@ -1,0 +1,76 @@
+{
+  "_id": "poc_charge",
+  "_name": "PoC · 정지 차징 → 구조체 → 착지 → 파동",
+  "_version": 2,
+  "_nodes": [
+    {
+      "_id": "core",
+      "_runeId": "core.cast",
+      "_x": 30,
+      "_y": 60,
+      "_params": [
+        {
+          "_key": "inputMode",
+          "_number": 0,
+          "_text": "charge"
+        }
+      ]
+    },
+    {
+      "_id": "spike",
+      "_runeId": "form.construct",
+      "_x": 240,
+      "_y": 60,
+      "_params": []
+    },
+    {
+      "_id": "land",
+      "_runeId": "trigger.listen",
+      "_x": 450,
+      "_y": 60,
+      "_params": [
+        {
+          "_key": "eventType",
+          "_number": 0,
+          "_text": "landed"
+        }
+      ]
+    },
+    {
+      "_id": "wave",
+      "_runeId": "form.wall",
+      "_x": 660,
+      "_y": 60,
+      "_params": [
+        {
+          "_key": "variant",
+          "_number": 0,
+          "_text": "wave"
+        }
+      ]
+    }
+  ],
+  "_edges": [
+    {
+      "_id": "e_core_exec_spike",
+      "_fromNode": "core",
+      "_fromPort": "exec",
+      "_toNode": "spike",
+      "_toPort": "exec"
+    },
+    {
+      "_id": "e_spike_event_land",
+      "_fromNode": "spike",
+      "_fromPort": "event",
+      "_toNode": "land",
+      "_toPort": "event"
+    },
+    {
+      "_id": "e_land_then_wave",
+      "_fromNode": "land",
+      "_fromPort": "then",
+      "_toNode": "wave",
+      "_toPort": "exec"
+    }
+  ]
+}

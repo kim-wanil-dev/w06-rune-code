@@ -10,7 +10,7 @@ param(
     [string]$Output = 'Builds/sim-result.json'
 )
 $runeProject = Split-Path -Parent $PSScriptRoot
-$runeExecutable = Join-Path $runeProject 'Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe'
+$runeExecutable = Join-Path $runeProject 'Builds/RuneCodePoC-MagicRemake/RuneCodePoC.exe'
 if (-not (Test-Path -LiteralPath $runeExecutable)) { throw 'Build the Windows PoC first with Rune Code > Build Windows PoC.' }
 $runeOutput = [IO.Path]::GetFullPath((Join-Path $runeProject $Output))
 $runeLog = Join-Path $runeProject 'Logs/rune-sim-player.log'

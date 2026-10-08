@@ -71,9 +71,23 @@ namespace RuneCode
             var castRange = GetAutomaticCastRange(compiled.Spell);
             var timer = Stopwatch.StartNew();
             for (var tick = 0; tick < ticks && !simulation.Completed && !simulation.IsDead; tick++)
-                simulation.Step(isTimedBattle ? CreateAutomaticInput(simulation, castRange) : new SimulationInput(SimVector.Zero, new SimVector(1, 0), true));
+            {
+                SimulationInput input = isTimedBattle ? CreateAutomaticInput(simulation, castRange) : new SimulationInput(SimVector.Zero, new SimVector(1, 0), true);
+                simulation.Step(CreateCastModeInput(input, compiled.Spell, tick));
+            }
             timer.Stop();
             return JsonUtility.ToJson(new SimulationReport(simulation, simulation.Tick, seed, scenario, compiled.Spell, timer.Elapsed.TotalMilliseconds), true);
+        }
+
+        /// <summary>CLI 자동 실행에서 선택한 Root 모드에 맞는 유한 누름·홀드·해제 입력을 생성한다.</summary>
+        private static SimulationInput CreateCastModeInput(SimulationInput input, CompiledSpell spell, int tick)
+        {
+            if (!spell.IsModular || spell.Input.Text("inputMode") == "instant") return input;
+            int holdTicks = spell.Input.Text("inputMode") == "charge"
+                ? (int)Math.Ceiling(spell.Input.Number("maxCharge") * RuneSimulation.TICK_RATE) + 1 : RuneSimulation.TICK_RATE * 3;
+            int phase = tick % (holdTicks + (int)Math.Ceiling(spell.Cooldown * RuneSimulation.TICK_RATE) + 2);
+            return new SimulationInput(input.Movement, input.AimDirection, phase == 0 && input.CastA,
+                castHeld: phase < holdTicks && input.CastA, castReleased: phase == holdTicks);
         }
 
         /// <summary>살아 있는 가장 가까운 적을 조준하고 사거리 안에서만 단일 마법을 시전하는 자동 전투 입력을 반환한다.</summary>
@@ -110,7 +124,7 @@ namespace RuneCode
                 if (action.Kind == "spawn")
                 {
                     var stats = action.Stats;
-                    candidate = action.Form == "bolt" ? stats.Speed * stats.Lifetime + stats.Radius :
+                    candidate = action.Form == "bolt" || action.Form == "vector" ? stats.Speed * stats.Lifetime + stats.Radius :
                         action.Form == "orbit" ? stats.OrbitRadius + stats.Radius : stats.Offset + stats.Radius;
                 }
                 else if (action.Kind == "blink") candidate = action.Distance + GetActionRange(action.Next);

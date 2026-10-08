@@ -75,7 +75,7 @@ namespace RuneCode
                 radiusMult *= mod.Id == "mod.expand" ? ReadModifierNumber(mod, modifierNode, "sizeScale") : mod.Stats.RadiusMultiplier;
                 if (mod.Id == "mod.range") rangeMult *= ReadModifierNumber(mod, modifierNode, "rangeScale");
                 if (mod.Id == "mod.speed") speedMult *= ReadModifierNumber(mod, modifierNode, "speedScale");
-                if (formKind == "bolt")
+                if (formKind == "bolt" || formKind == "vector")
                 {
                     _pierce += mod.Stats.Pierce;
                     if (mod.Stats.PierceLoss > 0f) _pierceLoss = mod.Stats.PierceLoss;
@@ -88,7 +88,7 @@ namespace RuneCode
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
             _radius = form.Radius * radiusMult;
-            _lifetime = formKind == "bolt" ? form.Lifetime * rangeMult / speedMult : form.Lifetime;
+            _lifetime = (formKind == "bolt" || formKind == "vector") ? form.Lifetime * rangeMult / speedMult : form.Lifetime;
             _offset = form.Offset * rangeMult;
             _orbitRadius = form.OrbitRadius * radiusMult * rangeMult;
             _angularSpeed = form.AngularSpeed * speedMult;
@@ -140,6 +140,8 @@ namespace RuneCode
 
     public sealed class SpellAction
     {
+        private readonly GraphNode _parameters;
+        private readonly RuneDefinition _definition;
         private readonly string _kind;
         private readonly string _nodeId;
         private readonly string _form;
@@ -157,6 +159,7 @@ namespace RuneCode
         private readonly float _shieldSeconds;
         private readonly float _ownEnergy;
 
+        private IReadOnlyList<SpellAction> _events = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _onHit = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _onExpire = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _then = new List<SpellAction>();
@@ -165,6 +168,7 @@ namespace RuneCode
         private IReadOnlyList<SpellAction> _next = new List<SpellAction>();
         private IReadOnlyList<string> _attachedNodeIds = new List<string>();
         public string Kind => _kind;
+        public IReadOnlyList<SpellAction> Events => _events;
         public string NodeId => _nodeId;
         public string Form => _form;
         public string Element => _element;
@@ -191,6 +195,8 @@ namespace RuneCode
         /// <summary>형태 또는 흐름 노드 정의와 연결 수식으로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition element, IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null)
         {
+            _parameters = node.Clone(node.Id);
+            _definition = rune;
             _nodeId = node.Id;
             _kind = rune.Category == "form" ? "spawn" : rune.Id.Substring(rune.Id.IndexOf('.') + 1);
             _form = rune.Category == "form" ? rune.Id.Substring(5) : "";
@@ -217,6 +223,17 @@ namespace RuneCode
             if (_kind == "if") _condition = new SpellCondition(node, rune);
         }
 
+        /// <summary>복사한 노드에서 숫자 설정을 읽고 생략된 설정은 해당 룬의 기본값을 반환한다.</summary>
+        public float Number(string key) => _parameters.GetNumber(key, DefaultNumber(_definition, key));
+
+        /// <summary>복사한 노드에서 열거 설정을 읽고 생략된 설정은 해당 룬의 기본값을 반환한다.</summary>
+        public string Text(string key)
+        {
+            foreach (ParameterDefinition parameter in _definition.Params)
+                if (parameter.Id == key) return _parameters.GetText(key, parameter.DefaultText);
+            return "";
+        }
+
         /// <summary>룬 파라미터 목록에서 숫자 기본값을 찾고 없으면 0을 반환한다.</summary>
         private static float DefaultNumber(RuneDefinition rune, string key)
         {
@@ -230,6 +247,7 @@ namespace RuneCode
         {
             switch (port)
             {
+                case "event": _events = actions; break;
                 case "onHit": _onHit = actions; break;
                 case "onExpire": _onExpire = actions; break;
                 case "then": _then = actions; break;
@@ -245,6 +263,8 @@ namespace RuneCode
 
     public sealed class CompiledSpell
     {
+        private readonly int _version;
+        private readonly SpellAction _input;
         private readonly string _name;
         private readonly string _signature;
         private readonly string _coreNodeId;
@@ -255,6 +275,8 @@ namespace RuneCode
         private readonly IReadOnlyList<string> _tags;
         private readonly IReadOnlyList<SpellAction> _root;
         public string Name => _name;
+        public bool IsModular => _version == 2;
+        public SpellAction Input => _input;
         public string Signature => _signature;
         public string CoreNodeId => _coreNodeId;
         public int RamUsed => _ramUsed;
@@ -266,8 +288,11 @@ namespace RuneCode
 
         /// <summary>검증된 그래프의 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
         public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, float energyCost,
-            float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root)
+            float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
+            int version = 1, SpellAction input = null)
         {
+            _version = version;
+            _input = input;
             _name = name;
             _signature = signature;
             _coreNodeId = coreNodeId;

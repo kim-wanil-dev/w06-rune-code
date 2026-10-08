@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace RuneCode
 {
-    public sealed class RuneSimulation
+    public sealed partial class RuneSimulation
     {
         public const int TICK_RATE = 60;
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
@@ -138,7 +138,7 @@ namespace RuneCode
 
         /// <summary>전투에서는 하나의 마법, 시험 도크에서는 최대 3슬롯의 컴파일 마법을 다음 시전부터 사용한다.</summary>
         public void SetLoadout(IReadOnlyList<CompiledSpell> spells)
-        { for (int i = 0; i < _loadout.Length; i++) _loadout[i] = i < spells.Count && (!_isMission || i == 0) ? spells[i] : null; }
+        { if (_loadout[0]?.Signature != (spells.Count > 0 ? spells[0]?.Signature : null)) CancelActiveMagic(); for (int i = 0; i < _loadout.Length; i++) _loadout[i] = i < spells.Count && (!_isMission || i == 0) ? spells[i] : null; }
 
         /// <summary>해금한 속성 태그를 노이즈의 무작위 후보로 설정하고 기본 화염 후보를 보존한다.</summary>
         public void SetUnlockedElements(IReadOnlyList<string> elements)
@@ -154,6 +154,7 @@ namespace RuneCode
         {
             if (spell == null || slot < 0 || slot >= _loadout.Length || (_stage != MissionStage.Bench && _stage != MissionStage.Combat)) return false;
             if (_isMission && slot != 0) return false;
+            if (spell.IsModular) return StartModularCast(spell, slot, 1)?.HasEffect == true;
             if (!_player.Pay(spell, slot)) return false;
             _energySpent += spell.EnergyCost;
             RecordNode(spell.CoreNodeId);
@@ -175,7 +176,7 @@ namespace RuneCode
             MovePlayer(input);
             if (_isMission) AdvanceEnemyStreaming();
             RunScheduled();
-            if (input.CastA) TryCast(_loadout[0], 0);
+            AdvanceMagicInput(input);
             if (input.CastB) TryCast(_loadout[1], 1);
             if (input.CastC) TryCast(_loadout[2], 2);
             AdvanceStatuses();
@@ -183,6 +184,7 @@ namespace RuneCode
             RunEnemyShots();
             AdvanceSpellEntities();
             AdvanceHostileProjectiles();
+            FlushMagicEvents();
             CleanupEnemies();
             CollectNearbyOrbs();
             if (_isMission && _player.Hp <= 0) { _stage = MissionStage.Dead; CollectAllOrbs(); CancelCombat(); }
@@ -204,6 +206,7 @@ namespace RuneCode
         {
             if (_isMission) throw new InvalidOperationException("미션은 시험 도크로 초기화할 수 없습니다.");
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
+            _nextCastId = 0; _magicTrace.Clear();
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _totalDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
@@ -228,6 +231,7 @@ namespace RuneCode
         public string StateHash()
         {
             var state = new StringBuilder();
+            WriteMagicState(state);
             state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_nextSpawnTick).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
             state.Append('|').Append(_actionBudgetTick).Append('|').Append(_actionsThisTick).Append('|').Append(_droppedExecutions);
             AppendNumber(state, _battleDuration); AppendNumber(state, _energyRegen);
@@ -264,7 +268,7 @@ namespace RuneCode
             SimVector move = input.Movement.Length > 1 ? input.Movement.Normalized() : input.Movement;
             if (input.Dash && _stage != MissionStage.Terminal) _player.StartDash(move.LengthSquared > 0.000001 ? move : _player.AimDirection, _balance.Player.DashSeconds, _balance.Player.DashCooldown, Time);
             SimVector displacement = _player.DashRemaining > 0 ? _player.GetDashDirection() * (_balance.Player.DashDistance / _balance.Player.DashSeconds * Math.Min(STEP_SECONDS, _player.DashRemaining)) : move * (_balance.Player.Speed * STEP_SECONDS);
-            _player.Move(_map.Move(_player.Position, displacement, _sector.PlayerRadius));
+            _player.Move(MoveWithMagicWalls(_player.Position, displacement, _sector.PlayerRadius));
         }
 
         /// <summary>예약된 흐름 실행 중 현재 틱에 도달한 명령을 등록 순서대로 실행한다.</summary>
@@ -277,6 +281,7 @@ namespace RuneCode
         /// <summary>실행 명령 목록을 컨텍스트 스냅샷으로 처리하고 모든 실제 실행 노드를 기록한다.</summary>
         private void Execute(IReadOnlyList<SpellAction> actions, SpellContext context)
         {
+            if (context.Run != null && context.Run.IsCancelled) return;
             if (_actionBudgetTick != _tick) { _actionBudgetTick = _tick; _actionsThisTick = 0; }
             for (int i = 0; i < actions.Count; i++)
             {
@@ -285,7 +290,8 @@ namespace RuneCode
                 SpellAction action = actions[i]; RecordNode(action.NodeId);
                 switch (action.Kind)
                 {
-                    case "spawn": SpawnForm(action, context); break;
+                    case "spawn": if (context.Run != null) SpawnModularForm(action, context); else SpawnForm(action, context); break;
+                    case "empower": ExecuteEmpower(action, context); break;
                     case "delay": Schedule(action.Then, context, action.Seconds); break;
                     case "repeat":
                         Execute(action.Body, context);
@@ -347,7 +353,8 @@ namespace RuneCode
             for (int i = initialCount - 1; i >= 0; i--)
             {
                 SimulationSpellEntity entity = _spellEntities[i];
-                if (entity.Kind == "bolt") AdvanceBolt(entity);
+                if (_modules.TryGetValue(entity.Id, out ModuleState module)) AdvanceModularForm(module);
+                else if (entity.Kind == "bolt") AdvanceBolt(entity);
                 else if (entity.Kind == "orbit")
                 {
                     entity.Angle += entity.Action.Stats.AngularSpeed * DEGREES_TO_RADIANS * STEP_SECONDS;
@@ -357,8 +364,8 @@ namespace RuneCode
                 }
                 else if (entity.Kind == "zone") HitArea(entity, false);
                 entity.Advance(STEP_SECONDS);
-                if ((entity.Kind != "burst" && entity.HasExpired) || entity.Age + 0.000001 >= entity.Lifetime)
-                { Expire(entity); _spellEntities.RemoveAt(i); }
+                if ((entity.Kind != "burst" && !(entity.Kind == "vector" && entity.Action.Text("variant") == "beam") && entity.HasExpired) || entity.Age + 0.000001 >= entity.Lifetime)
+                { Expire(entity, entity.Kind == "vector" || entity.Kind == "bolt" ? "range" : "expired"); _spellEntities.RemoveAt(i); _modules.Remove(entity.Id); }
             }
         }
 
@@ -380,7 +387,7 @@ namespace RuneCode
             }
             SimVector previous = entity.Position;
             SimVector next = previous + direction * (stats.Speed * STEP_SECONDS);
-            if (!_map.CanOccupy(next, entity.Radius)) { entity.Move(_map.Move(previous, next - previous, entity.Radius), direction); Expire(entity); return; }
+            if (!_map.CanOccupy(next, entity.Radius)) { entity.Move(_map.Move(previous, next - previous, entity.Radius), direction); Expire(entity, "terrain"); return; }
             entity.Move(next, direction);
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
@@ -390,8 +397,8 @@ namespace RuneCode
             {
                 if (!enemy.IsAlive) continue;
                 double multiplier = Math.Max(0, 1 - entity.Hits * stats.PierceLoss);
-                entity.HitTimes[enemy.Id] = Time; Hit(entity, enemy, stats.Damage * multiplier, false, true); entity.Hits++;
-                if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); Expire(entity); break; }
+                entity.HitTimes[enemy.Id] = Time; Hit(entity, enemy, entity.Damage * multiplier, false, true); entity.Hits++;
+                if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); Expire(entity, "hit"); break; }
             }
         }
 
@@ -400,9 +407,9 @@ namespace RuneCode
         {
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
-                if (enemy.IsAlive && SimVector.Distance(entity.Position, enemy.Position) <= entity.Radius + enemy.Radius) targets.Add(enemy);
+                if (enemy.IsAlive && SpellOverlaps(entity, enemy)) targets.Add(enemy);
             targets.Sort((a, b) => (a.Position - entity.Position).LengthSquared.CompareTo((b.Position - entity.Position).LengthSquared));
-            double interval = entity.Kind == "zone" ? entity.Action.Stats.TickInterval : entity.Action.Stats.HitInterval;
+            double interval = (entity.Kind == "zone" || entity.Kind == "domain" || entity.Kind == "wall") ? entity.Action.Stats.TickInterval : entity.Action.Stats.HitInterval;
             foreach (SimulationEnemy enemy in targets)
             {
                 if (!enemy.IsAlive) continue;
@@ -410,14 +417,25 @@ namespace RuneCode
                 if (hasHit && (isBurst || Time - lastTime + 0.000001 < interval)) continue;
                 entity.HitTimes[enemy.Id] = Time;
                 bool trigger = entity.Kind != "zone" || !hasHit;
-                Hit(entity, enemy, entity.Action.Stats.Damage, entity.Kind == "zone", trigger);
+                Hit(entity, enemy, entity.Damage, entity.Kind == "zone" || entity.Kind == "domain", trigger);
             }
         }
 
         /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄 및 제한된 onHit 후속 실행을 처리한다.</summary>
         private void Hit(SimulationSpellEntity entity, SimulationEnemy enemy, double damage, bool isDot, bool trigger)
         {
-            ApplyDamage(enemy, damage, entity.Element, entity.Kind, entity.Action.Noise, isDot, entity.Direction, true);
+            bool wasAlive = enemy.IsAlive;
+            bool hadStatus = enemy.HasStatus(entity.Element == "ice" ? "freeze" : entity.Element == "arc" ? "emp" : "burn");
+            int priorChill = enemy.ChillStacks;
+            double actual = ApplyDamage(enemy, damage, entity.Element, entity.Kind, entity.Action.Noise, isDot, entity.Direction, true);
+            if (_modules.TryGetValue(entity.Id, out ModuleState module))
+            {
+                EmitMagic(module, "damage", enemy, actual);
+                if (trigger) EmitMagic(module, "hit", enemy);
+                if (wasAlive && !enemy.IsAlive) EmitMagic(module, "kill", enemy);
+                if (!hadStatus && enemy.HasStatus(entity.Element == "ice" ? "freeze" : entity.Element == "arc" ? "emp" : "burn") || enemy.ChillStacks > priorChill)
+                    EmitMagic(module, "status", enemy);
+            }
             if (entity.Element == "arc")
             {
                 RuneStats arc = GameData.Runes.Get("elem.arc").Stats;
@@ -425,10 +443,21 @@ namespace RuneCode
                 foreach (SimulationEnemy other in _enemies)
                     if (other != enemy && other.IsAlive && SimVector.Distance(other.Position, enemy.Position) <= arc.ArcRange) chain.Add(other);
                 chain.Sort((a, b) => (a.Position - enemy.Position).LengthSquared.CompareTo((b.Position - enemy.Position).LengthSquared));
-                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++) ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
+                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++)
+                {
+                    bool wasChainAlive = chain[i].IsAlive;
+                    bool hadEmp = chain[i].IsEmp;
+                    double chainDamage = ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
+                    if (module != null)
+                    {
+                        EmitMagic(module, "damage", chain[i], chainDamage);
+                        if (wasChainAlive && !chain[i].IsAlive) EmitMagic(module, "kill", chain[i]);
+                        if (!hadEmp && chain[i].IsEmp) EmitMagic(module, "status", chain[i]);
+                    }
+                }
             }
             if (trigger && entity.TriggerCount < _balance.Limits.HitTriggerCap)
-            { entity.TriggerCount++; Execute(entity.Action.OnHit, new SpellContext(enemy.Position, entity.Direction, enemy, true, entity.CastNoiseElement)); }
+            { entity.TriggerCount++; Execute(entity.Action.OnHit, EventContext(entity, enemy.Position, enemy)); }
         }
 
         /// <summary>피해 파이프라인에 적응, 이지스 방패, 릴레이 방어 및 보스 무적을 반영하고 실제 피해와 학습을 기록한다.</summary>
@@ -436,7 +465,7 @@ namespace RuneCode
         {
             if (!enemy.IsAlive || enemy.IsPatching) return 0;
             double actual = damage * Adaptation.GetMultiplier(element, form);
-            if (enemy.Kind == "enemy.aegis" && !enemy.IsEmp && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
+            if (enemy.Kind == "enemy.aegis" && !enemy.IsEmp && (form == "bolt" || form == "vector") && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
             bool relayAlive = false;
             bool hasRelayAura = false;
             foreach (SimulationEnemy relay in _enemies)
@@ -510,7 +539,7 @@ namespace RuneCode
 
         /// <summary>냉기 감속을 반영하여 적을 벽 충돌 가능한 방향으로 이동시킨다.</summary>
         private void MoveEnemy(SimulationEnemy enemy, SimVector direction, double speed)
-        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * enemy.ChillStacks); enemy.Move(_map.Move(enemy.Position, direction * (speed * slow * STEP_SECONDS), enemy.Radius), direction); }
+        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * enemy.ChillStacks); enemy.Move(MoveWithMagicWalls(enemy.Position, direction * (speed * slow * MagicSlow(enemy) * STEP_SECONDS), enemy.Radius), direction); }
 
         /// <summary>적과 플레이어가 겹치면 피해를 적용하고 접촉 여부를 반환한다.</summary>
         private bool HurtByContact(SimulationEnemy enemy)
@@ -591,7 +620,8 @@ namespace RuneCode
         {
             for (int i = _enemyProjectiles.Count - 1; i >= 0; i--)
             {
-                SimulationProjectile projectile = _enemyProjectiles[i]; projectile.Advance(STEP_SECONDS);
+                SimulationProjectile projectile = _enemyProjectiles[i]; SimVector previous = projectile.Position; projectile.Advance(STEP_SECONDS);
+                if (!projectile.IsHazard && CrossesMagicWall(previous, projectile.Position, projectile.Radius)) { _enemyProjectiles.RemoveAt(i); continue; }
                 if (projectile.Age >= projectile.Lifetime || (!projectile.IsHazard && _map.IsWall(projectile.Position))) { _enemyProjectiles.RemoveAt(i); continue; }
                 if (!projectile.IsWarning && SimVector.Distance(projectile.Position, _player.Position) <= projectile.Radius + _sector.PlayerRadius)
                 { HurtPlayer(projectile.Damage); if (!projectile.IsHazard) _enemyProjectiles.RemoveAt(i); }
@@ -599,8 +629,18 @@ namespace RuneCode
         }
 
         /// <summary>스펠 소멸 후속 명령을 이벤트 위치 및 방향으로 단 한 번 실행한다.</summary>
-        private void Expire(SimulationSpellEntity entity)
-        { if (entity.HasExpired) return; entity.HasExpired = true; Execute(entity.Action.OnExpire, new SpellContext(entity.Position, entity.Direction, null, true, entity.CastNoiseElement)); }
+        private void Expire(SimulationSpellEntity entity, string reason = "expired")
+        {
+            if (entity.HasExpired) return;
+            if (_modules.TryGetValue(entity.Id, out ModuleState module))
+            {
+                if (reason == "expired") EmitMagic(module, "clock", module.Context.Target);
+                EmitMagic(module, reason, reason == "range" || reason == "terrain" ? null : module.Context.Target);
+                TraceMagic("종료: " + reason, module.Context.Run, entity.NodeId, entity.Id);
+            }
+            entity.HasExpired = true;
+            Execute(entity.Action.OnExpire, EventContext(entity, entity.Position, null));
+        }
 
         /// <summary>처치된 적만 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
         private void CleanupEnemies()
@@ -689,7 +729,7 @@ namespace RuneCode
         }
 
         /// <summary>방 전환, 사망 및 클리어 시 지속 개체와 예약 실행을 취소한다.</summary>
-        private void CancelCombat() { _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); }
+        private void CancelCombat() { CancelActiveMagic(); _enemyProjectiles.Clear(); _pendingEnemyShots.Clear(); }
 
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>
         private void RecordNode(string nodeId) { _nodeEvents.Add(new NodeExecutionEvent(nodeId, _tick)); _nodeExecutionCount++; }
@@ -720,12 +760,24 @@ namespace RuneCode
         private static bool ContainsNoise(IReadOnlyList<SpellAction> actions)
         {
             foreach (SpellAction action in actions)
-                if (action.Noise || ContainsNoise(action.OnHit) || ContainsNoise(action.OnExpire) || ContainsNoise(action.Then) || ContainsNoise(action.Else) || ContainsNoise(action.Body) || ContainsNoise(action.Next)) return true;
+                if (action.Noise || ContainsNoise(action.Events) || ContainsNoise(action.OnHit) || ContainsNoise(action.OnExpire) || ContainsNoise(action.Then) || ContainsNoise(action.Else) || ContainsNoise(action.Body) || ContainsNoise(action.Next)) return true;
             return false;
         }
 
         private readonly struct SpellContext
         {
+            private readonly CastRun _run;
+            private readonly double _damageMultiplier;
+            private readonly double _radiusMultiplier;
+            private readonly double _extraEnergy;
+            private readonly bool _isWholeBuff;
+            private readonly string _consumeStatus;
+            public CastRun Run => _run;
+            public double DamageMultiplier => _damageMultiplier;
+            public double RadiusMultiplier => _radiusMultiplier;
+            public double ExtraEnergy => _extraEnergy;
+            public bool IsWholeBuff => _isWholeBuff;
+            public string ConsumeStatus => _consumeStatus;
             private readonly SimVector _origin;
             private readonly SimVector _direction;
             private readonly SimulationEnemy _target;
@@ -737,7 +789,7 @@ namespace RuneCode
             public bool FromEvent => _fromEvent;
             public string NoiseElement => _noiseElement;
             /// <summary>발생 위치, 방향, 선택 대상 및 이벤트 유래 여부를 예약 가능한 스냅샷으로 보관한다.</summary>
-            public SpellContext(SimVector origin, SimVector direction, SimulationEnemy target, bool fromEvent, string noiseElement) { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; }
+            public SpellContext(SimVector origin, SimVector direction, SimulationEnemy target, bool fromEvent, string noiseElement, CastRun run = null, double damageMultiplier = 1, double radiusMultiplier = 1, double extraEnergy = 0, bool isWholeBuff = false, string consumeStatus = null) { _run = run; _damageMultiplier = damageMultiplier; _radiusMultiplier = radiusMultiplier; _extraEnergy = extraEnergy; _isWholeBuff = isWholeBuff; _consumeStatus = consumeStatus; _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; }
         }
 
         private readonly struct ScheduledExecution

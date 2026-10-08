@@ -25,6 +25,13 @@ namespace RuneCode
         private PlayerSave _save;
         private SpellGraph _editingGraph;
         private SpellGraph _previousGraph;
+        private SpellGraph _graphBeforePoc;
+        private bool _pendingCastPressed;
+        private bool _pendingCastReleased;
+        private bool _castPointerArmed;
+        public bool IsPocPreview => _graphBeforePoc != null;
+        public string DockScenario => _dockScenario;
+        public IEnumerable<string> AvailableRunes => IsPocPreview ? GameData.Runes.All.Select(rune => rune.Id) : _save.UnlockedRunes;
         private CompileResult _compileResult;
         private readonly List<SpellGraph> _undo = new List<SpellGraph>();
         private readonly List<SpellGraph> _redo = new List<SpellGraph>();
@@ -79,10 +86,10 @@ namespace RuneCode
         public bool DockAutoFire => _dockAutoFire;
         public bool DockAdaptation => _dockAdaptation;
         public float DockSpeed => _dockSpeed;
-        public int Capacity => GameData.Balance.Economy.BaseCapacity + _save.CapacityLevel * GameData.Balance.Economy.CapacityStep;
+        public int Capacity => IsPocPreview ? GameData.Balance.Limits.MaxGraphNodes : GameData.Balance.Economy.BaseCapacity + _save.CapacityLevel * GameData.Balance.Economy.CapacityStep;
         public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep;
         public float MaxHp => GameData.Balance.Player.MaxHp + _save.HpLevel * GameData.Balance.Economy.StatStep;
-        public int EquippedRam => CalculateEquippedRam(_editingGraph);
+        public int EquippedRam => IsPocPreview ? GetGraphRam(_editingGraph) : CalculateEquippedRam(_editingGraph);
         public int SelectedStage => _save.SelectedStage;
         public int HighestClearedStage => _save.HighestClearedStage;
         public float BattleDuration => (float)_incremental.BaseDuration + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
@@ -147,13 +154,15 @@ namespace RuneCode
                 }
                 var pointer = SimVector.Zero;
                 var hasPointer = !isTyping && _view.IsPointerInMission && _view.TryGetMissionPointer(out pointer);
+                CaptureCastInput(hasPointer, mouse);
                 var maxSteps = GameData.Balance.Limits.MaxFrameSteps;
                 _missionAccumulator = Math.Min(_missionAccumulator + Time.unscaledDeltaTime, FIXED_STEP * maxSteps);
                 var steps = 0;
                 while (_missionAccumulator >= FIXED_STEP && steps++ < maxSteps)
                 {
                     var aim = hasPointer ? pointer - _mission.Player.Position : _mission.Player.AimDirection;
-                    _mission.Step(new SimulationInput(movement, aim, hasPointer, false, false, _hasPendingMissionDash));
+                    _mission.Step(new SimulationInput(movement, aim, _pendingCastPressed, false, false, _hasPendingMissionDash, false, _castPointerArmed && mouse != null && mouse.leftButton.isPressed, _pendingCastReleased));
+                    _pendingCastPressed = false; _pendingCastReleased = false;
                     _hasPendingMissionDash = false;
                     _missionAccumulator -= FIXED_STEP;
                 }
@@ -161,32 +170,76 @@ namespace RuneCode
                 CaptureNodeTelemetry(_mission, "mission", ref _missionTelemetryCount);
                 if (_mission.Stage == MissionStage.Dead || _mission.Stage == MissionStage.Cleared) FinishMission();
             }
-            else { _missionAccumulator = 0; _hasPendingMissionDash = false; }
+            else { _missionAccumulator = 0; _hasPendingMissionDash = false; if (IsMission && _isPaused) { _pendingCastPressed = false; _pendingCastReleased = false; } if (IsMission && !_isPaused) { ClearCastInput(); _mission.CancelMagicInput(); } }
             if ((_screen == AppScreen.Workshop && _tab == "editor") || _isTerminalEditor)
             {
                 var aim = new SimVector(1, 0);
                 if (_view.TryGetDockPointer(out var point)) aim = point - _dock.Player.Position;
-                var fire = _dockAutoFire || (!isTyping && _view.IsPointerInDock && mouse != null && mouse.leftButton.isPressed);
+                CaptureCastInput(!isTyping && _view.IsPointerInDock, mouse);
+                var autoFire = _dockAutoFire && (_compileResult.Spell == null || !_compileResult.Spell.IsModular || _compileResult.Spell.Input.Text("inputMode") == "instant");
+                var fire = autoFire || _pendingCastPressed;
                 if (!isTyping && keyboard != null && keyboard.rKey.wasPressedThisFrame) ResetDock();
                 var maxSteps = GameData.Balance.Limits.MaxFrameSteps;
                 _dockAccumulator = Math.Min(_dockAccumulator + Time.unscaledDeltaTime * _dockSpeed, FIXED_STEP * maxSteps);
                 var steps = 0;
                 while (_dockAccumulator >= FIXED_STEP && steps++ < maxSteps)
                 {
-                    _dock.Step(new SimulationInput(SimVector.Zero, aim, fire));
+                    _dock.Step(new SimulationInput(SimVector.Zero, aim, fire, false, false, false, false, _castPointerArmed && mouse != null && mouse.leftButton.isPressed, _pendingCastReleased));
+                    _pendingCastPressed = false; _pendingCastReleased = false; fire = autoFire;
                     _dockAccumulator -= FIXED_STEP;
                 }
                 CaptureNodeTelemetry(_dock, "dock", ref _dockTelemetryCount);
             }
-            else _dockAccumulator = 0;
+            else { _dockAccumulator = 0; if (!IsMission) ClearCastInput(); }
         }
 
         void OnApplicationQuit() { SaveGraph(); }
 
+        void OnApplicationFocus(bool hasFocus)
+        { if (!hasFocus) { ClearCastInput(); _mission?.CancelMagicInput(); _dock?.CancelMagicInput(); } }
+
+        void OnDisable()
+        { ClearCastInput(); _mission?.CancelActiveMagic(); _dock?.CancelActiveMagic(); }
+
+        /// <summary>아레나 안에서 시작한 누름만 시전 입력으로 예약하며 영역 이탈은 유지 해제로 예약한다.</summary>
+        private void CaptureCastInput(bool inArena, Mouse mouse)
+        {
+            if (mouse == null) return;
+            if (inArena && mouse.leftButton.wasPressedThisFrame) { _pendingCastPressed = true; _castPointerArmed = true; }
+            if (_castPointerArmed && !inArena)
+            {
+                (IsMission ? _mission : _dock)?.CancelMagicInput();
+                ClearCastInput();
+            }
+            else if (mouse.leftButton.wasReleasedThisFrame)
+            { _pendingCastReleased |= _castPointerArmed; _castPointerArmed = false; }
+        }
+
+        /// <summary>렌더 프레임에서 모은 누름·해제·포인터 입력 상태를 초기화한다.</summary>
+        private void ClearCastInput() { _pendingCastPressed = false; _pendingCastReleased = false; _castPointerArmed = false; }
+
+        /// <summary>기존 활성 설계를 보존한 채 별도 PoC 예시를 편집기·도크에 열며 진행 파일에는 저장하지 않는다.</summary>
+        public void PreviewPocSpell(int index)
+        {
+            if (!CanEdit() || index < 0 || index >= GameData.PocSpells.Count) return;
+            if (!IsPocPreview) { SaveGraph(); _graphBeforePoc = _editingGraph.Clone(); }
+            _editingGraph = GameData.PocSpells[index].Clone();
+            _previousGraph = _editingGraph.Clone(); _undo.Clear(); _redo.Clear(); _graphDirty = false;
+            ClearCastInput(); _dockAutoFire = false; StartDock("dummy_line"); _view.Refresh();
+        }
+
+        /// <summary>PoC 미리보기를 닫고 보존해 둔 활성 설계와 일반 용량·해금 규칙을 복원한다.</summary>
+        public void ClosePocPreview()
+        {
+            if (!IsPocPreview) return;
+            _editingGraph = _graphBeforePoc; _graphBeforePoc = null; _previousGraph = _editingGraph.Clone();
+            _undo.Clear(); _redo.Clear(); _graphDirty = false; ClearCastInput(); ResetDock(); Recompile(); _view.Refresh();
+        }
+
         /// <summary>편집기의 선택 마법을 검증하고 도크의 시전 프로그램을 갱신한다.</summary>
         private void Recompile()
         {
-            _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance, _save.UnlockedRunes, Capacity, MaxEnergy);
+            _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance, AvailableRunes, Capacity, MaxEnergy);
             if (_dock != null) _dock.SetLoadout(new[] { _compileResult.Ok ? _compileResult.Spell : null });
         }
 
@@ -214,7 +267,7 @@ namespace RuneCode
         }
 
         /// <summary>작업실에서 에디터·벤치·출격·설정 중 전달된 탭을 선택한다.</summary>
-        public void SetTab(string tab) { if (_screen != AppScreen.Workshop) return; _tab = tab; _view.Refresh(); }
+        public void SetTab(string tab) { if (_screen != AppScreen.Workshop) return; if (IsPocPreview && tab != "editor") ClosePocPreview(); _tab = tab; _view.Refresh(); }
 
         /// <summary>보관함의 마법을 편집 사본으로 열고 연결된 슬롯 또는 보관함 선택 상태를 갱신한다.</summary>
         public void SelectSpell(string id)
@@ -244,10 +297,10 @@ namespace RuneCode
             else { _activeSlot = slot; SetStatus("editor.emptySlot"); }
         }
 
-        /// <summary>현재 단일 마법의 편집 사본을 반영하고 버전 2 파일에 저장한다.</summary>
+        /// <summary>현재 단일 마법의 편집 사본을 반영하고 PoC 미리보기를 제외한 버전 3 진행을 저장한다.</summary>
         public void SaveGraph()
         {
-            if (_save == null || _editingGraph == null) return;
+            if (_save == null || _editingGraph == null || IsPocPreview) return;
             _save.StoreGraph(_editingGraph);
             if (!SaveStore.Write(_save)) _statusMessage = SaveStore.LastWarning;
         }
@@ -342,7 +395,7 @@ namespace RuneCode
         /// <summary>Core 중복과 공유 RAM 초과를 막고 지정 좌표에 룬을 배치한다.</summary>
         public void AddRune(string runeId, float x = 300, float y = 150)
         {
-            if (!CanEdit() || !_save.UnlockedRunes.Contains(runeId)) return;
+            if (!CanEdit() || !AvailableRunes.Contains(runeId)) return;
             var rune = GameData.Runes.Get(runeId);
             if (rune == null || runeId == "core.cast") return;
             if (_editingGraph.Nodes.Count >= GameData.Balance.Limits.MaxGraphNodes)
@@ -352,6 +405,7 @@ namespace RuneCode
             { SetStatus("editor.ramBlocked"); return; }
             if (extraCopies > 0 && GameData.Balance.Ram.Mode != "shared" && GetGraphRam(_editingGraph) + rune.Ram > Capacity)
             { SetStatus("editor.ramBlocked"); return; }
+            if (rune.Category == "trigger" || rune.Category == "constraint" || rune.FindPort("event", "out") != null) _editingGraph.UseModularVersion();
             _editingGraph.AddNode(new GraphNode(NewId("node"), runeId, x, y));
             if (runeId == "form.bolt") _save.SetTutorialStep(1);
             ChangedGraph(); _view.RefreshGraph();
@@ -386,11 +440,11 @@ namespace RuneCode
 
         /// <summary>숫자 파라미터를 선택 노드에 저장하고 검증을 예약한다.</summary>
         public void SetNodeNumber(string id, string key, float value)
-        { if (!CanEdit()) return; var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == id); if (node == null) return; node.SetNumber(key, value); ChangedGraph(); }
+        { if (!CanEdit()) return; var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == id); if (node == null) return; if (node.RuneId == "core.cast") _editingGraph.UseModularVersion(); node.SetNumber(key, value); ChangedGraph(); }
 
         /// <summary>열거 파라미터를 선택 노드에 저장하고 검증을 예약한다.</summary>
         public void SetNodeText(string id, string key, string value)
-        { if (!CanEdit()) return; var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == id); if (node == null) return; node.SetText(key, value); ChangedGraph(); }
+        { if (!CanEdit()) return; var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == id); if (node == null) return; if (node.RuneId == "core.cast") _editingGraph.UseModularVersion(); node.SetText(key, value); ChangedGraph(); }
 
         /// <summary>이전 편집 상태를 최대 50단계 기록하고 자동 컴파일을 예약한다.</summary>
         public void ChangedGraph()
@@ -442,6 +496,7 @@ namespace RuneCode
                 _editingGraph.Edges.Count + _copiedEdges.Count > GameData.Balance.Limits.MaxGraphEdges)
             { SetStatus("editor.graphLimit"); return; }
             var candidate = _editingGraph.Clone();
+            if (_copiedNodes.Any(node => GameData.Runes.Get(node.RuneId).FindPort("event", "out") != null || GameData.Runes.Get(node.RuneId).Category == "trigger" || GameData.Runes.Get(node.RuneId).Category == "constraint")) candidate.UseModularVersion();
             var map = new Dictionary<string, string>();
             foreach (var node in _copiedNodes)
             {
@@ -483,8 +538,10 @@ namespace RuneCode
         {
             Recompile();
             if (!_compileResult.Ok) { SetStatus("editor.invalidCast"); return; }
+            if (_compileResult.Spell.IsModular && _compileResult.Spell.Input.Text("inputMode") != "instant")
+            { _statusMessage = "도크 안에서 좌클릭을 홀드하여 차징·유지하세요."; _view.RefreshGraph(); return; }
             if (!_dock.TryCast(_compileResult.Spell)) return;
-            _save.SetTutorialStep(3); SaveStore.Write(_save);
+            if (!IsPocPreview) { _save.SetTutorialStep(3); SaveStore.Write(_save); }
             LocalTelemetry.Record(_dock.Tick, "bench.cast", _compileResult.Spell.Signature); _view.RefreshGraph();
         }
 
@@ -493,7 +550,7 @@ namespace RuneCode
 
         /// <summary>도크 자동 시전·적응·시간 배율을 설정한다.</summary>
         public void SetDockOptions(bool autoplay, bool adaptation, float speed)
-        { _dockAutoFire = autoplay; _dockSpeed = Math.Max(0.5f, Math.Min(2, speed)); SetDockAdaptation(adaptation); }
+        { _dockAutoFire = autoplay && (_compileResult.Spell == null || !_compileResult.Spell.IsModular || _compileResult.Spell.Input.Text("inputMode") == "instant"); _dockSpeed = Math.Max(0.5f, Math.Min(2, speed)); SetDockAdaptation(adaptation); }
 
         /// <summary>일반 전투 중 편집 불가 규칙에 따라 현재 화면의 편집 허용 상태를 반환한다.</summary>
         private bool CanEdit() { return _screen == AppScreen.Workshop && _tab == "editor"; }
@@ -518,7 +575,9 @@ namespace RuneCode
         }
 
         /// <summary>현재 단일 마법으로 선택 스테이지를 시작한다.</summary>
-        public void StartMission() { Deploy(); }
+        public void StartMission() {
+            if (IsPocPreview) { _statusMessage = "PoC 도크 미리보기입니다. 기존 설계로 돌아가 출격하세요."; _view.Refresh(); return; }
+            ClearCastInput(); Deploy(); }
 
         /// <summary>해금된 범위 안에서 출격 스테이지를 선택하고 저장한다.</summary>
         public void SelectStage(int stage)
@@ -666,6 +725,6 @@ namespace RuneCode
         private void SetStatus(string key) { _statusMessage = GameData.L(key); _view.RefreshGraph(); }
 
         /// <summary>요청된 튜토리얼 완료 단계를 저장한다.</summary>
-        public void AdvanceTutorial(int step) { _save.SetTutorialStep(step); SaveStore.Write(_save); _view.RefreshGraph(); }
+        public void AdvanceTutorial(int step) { if (!IsPocPreview) { _save.SetTutorialStep(step); SaveStore.Write(_save); } _view.RefreshGraph(); }
     }
 }

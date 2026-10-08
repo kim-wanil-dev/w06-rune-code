@@ -94,7 +94,33 @@ namespace RuneCode
                 Vector2 point = Point(spell.Position);
                 Color tint = RuneMesh.ElementColor(spell.Element);
                 float radius = (float)spell.Radius * _scale;
-                if (spell.Kind == "zone" || spell.Kind == "burst")
+                Vector2 spellDirection = new Vector2((float)spell.Direction.X, -(float)spell.Direction.Y);
+                if (spell.Kind == "vector" && spell.Variant == "beam")
+                    RuneMesh.Line(mesh, Point(spell.Anchor), point, Math.Max(2, radius), tint);
+                else if (spell.Kind == "wall" && spell.Variant == "wall")
+                {
+                    Vector2 across = new Vector2(-spellDirection.y, spellDirection.x) * radius;
+                    RuneMesh.Line(mesh, point - across, point + across, 8 * _scale, tint);
+                    RuneMesh.Polygon(mesh, point - across, 8 * _scale, tint, 4);
+                    RuneMesh.Polygon(mesh, point + across, 8 * _scale, tint, 4);
+                }
+                else if (spell.Kind == "tether")
+                {
+                    RuneMesh.Line(mesh, Point(sim.Player.Position), point, 3 * _scale, tint);
+                    RuneMesh.Ring(mesh, point, radius + 6 * _scale, 2 * _scale, tint);
+                }
+                else if (spell.Kind == "infusion")
+                {
+                    RuneMesh.Ring(mesh, point, radius, 2 * _scale, tint, 6);
+                    RuneMesh.Polygon(mesh, point, 5 * _scale, tint, 4, Mathf.PI / 4);
+                }
+                else if (spell.Kind == "construct")
+                {
+                    Color preparing = tint; preparing.a = spell.Age < spell.LandingDelay ? .25f : 1;
+                    RuneMesh.Polygon(mesh, point, radius, preparing, 3, -Mathf.PI / 2);
+                    RuneMesh.Line(mesh, point - Vector2.up * radius, point + Vector2.up * radius, 4 * _scale, preparing);
+                }
+                else if (spell.Kind == "zone" || spell.Kind == "burst" || spell.Kind == "domain" || spell.Kind == "wall")
                 {
                     Color fill = tint; fill.a = spell.Kind == "zone" ? 0.12f : 0.22f;
                     RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);

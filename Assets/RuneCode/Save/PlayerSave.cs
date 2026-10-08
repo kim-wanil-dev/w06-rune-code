@@ -10,7 +10,7 @@ namespace RuneCode
     public sealed class PlayerSave
     {
         [Header("저장 버전")]
-        [SerializeField] private int _version = 2;
+        [SerializeField] private int _version = 3;
 
         [Header("완드 및 진행")]
         [SerializeField] private int _currency;
@@ -71,7 +71,7 @@ namespace RuneCode
         {
             error = null;
             var economy = GameData.Balance.Economy;
-            if (_version != 2 || _currency < 0 || _currency > 100000000 ||
+            if (_version != 3 || _currency < 0 || _currency > 100000000 ||
                 _capacityLevel < 0 || _capacityLevel > economy.MaxGrowthLevel ||
                 _energyLevel < 0 || _energyLevel > economy.MaxGrowthLevel ||
                 _hpLevel < 0 || _hpLevel > economy.StatCosts.Count ||
@@ -145,6 +145,16 @@ namespace RuneCode
             _durationLevel = 0; _highestClearedStage = _sectorCleared ? 1 : 0;
             _selectedStage = _highestClearedStage + 1;
             _version = 2;
+        }
+
+        /// <summary>버전 2의 설계·재화·성장을 유지하며 무료 모듈 룬을 추가하고 저장 버전을 3으로 올린다.</summary>
+        public void MigrateToModular()
+        {
+            if (_version != 2) return;
+            if (_unlockedRunes == null) throw new FormatException("룬 해금 데이터가 없습니다.");
+            foreach (string id in GameData.Runes.StartRunes)
+                if (!_unlockedRunes.Contains(id)) _unlockedRunes.Add(id);
+            _version = 3;
         }
 
         /// <summary>해금한 범위 안의 전투 스테이지를 선택하고 저장 상태를 변경한다.</summary>

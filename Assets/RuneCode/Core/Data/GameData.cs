@@ -28,11 +28,13 @@ namespace RuneCode
         private static RuneCatalog _runes;
         private static BalanceData _balance;
         private static IReadOnlyList<SpellGraph> _spells;
+        private static IReadOnlyList<SpellGraph> _pocSpells;
         private static Dictionary<string, string> _strings;
         public static bool IsLoaded => _runes != null;
         public static RuneCatalog Runes => _runes;
         public static BalanceData Balance => _balance;
         public static IReadOnlyList<SpellGraph> Spells => _spells;
+        public static IReadOnlyList<SpellGraph> PocSpells => _pocSpells;
 
         /// <summary>Resources의 룬·밸런스·현지화·시작 마법 JSON을 한 번 읽고 스키마를 검증한다.</summary>
         public static void Load()
@@ -59,6 +61,17 @@ namespace RuneCode
                 CompileResult result = GraphCompiler.Compile(graph, runes, balance, runes.StartRunes, int.MaxValue);
                 if (!result.Ok) throw new FormatException("시작 마법이 유효하지 않습니다: " + graph.Name);
             }
+            List<SpellGraph> pocSpells = new List<SpellGraph>();
+            List<string> allRunes = new List<string>();
+            foreach (RuneDefinition rune in runes.All) allRunes.Add(rune.Id);
+            foreach (string id in new[] { "poc_impact", "poc_mark", "poc_link", "poc_charge" })
+            {
+                SpellGraph graph = ShareCodec.Deserialize(ReadResource("spells/" + id));
+                CompileResult result = GraphCompiler.Compile(graph, runes, balance, allRunes, int.MaxValue);
+                if (!result.Ok) throw new FormatException("PoC 마법이 유효하지 않습니다: " + graph.Name + " " + result.Errors[0].Message);
+                pocSpells.Add(graph);
+            }
+            _pocSpells = pocSpells;
             _balance = balance;
             _spells = spells;
             _runes = runes;

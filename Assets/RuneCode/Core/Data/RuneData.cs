@@ -140,16 +140,43 @@ namespace RuneCode
     }
 
     [Serializable]
+    public sealed class MagicRewardProfile
+    {
+        [Header("제약과 보상")]
+        [SerializeField] private string _id;
+        [SerializeField] private float _damageMultiplier = 1f;
+        [SerializeField] private float _radiusMultiplier = 1f;
+        [SerializeField] private float _energyFraction;
+        [SerializeField] private float _hpThreshold;
+        [SerializeField] private string _consumeStatus;
+        public string Id => _id;
+        public float DamageMultiplier => _damageMultiplier;
+        public float RadiusMultiplier => _radiusMultiplier;
+        public float EnergyFraction => _energyFraction;
+        public float HpThreshold => _hpThreshold;
+        public string ConsumeStatus => _consumeStatus;
+    }
+
+    [Serializable]
     public sealed class RuneCatalog
     {
         [Header("룬 목록")]
         [SerializeField] private RuneDefinition[] _runes;
+        [SerializeField] private MagicRewardProfile[] _profiles;
 
         private Dictionary<string, RuneDefinition> _byId;
         private List<string> _startRunes;
 
         public IReadOnlyList<RuneDefinition> All => _runes ?? Array.Empty<RuneDefinition>();
         public IReadOnlyList<string> StartRunes => _startRunes;
+
+        /// <summary>등록한 제약 ID의 고정 보상을 반환하며 없는 프로필은 null을 반환한다.</summary>
+        public MagicRewardProfile FindProfile(string id)
+        {
+            foreach (MagicRewardProfile profile in _profiles ?? Array.Empty<MagicRewardProfile>())
+                if (profile.Id == id) return profile;
+            return null;
+        }
 
         /// <summary>룬 JSON을 읽고 필수 정의와 중복 ID를 검증한 레지스트리를 반환한다.</summary>
         public static RuneCatalog FromJson(string json)
@@ -159,13 +186,25 @@ namespace RuneCode
                 throw new FormatException("룬 정의가 비어 있습니다.");
             catalog._byId = new Dictionary<string, RuneDefinition>(StringComparer.Ordinal);
             catalog._startRunes = new List<string>();
+            HashSet<string> profileIds = new HashSet<string>();
+            foreach (MagicRewardProfile profile in catalog._profiles ?? Array.Empty<MagicRewardProfile>())
+            {
+                if (profile == null || string.IsNullOrEmpty(profile.Id) || !profileIds.Add(profile.Id)
+                    || !IsFinite(profile.DamageMultiplier) || profile.DamageMultiplier < 1 || profile.DamageMultiplier > 3
+                    || !IsFinite(profile.RadiusMultiplier) || profile.RadiusMultiplier < 1 || profile.RadiusMultiplier > 3
+                    || !IsFinite(profile.EnergyFraction) || profile.EnergyFraction < 0 || profile.EnergyFraction > .5f
+                    || !IsFinite(profile.HpThreshold) || profile.HpThreshold < 0 || profile.HpThreshold > .3f
+                    || (profile.EnergyFraction == 0 && profile.HpThreshold == 0 && string.IsNullOrEmpty(profile.ConsumeStatus)))
+                    throw new FormatException("유효하지 않은 제약 보상 프로필입니다.");
+            }
             foreach (RuneDefinition rune in catalog._runes)
             {
                 if (rune == null || string.IsNullOrEmpty(rune.Id) || string.IsNullOrEmpty(rune.Name)
                     || rune.Stats == null || rune.Ram < 0 || rune.Energy < 0f || !IsFinite(rune.Energy)
                     || rune.EnergyMult <= 0f || !IsFinite(rune.EnergyMult)
                     || (rune.Category != "core" && rune.Category != "form" && rune.Category != "element"
-                        && rune.Category != "modifier" && rune.Category != "flow" && rune.Category != "action")
+                        && rune.Category != "modifier" && rune.Category != "flow" && rune.Category != "action"
+                        && rune.Category != "trigger" && rune.Category != "constraint")
                     || (rune.UnlockType != "start" && rune.UnlockType != "bench" && rune.UnlockType != "reward")
                     || rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
                     throw new FormatException("유효하지 않은 룬 정의입니다.");
@@ -176,9 +215,10 @@ namespace RuneCode
                 foreach (PortDefinition port in rune.Ports)
                 {
                     if (port == null || string.IsNullOrEmpty(port.Id) || !portIds.Add(port.Direction + ":" + port.Id)
-                        || (port.Kind != "exec" && port.Kind != "mod")
+                        || (port.Kind != "exec" && port.Kind != "mod" && port.Kind != "event")
                         || (port.Direction != "in" && port.Direction != "out") || port.Max < 0
                         || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1)
+                        || (port.Direction == "in" && port.Kind == "event" && port.Max != 1)
                         || (port.Direction == "in" && port.Kind == "mod" && port.Max != 3))
                         throw new FormatException("유효하지 않은 룬 포트: " + rune.Id);
                 }
@@ -225,7 +265,7 @@ namespace RuneCode
             foreach (float value in numbers)
                 if (!IsFinite(value) || value < 0f) throw new FormatException("유효하지 않은 룬 효과 수치: " + rune.Id);
             if (stats.Count < 0 || stats.Pierce < 0 || stats.ArcTargets < 0 || stats.OrbitCount < 0
-                || (rune.Category == "form" && (stats.Count <= 0 || stats.Damage <= 0f || stats.Radius <= 0f)))
+                || (rune.Category == "form" && (stats.Count <= 0 || (rune.Id != "form.infusion" && stats.Damage <= 0f) || stats.Radius <= 0f)))
                 throw new FormatException("유효하지 않은 형태 룬 수치: " + rune.Id);
         }
 

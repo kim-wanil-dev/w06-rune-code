@@ -1,18 +1,37 @@
-# Rune Code 인크리멘탈 PoC
+# Rune Code 모듈형 마법 PoC
 
 하나의 마법을 룬 노드로 연결하고 확장하는 Unity 게임이다. 스테이지에서 직접 이동·조준하며 오른쪽으로부터 몰려오는 적과 제한시간 동안 전투한 뒤, 처치 보상 RAM으로 설계와 완드를 강화한다. Unity 6000.3.22f1 / Windows x64를 사용한다.
 
 ## 실행
 
-`Builds/RuneCodePoC-ManualMods-Windows.zip`을 모두 압축 해제한 뒤 `RuneCodePoC.exe`를 실행한다. 실행 파일과 `_Data`, `UnityPlayer.dll`, `MonoBleedingEdge`를 함께 유지한다. 이전 빌드와 ZIP은 보존한다.
+`Builds/RuneCodePoC-MagicRemake/RuneCodePoC.exe`를 실행한다. 실행 파일과 `_Data`, `UnityPlayer.dll`, `MonoBleedingEdge`를 함께 유지한다. 이전 빌드와 ZIP은 보존한다.
 
-Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Code > Prepare PoC Scene`은 기존 장면과 글꼴 연결을 유지하며 한국어 문자를 준비한다. `Rune Code > Build Windows PoC`의 출력은 `Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe`다.
+Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Code > Prepare PoC Scene`은 기존 장면과 글꼴 연결을 유지하며 한국어 문자를 준비한다. `Rune Code > Build Windows PoC`의 출력은 `Builds/RuneCodePoC-MagicRemake/RuneCodePoC.exe`다.
+
+## 마법 리메이크 확인
+
+작업실의 `PoC` 버튼에서 네 예제를 선택한다. 미리보기는 모든 룬과 별도 노드 용량으로 도크에서 실행하며 기존 활성 설계에 저장되지 않는다. `기존 설계로 돌아가기`를 선택하거나 다른 탭으로 이동하면 원래 설계를 복구한다. 미리보기 중에는 출격할 수 없다.
+
+| 예제 | 확인할 경로 |
+|---|---|
+| 자원 교환 | 방향선 적중 → 최대 EN 50% 추가 지불 → 피해 2.5배·반경 3배 흡입 영역 |
+| 사망/시간 표식 | 관통 빔 → 적마다 주입 → 대상 사망 또는 3초 중 먼저 발생 → 낙하 가시 |
+| 연결 유지 | 방향선 적중 → 연결선 → 2초 경과 → 고정 장벽 |
+| 차징 파동 | 정지 상태로 홀드 → 해제 → 낙하 가시 착지 → 이동 파동 |
+
+시전 노드의 입력 모드를 즉시/차징/유지로 설정한다. 즉시는 좌클릭 1회당 1회이며 `홀드 반복`을 켜면 쿨다운마다 반복한다. 차징은 준비 EN2를 지불하고 정지한 채 최소 시간 이후 놓으면 발동한다. 최대 차징 시간(기본 2초)에 도달하면 시전 전체 피해가 3배가 된다. 최소 시간 미달·이동·대시·전투 영역 이탈·포커스 상실은 취소하며 준비 비용은 반환하지 않는다. 유지는 발동 후 초당 EN2를 추가 지불하고 놓으면 해당 시전의 개체와 예약을 취소한다.
+
+새 형태의 `event`에서 사건 트리거로 연결하고, 트리거의 `then`에서 다음 형태 또는 제약·강화 노드로 이어 간다. 트리거는 사건 종류·시간·임계값·최대 횟수·최소 간격·1회/개체당/횟수 제한·상태 필터를 설정한다. 지원하지 않는 사건 연결은 컴파일 오류로 표시한다. `사건 기록`에서 발생 사건·실제 EN 지불·후속 실패를 확인한다.
+
+제약은 자원 교환, 동결 소비, 낮은 HP의 세 프로필이다. 성공 분기는 형태 하나에 직접 연결한다. `다음 형태` 또는 Root에서 시작하는 `시전 전체`에 적용하며 강화 중첩은 지원하지 않는다. 후속 단계의 기본 비용과 추가 EN을 함께 지불하고, 실패하면 성공 단계의 비용·동결을 소비하지 않는다. 표시된 예상 EN은 최악의 경로 추정치이며 시전 시작에 한꺼번에 차감하지 않는다.
+
+여섯 형태의 기본 동작과 제한된 사건 연결을 검증하는 PoC다. T-06 행동·방어, 평타·패링, 임의 구간/그룹·중첩 강화, 자유 형상, 무기/시전자 Aura, 파괴 가능한 결계 핵과 고급 상태 반응은 후속 범위다. 전체 목표와 이번 범위는 `docs/PRD_MAGIC_REMAKE.md`, `docs/PLAN_MAGIC_REMAKE.md`에 구분한다.
 
 ## 플레이 흐름
 
 1. 작업실에서 시작 마법 파이어 볼트의 노드를 편집하고 시험 도크에서 확인한다.
 2. 출격 탭에서 해금된 스테이지를 선택한다. 기본 전투시간은 30초다.
-3. WASD로 이동하고 마우스로 조준한다. 포인터가 전투 영역에 있으면 조준 방향으로 현재 마법을 연속 시전한다. Space는 대시, Esc는 일시정지다. 점멸 노드에 의한 이동도 유지된다.
+3. WASD로 이동하고 마우스로 조준하며 전투 영역에서 좌클릭·홀드로 시전한다. Space는 기존 대시, Esc는 일시정지다. 기존 v1 설계의 점멸 등 행동 노드는 유지하며 새 v2 설계에는 이번 PoC에서 추가하지 않는다.
 4. 제한시간까지 생존하면 처치 RAM 100%를 정산하고 다음 스테이지를 해금한다. 생존 적을 전부 처치할 필요는 없다. 사망·중단은 처치 RAM의 70%를 반올림해 지급한다.
 5. 결과의 `마법 강화`로 같은 설계를 계속 확장한다. `같은 스테이지 재도전`으로 반복 수급할 수 있다. 첫 완주 시 노이즈 룬이 해금된다.
 
@@ -54,11 +73,11 @@ Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Co
 | 복사·편집 | Ctrl+C/V 노드 복사·붙여넣기, Ctrl+D 노드 복제, Ctrl+Z/Y 되돌리기·복구, Ctrl+S 저장 |
 | 시험 도크 | 클릭 또는 시험 버튼 시전, 자동 시전·적응·배속 옵션, R 초기화 |
 
-`exec`는 실행 흐름, `mod`는 속성·수식 부착이다. 공유 RC1 가져오기는 현재 마법 ID를 유지하며 설계를 교체하고, 실행 취소로 복구할 수 있다. 전투 중에는 그래프 편집이 잠긴다. 과도한 중첩 반복은 컴파일 오류 E8로 제한하며 실행 예약·틱당 처리량에도 상한이 있다.
+`exec`는 실행 흐름, `event`는 형태의 사건 전달, `mod`는 속성·수식 부착이다. 공유 RC1/RC2 가져오기는 현재 마법 ID를 유지하며 설계를 교체하고, 실행 취소로 복구할 수 있다. 신규 형태·트리거·제약 추가 또는 시전 입력 설정 편집 시 그래프 v2로 승격한다. 기존 v1 설계는 자동 치환하지 않는다. 전투 중에는 그래프 편집이 잠긴다. 과도한 중첩 반복은 컴파일 오류 E8로 제한하며 실행 예약·틱당 처리량에도 상한이 있다.
 
 ## 저장과 이전 진행
 
-`Application.persistentDataPath/runecode.save.v2.json`에 단일 마법, RAM, 성장, 해금, 스테이지와 설정을 저장한다. Windows 기본 경로는 `%USERPROFILE%\AppData\LocalLow\DefaultCompany\w06-test2`다.
+`Application.persistentDataPath/runecode.save.v3.json`에 단일 마법, RAM, 성장, 해금, 스테이지와 설정을 저장한다. Windows 기본 경로는 `%USERPROFILE%\AppData\LocalLow\DefaultCompany\w06-test2`다. v3가 없으면 v2, 이어서 v1을 읽는다. 기존 v1/v2 원본은 수정하지 않으며 v2의 설계·진행을 보존하고 신규 시작 룬을 추가한다.
 
 v2가 없으면 기존 v1을 읽어 A 슬롯 마법을 활성 설계로 이전한다. 다른 설계는 저장 내부에 보존하고 기존 v1 원본 파일은 수정하지 않는다. A가 비어 있으면 첫 설계를 사용한다. 기존 용량·에너지·체력 성장과 해금·설정을 유지하고, 구매한 C 슬롯은120 RAM으로 환불한다. 이전 섹터 클리어 기록은 스테이지1 완주 기록으로 이전한다. 새 UI에는 마법 보관함·슬롯 선택을 표시하지 않는다.
 
@@ -72,9 +91,13 @@ v2가 없으면 기존 v1을 읽어 A 슬롯 마법을 활성 설계로 이전�
 .\tools\sim.ps1 -Spell firebolt -Scenario incremental -Ticks 6000 -Seed 1 -Stage 1 -Output Builds/incremental-sim.json
 .\tools\sim.ps1 -Spell triplefire -Scenario incremental -Ticks 6000 -Stage 2 -Duration 35 -CapacityLevel 1 -EnergyLevel 1
 .\tools\sim.ps1 -Spell firebolt -Scenario dummy_line -Ticks 600 -Seed 1
+.\tools\sim.ps1 -Spell poc_impact -Scenario dummy_line -Ticks 600 -Seed 1
+.\tools\sim.ps1 -Spell poc_mark -Scenario dummy_line -Ticks 600 -Seed 1
+.\tools\sim.ps1 -Spell poc_link -Scenario dummy_line -Ticks 600 -Seed 1
+.\tools\sim.ps1 -Spell poc_charge -Scenario dummy_line -Ticks 600 -Seed 1
 ```
 
-`incremental`은 비교용 자동 조준 입력과 게임의 기본 능력치를 사용하며 종료·사망 시 멈춘다. `-Duration 0`은 JSON의 기본30초다. 템플릿 `firebolt`, `shockwave`, `triplefire` 또는 마법 JSON 파일을 지정한다. 비교용 도크 시나리오 `dummy_single`, `dummy_line`, `dummy_swarm`, `aegis`, `adapt_loop`는 기존 RAM24 / EN150 조건을 유지한다. CLI의 모든 룬은 해금된 조건으로 컴파일한다.
+`incremental`은 비교용 자동 조준 입력과 게임의 기본 능력치를 사용하며 종료·사망 시 멈춘다. `-Duration 0`은 JSON의 기본30초다. 기존 3종 또는 `poc_impact`, `poc_mark`, `poc_link`, `poc_charge`, 마법 JSON 파일을 지정한다. 비교용 도크 시나리오 `dummy_single`, `dummy_line`, `dummy_swarm`, `aegis`, `adapt_loop`는 기존 RAM24 / EN150 조건을 유지한다. CLI의 모든 룬은 해금된 조건으로 컴파일한다. 즉시 모드는 비교용 쿨다운 반복, 차징 모드는 최대 시간 홀드 후 해제, 유지 모드는 3초 홀드 후 해제 입력을 생성한다.
 
 JSON에는 피해, DPS, 에너지 사용량, 실행 횟수·시간, 상태 해시, 스테이지, 제한시간, 종료 상태, 처치·획득·정산 RAM과 실행 상한으로 생략된 명령 수가 담긴다. CLI는 사용자 저장을 변경하지 않는다.
 

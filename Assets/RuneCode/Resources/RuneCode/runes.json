@@ -18,7 +18,59 @@
           "_max": 0
         }
       ],
-      "_params": [],
+      "_params": [
+        {
+          "_id": "inputMode",
+          "_kind": "enum",
+          "_options": [
+            "instant",
+            "charge",
+            "maintain"
+          ],
+          "_defaultText": "instant"
+        },
+        {
+          "_id": "repeatHold",
+          "_kind": "enum",
+          "_options": [
+            "off",
+            "on"
+          ],
+          "_defaultText": "off"
+        },
+        {
+          "_id": "minCharge",
+          "_kind": "number",
+          "_min": 0.1,
+          "_max": 2,
+          "_step": 0.1,
+          "_defaultNumber": 0.3
+        },
+        {
+          "_id": "maxCharge",
+          "_kind": "number",
+          "_min": 2,
+          "_max": 3,
+          "_step": 0.1,
+          "_defaultNumber": 2
+        },
+        {
+          "_id": "prepCost",
+          "_kind": "number",
+          "_min": 2,
+          "_max": 2,
+          "_step": 0.1,
+          "_defaultNumber": 2
+        },
+        {
+          "_id": "upkeep",
+          "_kind": "number",
+          "_min": 2,
+          "_max": 2,
+          "_step": 0.1,
+          "_defaultNumber": 2
+        }
+      ],
       "_stats": {
         "_damage": 0,
         "_speed": 0,
@@ -41,7 +93,7 @@
         "_spreadAngle": 0,
         "_shieldAmount": 0,
         "_shieldSeconds": 0,
-        "_damageMultiplier": 1,
+        "_damageMultiplier": 3,
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       }
@@ -1214,6 +1266,558 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       }
+    },
+    {
+      "_id": "form.vector",
+      "_name": "방향선",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 8,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "vector"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "variant",
+          "_kind": "enum",
+          "_options": [
+            "projectile",
+            "beam"
+          ],
+          "_defaultText": "projectile"
+        }
+      ],
+      "_stats": {
+        "_count": 1,
+        "_damage": 20,
+        "_radius": 7,
+        "_lifetime": 1.2,
+        "_speed": 420,
+        "_offset": 0,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "form.construct",
+      "_name": "구조체 가시",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 12,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "construct"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "landingDelay",
+          "_kind": "number",
+          "_min": 0.05,
+          "_max": 1,
+          "_step": 0.1,
+          "_defaultNumber": 0.25
+        }
+      ],
+      "_stats": {
+        "_count": 1,
+        "_damage": 36,
+        "_radius": 42,
+        "_lifetime": 0.5,
+        "_speed": 0,
+        "_offset": 160,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "form.wall",
+      "_name": "장벽 / 파동",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 12,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "wall"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "variant",
+          "_kind": "enum",
+          "_options": [
+            "wall",
+            "wave"
+          ],
+          "_defaultText": "wall"
+        }
+      ],
+      "_stats": {
+        "_count": 1,
+        "_damage": 10,
+        "_radius": 70,
+        "_lifetime": 3,
+        "_speed": 130,
+        "_offset": 110,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "form.tether",
+      "_name": "연결선",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 8,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "tether"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "maxDistance",
+          "_kind": "number",
+          "_min": 60,
+          "_max": 500,
+          "_step": 10,
+          "_defaultNumber": 300
+        },
+        {
+          "_id": "pullForce",
+          "_kind": "number",
+          "_min": 0,
+          "_max": 200,
+          "_step": 10,
+          "_defaultNumber": 60
+        }
+      ],
+      "_stats": {
+        "_count": 1,
+        "_damage": 6,
+        "_radius": 10,
+        "_lifetime": 3,
+        "_speed": 0,
+        "_offset": 0,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "form.infusion",
+      "_name": "불안정 마력 주입",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 6,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "infusion"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [],
+      "_stats": {
+        "_count": 1,
+        "_damage": 0,
+        "_radius": 16,
+        "_lifetime": 3,
+        "_speed": 0,
+        "_offset": 0,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "form.domain",
+      "_name": "흡입 영역",
+      "_category": "form",
+      "_ram": 1,
+      "_energy": 14,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_tags": [
+        "domain"
+      ],
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 3
+        },
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "pullForce",
+          "_kind": "number",
+          "_min": 0,
+          "_max": 200,
+          "_step": 10,
+          "_defaultNumber": 70
+        },
+        {
+          "_id": "slow",
+          "_kind": "number",
+          "_min": 0,
+          "_max": 0.8,
+          "_step": 0.1,
+          "_defaultNumber": 0.3
+        }
+      ],
+      "_stats": {
+        "_count": 1,
+        "_damage": 12,
+        "_radius": 75,
+        "_lifetime": 3,
+        "_speed": 0,
+        "_offset": 170,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "trigger.listen",
+      "_name": "사건 트리거",
+      "_category": "trigger",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_ports": [
+        {
+          "_id": "event",
+          "_kind": "event",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "then",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "eventType",
+          "_kind": "enum",
+          "_options": [
+            "hit",
+            "range",
+            "terrain",
+            "generated",
+            "landed",
+            "expired",
+            "elapsed",
+            "tick",
+            "damage",
+            "hitCount",
+            "status",
+            "kill",
+            "death",
+            "deathOrTime",
+            "disconnected",
+            "enter",
+            "exit"
+          ],
+          "_defaultText": "hit"
+        },
+        {
+          "_id": "seconds",
+          "_kind": "number",
+          "_min": 0.1,
+          "_max": 5,
+          "_step": 0.1,
+          "_defaultNumber": 2
+        },
+        {
+          "_id": "threshold",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 1000,
+          "_step": 1,
+          "_defaultNumber": 3
+        },
+        {
+          "_id": "limit",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 8,
+          "_step": 1,
+          "_defaultNumber": 1
+        },
+        {
+          "_id": "interval",
+          "_kind": "number",
+          "_min": 0.1,
+          "_max": 3,
+          "_step": 0.1,
+          "_defaultNumber": 0.5
+        },
+        {
+          "_id": "policy",
+          "_kind": "enum",
+          "_options": [
+            "once",
+            "perTarget",
+            "limited"
+          ],
+          "_defaultText": "once"
+        },
+        {
+          "_id": "status",
+          "_kind": "enum",
+          "_options": [
+            "any",
+            "burn",
+            "chill",
+            "freeze",
+            "emp"
+          ],
+          "_defaultText": "any"
+        }
+      ],
+      "_stats": {
+        "_count": 0,
+        "_damage": 20,
+        "_radius": 12,
+        "_lifetime": 2,
+        "_speed": 0,
+        "_offset": 0,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    },
+    {
+      "_id": "constraint.empower",
+      "_name": "제약 · 강화",
+      "_category": "constraint",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_ports": [
+        {
+          "_id": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_id": "then",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        },
+        {
+          "_id": "else",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_params": [
+        {
+          "_id": "profile",
+          "_kind": "enum",
+          "_options": [
+            "resource",
+            "frozen",
+            "lowHp"
+          ],
+          "_defaultText": "resource"
+        },
+        {
+          "_id": "scope",
+          "_kind": "enum",
+          "_options": [
+            "next",
+            "whole"
+          ],
+          "_defaultText": "next"
+        }
+      ],
+      "_stats": {
+        "_count": 0,
+        "_damage": 20,
+        "_radius": 12,
+        "_lifetime": 2,
+        "_speed": 0,
+        "_offset": 0,
+        "_hitInterval": 0.5,
+        "_tickInterval": 0.5,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      }
+    }
+  ],
+  "_profiles": [
+    {
+      "_id": "resource",
+      "_damageMultiplier": 2.5,
+      "_radiusMultiplier": 3,
+      "_energyFraction": 0.5,
+      "_hpThreshold": 0,
+      "_consumeStatus": ""
+    },
+    {
+      "_id": "frozen",
+      "_damageMultiplier": 2,
+      "_radiusMultiplier": 1,
+      "_energyFraction": 0,
+      "_hpThreshold": 0,
+      "_consumeStatus": "freeze"
+    },
+    {
+      "_id": "lowHp",
+      "_damageMultiplier": 1.5,
+      "_radiusMultiplier": 1,
+      "_energyFraction": 0,
+      "_hpThreshold": 0.3,
+      "_consumeStatus": ""
     }
   ]
 }

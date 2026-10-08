@@ -225,7 +225,7 @@ namespace RuneCode
                 foreach (PortDefinition port in rune.Ports)
                 {
                     Vector2 point = PortPosition(node.Id, port.Id);
-                    Color portColor = port.Kind == "mod" ? new Color(0.76f, 0.52f, 1f) : new Color(0.32f, 0.88f, 0.98f);
+                    Color portColor = port.Kind == "event" ? new Color(1f, 0.77f, 0.25f) : port.Kind == "mod" ? new Color(0.76f, 0.52f, 1f) : new Color(0.32f, 0.88f, 0.98f);
                     if (_sourceNode != null && port.Direction != (_isSourceOutput ? "out" : "in"))
                         portColor = port.Kind == _sourceKind ? new Color(0.28f, 1, 0.57f) : new Color(1, 0.26f, 0.29f);
                     RuneMesh.Polygon(mesh, point, 5 * _zoom, portColor, port.Kind == "mod" ? 4 : 16);

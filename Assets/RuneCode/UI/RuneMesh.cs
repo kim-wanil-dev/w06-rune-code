@@ -63,6 +63,8 @@ namespace RuneCode
                 case "form": return new Color(0.22f, 0.82f, 0.96f);
                 case "element": return new Color(0.99f, 0.43f, 0.34f);
                 case "modifier": return new Color(0.64f, 0.46f, 0.97f);
+                case "trigger": return new Color(1f, 0.77f, 0.25f);
+                case "constraint": return new Color(1f, 0.46f, 0.7f);
                 case "flow": return new Color(0.30f, 0.91f, 0.65f);
                 default: return new Color(0.97f, 0.62f, 0.28f);
             }

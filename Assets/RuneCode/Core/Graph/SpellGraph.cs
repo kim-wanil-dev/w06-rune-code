@@ -138,6 +138,9 @@ namespace RuneCode
         public string Id => _id;
         public string Name => _name;
         public int Version => _version;
+
+        /// <summary>기존 노드와 연결을 보존하며 편집 설계를 단계별 지불을 사용하는 모듈 그래프로 전환한다.</summary>
+        public void UseModularVersion() { _version = 2; }
         public IReadOnlyList<GraphNode> Nodes => _nodes;
         public IReadOnlyList<GraphEdge> Edges => _edges;
 

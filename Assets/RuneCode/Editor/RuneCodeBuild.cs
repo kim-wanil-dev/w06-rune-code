@@ -15,7 +15,7 @@ namespace RuneCode
     {
         private const string SCENE_PATH = "Assets/Scenes/RuneCodePoC.unity";
         private const string FONT_PATH = "Assets/RuneCode/Resources/RuneCode/UIFont.asset";
-        private const string BUILD_PATH = "Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe";
+        private const string BUILD_PATH = "Builds/RuneCodePoC-MagicRemake/RuneCodePoC.exe";
 
         /// <summary>기존 장면을 보존하여 PoC 전용 카메라와 앱이 연결된 장면 및 한글 글꼴을 생성한다.</summary>
         [MenuItem("Rune Code/Prepare PoC Scene")]
@@ -104,7 +104,7 @@ namespace RuneCode
                 options = BuildOptions.DetailedBuildReport
             };
             var report = BuildPipeline.BuildPlayer(options);
-            File.WriteAllText("Builds/RuneCodePoC-ManualMods/build-report.txt",
+            File.WriteAllText("Builds/RuneCodePoC-MagicRemake/build-report.txt",
                 "Result: " + report.summary.result + "\nErrors: " + report.summary.totalErrors +
                 "\nWarnings: " + report.summary.totalWarnings + "\nBytes: " + report.summary.totalSize +
                 "\nDuration: " + report.summary.totalTime);
