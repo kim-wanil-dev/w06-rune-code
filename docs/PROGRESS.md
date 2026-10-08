@@ -138,3 +138,26 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 검증 후 v2 저장은 시작 시 자료와 JSON 동일, v1은 바이트 동일로 확인했다. 기존22994 RAM·용량10·에너지6·최고완료1·선택2와 설계를 보존했다. v1 SHA256:86fb2cf4a1cff68252fe9bd04b3d2c1667a10b5f64fbc8d83bac3da59cf9850d.
 
 - 최종 배포 검사: ZIP185항목/38.51MiB, CRC 오류 없음, 필수 EXE·런타임·Core·자료·화면 포함, DoNotShip 제외, ZIP 안 EXE 해시 일치. SHA256:17d00aa5c16e1954e5e784750c5b137a034c8bc3db15816a36423eb2f606198a.
+
+## 구조 분리·테이블화 준비 — 2026-10-08
+
+목표: UI와 마법 문법 엔진 분리, 테이블 기반 데이터 준비, 구조 재점검.
+
+| 단계 | 구현 | 검증 |
+|---|---|---|
+| 상수 통합 | 포트·방향·종류·카테고리·형태·마법 타입 상수를 `SpellGrammar`로 모으고 UI·Presentation·편집 계층과 이벤트 포트 ID의 하드코딩 교체 | 컴파일 |
+| 조회 이동 | `CompiledSpell.FindAction`, `SpellAction.Branches` 추가. 패널의 트리 재귀 제거 | 순수 하네스에서 템플릿5종 조회 확인 |
+| 진단 | `CompileIssue`를 코드·상세·원인으로 바꾸고 문구는 `CompileIssueText`(Unity 계층)가 현지화 | 컴파일 |
+| 자동 연결 | `SpellAutoConnect`(문법)로 이동, UI는 거리 정책만 담당. 컴파일러 규칙과 다르던 Inline Magic 효과 대상 누락 해소 | 컴파일 |
+| 테이블 기반 | `RuneCode.Tables`(순수): CSV 파서·`DataTable`·`TableRow`·`TableErrorLog`·`ITableSource`. 규칙 문서 `docs/DATA_TABLES.md` | 순수 빌드, 손상 CSV에서 12건을 `파일:행:열`로 일괄 보고 |
+| 룬 테이블 | `runes.json` → 6개 CSV 변환 후 삭제. `RuneCatalog.FromTables` | CSV 재조립 비교 0건, C# 로더 결과와 원본 비교 0건(float32) |
+| 한도 분리 | `GrammarLimits`. 컴파일러는 `BalanceData` 대신 이 값만 받음 | 컴파일 |
+| 직렬화 분리 | `SpellGraph` 순수화, `SpellGraphData`(JSON 키 동일) DTO, `SpellGraphValidator`, `ShareCodec`을 Core/Data로 이동, `PlayerSave._library`는 DTO + 직렬화 콜백, `Clone`은 깊은 복사 | 컴파일, 순수 하네스에서 Clone 결과 컴파일 동일 |
+| 어셈블리 | `RuneCode.Grammar`(Core/Graph, `noEngineReferences`) ← `RuneCode.Core` | 문법 DLL 단독 빌드 후 나머지 빌드(경계 위반 4건 발견·수정), Unity 없이 템플릿5종 컴파일 성공 |
+
+### 남은 확인 (Unity 필요)
+
+- Unity 가져오기 후 새 `.meta` 생성, asmdef 3개 인식, Missing Script 없음.
+- 기존 v2 저장 파일 로드·저장 후 `_library` JSON 키와 값 유지, 공유 코드 내보내기·가져오기 왕복.
+- 도크 firebolt/dummy_line/600/seed1의 피해·EN·개체·실행 수가 이전 기록(287.5·290·3·87)과 같은지. 상태 해시는 같은 날 `onFirstHitOrExpire` 상태 필드 추가로 형식이 바뀌어 이전 값과 비교하지 않는다.
+- 테스트 코드는 작성하지 않았다. 검증용 하네스는 저장소 밖 임시 폴더에서만 실행했다.
