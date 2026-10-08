@@ -70,12 +70,12 @@ namespace RuneCode
             raycastTarget = false;
         }
 
-        /// <summary>그래프 원점의 로컬 좌표와 화면 배율을 저장하고 다음 프레임에 메시를 다시 그리도록 표시한다.</summary>
+        /// <summary>그래프 원점의 로컬 좌표와 화면 배율을 저장한다. 메시는 Update가 매 프레임 다시 그리므로 여기서는 갱신을 예약하지 않는다.</summary>
         public void SetView(Vector2 origin, float zoom)
         {
+            // 부모 그래픽의 OnPopulateMesh 도중에 호출될 수 있어 SetVerticesDirty를 부르지 않는다.
             _origin = origin;
             _zoom = zoom;
-            SetVerticesDirty();
         }
 
         /// <summary>매 프레임 메시를 다시 그리고, 노드별 토큰 수와 지불·소멸 기록에 맞춰 라벨을 갱신한다. 실행 상태가 없으면 라벨을 모두 숨긴다.</summary>

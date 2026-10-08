@@ -221,7 +221,6 @@ namespace RuneCode
         protected override void OnPopulateMesh(UnityEngine.UI.VertexHelper mesh)
         {
             mesh.Clear();
-            SyncFlowLayer();
             Rect bounds = rectTransform.rect;
             RuneMesh.Rect(mesh, bounds, new Color(0.035f, 0.064f, 0.10f));
             float step = GRID_STEP * _zoom;
