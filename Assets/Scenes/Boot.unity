@@ -227,6 +227,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90da7afc0702855419eb5dc1addb1590, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.RuneCodeApp
+  _isAreaBoxUpright: 1
 --- !u!4 &155765638
 Transform:
   m_ObjectHideFlags: 0

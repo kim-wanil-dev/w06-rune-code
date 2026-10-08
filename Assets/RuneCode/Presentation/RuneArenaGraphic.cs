@@ -205,7 +205,7 @@ namespace RuneCode
             RuneMesh.Polygon(mesh, point, radius * 0.48f, new Color(0.04f, 0.09f, 0.13f), sides, facing);
             if (enemy.IsWarning) RuneMesh.Ring(mesh, point, radius + (6 + Mathf.Sin(Time.unscaledTime * 16) * 3) * _scale, 2 * _scale, new Color(1, 0.78f, 0.23f));
             if (kind == "enemy.relay") RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, new Color(0.65f, 0.37f, 0.95f, 0.22f));
-            if (kind == "enemy.aegis" && !enemy.IsEmp)
+            if (kind == "enemy.aegis" && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp))
             {
                 for (int i = -5; i < 5; i++)
                 {
@@ -216,9 +216,9 @@ namespace RuneCode
                 }
             }
             if (enemy.IsPatching) RuneMesh.Ring(mesh, point, radius + 12 * _scale, 3 * _scale, new Color(0.83f, 0.57f, 1), 12);
-            if (enemy.IsBurning) RuneMesh.Polygon(mesh, point + new Vector2(-radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("fire"), 3);
-            if (enemy.ChillStacks > 0 || enemy.IsFrozen) RuneMesh.Polygon(mesh, point + new Vector2(0, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("ice"), 6);
-            if (enemy.IsEmp) RuneMesh.Polygon(mesh, point + new Vector2(radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("arc"), 4);
+            if (sim.HasEnemyStatus(enemy, EnemyStatusType.Burn)) RuneMesh.Polygon(mesh, point + new Vector2(-radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("fire"), 3);
+            if (sim.GetChillStacks(enemy) > 0 || sim.HasEnemyStatus(enemy, EnemyStatusType.Freeze)) RuneMesh.Polygon(mesh, point + new Vector2(0, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("ice"), 6);
+            if (sim.HasEnemyStatus(enemy, EnemyStatusType.Emp)) RuneMesh.Polygon(mesh, point + new Vector2(radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("arc"), 4);
             bool isResistant = sim.Adaptation.Enabled && (sim.Adaptation.GetValue(enemy.LastDamageElement) >= GameData.Balance.Adaptation.ResistanceThreshold ||
                 sim.Adaptation.GetValue(enemy.LastDamageForm) >= GameData.Balance.Adaptation.ResistanceThreshold);
             if (isResistant) RuneMesh.Ring(mesh, point + new Vector2(radius + 8 * _scale, radius), 4 * _scale, 1.5f * _scale, new Color(0.77f, 0.69f, 1), 6);

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CMakeSettings">
+    <configurations />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1e05dadf-7cfa-4551-bfb4-13a93fa3b3c9" name="변경" comment="">
+      <change afterPath="$PROJECT_DIR$/Assets/Docs~/EnemyRefactoring.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/SimulationTypes.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/SimulationTypes.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/BenchRuneRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/BenchRuneRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellLibraryRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellLibraryRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellPaletteRuneRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellPaletteRuneRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellParameterRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellParameterRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellQuickPaletteRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellQuickPaletteRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellValidationIssueRow.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Prefabs/UI/SpellValidationIssueRow.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Presentation/RuneArenaGraphic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Presentation/RuneArenaGraphic.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/UIFont.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/UIFont.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Boot.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Boot.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Mission.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Mission.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Title.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Title.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Workshop.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Workshop.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/PROGRESS.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/PROGRESS.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/kim-wanil-dev/w06-rune-code.git",
+    "accountId": "d83cae5b-43bb-4c56-a8ce-1469c2cbe481"
+  }
+}]]></component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Assets/RuneCode/Core/Graph/SpellGraph.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.ugui@20629863fcab/Runtime/UGUI/UI/Core/Graphic.cs" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="false" />
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0000000000000038" />
+      <entry key="S5" value="1.0000040673665243" />
+      <entry key="S10" value="1.0047632648822036" />
+      <entry key="S30" value="1.5924036933520762" />
+      <entry key="S60" value="3.2075902461664323" />
+      <entry key="M2" value="6.757302162071127" />
+      <entry key="M5" value="16.278378908829865" />
+      <entry key="M10" value="24.47114883413204" />
+      <entry key="M15" value="28.405231072238866" />
+      <entry key="M30" value="33.181820247534326" />
+      <entry key="H1" value="35.946467485274006" />
+      <entry key="H2" value="37.43516437585488" />
+      <entry key="H4" value="38.207807886966805" />
+      <entry key="D1" value="38.866588040459" />
+      <entry key="W1" value="38.98090705803733" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.9726549474122855" />
+      <entry key="MS500" value="0.9944701686732144" />
+      <entry key="S2" value="0.9986146661010327" />
+      <entry key="S5" value="0.9994497010852486" />
+      <entry key="S10" value="1.0044847309924216" />
+      <entry key="S30" value="1.592257588902223" />
+      <entry key="S60" value="3.2074440928289802" />
+      <entry key="M2" value="6.7571457785599875" />
+      <entry key="M5" value="16.278219832029947" />
+      <entry key="M10" value="24.471025383503523" />
+      <entry key="M15" value="28.40513437086796" />
+      <entry key="M30" value="33.18176303475095" />
+      <entry key="H1" value="35.94643628776866" />
+      <entry key="H2" value="37.43514807579627" />
+      <entry key="H4" value="38.207799554461154" />
+      <entry key="D1" value="38.86658662573466" />
+      <entry key="W1" value="38.980906855289426" />
+    </decayedShown>
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "git-widget-placeholder": "develop"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <servers />
+  </component>
+  <component name="UnityCheckinConfiguration" checkUnsavedScenes="false" />
+  <component name="UnityProjectConfiguration" hasMinimizedUI="true" />
+  <component name="UnityUnitTestConfiguration" currentTestLauncher="Both" />
+</project>
