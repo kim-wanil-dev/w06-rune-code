@@ -12,6 +12,7 @@ namespace RuneCode
         public const int TICK_RATE = 60;
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
+        private const int STATUS_TYPE_COUNT = 4;
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -31,6 +32,8 @@ namespace RuneCode
         private readonly List<NodeExecutionEvent> _nodeEvents = new List<NodeExecutionEvent>();
         private readonly List<ScheduledExecution> _scheduled = new List<ScheduledExecution>();
         private readonly List<PendingEnemyShot> _pendingEnemyShots = new List<PendingEnemyShot>();
+        private readonly List<EnemyStatusEffect> _enemyStatuses = new List<EnemyStatusEffect>();
+        private readonly Dictionary<int, EnemyStatusEffect> _statusIndex = new Dictionary<int, EnemyStatusEffect>();
         private readonly Queue<DamageSample> _damageWindow = new Queue<DamageSample>();
         private readonly Dictionary<string, int> _killCounts = new Dictionary<string, int>();
         private readonly CompiledSpell[] _loadout = new CompiledSpell[3];
@@ -41,6 +44,7 @@ namespace RuneCode
         private MissionMap _map;
         private MissionStage _stage;
         private int _tick;
+        private double _statusTime;
         private int _nextEntityId;
         private int _nextSpawnTick;
         private int _spawnedEnemies;
@@ -224,6 +228,7 @@ namespace RuneCode
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
+            _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
             _totalDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
             _map = new MissionMap(_sector.Rooms[0].Tiles, _sector.TileSize); _player = new SimulationPlayer(_maxHp, _maxEnergy, new SimVector(bench.BenchPlayerX, bench.BenchPlayerY));
@@ -251,6 +256,7 @@ namespace RuneCode
             AppendNumber(state, _battleDuration); AppendNumber(state, _energyRegen);
             _player.WriteState(state);
             foreach (SimulationEnemy enemy in _enemies) enemy.WriteState(state);
+            foreach (EnemyStatusEffect status in _enemyStatuses) status.WriteState(state);
             foreach (SimulationSpellEntity entity in _spellEntities) entity.WriteState(state);
             foreach (SimulationProjectile projectile in _enemyProjectiles) projectile.WriteState(state);
             Adaptation.WriteState(state);
@@ -375,7 +381,7 @@ namespace RuneCode
             if (condition.Type == "selfHpBelow") return _player.Hp / _player.MaxHp * 100 < condition.Pct;
             if (context.Target == null) return false;
             switch (condition.Type)
-            { case "targetHpBelow": return context.Target.Hp / context.Target.MaxHp * 100 < condition.Pct; case "targetHasStatus": return context.Target.HasStatus(condition.Status); case "targetDistanceBelow": return SimVector.Distance(_player.Position, context.Target.Position) < condition.Px; default: return false; }
+            { case "targetHpBelow": return context.Target.Hp / context.Target.MaxHp * 100 < condition.Pct; case "targetHasStatus": return HasEnemyStatus(context.Target, condition.Status); case "targetDistanceBelow": return SimVector.Distance(_player.Position, context.Target.Position) < condition.Px; default: return false; }
         }
 
         /// <summary>Form 종류별 개체 수, 다중 배치, 이벤트 앵커 및 노이즈 속성을 반영하여 마법 개체를 생성한다.</summary>
@@ -581,7 +587,7 @@ namespace RuneCode
         {
             if (!enemy.IsAlive || enemy.IsPatching) return 0;
             double actual = damage * Adaptation.GetMultiplier(element, form);
-            if (enemy.Kind == "enemy.aegis" && !enemy.IsEmp && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
+            if (enemy.Kind == "enemy.aegis" && !HasEnemyStatus(enemy, EnemyStatusType.Emp) && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
             bool relayAlive = false;
             bool hasRelayAura = false;
             foreach (SimulationEnemy relay in _enemies)
@@ -592,8 +598,7 @@ namespace RuneCode
             }
             if (hasRelayAura) actual *= 1 - _balance.Combat.RelayReduction;
             actual = enemy.Hurt(actual, Time);
-            if (applyStatus)
-            { if (element == "fire") enemy.Burn(Time, _balance.Combat.BurnSeconds, _balance.Combat.BurnInterval, form, noise); else if (element == "ice") enemy.Chill(Time, _balance.Combat.ChillSeconds, _balance.Combat.ChillMaxStacks, _balance.Combat.FreezeSeconds, _balance.Combat.FreezeImmunity); else if (element == "arc") enemy.Emp(Time, _balance.Combat.EmpSeconds); }
+            if (applyStatus) ApplyStatus(enemy, element, form, noise);
             if (actual > 0)
             {
                 enemy.SetDamageTags(element, form);
@@ -605,18 +610,124 @@ namespace RuneCode
             return actual;
         }
 
-        /// <summary>활성 화염의 마지막 만료 틱까지 지속 피해를 적용하고 적 상태 표시 시간을 갱신한다.</summary>
+        /// <summary>
+        /// 상태 판정 시각을 현재 틱으로 갱신하고, 적 목록 순서로 화염의 마지막 만료 틱까지 지속 피해를 적용한 뒤 만료된 상태 이상을 제거한다.
+        /// </summary>
         private void AdvanceStatuses()
         {
+            _statusTime = Time;
             foreach (SimulationEnemy enemy in _enemies)
             {
                 enemy.Observe(Time);
-                while (enemy.IsAlive && enemy.BurnNext > 0 && enemy.BurnNext <= enemy.BurnUntil + 0.000001 && Time + 0.000001 >= enemy.BurnNext)
-                { ApplyDamage(enemy, _balance.Combat.BurnDps * _balance.Combat.BurnInterval, "fire", enemy.BurnForm, enemy.BurnNoise, true, SimVector.Zero, false); enemy.BurnNext += _balance.Combat.BurnInterval; }
+                EnemyStatusEffect burn = FindStatus(enemy.Id, EnemyStatusType.Burn);
+                if (burn == null) continue;
+                while (enemy.IsAlive && burn.NextTickTime <= burn.Until + 0.000001 && Time + 0.000001 >= burn.NextTickTime)
+                { ApplyDamage(enemy, _balance.Combat.BurnDps * _balance.Combat.BurnInterval, "fire", burn.SourceForm, burn.IsNoise, true, SimVector.Zero, false); burn.NextTickTime += _balance.Combat.BurnInterval; }
+            }
+            for (int i = _enemyStatuses.Count - 1; i >= 0; i--)
+                if (IsStatusExpired(_enemyStatuses[i])) { RemoveStatusIndex(_enemyStatuses[i]); _enemyStatuses.RemoveAt(i); }
+        }
+
+        /// <summary>
+        /// 상태 이상이 더 이상 판정·진행에 쓰이지 않는지 반환한다.
+        /// 화염은 마지막 지속 피해 틱까지 처리된 뒤, 빙결은 빙결 면역까지 끝난 뒤 만료된다.
+        /// </summary>
+        private bool IsStatusExpired(EnemyStatusEffect status)
+        {
+            switch (status.Type)
+            {
+                case EnemyStatusType.Burn: return status.NextTickTime > status.Until + 0.000001 && Time >= status.Until;
+                case EnemyStatusType.Freeze: return Time >= status.ImmuneUntil;
+                default: return Time >= status.Until;
             }
         }
 
-        /// <summary>적의 접근, 접촉, 예고 사격, 돌진, 방패 및 거버너 페이즈 패턴을 진행한다.</summary>
+        /// <summary>피해 속성에 맞는 상태 이상(화염·냉기·EMP)을 현재 시각 기준으로 부여한다.</summary>
+        private void ApplyStatus(SimulationEnemy enemy, string element, string form, bool noise)
+        {
+            if (element == "fire") ApplyBurn(enemy, form, noise);
+            else if (element == "ice") ApplyChill(enemy);
+            else if (element == "arc") GetOrAddStatus(enemy.Id, EnemyStatusType.Emp).Until = Time + _balance.Combat.EmpSeconds;
+        }
+
+        /// <summary>화염의 출처 형태와 노이즈를 보관하고 지속시간을 갱신하되, 진행 중인 화염이면 다음 틱 시각을 유지한다.</summary>
+        private void ApplyBurn(SimulationEnemy enemy, string form, bool noise)
+        {
+            EnemyStatusEffect burn = FindStatus(enemy.Id, EnemyStatusType.Burn);
+            if (burn == null || Time >= burn.Until)
+            {
+                burn ??= AddStatus(enemy.Id, EnemyStatusType.Burn);
+                burn.NextTickTime = Time + _balance.Combat.BurnInterval;
+            }
+            burn.Until = Time + _balance.Combat.BurnSeconds; burn.SourceForm = form; burn.IsNoise = noise;
+        }
+
+        /// <summary>냉기 스택과 지속시간을 갱신하고, 최대 스택에서 빙결 면역이 아니면 빙결을 부여하며 냉기를 제거한다.</summary>
+        private void ApplyChill(SimulationEnemy enemy)
+        {
+            CombatBalance combat = _balance.Combat;
+            EnemyStatusEffect chill = GetOrAddStatus(enemy.Id, EnemyStatusType.Chill);
+            chill.Stacks = Math.Min(combat.ChillMaxStacks, chill.Stacks + 1); chill.Until = Time + combat.ChillSeconds;
+            if (chill.Stacks < combat.ChillMaxStacks) return;
+            EnemyStatusEffect freeze = FindStatus(enemy.Id, EnemyStatusType.Freeze);
+            if (freeze != null && Time < freeze.ImmuneUntil) return;
+            freeze ??= AddStatus(enemy.Id, EnemyStatusType.Freeze);
+            freeze.Until = Time + combat.FreezeSeconds; freeze.ImmuneUntil = freeze.Until + combat.FreezeImmunity;
+            RemoveStatusIndex(chill); _enemyStatuses.Remove(chill);
+        }
+
+        /// <summary>적의 상태 이상이 현재 상태 판정 시각에 활성인지 반환한다. 냉기는 스택 보유 여부로 판정한다.</summary>
+        public bool HasEnemyStatus(SimulationEnemy enemy, EnemyStatusType type)
+        {
+            EnemyStatusEffect status = FindStatus(enemy.Id, type);
+            if (status == null) return false;
+            return type == EnemyStatusType.Chill ? status.Stacks > 0 : _statusTime < status.Until;
+        }
+
+        /// <summary>조건 룬의 상태 이름(burn, chill, freeze, emp)으로 활성 여부를 반환하며 알 수 없는 이름은 false를 반환한다.</summary>
+        private bool HasEnemyStatus(SimulationEnemy enemy, string status)
+        {
+            switch (status)
+            {
+                case "burn": return HasEnemyStatus(enemy, EnemyStatusType.Burn);
+                case "chill": return HasEnemyStatus(enemy, EnemyStatusType.Chill);
+                case "freeze": return HasEnemyStatus(enemy, EnemyStatusType.Freeze);
+                case "emp": return HasEnemyStatus(enemy, EnemyStatusType.Emp);
+                default: return false;
+            }
+        }
+
+        /// <summary>적의 현재 냉기 스택을 반환하며 냉기가 없으면 0을 반환한다.</summary>
+        public int GetChillStacks(SimulationEnemy enemy) => FindStatus(enemy.Id, EnemyStatusType.Chill)?.Stacks ?? 0;
+
+        /// <summary>적 ID와 종류로 상태 이상을 찾고 없으면 null을 반환한다.</summary>
+        private EnemyStatusEffect FindStatus(int enemyId, EnemyStatusType type)
+        { _statusIndex.TryGetValue(GetStatusKey(enemyId, type), out EnemyStatusEffect status); return status; }
+
+        /// <summary>적 ID와 종류의 상태 이상을 찾고 없으면 새로 추가하여 반환한다.</summary>
+        private EnemyStatusEffect GetOrAddStatus(int enemyId, EnemyStatusType type) => FindStatus(enemyId, type) ?? AddStatus(enemyId, type);
+
+        /// <summary>새 상태 이상을 목록 끝과 조회 인덱스에 추가하여 반환한다.</summary>
+        private EnemyStatusEffect AddStatus(int enemyId, EnemyStatusType type)
+        { var status = new EnemyStatusEffect(enemyId, type); _enemyStatuses.Add(status); _statusIndex.Add(GetStatusKey(enemyId, type), status); return status; }
+
+        /// <summary>제거된 적의 모든 상태 이상을 목록과 조회 인덱스에서 삭제한다.</summary>
+        private void RemoveEnemyStatuses(int enemyId)
+        {
+            for (int i = _enemyStatuses.Count - 1; i >= 0; i--)
+                if (_enemyStatuses[i].EnemyId == enemyId) { RemoveStatusIndex(_enemyStatuses[i]); _enemyStatuses.RemoveAt(i); }
+        }
+
+        /// <summary>상태 이상을 조회 인덱스에서 삭제한다.</summary>
+        private void RemoveStatusIndex(EnemyStatusEffect status) { _statusIndex.Remove(GetStatusKey(status.EnemyId, status.Type)); }
+
+        /// <summary>적 ID와 상태 이상 종류를 하나의 조회 키로 합친다.</summary>
+        private static int GetStatusKey(int enemyId, EnemyStatusType type) => enemyId * STATUS_TYPE_COUNT + (int)type;
+
+        /// <summary>
+        /// 적마다 이동 전 플레이어 방향을 구해 이동 판단을 적용한 뒤 접촉, 예고 사격, 돌진 및 거버너 페이즈 패턴을 진행한다.
+        /// 공격 판정은 이동 전 거리·방향을, 접촉과 발사 위치는 이동 후 위치를 사용한다.
+        /// </summary>
         private void AdvanceEnemies()
         {
             int initialCount = _enemies.Count;
@@ -624,38 +735,56 @@ namespace RuneCode
             {
                 SimulationEnemy enemy = _enemies[i]; if (!enemy.IsAlive) continue;
                 enemy.Observe(Time);
-                if (enemy.IsDummy || enemy.IsFrozen) continue;
+                if (enemy.IsDummy || HasEnemyStatus(enemy, EnemyStatusType.Freeze)) continue;
                 SimVector offset = _player.Position - enemy.Position; SimVector direction = offset.Normalized();
-                if (enemy.Kind == "boss.governor") { AdvanceBoss(enemy, direction); continue; }
-                EnemyDefinition definition = enemy.Definition;
-                if (enemy.Kind == "enemy.relay") { if (_isMission) MoveEnemy(enemy, direction, _incremental.StationaryAdvanceSpeed); continue; }
-                if (enemy.Kind == "enemy.sentry")
-                {
-                    if (_isMission) MoveEnemy(enemy, direction, _incremental.StationaryAdvanceSpeed); else enemy.Move(enemy.Position, direction);
-                    if (enemy.WarningUntil > 0 && Time + 0.000001 >= enemy.WarningUntil)
-                    { ShootBurst(enemy, enemy.AttackDirection, 1); enemy.WarningUntil = 0; enemy.AttackAt = Time + definition.AttackInterval - definition.WarningSeconds; }
-                    else if (enemy.WarningUntil == 0 && Time + 0.000001 >= enemy.AttackAt)
-                    { enemy.AttackDirection = direction; enemy.WarningUntil = Time + definition.WarningSeconds; }
-                    continue;
-                }
-                if (enemy.Kind == "enemy.hunter")
-                {
-                    if (Time < enemy.DashUntil) { MoveEnemy(enemy, enemy.AttackDirection, definition.DashSpeed); HurtByContact(enemy); continue; }
-                    if (enemy.WarningUntil > 0)
-                    { if (Time + 0.000001 >= enemy.WarningUntil) { enemy.WarningUntil = 0; enemy.DashUntil = Time + definition.DashSeconds; enemy.AttackAt = Time + definition.AttackInterval; } continue; }
-                    if (offset.Length < definition.AttackRange && Time >= enemy.AttackAt)
-                    { enemy.WarningUntil = Time + definition.WarningSeconds; enemy.AttackDirection = direction; continue; }
-                    MoveEnemy(enemy, direction, definition.Speed);
-                    continue;
-                }
-                MoveEnemy(enemy, direction, definition.Speed);
-                if (Time >= enemy.AttackAt && HurtByContact(enemy)) enemy.AttackAt = Time + definition.AttackInterval;
+                bool isBoss = enemy.Kind == "boss.governor";
+                if (isBoss) { CheckBossPatch(enemy); if (enemy.IsPatching) continue; }
+                double speedMultiplier = isBoss && enemy.Phase == 3 ? _governor.PhaseThreeMultiplier : 1;
+                var context = new EnemyMoveContext(offset, direction, Time, _isMission, _incremental.StationaryAdvanceSpeed, _governor.PreferredDistance, speedMultiplier);
+                ApplyMove(enemy, EnemyMovements.Decide(enemy, context));
+                if (isBoss) AdvanceBoss(enemy, direction);
+                else AdvanceEnemyAttack(enemy, offset, direction);
             }
+        }
+
+        /// <summary>이동 판단 결과에 따라 정지, 방향 전환 또는 감속·벽 충돌을 반영한 이동을 적용한다.</summary>
+        private void ApplyMove(SimulationEnemy enemy, EnemyMoveDecision decision)
+        {
+            if (decision.Mode == EnemyMoveMode.Face) enemy.Move(enemy.Position, decision.Direction);
+            else if (decision.Mode == EnemyMoveMode.Move) MoveEnemy(enemy, decision.Direction, decision.Speed);
+        }
+
+        /// <summary>
+        /// 보스가 아닌 적의 공격 일정을 이동 전 거리·방향으로 진행한다.
+        /// 센트리는 예고 후 연사, 헌터는 예고 후 돌진·돌진 중 접촉, 릴레이는 공격하지 않으며 그 외는 주기적 접촉 피해를 준다.
+        /// </summary>
+        private void AdvanceEnemyAttack(SimulationEnemy enemy, SimVector offset, SimVector direction)
+        {
+            EnemyDefinition definition = enemy.Definition;
+            if (enemy.Kind == "enemy.relay") return;
+            if (enemy.Kind == "enemy.sentry")
+            {
+                if (enemy.WarningUntil > 0 && Time + 0.000001 >= enemy.WarningUntil)
+                { ShootBurst(enemy, enemy.AttackDirection, 1); enemy.WarningUntil = 0; enemy.AttackAt = Time + definition.AttackInterval - definition.WarningSeconds; }
+                else if (enemy.WarningUntil == 0 && Time + 0.000001 >= enemy.AttackAt)
+                { enemy.AttackDirection = direction; enemy.WarningUntil = Time + definition.WarningSeconds; }
+                return;
+            }
+            if (enemy.Kind == "enemy.hunter")
+            {
+                if (Time < enemy.DashUntil) { HurtByContact(enemy); return; }
+                if (enemy.WarningUntil > 0)
+                { if (Time + 0.000001 >= enemy.WarningUntil) { enemy.WarningUntil = 0; enemy.DashUntil = Time + definition.DashSeconds; enemy.AttackAt = Time + definition.AttackInterval; } return; }
+                if (offset.Length < definition.AttackRange && Time >= enemy.AttackAt)
+                { enemy.WarningUntil = Time + definition.WarningSeconds; enemy.AttackDirection = direction; }
+                return;
+            }
+            if (Time >= enemy.AttackAt && HurtByContact(enemy)) enemy.AttackAt = Time + definition.AttackInterval;
         }
 
         /// <summary>냉기 감속을 반영하여 적을 벽 충돌 가능한 방향으로 이동시킨다.</summary>
         private void MoveEnemy(SimulationEnemy enemy, SimVector direction, double speed)
-        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * enemy.ChillStacks); enemy.Move(_map.Move(enemy.Position, direction * (speed * slow * STEP_SECONDS), enemy.Radius), direction); }
+        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * GetChillStacks(enemy)); enemy.Move(_map.Move(enemy.Position, direction * (speed * slow * STEP_SECONDS), enemy.Radius), direction); }
 
         /// <summary>적과 플레이어가 겹치면 피해를 적용하고 접촉 여부를 반환한다.</summary>
         private bool HurtByContact(SimulationEnemy enemy)
@@ -692,19 +821,19 @@ namespace RuneCode
             for (int i = 0; i < _pendingEnemyShots.Count;)
             {
                 PendingEnemyShot shot = _pendingEnemyShots[i];
-                if (!shot.Owner.IsAlive || shot.Owner.IsPatching || shot.Owner.IsFrozen) { _pendingEnemyShots.RemoveAt(i); continue; }
+                if (!shot.Owner.IsAlive || shot.Owner.IsPatching || HasEnemyStatus(shot.Owner, EnemyStatusType.Freeze)) { _pendingEnemyShots.RemoveAt(i); continue; }
                 if (shot.Tick > _tick) { i++; continue; }
                 _pendingEnemyShots.RemoveAt(i); ShootFan(shot.Owner, shot.Direction, 1, shot.SpeedMultiplier);
             }
         }
 
-        /// <summary>거버너의 이동, 방사 사격, 조준 사격, 예고 장판 및 증원 주기를 페이즈에 맞춰 처리한다.</summary>
+        /// <summary>
+        /// 거버너의 방사 사격, 조준 사격, 예고 장판, 증원 주기 및 접촉 피해를 페이즈에 맞춰 처리한다.
+        /// 페이즈 전환과 이동은 호출 전에 끝난 상태여야 하며 조준은 이동 전 방향을 사용한다.
+        /// </summary>
         private void AdvanceBoss(SimulationEnemy boss, SimVector direction)
         {
-            CheckBossPatch(boss); if (boss.IsPatching) return;
             double multiplier = boss.Phase == 3 ? _governor.PhaseThreeMultiplier : 1;
-            if (SimVector.Distance(boss.Position, _player.Position) > _governor.PreferredDistance) MoveEnemy(boss, direction, boss.Definition.Speed * multiplier);
-            else boss.Move(boss.Position, direction);
             if (Time + 0.000001 >= boss.AttackAt)
             {
                 if (boss.Phase == 1 || boss.Phase == 3)
@@ -762,7 +891,7 @@ namespace RuneCode
             ExecuteCallEvent(entity.CallEvents, false, isFirstEvent, entity.Position, entity.Direction, null, entity.CastNoiseElement);
         }
 
-        /// <summary>처치된 적만 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
+        /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
         private void CleanupEnemies()
         {
             for (int i = _enemies.Count - 1; i >= 0; i--)
@@ -770,7 +899,7 @@ namespace RuneCode
                 SimulationEnemy enemy = _enemies[i]; if (enemy.IsAlive) continue;
                 if (_isMission)
                 { _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward)); _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++; }
-                _enemies.RemoveAt(i);
+                RemoveEnemyStatuses(enemy.Id); _enemies.RemoveAt(i);
             }
         }
 
@@ -842,7 +971,7 @@ namespace RuneCode
             double damageMultiplier = _isMission ? 1 + (_stageNumber - 1) * _incremental.DamageStageScale : 1;
             int reward = definition.Reward;
             if (_isMission) foreach (IncrementalEnemyEntry entry in _incremental.Enemies) if (entry.EnemyId == id) { reward = entry.Reward; break; }
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward);
             enemy.AttackAt = Time + definition.AttackInterval;
             if (id == "boss.governor") { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;

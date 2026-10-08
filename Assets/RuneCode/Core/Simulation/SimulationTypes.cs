@@ -141,6 +141,7 @@ namespace RuneCode
     {
         private readonly int _id;
         private readonly EnemyDefinition _definition;
+        private readonly EnemyMovementType _movementType;
         private readonly bool _isDummy;
         private readonly double _hitFlashSeconds;
         private readonly double _damage;
@@ -154,15 +155,6 @@ namespace RuneCode
         private double _warningUntil;
         private double _dashUntil;
         private SimVector _attackDirection;
-        private double _burnUntil;
-        private double _burnNext;
-        private string _burnForm = "bolt";
-        private bool _burnNoise;
-        private double _chillUntil;
-        private int _chillStacks;
-        private double _freezeUntil;
-        private double _freezeImmuneUntil;
-        private double _empUntil;
         private double _flashUntil;
         private int _phase = 1;
         private double _patchUntil;
@@ -182,11 +174,6 @@ namespace RuneCode
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
         public bool IsAlive => _hp > 0;
-        public bool IsBurning => _observedTime < _burnUntil;
-        public int ChillStacks => _chillStacks;
-        public bool IsFrozen => _observedTime < _freezeUntil;
-        public bool IsFreezeImmune => _observedTime < _freezeImmuneUntil;
-        public bool IsEmp => _observedTime < _empUntil;
         public bool IsFlashing => _observedTime < _flashUntil;
         public bool IsWarning => _observedTime < _warningUntil;
         public int Phase => _phase;
@@ -194,24 +181,21 @@ namespace RuneCode
         public string LastDamageElement => _lastDamageElement;
         public string LastDamageForm => _lastDamageForm;
         internal EnemyDefinition Definition => _definition;
+        internal EnemyMovementType MovementType => _movementType;
         internal double DamageMultiplier => _damageMultiplier;
         internal double AttackAt { get => _attackAt; set => _attackAt = value; }
         internal double WarningUntil { get => _warningUntil; set => _warningUntil = value; }
         internal double DashUntil { get => _dashUntil; set => _dashUntil = value; }
         internal SimVector AttackDirection { get => _attackDirection; set => _attackDirection = value; }
-        internal double BurnNext { get => _burnNext; set => _burnNext = value; }
-        internal double BurnUntil => _burnUntil;
-        internal string BurnForm => _burnForm;
-        internal bool BurnNoise => _burnNoise;
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
 
-        /// <summary>공유 적 설정을 변경하지 않고 위치, 개별 체력·피해 배율, 보상 및 무반격 여부로 실행 상태를 생성한다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1)
-        { _id = id; _definition = definition; _position = position; _isDummy = isDummy; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
+        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해 배율, 보상 및 무반격 여부로 실행 상태를 생성한다.</summary>
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1)
+        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
 
-        /// <summary>틱 시간을 반영하고 만료된 냉기 스택을 제거한다.</summary>
-        internal void Observe(double time) { _observedTime = time; if (time >= _chillUntil) _chillStacks = 0; }
+        /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
+        internal void Observe(double time) { _observedTime = time; }
 
         /// <summary>적 위치 및 플레이어를 향한 방향을 갱신한다.</summary>
         internal void Move(SimVector position, SimVector facing) { _position = position; if (facing.LengthSquared > 0.000001) _facing = facing.Normalized(); }
@@ -219,33 +203,19 @@ namespace RuneCode
         /// <summary>피해를 체력에 적용하고 실제 감소량을 반환하며 피격 표시 시간을 설정한다.</summary>
         internal double Hurt(double damage, double time) { double actual = Math.Min(_hp, Math.Max(0, damage)); _hp -= actual; _flashUntil = time + _hitFlashSeconds; return actual; }
 
-        /// <summary>화염 피해의 출처를 보관하고 지속시간을 갱신하되 진행 중인 틱을 유지한다.</summary>
-        internal void Burn(double time, double duration, double interval, string form, bool noise)
-        { if (time >= _burnUntil) _burnNext = time + interval; _burnUntil = time + duration; _burnForm = form; _burnNoise = noise; }
-
-        /// <summary>냉기 스택과 지속시간을 갱신하고 빙결 면역이 없으면 3중첩에서 정지 상태를 적용한다.</summary>
-        internal void Chill(double time, double duration, int maxStacks, double freeze, double immunity)
-        { _chillStacks = Math.Min(maxStacks, _chillStacks + 1); _chillUntil = time + duration; if (_chillStacks >= maxStacks && time >= _freezeImmuneUntil) { _freezeUntil = time + freeze; _freezeImmuneUntil = _freezeUntil + immunity; _chillStacks = 0; } }
-
-        /// <summary>전격 적중에 따른 방패 무력화 만료 시간을 갱신한다.</summary>
-        internal void Emp(double time, double duration) { _empUntil = time + duration; }
-
         /// <summary>보스 페이즈를 변경하고 패치 무적 만료 시간을 설정한다.</summary>
         internal void Patch(int phase, double time, double duration) { _phase = phase; _patchUntil = time + duration; }
 
         /// <summary>실제로 받은 최근 피해의 속성과 형태를 기록하여 해당 적의 내성 아이콘에 사용한다.</summary>
         internal void SetDamageTags(string element, string form) { _lastDamageElement = element; _lastDamageForm = form; }
 
-        /// <summary>조건 룬에서 요구하는 상태 보유 여부를 반환한다.</summary>
-        public bool HasStatus(string status) => status == "burn" ? IsBurning : status == "chill" ? _chillStacks > 0 : status == "freeze" ? IsFrozen : status == "emp" && IsEmp;
-
-        /// <summary>적의 체력, 이동, 공격 예약, 상태 만료 및 페이즈를 결정성 해시 버퍼에 기록한다.</summary>
+        /// <summary>적의 체력, 이동, 공격 예약, 표시 만료 및 페이즈를 결정성 해시 버퍼에 기록한다. 상태 이상은 시뮬레이션이 따로 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(Kind).Append('|').Append(_isDummy);
             state.Append(FormattableString.Invariant($"|{_damage:R}|{_damageMultiplier:R}|{_reward}"));
             state.Append('|').Append(_lastDamageElement).Append('|').Append(_lastDamageForm);
-            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_burnUntil:R}|{_burnNext:R}|{_burnForm}|{_burnNoise}|{_chillUntil:R}|{_chillStacks}|{_freezeUntil:R}|{_freezeImmuneUntil:R}|{_empUntil:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));
+            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));
         }
     }
 
