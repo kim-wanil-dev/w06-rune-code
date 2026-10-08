@@ -9,7 +9,7 @@ namespace RuneCode
     public static class GraphCompiler
     {
         /// <summary>그래프와 해금·RAM·에너지 조건을 검증하고 최악 비용의 실행 트리를 컴파일한다.</summary>
-        public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, BalanceData balance,
+        public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, GrammarLimits limits,
             IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f, IEnumerable<SpellGraph> library = null)
         {
             CompileContext context = new CompileContext(unlocked ?? runes.StartRunes, library, graph, capacity, maxEnergy);
@@ -17,11 +17,11 @@ namespace RuneCode
             ValidateSpellDependencies(graph, context.Library, new HashSet<string>(StringComparer.Ordinal),
                 new List<string>(), dependencyErrors);
             if (dependencyErrors.Count > 0) return new CompileResult(dependencyErrors, new List<CompileIssue>(), null);
-            return CompileGraph(graph, runes, balance, context);
+            return CompileGraph(graph, runes, limits, context);
         }
 
         /// <summary>유효한 종속성을 가진 그래프를 순환 검사 스택에 넣고 한 번 컴파일한다.</summary>
-        private static CompileResult CompileGraph(SpellGraph graph, RuneCatalog runes, BalanceData balance, CompileContext context)
+        private static CompileResult CompileGraph(SpellGraph graph, RuneCatalog runes, GrammarLimits limits, CompileContext context)
         {
             if (graph == null)
             {
@@ -37,7 +37,7 @@ namespace RuneCode
             SpellGraph normalized = SpellChainNormalizer.Normalize(graph, runes, context.UnlockedIds, chainErrors, chainWarnings, out int chainRam);
             CompileResult result = chainErrors.Any(issue => issue.Code != "E10")
                 ? new CompileResult(chainErrors, chainWarnings, null)
-                : CompileGraphBody(normalized, runes, balance, context, chainErrors, chainWarnings, chainRam);
+                : CompileGraphBody(normalized, runes, limits, context, chainErrors, chainWarnings, chainRam);
             if (!string.IsNullOrEmpty(graph.Id)) context.ActiveSpellIds.Remove(graph.Id);
             if (result.Ok && !string.IsNullOrEmpty(graph.Id)) context.Compiled[graph.Id] = result.Spell;
             return result;
@@ -47,11 +47,11 @@ namespace RuneCode
         /// 체인 정규화를 마친 그래프의 해금·RAM·에너지 조건을 검사하고 실행 트리 및 비용 상한을 계산한다.
         /// 정규화 단계의 오류·경고 목록에 이어서 기록하며 chainRam은 합쳐진 문법 블록의 RAM이다.
         /// </summary>
-        private static CompileResult CompileGraphBody(SpellGraph graph, RuneCatalog runes, BalanceData balance, CompileContext context,
+        private static CompileResult CompileGraphBody(SpellGraph graph, RuneCatalog runes, GrammarLimits limits, CompileContext context,
             List<CompileIssue> errors, List<CompileIssue> warnings, int chainRam)
         {
             if ((graph.Version != 1 && graph.Version != 2) || graph.Nodes == null || graph.Edges == null
-                || graph.Nodes.Count > balance.Limits.MaxGraphNodes || graph.Edges.Count > balance.Limits.MaxGraphEdges)
+                || graph.Nodes.Count > limits.MaxGraphNodes || graph.Edges.Count > limits.MaxGraphEdges)
             {
                 errors.Add(new CompileIssue("E9"));
                 return new CompileResult(errors, warnings, null);
@@ -78,7 +78,7 @@ namespace RuneCode
             if (cores.Count != 1) errors.Add(new CompileIssue("E1"));
             ValidateEdges(graph, definitions, errors, warnings);
             if (!errors.Any(issue => issue.Code == "E3") && HasCycle(graph, nodes)) errors.Add(new CompileIssue("E4"));
-            int limit = context.Capacity < 0 ? balance.Economy.BaseCapacity : context.Capacity;
+            int limit = context.Capacity < 0 ? limits.BaseCapacity : context.Capacity;
             if (ramUsed > limit) errors.Add(new CompileIssue("E7"));
             bool hasStructuralError = errors.Any(issue => issue.Code != "E7" && issue.Code != "E10");
             if (hasStructuralError) return new CompileResult(errors, warnings, null);
@@ -97,21 +97,21 @@ namespace RuneCode
                 if ((rune.Category == "element" || rune.Category == "modifier")
                     && !graph.Edges.Any(edge => edge.FromNode == node.Id)) warnings.Add(new CompileIssue("W4", node.Id));
             }
-            List<SpellAction> root = BuildBranch(graph, cores[0].Id, "exec", nodes, definitions, warnings, errors, runes, balance, context);
+            List<SpellAction> root = BuildBranch(graph, cores[0].Id, "exec", nodes, definitions, warnings, errors, runes, limits, context);
             if (errors.Any(issue => issue.Code == "E11" || issue.Code == "E12" || issue.Code == "E14" || issue.Code == "E15"))
                 return new CompileResult(errors, warnings, null);
-            float energy = Cost(root, balance.Limits.HitTriggerCap);
-            int entities = EntityCount(root, balance.Limits.HitTriggerCap);
-            float energyLimit = context.MaxEnergy < 0f ? balance.Player.MaxEnergy : context.MaxEnergy;
-            long actionCeiling = balance.Limits.MaxCompiledActions;
-            long expandedActions = AddBounded(1L, ActionCount(root, balance.Limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
+            float energy = Cost(root, limits.HitTriggerCap);
+            int entities = EntityCount(root, limits.HitTriggerCap);
+            float energyLimit = context.MaxEnergy < 0f ? limits.MaxEnergy : context.MaxEnergy;
+            long actionCeiling = limits.MaxCompiledActions;
+            long expandedActions = AddBounded(1L, ActionCount(root, limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
             if (energy > energyLimit || expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
-            if (entities > balance.Limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
+            if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
             string trigger = cores[0].GetText("trigger", "attack");
             CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, energy,
-                balance.Ram.CooldownBase + balance.Ram.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
+                limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
             return new CompileResult(errors, warnings, compiled);
         }
 
@@ -138,7 +138,7 @@ namespace RuneCode
             else if (input.Kind == "mod" && !CanAttachModifier(fromRune, toRune))
                 issue = new CompileIssue("E13", edge.ToNode);
             else if (fromRune.Id == "magic.inline" && from.GetText("magicType", "sphere") == "buff"
-                && (edge.FromPort == "onHit" || edge.FromPort == "onExpire"))
+                && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT))
                 issue = new CompileIssue("E16", edge.FromNode);
             else if (graph.Version == 2 && output.Kind == "exec" && graph.Edges.Any(current => current.FromNode == edge.FromNode
                 && current.FromPort == edge.FromPort && current.Order == edge.Order))
@@ -166,7 +166,7 @@ namespace RuneCode
             => CanConnect(graph, edge, runes, out issue);
 
         /// <summary>효과 입력에는 형태 블록·마법 메소드(및 내부 Inline Magic)에 효과 룬만 연결할 수 있는지 반환한다.</summary>
-        private static bool CanAttachModifier(RuneDefinition source, RuneDefinition target)
+        internal static bool CanAttachModifier(RuneDefinition source, RuneDefinition target)
         {
             if (target.Category == SpellGrammar.CATEGORY_SHAPE || target.Id == SpellGrammar.CALL_RUNE || target.Id == SpellGrammar.INLINE_RUNE)
                 return source.Category == "modifier";
@@ -187,7 +187,7 @@ namespace RuneCode
                 || (element == "protection" && magicType != "buff" && !isProtectionOrbit))
                 errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
-                && (edge.FromPort == "onHit" || edge.FromPort == "onExpire")))
+                && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
                 errors.Add(new CompileIssue("E16", node.Id));
         }
 
@@ -308,7 +308,7 @@ namespace RuneCode
                 }
                 GraphNode fromNode = graph.FindNode(edge.FromNode);
                 if (from.Id == "magic.inline" && fromNode.GetText("magicType", "sphere") == "buff"
-                    && (edge.FromPort == "onHit" || edge.FromPort == "onExpire"))
+                    && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT))
                 {
                     errors.Add(new CompileIssue("E16", edge.FromNode));
                     continue;
@@ -392,7 +392,9 @@ namespace RuneCode
             {
                 if (edge.ToNode == id && edge.ToPort == "mod") reachable.Add(edge.FromNode);
                 if (edge.FromNode != id || edge.FromPort == "mod") continue;
-                bool nextHasTarget = edge.FromPort == "onHit" || (hasTarget && edge.FromPort != "onExpire");
+                // onFirstHitOrExpire는 소멸 시에도 실행되어 대상이 없을 수 있으므로 onExpire처럼 대상 없음으로 본다.
+                bool nextHasTarget = edge.FromPort == SpellGrammar.ON_HIT_PORT
+                    || (hasTarget && edge.FromPort != SpellGrammar.ON_EXPIRE_PORT && edge.FromPort != SpellGrammar.ON_FIRST_HIT_OR_EXPIRE_PORT);
                 FindReachable(graph, edge.ToNode, nextHasTarget, reachable, definitions, warnings);
             }
         }
@@ -400,7 +402,7 @@ namespace RuneCode
         /// <summary>출력 포트에 연결된 노드를 안정된 순서의 실행 명령으로 변환한다.</summary>
         private static List<SpellAction> BuildBranch(SpellGraph graph, string nodeId, string port,
             Dictionary<string, GraphNode> nodes, Dictionary<string, RuneDefinition> definitions, List<CompileIssue> warnings,
-            List<CompileIssue> errors, RuneCatalog runes, BalanceData balance, CompileContext context)
+            List<CompileIssue> errors, RuneCatalog runes, GrammarLimits limits, CompileContext context)
         {
             List<SpellAction> actions = new List<SpellAction>();
             IEnumerable<GraphEdge> branchEdges = graph.Edges.Where(edge => edge.FromNode == nodeId && edge.FromPort == port);
@@ -439,9 +441,9 @@ namespace RuneCode
                     if (context.Compiled.TryGetValue(spellId, out CompiledSpell cached)) calledSpell = cached;
                     else if (context.Library.TryGetValue(spellId, out SpellGraph target))
                     {
-                        CompileResult targetResult = CompileGraph(target, runes, balance, context);
+                        CompileResult targetResult = CompileGraph(target, runes, limits, context);
                         if (targetResult.Ok) calledSpell = targetResult.Spell;
-                        else errors.Add(new CompileIssue("E15", node.Id, target.Name + ": " + targetResult.Errors[0].Message));
+                        else errors.Add(new CompileIssue("E15", node.Id, target.Name, targetResult.Errors[0]));
                     }
                 }
                 SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell);
@@ -449,7 +451,7 @@ namespace RuneCode
                 foreach (PortDefinition output in rune.Ports)
                 {
                     if (output.Direction == "out" && output.Kind == "exec")
-                        action.SetBranch(output.Id, BuildBranch(graph, node.Id, output.Id, nodes, definitions, warnings, errors, runes, balance, context));
+                        action.SetBranch(output.Id, BuildBranch(graph, node.Id, output.Id, nodes, definitions, warnings, errors, runes, limits, context));
                 }
                 actions.Add(action);
             }
@@ -477,16 +479,17 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
+                        // onFirstHitOrExpire는 개체마다 첫 적중 또는 소멸에서 한 번만 실행되므로 개체당 한 번 더한다.
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
                         sum += action.OwnEnergy + action.Count * (Math.Min(maxHits, hitCap) * Cost(action.OnHit, hitCap)
-                            + Cost(action.OnExpire, hitCap) + Cost(action.OnComplete, hitCap));
+                            + Cost(action.OnExpire, hitCap) + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
-                    case "buff": sum += action.OwnEnergy + action.Count * Cost(action.OnComplete, hitCap); break;
+                    case "buff": sum += action.OwnEnergy + action.Count * Cost(action.OnFirstHitOrExpire, hitCap); break;
                     case "call":
                         long eventCount = (long)action.Count * action.CalledSpell.WorstCaseEntities;
                         sum += action.OwnEnergy
-                            + eventCount * (hitCap * Cost(action.OnHit, hitCap) + Cost(action.OnExpire, hitCap))
-                            + action.Count * Cost(action.OnComplete, hitCap);
+                            + eventCount * (hitCap * Cost(action.OnHit, hitCap) + Cost(action.OnExpire, hitCap)
+                                + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
                     case "delay": sum += Cost(action.Then, hitCap); break;
                     case "repeat": sum += action.Times * Cost(action.Body, hitCap); break;
@@ -510,18 +513,16 @@ namespace RuneCode
                     case "spawn":
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
                         long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), EntityCount(action.OnHit, hitCap), limit);
-                        long perEntityWork = AddBounded(AddBounded(1L, hitWork, limit), EntityCount(action.OnExpire, hitCap), limit);
-                        count = AddBounded(MultiplyBounded(action.Count, perEntityWork, limit),
-                            MultiplyBounded(action.Count, EntityCount(action.OnComplete, hitCap), limit), limit);
+                        long eventWork = AddBounded(EntityCount(action.OnExpire, hitCap), EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
+                        long perEntityWork = AddBounded(AddBounded(1L, hitWork, limit), eventWork, limit);
+                        count = MultiplyBounded(action.Count, perEntityWork, limit);
                         break;
-                    case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnComplete, hitCap), limit); break;
+                    case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnFirstHitOrExpire, hitCap), limit); break;
                     case "call":
                         long callEntities = MultiplyBounded(action.Count, action.CalledSpell.WorstCaseEntities, limit);
                         long callEvents = AddBounded(MultiplyBounded(hitCap, EntityCount(action.OnHit, hitCap), limit),
-                            EntityCount(action.OnExpire, hitCap), limit);
+                            AddBounded(EntityCount(action.OnExpire, hitCap), EntityCount(action.OnFirstHitOrExpire, hitCap), limit), limit);
                         count = AddBounded(callEntities, MultiplyBounded(callEntities, callEvents, limit), limit);
-                        count = AddBounded(count, MultiplyBounded(action.Count,
-                            EntityCount(action.OnComplete, hitCap), limit), limit);
                         break;
                     case "delay": count = EntityCount(action.Then, hitCap); break;
                     case "repeat": count = MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit); break;
@@ -546,22 +547,22 @@ namespace RuneCode
                     case "spawn":
                         int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
                         long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long eventWork = AddBounded(hitWork, ActionCount(action.OnExpire, hitCap, saturation), saturation);
+                        long expireWork = AddBounded(ActionCount(action.OnExpire, hitCap, saturation),
+                            ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
+                        long eventWork = AddBounded(hitWork, expireWork, saturation);
                         count = AddBounded(count, MultiplyBounded(action.Count, eventWork, saturation), saturation);
-                        count = AddBounded(count, MultiplyBounded(action.Count,
-                            ActionCount(action.OnComplete, hitCap, saturation), saturation), saturation);
                         break;
                     case "buff": count = AddBounded(count, MultiplyBounded(action.Count,
-                        ActionCount(action.OnComplete, hitCap, saturation), saturation), saturation); break;
+                        ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation), saturation); break;
                     case "call":
                         long calleeActions = ActionCount(action.CalledSpell.Root, hitCap, saturation);
                         long invocationWork = MultiplyBounded(action.Count, calleeActions, saturation);
+                        long callHitWork = MultiplyBounded(hitCap, ActionCount(action.OnHit, hitCap, saturation), saturation);
+                        long callExpireWork = AddBounded(ActionCount(action.OnExpire, hitCap, saturation),
+                            ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
                         long callEvents = MultiplyBounded((long)action.Count * action.CalledSpell.WorstCaseEntities,
-                            AddBounded(MultiplyBounded(hitCap, ActionCount(action.OnHit, hitCap, saturation), saturation),
-                                ActionCount(action.OnExpire, hitCap, saturation), saturation), saturation);
+                            AddBounded(callHitWork, callExpireWork, saturation), saturation);
                         count = AddBounded(count, AddBounded(invocationWork, callEvents, saturation), saturation);
-                        count = AddBounded(count, MultiplyBounded(action.Count,
-                            ActionCount(action.OnComplete, hitCap, saturation), saturation), saturation);
                         break;
                     case "delay": count = AddBounded(count, ActionCount(action.Then, hitCap, saturation), saturation); break;
                     case "repeat": count = AddBounded(count, MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation), saturation); break;
@@ -599,7 +600,7 @@ namespace RuneCode
                     foreach (string tag in action.CalledSpell.Tags) tags.Add(tag);
                 GatherTags(action.OnHit, tags);
                 GatherTags(action.OnExpire, tags);
-                GatherTags(action.OnComplete, tags);
+                GatherTags(action.OnFirstHitOrExpire, tags);
                 GatherTags(action.Then, tags);
                 GatherTags(action.Else, tags);
                 GatherTags(action.Body, tags);
@@ -644,7 +645,7 @@ namespace RuneCode
                     canonical.Append("call:").Append(action.CalledSpellId).Append('=').Append(action.CalledSpell.Signature).Append(';');
                 AppendCallSignatures(action.OnHit, canonical);
                 AppendCallSignatures(action.OnExpire, canonical);
-                AppendCallSignatures(action.OnComplete, canonical);
+                AppendCallSignatures(action.OnFirstHitOrExpire, canonical);
                 AppendCallSignatures(action.Then, canonical);
                 AppendCallSignatures(action.Else, canonical);
                 AppendCallSignatures(action.Body, canonical);

@@ -84,7 +84,7 @@ namespace RuneCode
         public void Recompile()
         {
             var context = _policy.GetCompileContext();
-            _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance,
+            _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance.Grammar,
                 context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library);
             RaiseCompiled();
         }
@@ -215,7 +215,7 @@ namespace RuneCode
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             candidate.AddEdge(edge);
             var context = _policy.GetCompileContext();
-            CompileResult result = GraphCompiler.Compile(candidate, GameData.Runes, GameData.Balance,
+            CompileResult result = GraphCompiler.Compile(candidate, GameData.Runes, GameData.Balance.Grammar,
                 context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library);
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
@@ -338,7 +338,7 @@ namespace RuneCode
         public void AutoArrange()
         {
             if (!_isEditable) return;
-            var execution = _editingGraph.Nodes.Where(node => { var category = GameData.Runes.Get(node.RuneId).Category; return category != "element" && category != "modifier"; }).ToList();
+            var execution = _editingGraph.Nodes.Where(node => { var category = GameData.Runes.Get(node.RuneId).Category; return category != SpellGrammar.CATEGORY_ELEMENT && category != SpellGrammar.CATEGORY_MODIFIER; }).ToList();
             var modifiers = _editingGraph.Nodes.Except(execution).ToList();
             for (var i = 0; i < execution.Count; i++) execution[i].Move(35 + (i % 4) * 170, 55 + (i / 4) * 130);
             for (var i = 0; i < modifiers.Count; i++) modifiers[i].Move(80 + (i % 4) * 170, 250 + (i / 4) * 100);

@@ -9,13 +9,11 @@ namespace RuneCode
     public static class ShareCodec
     {
         private const int MAX_JSON_LENGTH = 131072;
-        private const int MAX_NODE_COUNT = 256;
-        private const int MAX_EDGE_COUNT = 1024;
         private const string PREFIX_V1 = "RC1.";
         private const string PREFIX_V2 = "RC2.";
 
-        /// <summary>마법 그래프를 저장 또는 복제에 사용할 JSON 문자열로 직렬화한다.</summary>
-        public static string Serialize(SpellGraph graph, bool pretty = false) => JsonUtility.ToJson(graph, pretty);
+        /// <summary>마법 그래프를 저장 또는 공유 코드에 사용할 JSON 문자열로 직렬화한다. 형식은 SpellGraphData를 따른다.</summary>
+        public static string Serialize(SpellGraph graph, bool pretty = false) => JsonUtility.ToJson(SpellGraphData.From(graph), pretty);
 
         /// <summary>크기·필수 필드·ID·숫자를 검증하고 이전 룬을 문법 블록으로 변환한 JSON 그래프를 반환한다.</summary>
         public static SpellGraph Deserialize(string json)
@@ -23,33 +21,9 @@ namespace RuneCode
             string trimmed = json?.TrimStart();
             if (string.IsNullOrEmpty(trimmed) || json.Length > MAX_JSON_LENGTH || trimmed[0] != '{')
                 throw new FormatException(GameData.L("share.invalid"));
-            SpellGraph graph = JsonUtility.FromJson<SpellGraph>(json);
-            if (graph == null || (graph.Version != 1 && graph.Version != 2) || !IsIdentifier(graph.Id) || string.IsNullOrWhiteSpace(graph.Name)
-                || graph.Name.Length > 80 || graph.Nodes == null || graph.Edges == null
-                || graph.Nodes.Count == 0 || graph.Nodes.Count > MAX_NODE_COUNT || graph.Edges.Count > MAX_EDGE_COUNT)
+            SpellGraph graph = JsonUtility.FromJson<SpellGraphData>(json)?.ToGraph();
+            if (!SpellGraphValidator.IsValid(graph))
                 throw new FormatException(GameData.L("share.invalid"));
-            HashSet<string> nodeIds = new HashSet<string>(StringComparer.Ordinal);
-            foreach (GraphNode node in graph.Nodes)
-            {
-                if (node == null || !IsIdentifier(node.Id) || !IsIdentifier(node.RuneId) || !nodeIds.Add(node.Id)
-                    || !IsFinite(node.X) || !IsFinite(node.Y) || node.Params == null || node.Params.Count > 16)
-                    throw new FormatException(GameData.L("share.invalid"));
-                HashSet<string> paramKeys = new HashSet<string>();
-                foreach (NodeParameter param in node.Params)
-                {
-                    if (param == null || !IsIdentifier(param.Key) || !paramKeys.Add(param.Key)
-                        || !IsFinite(param.Number) || (param.Text != null && param.Text.Length > 80))
-                        throw new FormatException(GameData.L("share.invalid"));
-                }
-            }
-            HashSet<string> edgeIds = new HashSet<string>(StringComparer.Ordinal);
-            foreach (GraphEdge edge in graph.Edges)
-            {
-                if (edge == null || !IsIdentifier(edge.Id) || !edgeIds.Add(edge.Id)
-                    || !nodeIds.Contains(edge.FromNode) || !nodeIds.Contains(edge.ToNode)
-                    || !IsIdentifier(edge.FromPort) || !IsIdentifier(edge.ToPort) || edge.Order < 0)
-                    throw new FormatException(GameData.L("share.invalid"));
-            }
             SpellGraphMigration.Migrate(graph);
             return graph;
         }
@@ -87,9 +61,9 @@ namespace RuneCode
                 {
                     List<string> allRunes = new List<string>();
                     foreach (RuneDefinition rune in GameData.Runes.All) allRunes.Add(rune.Id);
-                    CompileResult result = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance,
+                    CompileResult result = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance.Grammar,
                         allRunes, int.MaxValue, float.MaxValue, library);
-                    if (!result.Ok) throw new FormatException(result.Errors[0].Message);
+                    if (!result.Ok) throw new FormatException(CompileIssueText.Format(result.Errors[0]));
                 }
                 return true;
             }
@@ -100,18 +74,5 @@ namespace RuneCode
                 return false;
             }
         }
-
-        /// <summary>직렬화 식별자의 길이와 허용 문자를 검증한다.</summary>
-        private static bool IsIdentifier(string value)
-        {
-            if (string.IsNullOrEmpty(value) || value.Length > 80) return false;
-            foreach (char character in value)
-                if (!((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
-                    || (character >= '0' && character <= '9')) && character != '.' && character != '_' && character != '-') return false;
-            return true;
-        }
-
-        /// <summary>공유 데이터 숫자가 유한한 값인지 반환한다.</summary>
-        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }

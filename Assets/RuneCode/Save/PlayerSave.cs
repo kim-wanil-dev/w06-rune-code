@@ -7,7 +7,7 @@ using UnityEngine;
 namespace RuneCode
 {
     [Serializable]
-    public sealed class PlayerSave
+    public sealed class PlayerSave : ISerializationCallbackReceiver
     {
         private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
 
@@ -26,7 +26,7 @@ namespace RuneCode
         [SerializeField] private string _activeSpellId;
         [SerializeField] private bool _sectorCleared;
         [SerializeField] private List<string> _unlockedRunes = new List<string>();
-        [SerializeField] private List<SpellGraph> _library = new List<SpellGraph>();
+        [SerializeField] private List<SpellGraphData> _library = new List<SpellGraphData>();
         [SerializeField] private List<string> _loadout = new List<string>();
         [SerializeField] private List<KillRecord> _killCounts = new List<KillRecord>();
 
@@ -34,6 +34,8 @@ namespace RuneCode
         [SerializeField] private bool _screenShake = true;
         [SerializeField] private bool _hitStop = true;
         [SerializeField] private int _tutorialStep;
+
+        private List<SpellGraph> _graphs = new List<SpellGraph>();
 
         public int Version => _version;
         public int Currency => _currency;
@@ -47,12 +49,36 @@ namespace RuneCode
         public string ActiveSpellId => _activeSpellId;
         public bool SectorCleared => _sectorCleared;
         public IReadOnlyList<string> UnlockedRunes => _unlockedRunes;
-        public IReadOnlyList<SpellGraph> Library => _library;
+        public IReadOnlyList<SpellGraph> Library => _graphs;
         public IReadOnlyList<string> Loadout => _loadout;
         public IReadOnlyList<KillRecord> KillCounts => _killCounts;
         public bool ScreenShake => _screenShake;
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
+
+        /// <summary>JSON 저장 직전에 실행 중 보관함 그래프를 직렬화 형식(_library)으로 옮긴다. JSON 키는 기존과 같다.</summary>
+        public void OnBeforeSerialize()
+        {
+            _library = new List<SpellGraphData>(_graphs.Count);
+            foreach (SpellGraph graph in _graphs)
+            {
+                _library.Add(SpellGraphData.From(graph));
+            }
+        }
+
+        /// <summary>JSON을 읽은 직후 직렬화 형식(_library)을 실행 중 보관함 그래프로 되돌린다. 검증은 Validate가 수행한다.</summary>
+        public void OnAfterDeserialize()
+        {
+            _graphs = new List<SpellGraph>();
+            if (_library == null)
+            {
+                return;
+            }
+            foreach (SpellGraphData data in _library)
+            {
+                _graphs.Add(data?.ToGraph());
+            }
+        }
 
         /// <summary>시작 룬, 계속 강화할 파이어 볼트와 기본 마법 메소드(매직 미사일·방어막)를 가진 새 진행 데이터를 반환한다.</summary>
         public static PlayerSave CreateNew()
@@ -60,9 +86,9 @@ namespace RuneCode
             var save = new PlayerSave();
             foreach (var rune in GameData.Runes.All)
                 if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL) save._unlockedRunes.Add(rune.Id);
-            save._library.Add(GameData.Spells[0].Clone());
-            save._activeSpellId = save._library[0].Id;
-            save._loadout.Add(save._library[0].Id);
+            save._graphs.Add(GameData.Spells[0].Clone());
+            save._activeSpellId = save._graphs[0].Id;
+            save._loadout.Add(save._graphs[0].Id);
             save._loadout.Add(null);
             save._loadout.Add(null);
             save.AddDefaultMethods();
@@ -75,8 +101,8 @@ namespace RuneCode
         /// </summary>
         public void MigrateSpellGrammar()
         {
-            if (_library == null || _unlockedRunes == null) return;
-            foreach (var graph in _library) SpellGraphMigration.Migrate(graph);
+            if (_graphs == null || _unlockedRunes == null) return;
+            foreach (var graph in _graphs) SpellGraphMigration.Migrate(graph);
             var unlocked = new List<string>();
             foreach (var runeId in _unlockedRunes)
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
@@ -92,9 +118,9 @@ namespace RuneCode
         {
             foreach (var id in DEFAULT_METHOD_IDS)
             {
-                if (FindGraph(id) != null || _library.Count >= GameData.Balance.Economy.MaxLibrary) continue;
+                if (FindGraph(id) != null || _graphs.Count >= GameData.Balance.Economy.MaxLibrary) continue;
                 var template = GameData.FindSpell(id);
-                if (template != null) _library.Add(template.Clone());
+                if (template != null) _graphs.Add(template.Clone());
             }
         }
 
@@ -115,14 +141,14 @@ namespace RuneCode
                 error = "save.invalidValues";
                 return false;
             }
-            if (_library == null || _library.Count == 0 || _library.Count > economy.MaxLibrary ||
+            if (_graphs == null || _graphs.Count == 0 || _graphs.Count > economy.MaxLibrary ||
                 _loadout == null || _loadout.Count != 3 || _unlockedRunes == null || _killCounts == null)
             {
                 error = "save.invalidStructure";
                 return false;
             }
             var ids = new HashSet<string>();
-            foreach (var graph in _library)
+            foreach (var graph in _graphs)
             {
                 if (graph == null || string.IsNullOrWhiteSpace(graph.Id) || !ids.Add(graph.Id))
                 {
@@ -167,10 +193,10 @@ namespace RuneCode
             var economy = GameData.Balance.Economy;
             if (_slotCount < 2 || _slotCount > 3 || _capacityLevel < 0 || _capacityLevel > economy.CapacityCosts.Count ||
                 _energyLevel < 0 || _energyLevel > economy.StatCosts.Count || _loadout == null || _loadout.Count != 3 ||
-                _library == null || _library.Count == 0 || _currency < 0 || _currency > 100000000)
+                _graphs == null || _graphs.Count == 0 || _currency < 0 || _currency > 100000000)
                 throw new FormatException("이전 버전 저장 구조가 유효하지 않습니다.");
-            _activeSpellId = !string.IsNullOrEmpty(_loadout[0]) && _library.Any(graph => graph != null && graph.Id == _loadout[0])
-                ? _loadout[0] : _library[0]?.Id;
+            _activeSpellId = !string.IsNullOrEmpty(_loadout[0]) && _graphs.Any(graph => graph != null && graph.Id == _loadout[0])
+                ? _loadout[0] : _graphs[0]?.Id;
             if (_slotCount == 3) _currency = Math.Min(100000000, _currency + economy.SlotCost);
             _slotCount = 1;
             _loadout[0] = _activeSpellId; _loadout[1] = null; _loadout[2] = null;
@@ -194,7 +220,7 @@ namespace RuneCode
         /// <summary>ID와 일치하는 보관함 마법을 반환하며 없으면 null을 반환한다.</summary>
         public SpellGraph FindGraph(string id)
         {
-            return _library.FirstOrDefault(graph => graph.Id == id);
+            return _graphs.FirstOrDefault(graph => graph.Id == id);
         }
 
         /// <summary>라이브러리에 존재하는 Spell ID를 활성 편집·첫 슬롯 참조로 설정한다.</summary>
@@ -209,13 +235,13 @@ namespace RuneCode
         /// <summary>마법을 복사하여 보관함에 추가하거나 같은 ID의 저장본을 갱신한다.</summary>
         public bool StoreGraph(SpellGraph graph)
         {
-            var index = _library.FindIndex(item => item.Id == graph.Id);
+            var index = _graphs.FindIndex(item => item.Id == graph.Id);
             if (index < 0)
             {
-                if (_library.Count >= GameData.Balance.Economy.MaxLibrary) return false;
-                _library.Add(graph.Clone());
+                if (_graphs.Count >= GameData.Balance.Economy.MaxLibrary) return false;
+                _graphs.Add(graph.Clone());
             }
-            else _library[index] = graph.Clone();
+            else _graphs[index] = graph.Clone();
             return true;
         }
 
@@ -223,7 +249,7 @@ namespace RuneCode
         public void RemoveGraph(string id)
         {
             if (id == _activeSpellId) return;
-            _library.RemoveAll(graph => graph.Id == id);
+            _graphs.RemoveAll(graph => graph.Id == id);
             for (var slot = 0; slot < _loadout.Count; slot++)
                 if (_loadout[slot] == id) _loadout[slot] = null;
         }

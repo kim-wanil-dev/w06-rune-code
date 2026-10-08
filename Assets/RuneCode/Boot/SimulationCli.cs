@@ -61,8 +61,8 @@ namespace RuneCode
             var isTimedBattle = scenario == "incremental";
             var capacity = economy.BaseCapacity + (isTimedBattle ? capacityLevel : economy.CapacityCosts.Count) * economy.CapacityStep;
             var maxEnergy = GameData.Balance.Player.MaxEnergy + (isTimedBattle ? energyLevel : economy.StatCosts.Count) * economy.StatStep;
-            var compiled = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance, GameData.Runes.All.Select(rune => rune.Id), capacity, maxEnergy);
-            if (!compiled.Ok) throw new ArgumentException(string.Join("\n", compiled.Errors.Select(issue => issue.Message)));
+            var compiled = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance.Grammar, GameData.Runes.All.Select(rune => rune.Id), capacity, maxEnergy);
+            if (!compiled.Ok) throw new ArgumentException(string.Join("\n", compiled.Errors.Select(CompileIssueText.Format)));
             var simulation = new RuneSimulation(seed, isTimedBattle, GameData.Balance.Player.MaxHp, maxEnergy, stage, duration,
                 GameData.Balance.Player.EnergyRegen + (isTimedBattle ? energyLevel : 0) * economy.EnergyRegenStep);
             if (!isTimedBattle) { simulation.ResetBench(scenario); simulation.SetAdaptationEnabled(scenario == "adapt_loop"); }

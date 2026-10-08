@@ -153,9 +153,9 @@ namespace RuneCode
             {
                 SpellAction action = actions[index];
                 List<MagicCircleBranch> branches = new List<MagicCircleBranch>();
-                AddBranch("onHit", action.OnHit, circleId, invocations, branches);
-                AddBranch("onExpire", action.OnExpire, circleId, invocations, branches);
-                AddBranch("onComplete", action.OnComplete, circleId, invocations, branches);
+                AddBranch(SpellGrammar.ON_HIT_PORT, action.OnHit, circleId, invocations, branches);
+                AddBranch(SpellGrammar.ON_EXPIRE_PORT, action.OnExpire, circleId, invocations, branches);
+                AddBranch(SpellGrammar.ON_FIRST_HIT_OR_EXPIRE_PORT, action.OnFirstHitOrExpire, circleId, invocations, branches);
                 AddBranch("then", action.Then, circleId, invocations, branches);
                 AddBranch("else", action.Else, circleId, invocations, branches);
                 AddBranch("body", action.Body, circleId, invocations, branches);
@@ -182,7 +182,7 @@ namespace RuneCode
             if (action.Kind == "call" && action.CalledSpell != null) AppendCircle(action.CalledSpell, circles, invocations, visited);
             AppendCalledInBranches(action.OnHit, circles, invocations, visited);
             AppendCalledInBranches(action.OnExpire, circles, invocations, visited);
-            AppendCalledInBranches(action.OnComplete, circles, invocations, visited);
+            AppendCalledInBranches(action.OnFirstHitOrExpire, circles, invocations, visited);
             AppendCalledInBranches(action.Then, circles, invocations, visited);
             AppendCalledInBranches(action.Else, circles, invocations, visited);
             AppendCalledInBranches(action.Body, circles, invocations, visited);

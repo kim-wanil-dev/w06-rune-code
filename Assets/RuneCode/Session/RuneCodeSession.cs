@@ -13,6 +13,7 @@ namespace RuneCode
         private PlayerSave _save;
         private readonly IncrementalDefinition _incremental;
         private readonly bool _isDebugEnabled;
+        private readonly bool _isAreaBoxUpright;
         private readonly SpellEditSession _spells;
         private string _statusMessage;
 
@@ -24,6 +25,7 @@ namespace RuneCode
         public PlayerSave Save => _save;
         public ISpellEditor Spells => _spells;
         public bool IsDebugEnabled => _isDebugEnabled;
+        public bool IsAreaBoxUpright => _isAreaBoxUpright;
         public string StatusMessage => _statusMessage;
 
         public string DockScenario => _dockScenario;
@@ -43,12 +45,16 @@ namespace RuneCode
         /// <summary>화면 전환 요청을 받는 콜백이다. RuneCodeApp만 등록한다.</summary>
         public event Action<AppScreen> ScreenRequested;
 
-        /// <summary>세이브, 시간제 스테이지 정의, 디버그 여부와 시작 경고 문구로 세션과 마법 편집 세션을 만든다.</summary>
-        public RuneCodeSession(PlayerSave save, IncrementalDefinition incremental, bool isDebugEnabled, string initialStatus)
+        /// <summary>
+        /// 세이브, 시간제 스테이지 정의, 디버그 여부, 시작 경고 문구와
+        /// 범위 사각형 판정의 월드 축 고정 여부로 세션과 마법 편집 세션을 만든다.
+        /// </summary>
+        public RuneCodeSession(PlayerSave save, IncrementalDefinition incremental, bool isDebugEnabled, string initialStatus, bool isAreaBoxUpright)
         {
             _save = save;
             _incremental = incremental;
             _isDebugEnabled = isDebugEnabled;
+            _isAreaBoxUpright = isAreaBoxUpright;
             _statusMessage = initialStatus;
             var storage = new SessionSpellStorage(() => _save);
             var policy = new SessionSpellPolicy(this);
