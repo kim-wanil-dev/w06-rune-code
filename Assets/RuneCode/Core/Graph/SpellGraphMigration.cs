@@ -13,6 +13,8 @@ namespace RuneCode
         private const float SHIELD_SECONDS = 3f;
         private const float BLOCK_SPACING = 150f;
         private const float BLOCK_DROP = 110f;
+        private const string LEGACY_FIRST_EVENT_PORT = "onComplete";
+        private const string FIRST_EVENT_PORT = SpellGrammar.ON_FIRST_HIT_OR_EXPIRE_PORT;
 
         private static readonly Dictionary<string, string> LEGACY_SHAPES = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -41,7 +43,9 @@ namespace RuneCode
         /// <summary>그래프의 이전 룬 노드를 문법 블록으로 바꾸고 변경 여부를 반환한다.</summary>
         public static bool Migrate(SpellGraph graph)
         {
-            if (graph?.Nodes == null || graph.Edges == null || !HasLegacyNode(graph)) return false;
+            if (graph?.Nodes == null || graph.Edges == null) return false;
+            bool isPortRenamed = RenameLegacyPorts(graph);
+            if (!HasLegacyNode(graph)) return isPortRenamed;
             foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
             {
                 if (node == null) continue;
@@ -121,6 +125,27 @@ namespace RuneCode
             graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, node.Id + "-chain"), chainTail, SpellGrammar.CHAIN_OUT, node.Id, SpellGrammar.CHAIN_IN));
         }
 
+        /// <summary>
+        /// 이전 포트 ID onComplete로 저장된 연결을 onFirstHitOrExpire로 바꾸고 변경 여부를 반환한다.
+        /// 엣지 ID·순번·대상은 유지하며 같은 포트 엣지들의 상대 순서도 보존한다.
+        /// </summary>
+        private static bool RenameLegacyPorts(SpellGraph graph)
+        {
+            bool isChanged = false;
+            foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
+            {
+                if (edge == null || edge.FromPort != LEGACY_FIRST_EVENT_PORT)
+                {
+                    continue;
+                }
+
+                graph.RemoveEdge(edge.Id);
+                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, FIRST_EVENT_PORT, edge.ToNode, edge.ToPort, edge.Order));
+                isChanged = true;
+            }
+            return isChanged;
+        }
+
         /// <summary>방벽 행동을 버프·보호·잔류 체인으로 바꾸고 기존 다음 실행 분기를 완료 분기로 옮긴다.</summary>
         private static void ConvertShield(SpellGraph graph, GraphNode node)
         {
@@ -132,7 +157,7 @@ namespace RuneCode
             {
                 if (edge.FromNode != node.Id || edge.FromPort != "next") continue;
                 graph.RemoveEdge(edge.Id);
-                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, "onComplete", edge.ToNode, edge.ToPort, edge.Order));
+                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, FIRST_EVENT_PORT, edge.ToNode, edge.ToPort, edge.Order));
             }
         }
 

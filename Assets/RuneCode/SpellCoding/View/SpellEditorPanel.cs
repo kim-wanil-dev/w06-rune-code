@@ -17,7 +17,7 @@ namespace RuneCode
     /// </summary>
     public sealed class SpellEditorPanel : MonoBehaviour
     {
-        public static readonly string[] CATEGORY_IDS = { "all", "magicType", "element", "shape", "modifier", "flow", "method" };
+        public static readonly string[] CATEGORY_IDS = { "all", SpellGrammar.CATEGORY_MAGIC_TYPE, SpellGrammar.CATEGORY_ELEMENT, SpellGrammar.CATEGORY_SHAPE, SpellGrammar.CATEGORY_MODIFIER, SpellGrammar.CATEGORY_FLOW, SpellGrammar.CATEGORY_METHOD };
         private static readonly Color LOCKED_TINT = new Color(0.35f, 0.42f, 0.50f);
         private static readonly Color ISSUE_ERROR_TINT = new Color(1f, 0.41f, 0.44f);
         private static readonly Color ISSUE_WARNING_TINT = new Color(1f, 0.76f, 0.38f);
@@ -259,7 +259,7 @@ namespace RuneCode
         /// <summary>시작 조건(항상 존재)과 컴파일 내부 정의를 제외한, 팔레트에 배치 가능한 룬인지 반환한다.</summary>
         private static bool IsPaletteRune(RuneDefinition rune)
         {
-            return rune.Category != "core" && rune.Category != SpellGrammar.CATEGORY_INTERNAL;
+            return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL;
         }
 
         /// <summary>빈 편집 영역의 빠른 검색 입력과 검색된 룬의 현재 위치 배치를 제공한다.</summary>
@@ -310,7 +310,7 @@ namespace RuneCode
                     ((RectTransform)row.transform).anchoredPosition = new Vector2(14, -top);
                     if (param.Kind == "number")
                     {
-                        bool isModifierScale = rune.Category == "modifier";
+                        bool isModifierScale = rune.Category == SpellGrammar.CATEGORY_MODIFIER;
                         row.ConfigureNumber(L("param." + param.Id), node.GetNumber(param.Id, param.DefaultNumber).ToString("0.###"), isModifierScale);
                         row.Input.contentType = TMP_InputField.ContentType.DecimalNumber;
                         row.Input.onEndEdit.AddListener(value => { if (float.TryParse(value, out float amount)) _editor.SetNodeNumber(nodeId, definition.Id, Mathf.Clamp(amount, definition.Min, definition.Max)); });
@@ -348,7 +348,7 @@ namespace RuneCode
                     }
                     top += param.Kind == "text" && rune.Id == "spell.call" && param.Id == "spellId" ? 76 : 64;
                 }
-                if (rune.Category == "modifier" && rune.Params.Count > 0)
+                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER && rune.Params.Count > 0)
                 {
                     ParameterDefinition parameter = rune.Params[0];
                     _ui.Text(_inspectorPanel, 14, top, 222, 26, L("ui.scaleBounds") + " " + parameter.Min.ToString("0.#") + "–" + parameter.Max.ToString("0.#") + "×", 12, UiTheme.Cyan);
@@ -363,19 +363,19 @@ namespace RuneCode
                 }
                 if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
                 {
-                    SpellAction action = _editor.CompileResult.Spell == null ? null : FindAction(_editor.CompileResult.Spell.Root, node.Id);
+                    SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
                     if (action != null && action.Stats != null)
                     {
                         SpellStats stats = action.Stats;
-                        float reach = action.Form == "bolt" ? stats.Speed * stats.Lifetime : action.Form == "orbit" ? stats.OrbitRadius : stats.Offset;
+                        float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
                         _ui.Text(_inspectorPanel, 14, top, 222, 70,
                             L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n" +
                             L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px\n" +
-                            L("ui.spellSpeed") + " " + (action.Form == "orbit" ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s"), 12, UiTheme.Cyan);
+                            L("ui.spellSpeed") + " " + (action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s"), 12, UiTheme.Cyan);
                         top += 76;
                     }
                 }
-                if (rune.Category != "core")
+                if (rune.Category != SpellGrammar.CATEGORY_CORE)
                 {
                     _ui.Button(_inspectorPanel, 14, top, 222, 29, L("ui.delete"), () => _editor.RemoveNode(node.Id), DELETE_TINT, 12);
                     top += 42;
@@ -386,8 +386,8 @@ namespace RuneCode
             RectTransform errors = UiFactory.ScrollList(_inspectorPanel, "Validation", 12, top, 228, Mathf.Max(80, 510 - top));
             CompileResult result = _editor.CompileResult;
             if (result.Ok) AddIssueLabel(errors, L("ui.valid"), UiTheme.Cyan, null);
-            foreach (CompileIssue issue in result.Errors) AddIssueLabel(errors, issue.Code + " · " + issue.Message, ISSUE_ERROR_TINT, issue.NodeId);
-            foreach (CompileIssue issue in result.Warnings) AddIssueLabel(errors, issue.Code + " · " + issue.Message, ISSUE_WARNING_TINT, issue.NodeId);
+            foreach (CompileIssue issue in result.Errors) AddIssueLabel(errors, issue.Code + " · " + CompileIssueText.Format(issue), ISSUE_ERROR_TINT, issue.NodeId);
+            foreach (CompileIssue issue in result.Warnings) AddIssueLabel(errors, issue.Code + " · " + CompileIssueText.Format(issue), ISSUE_WARNING_TINT, issue.NodeId);
             AddIssueLabel(errors, L("ui.controls"), UiTheme.Muted, null);
         }
 
@@ -462,22 +462,9 @@ namespace RuneCode
         {
             if (node == null) { _tooltipText.text = L("ui.executionOrder"); return; }
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            SpellAction action = _editor.CompileResult.Spell == null ? null : FindAction(_editor.CompileResult.Spell.Root, node.Id);
+            SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
             _tooltipText.text = rune.Name + "  ·  " + L("ui.damage") + " " + (action?.Stats?.Damage ?? rune.Stats.Damage).ToString("0.#") +
                 "  ·  " + L("ui.energy") + " " + (action?.OwnEnergy ?? rune.Energy).ToString("0.#");
-        }
-
-        /// <summary>실행 트리를 탐색하여 선택 노드의 컴파일된 명령을 반환한다.</summary>
-        private static SpellAction FindAction(IReadOnlyList<SpellAction> actions, string id)
-        {
-            foreach (SpellAction action in actions)
-            {
-                if (action.NodeId == id) return action;
-                SpellAction found = FindAction(action.OnHit, id) ?? FindAction(action.OnExpire, id) ?? FindAction(action.OnComplete, id) ?? FindAction(action.Then, id) ??
-                    FindAction(action.Else, id) ?? FindAction(action.Body, id) ?? FindAction(action.Next, id);
-                if (found != null) return found;
-            }
-            return null;
         }
 
         /// <summary>타입→발사 체인 연결, 화염 속성 삽입, 실제 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시한다.</summary>
@@ -491,7 +478,7 @@ namespace RuneCode
                 bool isType = SpellGrammar.MagicTypeOf(node.RuneId) != null;
                 foreach (GraphEdge edge in _editor.Graph.Edges)
                 {
-                    if (isType && edge.ToNode == node.Id && edge.ToPort == "exec") hasCastType = true;
+                    if (isType && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.EXEC_PORT) hasCastType = true;
                     if (node.RuneId == "shape.launch" && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.CHAIN_IN) hasLaunch = true;
                     if (node.RuneId == "element.fire" && edge.FromNode == node.Id) hasFire = true;
                 }
