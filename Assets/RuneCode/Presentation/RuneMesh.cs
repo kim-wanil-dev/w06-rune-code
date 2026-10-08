@@ -42,6 +42,30 @@ namespace RuneCode
             }
         }
 
+        /// <summary>중심, 반 변 길이와 회전(라디안)으로 채워진 정사각형 메시를 추가한다. 회전 0이면 화면 축에 맞춰 선다.</summary>
+        internal static void Square(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfSize, float rotation, Color color)
+        {
+            // 꼭짓점이 대각선 방향에 오도록 외접 반경과 45도 보정으로 4각형을 그린다.
+            Polygon(mesh, center, halfSize * Mathf.Sqrt(2), color, 4, rotation + Mathf.PI / 4);
+        }
+
+        /// <summary>중심, 반 변 길이와 회전(라디안)으로 지정 두께의 정사각형 윤곽선을 추가한다.</summary>
+        internal static void SquareOutline(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfSize, float rotation, float width, Color color)
+        {
+            Vector2 axisX = new Vector2(Mathf.Cos(rotation), Mathf.Sin(rotation)) * halfSize;
+            Vector2 axisY = new Vector2(-axisX.y, axisX.x);
+            Vector2[] corners = { center - axisX - axisY, center + axisX - axisY, center + axisX + axisY, center - axisX + axisY };
+            for (int i = 0; i < corners.Length; i++)
+            {
+                Vector2 from = corners[i];
+                Vector2 to = corners[(i + 1) % corners.Length];
+
+                // 선 두께의 절반만큼 양 끝을 늘려 모서리 이음새가 비지 않게 한다.
+                Vector2 extension = (to - from).normalized * width * 0.5f;
+                Line(mesh, from - extension, to + extension, width, color);
+            }
+        }
+
         /// <summary>중심과 반경으로 지정 색상의 원형 윤곽선을 추가한다.</summary>
         internal static void Ring(UnityEngine.UI.VertexHelper mesh, Vector2 center, float radius, float width, Color color, int sides = 24)
         {
@@ -59,14 +83,14 @@ namespace RuneCode
         {
             switch (category)
             {
-                case "core": return new Color(0.98f, 0.79f, 0.37f);
-                case "form":
+                case SpellGrammar.CATEGORY_CORE: return new Color(0.98f, 0.79f, 0.37f);
+                case SpellGrammar.CATEGORY_LEGACY_FORM:
                 case "shape": return new Color(0.22f, 0.82f, 0.96f);
                 case "magicType": return new Color(0.95f, 0.88f, 0.55f);
-                case "element": return new Color(0.99f, 0.43f, 0.34f);
+                case SpellGrammar.CATEGORY_ELEMENT: return new Color(0.99f, 0.43f, 0.34f);
                 case "method": return new Color(0.42f, 0.70f, 1f);
-                case "modifier": return new Color(0.64f, 0.46f, 0.97f);
-                case "flow": return new Color(0.30f, 0.91f, 0.65f);
+                case SpellGrammar.CATEGORY_MODIFIER: return new Color(0.64f, 0.46f, 0.97f);
+                case SpellGrammar.CATEGORY_FLOW: return new Color(0.30f, 0.91f, 0.65f);
                 default: return new Color(0.97f, 0.62f, 0.28f);
             }
         }

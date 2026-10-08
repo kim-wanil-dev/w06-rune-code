@@ -50,6 +50,14 @@ namespace RuneCode
         /// <summary>시뮬레이션 위치를 경기장 RectTransform의 로컬 좌표로 변환한다.</summary>
         private Vector2 Point(SimVector position) => _origin + new Vector2((float)position.X, -(float)position.Y) * _scale;
 
+        /// <summary>범위 마법 사각형을 판정 크기(반 변 길이 = 반경)의 채움, 외곽선, 안쪽 보조선으로 그린다.</summary>
+        private void DrawAreaBox(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfSize, float rotation, Color fill, Color tint)
+        {
+            RuneMesh.Square(mesh, center, halfSize, rotation, fill);
+            RuneMesh.SquareOutline(mesh, center, halfSize, rotation, 1.8f * _scale, tint);
+            RuneMesh.SquareOutline(mesh, center, halfSize * 0.6f, rotation, _scale, fill * 2);
+        }
+
         /// <summary>가로세로 비율을 유지하는 배율과 경기장 좌상단 위치를 계산한다.</summary>
         private void CalculateScale()
         {
@@ -94,20 +102,38 @@ namespace RuneCode
                 Vector2 point = Point(spell.Position);
                 Color tint = RuneMesh.ElementColor(spell.Element);
                 float radius = (float)spell.Radius * _scale;
-                if (spell.Kind == "zone" || spell.Kind == "burst")
+                Vector2 direction = new Vector2((float)spell.Direction.X, -(float)spell.Direction.Y);
+                float angle = Mathf.Atan2(direction.y, direction.x);
+
+                // 사각형 판정과 같은 회전을 쓴다. 발사는 항상 진행 방향, 범위·공전은 똑바로 세우기 설정을 따른다.
+                float boxRotation = spell.Kind != SpellGrammar.FORM_BOLT && sim.IsAreaBoxUpright ? 0 : angle;
+                if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST)
                 {
-                    Color fill = tint; fill.a = spell.Kind == "zone" ? 0.12f : 0.22f;
-                    RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);
-                    RuneMesh.Ring(mesh, point, radius, 1.8f * _scale, tint, spell.Element == "fire" ? 12 : 24);
-                    RuneMesh.Ring(mesh, point, radius * 0.6f, _scale, fill * 2);
+                    Color fill = tint; fill.a = spell.Kind == SpellGrammar.FORM_ZONE ? 0.12f : 0.22f;
+                    if (spell.IsBox)
+                    {
+                        DrawAreaBox(mesh, point, radius, boxRotation, fill, tint);
+                    }
+                    else
+                    {
+                        RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);
+                        RuneMesh.Ring(mesh, point, radius, 1.8f * _scale, tint, spell.Element == "fire" ? 12 : 24);
+                        RuneMesh.Ring(mesh, point, radius * 0.6f, _scale, fill * 2);
+                    }
                 }
                 else
                 {
-                    Vector2 direction = new Vector2((float)spell.Direction.X, -(float)spell.Direction.Y);
                     Color trail = tint; trail.a = 0.25f;
                     RuneMesh.Line(mesh, point - direction * 24 * _scale, point, Math.Max(2, radius), trail);
-                    RuneMesh.Polygon(mesh, point, Math.Max(2.5f, radius), tint, spell.Element == "fire" ? 3 : spell.Element == "ice" ? 6 : spell.Element == "arc" ? 4 : 16,
-                        Mathf.Atan2(direction.y, direction.x));
+                    if (spell.IsBox)
+                    {
+                        RuneMesh.Square(mesh, point, Math.Max(2.5f, radius), boxRotation, tint);
+                    }
+                    else
+                    {
+                        RuneMesh.Polygon(mesh, point, Math.Max(2.5f, radius), tint, spell.Element == "fire" ? 3 : spell.Element == "ice" ? 6 : spell.Element == "arc" ? 4 : 16,
+                            angle);
+                    }
                 }
             }
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles)
