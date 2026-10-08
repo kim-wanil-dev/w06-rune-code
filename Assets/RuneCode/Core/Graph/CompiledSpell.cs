@@ -4,21 +4,28 @@ using System.Text;
 
 namespace RuneCode
 {
+    /// <summary>
+    /// 컴파일 검증 결과 하나다. 문법 엔진은 표시 문구를 만들지 않고 코드·노드·상세값·원인만 전달하며,
+    /// 사용자 문구는 UI 계층의 CompileIssueText가 현지화해 만든다.
+    /// </summary>
     public sealed class CompileIssue
     {
         private readonly string _code;
         private readonly string _nodeId;
-        private readonly string _message;
+        private readonly string _detail;
+        private readonly CompileIssue _cause;
         public string Code => _code;
         public string NodeId => _nodeId;
-        public string Message => _message;
+        public string Detail => _detail;
+        public CompileIssue Cause => _cause;
 
-        /// <summary>검증 코드와 관련 노드 및 사용자 메시지를 저장한다.</summary>
-        public CompileIssue(string code, string nodeId = null, string detail = null)
+        /// <summary>검증 코드, 관련 노드, 문구에 덧붙일 상세값과 하위 원인 진단을 저장한다.</summary>
+        public CompileIssue(string code, string nodeId = null, string detail = null, CompileIssue cause = null)
         {
             _code = code;
             _nodeId = nodeId;
-            _message = detail == null ? GameData.L("issue." + code) : GameData.L("issue." + code) + " " + detail;
+            _detail = detail;
+            _cause = cause;
         }
     }
 
@@ -61,7 +68,7 @@ namespace RuneCode
         }
 
         /// <summary>수식 컨텍스트의 수치 값을 결정성 상태 해시에 기록한다.</summary>
-        internal void AppendState(StringBuilder state)
+        public void AppendState(StringBuilder state)
         {
             state.Append(_damageMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
                 .Append(_radiusMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
@@ -126,30 +133,34 @@ namespace RuneCode
     {
         private readonly IReadOnlyList<SpellAction> _onHit;
         private readonly IReadOnlyList<SpellAction> _onExpire;
+        private readonly IReadOnlyList<SpellAction> _onFirstHitOrExpire;
         private readonly SpellEventScope _parent;
         private readonly SpellModifierValues _parentModifiers;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
         public IReadOnlyList<SpellAction> OnExpire => _onExpire;
+        public IReadOnlyList<SpellAction> OnFirstHitOrExpire => _onFirstHitOrExpire;
         public SpellEventScope Parent => _parent;
         public SpellModifierValues ParentModifiers => _parentModifiers;
 
-        /// <summary>호출 노드 이벤트 분기와 외부 호출 문맥을 불변 범위로 묶는다.</summary>
+        /// <summary>호출 노드의 적중·소멸·첫 적중 또는 소멸(onFirstHitOrExpire) 분기와 외부 호출 문맥을 불변 범위로 묶는다.</summary>
         public SpellEventScope(IReadOnlyList<SpellAction> onHit, IReadOnlyList<SpellAction> onExpire,
-            SpellEventScope parent, SpellModifierValues parentModifiers)
+            IReadOnlyList<SpellAction> onFirstHitOrExpire, SpellEventScope parent, SpellModifierValues parentModifiers)
         {
             _onHit = onHit;
             _onExpire = onExpire;
+            _onFirstHitOrExpire = onFirstHitOrExpire;
             _parent = parent;
             _parentModifiers = parentModifiers ?? SpellModifierValues.None;
         }
 
         /// <summary>호출 범위 체인의 이벤트 노드 ID를 상태 해시 버퍼에 기록한다.</summary>
-        internal void AppendState(StringBuilder state)
+        public void AppendState(StringBuilder state)
         {
             for (SpellEventScope scope = this; scope != null; scope = scope.Parent)
             {
                 foreach (SpellAction action in scope.OnHit) state.Append("|h:").Append(action.NodeId);
                 foreach (SpellAction action in scope.OnExpire) state.Append("|x:").Append(action.NodeId);
+                foreach (SpellAction action in scope.OnFirstHitOrExpire) state.Append("|c:").Append(action.NodeId);
                 state.Append('|');
                 scope.ParentModifiers.AppendState(state);
             }
@@ -330,7 +341,7 @@ namespace RuneCode
 
         private IReadOnlyList<SpellAction> _onHit = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _onExpire = new List<SpellAction>();
-        private IReadOnlyList<SpellAction> _onComplete = new List<SpellAction>();
+        private IReadOnlyList<SpellAction> _onFirstHitOrExpire = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _then = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _else = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _body = new List<SpellAction>();
@@ -361,11 +372,26 @@ namespace RuneCode
         public CompiledSpell CalledSpell => _calledSpell;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
         public IReadOnlyList<SpellAction> OnExpire => _onExpire;
-        public IReadOnlyList<SpellAction> OnComplete => _onComplete;
+        public IReadOnlyList<SpellAction> OnFirstHitOrExpire => _onFirstHitOrExpire;
         public IReadOnlyList<SpellAction> Then => _then;
         public IReadOnlyList<SpellAction> Else => _else;
         public IReadOnlyList<SpellAction> Body => _body;
         public IReadOnlyList<SpellAction> Next => _next;
+
+        /// <summary>적중·소멸·첫 이벤트·조건·반복·후속 실행의 모든 하위 분기를 반환한다. 분기를 추가하면 이곳에도 추가한다.</summary>
+        public IEnumerable<IReadOnlyList<SpellAction>> Branches
+        {
+            get
+            {
+                yield return _onHit;
+                yield return _onExpire;
+                yield return _onFirstHitOrExpire;
+                yield return _then;
+                yield return _else;
+                yield return _body;
+                yield return _next;
+            }
+        }
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
         /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상 및 연결 수식으로 실행 명령을 초기화한다.</summary>
@@ -458,9 +484,9 @@ namespace RuneCode
         {
             switch (port)
             {
-                case "onHit": _onHit = actions; break;
-                case "onExpire": _onExpire = actions; break;
-                case "onComplete": _onComplete = actions; break;
+                case SpellGrammar.ON_HIT_PORT: _onHit = actions; break;
+                case SpellGrammar.ON_EXPIRE_PORT: _onExpire = actions; break;
+                case SpellGrammar.ON_FIRST_HIT_OR_EXPIRE_PORT: _onFirstHitOrExpire = actions; break;
                 case "then": _then = actions; break;
                 case "else": _else = actions; break;
                 case "body": _body = actions; break;
@@ -513,6 +539,33 @@ namespace RuneCode
             _worstCaseEntities = worstCaseEntities;
             _tags = tags;
             _root = root;
+        }
+
+        /// <summary>실행 트리 전체에서 지정 노드 ID로 컴파일된 첫 명령을 찾아 반환하며 없으면 null을 반환한다.</summary>
+        public SpellAction FindAction(string nodeId)
+        {
+            return FindAction(_root, nodeId);
+        }
+
+        /// <summary>명령 목록과 각 명령의 하위 분기를 깊이 우선으로 탐색해 노드 ID와 일치하는 명령을 반환한다.</summary>
+        private static SpellAction FindAction(IReadOnlyList<SpellAction> actions, string nodeId)
+        {
+            foreach (SpellAction action in actions)
+            {
+                if (action.NodeId == nodeId)
+                {
+                    return action;
+                }
+                foreach (IReadOnlyList<SpellAction> branch in action.Branches)
+                {
+                    SpellAction found = FindAction(branch, nodeId);
+                    if (found != null)
+                    {
+                        return found;
+                    }
+                }
+            }
+            return null;
         }
     }
 

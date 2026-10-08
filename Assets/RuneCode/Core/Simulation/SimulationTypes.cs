@@ -269,14 +269,16 @@ namespace RuneCode
         private int _hits;
         private int _triggerCount;
         private bool _hasExpired;
+        private bool _hasFiredFirstEvent;
         public int Id => _id;
         public string Kind => _action.Form;
         public string Element => _element;
         public SimVector Position => _position;
         public SimVector Direction => _direction;
         public double Radius => _stats.Radius;
+        public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
         public double Age => _age;
-        public double Lifetime => _action.Form == "burst" ? _visualSeconds : _stats.Lifetime;
+        public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -314,6 +316,20 @@ namespace RuneCode
         /// <summary>스펠 개체의 위치와 진행 방향을 갱신한다.</summary>
         internal void Move(SimVector position, SimVector direction) { _position = position; _direction = direction; }
 
+        /// <summary>
+        /// 적중·소멸 중 첫 이벤트인지 확인하고 기록한다. 처음 호출이면 true, 이후 호출은 false를 반환한다.
+        /// onFirstHitOrExpire 분기를 개체당 한 번만 실행하는 데 사용한다.
+        /// </summary>
+        internal bool TryMarkFirstEvent()
+        {
+            if (_hasFiredFirstEvent)
+            {
+                return false;
+            }
+            _hasFiredFirstEvent = true;
+            return true;
+        }
+
         /// <summary>스펠 개체의 수명 경과를 고정 시간만큼 증가시킨다.</summary>
         internal void Advance(double dt) { _age += dt; }
 
@@ -321,7 +337,7 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);

@@ -11,10 +11,34 @@ namespace RuneCode
         public const string CATEGORY_SHAPE = "shape";
         public const string CATEGORY_METHOD = "method";
         public const string CATEGORY_INTERNAL = "internal";
+        public const string CATEGORY_CORE = "core";
+        public const string CATEGORY_MODIFIER = "modifier";
+        public const string CATEGORY_FLOW = "flow";
+        public const string CATEGORY_LEGACY_FORM = "form";
 
+        public const string DIRECTION_IN = "in";
+        public const string DIRECTION_OUT = "out";
+
+        public const string EXEC_KIND = "exec";
+        public const string MODIFIER_KIND = "mod";
         public const string CHAIN_KIND = "chain";
+
+        public const string EXEC_PORT = "exec";
+        public const string MODIFIER_PORT = "mod";
         public const string CHAIN_IN = "in";
         public const string CHAIN_OUT = "next";
+        public const string ON_HIT_PORT = "onHit";
+        public const string ON_EXPIRE_PORT = "onExpire";
+        public const string ON_FIRST_HIT_OR_EXPIRE_PORT = "onFirstHitOrExpire";
+
+        public const string FORM_BOLT = "bolt";
+        public const string FORM_BURST = "burst";
+        public const string FORM_ORBIT = "orbit";
+        public const string FORM_ZONE = "zone";
+
+        public const string MAGIC_TYPE_SPHERE = "sphere";
+        public const string MAGIC_TYPE_BOX = "box";
+        public const string MAGIC_TYPE_BUFF = "buff";
 
         public const string INLINE_RUNE = "magic.inline";
         public const string CALL_RUNE = "spell.call";

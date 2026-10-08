@@ -56,6 +56,7 @@ namespace RuneCode
         private int _nodeExecutionCount;
         private string _scenario;
         private bool _debugInvulnerable;
+        private bool _isAreaBoxUpright = true;
         private string[] _lastPatchTags = Array.Empty<string>();
         public int Tick => _tick;
         public double Time => _tick * STEP_SECONDS;
@@ -99,6 +100,13 @@ namespace RuneCode
         public IReadOnlyList<string> LastPatchTags => _lastPatchTags;
         public bool AdaptationEnabled => Adaptation.Enabled;
         public bool DebugInvulnerable => _debugInvulnerable;
+        public bool IsAreaBoxUpright => _isAreaBoxUpright;
+
+        /// <summary>
+        /// 폭발·잔류·공전 사각형 판정을 월드 축에 고정할지(true) 개체 진행 방향으로 회전할지(false) 변경한다.
+        /// 발사 사각형은 이 설정과 무관하게 항상 진행 방향을 따른다.
+        /// </summary>
+        public void SetAreaBoxUpright(bool isUpright) { _isAreaBoxUpright = isUpright; }
 
         /// <summary>시험 도크의 적응 학습 및 피해 감쇠 사용 여부를 변경한다.</summary>
         public void SetAdaptationEnabled(bool isEnabled) { Adaptation.SetEnabled(isEnabled); }
@@ -327,7 +335,7 @@ namespace RuneCode
         {
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
             SpellModifierValues modifiers = context.Modifiers.Combine(action.ModifierValues);
-            SpellEventScope events = new SpellEventScope(action.OnHit, action.OnExpire, context.CallEvents, context.Modifiers);
+            SpellEventScope events = new SpellEventScope(action.OnHit, action.OnExpire, action.OnFirstHitOrExpire, context.CallEvents, context.Modifiers);
             SpellContext callContext = new SpellContext(context.Origin, context.Direction, context.Target,
                 context.FromEvent, context.NoiseElement, modifiers, events);
             for (int instance = 0; instance < action.Count; instance++)
@@ -338,7 +346,6 @@ namespace RuneCode
                 SpellContext instanceContext = new SpellContext(callContext.Origin, callContext.Direction.Rotated(spread),
                     callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents);
                 Execute(action.CalledSpell.Root, instanceContext);
-                Execute(action.OnComplete, instanceContext);
             }
         }
 
@@ -351,7 +358,7 @@ namespace RuneCode
             else if (action.SourceElement == "protection")
                 _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier
                     * context.Modifiers.DurationMultiplier, Time);
-            for (int instance = 0; instance < action.Count; instance++) Execute(action.OnComplete, context);
+            for (int instance = 0; instance < action.Count; instance++) Execute(action.OnFirstHitOrExpire, context);
         }
 
         /// <summary>지연 시간에 맞는 틱에 후속 명령과 이벤트 스냅샷을 예약한다.</summary>
@@ -397,7 +404,6 @@ namespace RuneCode
                 if (action.Form == "burst")
                 { HitArea(entity, true); Expire(entity); }
                 else if (action.Form == "zone" && action.SourceElement != "protection") HitArea(entity, false);
-                Execute(action.OnComplete, context);
             }
         }
 
@@ -449,7 +455,7 @@ namespace RuneCode
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
             {
-                bool isInside = entity.Action.MagicType == "box"
+                bool isInside = entity.IsBox
                     ? IntersectsBoxSweep(previous, next, direction, entity.Radius, enemy.Position, enemy.Radius)
                     : SegmentDistance(previous, next, enemy.Position) <= entity.Radius + enemy.Radius;
                 if (enemy.IsAlive && !entity.HitTimes.ContainsKey(enemy.Id) && isInside) targets.Add(enemy);
@@ -482,6 +488,19 @@ namespace RuneCode
             return along >= -extent && along <= length + extent && across <= extent;
         }
 
+        /// <summary>
+        /// 범위 마법 정사각형(반 변 길이 = 개체 반경)과 대상 원의 겹침 여부를 반환한다.
+        /// 똑바로 세우기 설정이면 월드 축 기준, 아니면 개체 진행 방향 기준으로 판정한다.
+        /// </summary>
+        private bool IntersectsAreaBox(SimulationSpellEntity entity, SimVector target, double targetRadius)
+        {
+            SimVector forward = _isAreaBoxUpright ? new SimVector(1, 0) : entity.Direction.Normalized();
+            SimVector side = new SimVector(-forward.Y, forward.X);
+            SimVector relative = target - entity.Position;
+            double extent = entity.Radius + targetRadius;
+            return Math.Abs(SimVector.Dot(relative, forward)) <= extent && Math.Abs(SimVector.Dot(relative, side)) <= extent;
+        }
+
         /// <summary>범위 마법의 가까운 적부터 피해를 적용하고 지속 효과는 대상별 주기와 최초 접촉 이벤트를 지킨다.</summary>
         private void HitArea(SimulationSpellEntity entity, bool isBurst)
         {
@@ -489,9 +508,8 @@ namespace RuneCode
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
             {
-                bool isInside = entity.Action.MagicType == "box"
-                    ? Math.Abs(entity.Position.X - enemy.Position.X) <= entity.Radius + enemy.Radius
-                        && Math.Abs(entity.Position.Y - enemy.Position.Y) <= entity.Radius + enemy.Radius
+                bool isInside = entity.IsBox
+                    ? IntersectsAreaBox(entity, enemy.Position, enemy.Radius)
                     : SimVector.Distance(entity.Position, enemy.Position) <= entity.Radius + enemy.Radius;
                 if (enemy.IsAlive && isInside) targets.Add(enemy);
             }
@@ -534,13 +552,18 @@ namespace RuneCode
                 entity.TriggerCount++;
                 SpellContext context = new SpellContext(enemy.Position, entity.Direction, enemy, true,
                     entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
+                bool isFirstEvent = entity.TryMarkFirstEvent();
                 Execute(entity.Action.OnHit, context);
-                ExecuteCallEvent(entity.CallEvents, true, enemy.Position, entity.Direction, enemy, entity.CastNoiseElement);
+                if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
+                ExecuteCallEvent(entity.CallEvents, true, isFirstEvent, enemy.Position, entity.Direction, enemy, entity.CastNoiseElement);
             }
         }
 
-        /// <summary>호출 객체의 이벤트 분기를 안쪽에서 바깥쪽으로 각각 한 번 실행한다.</summary>
-        private void ExecuteCallEvent(SpellEventScope scope, bool isHit, SimVector origin, SimVector direction,
+        /// <summary>
+        /// 호출 객체의 이벤트 분기를 안쪽에서 바깥쪽으로 각각 한 번 실행한다.
+        /// 개체의 첫 적중·소멸 이벤트이면 적중·소멸 분기 다음에 onFirstHitOrExpire 분기도 실행한다.
+        /// </summary>
+        private void ExecuteCallEvent(SpellEventScope scope, bool isHit, bool isFirstEvent, SimVector origin, SimVector direction,
             SimulationEnemy target, string noiseElement)
         {
             for (SpellEventScope current = scope; current != null; current = current.Parent)
@@ -549,6 +572,7 @@ namespace RuneCode
                 SpellContext context = new SpellContext(origin, direction, target, true, noiseElement,
                     current.ParentModifiers, current.Parent);
                 Execute(actions, context);
+                if (isFirstEvent) Execute(current.OnFirstHitOrExpire, context);
             }
         }
 
@@ -725,15 +749,17 @@ namespace RuneCode
             }
         }
 
-        /// <summary>스펠 소멸 후속 명령을 이벤트 위치 및 방향으로 단 한 번 실행한다.</summary>
+        /// <summary>스펠 소멸 후속 명령을 이벤트 위치 및 방향으로 단 한 번 실행하고, 앞서 적중이 없었으면 onFirstHitOrExpire 분기도 실행한다.</summary>
         private void Expire(SimulationSpellEntity entity)
         {
             if (entity.HasExpired) return;
             entity.HasExpired = true;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
+            bool isFirstEvent = entity.TryMarkFirstEvent();
             Execute(entity.Action.OnExpire, context);
-            ExecuteCallEvent(entity.CallEvents, false, entity.Position, entity.Direction, null, entity.CastNoiseElement);
+            if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
+            ExecuteCallEvent(entity.CallEvents, false, isFirstEvent, entity.Position, entity.Direction, null, entity.CastNoiseElement);
         }
 
         /// <summary>처치된 적만 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
@@ -855,7 +881,7 @@ namespace RuneCode
         {
             foreach (SpellAction action in actions)
                 if (action.Noise || (action.CalledSpell != null && ContainsNoise(action.CalledSpell.Root))
-                    || ContainsNoise(action.OnHit) || ContainsNoise(action.OnExpire) || ContainsNoise(action.OnComplete)
+                    || ContainsNoise(action.OnHit) || ContainsNoise(action.OnExpire) || ContainsNoise(action.OnFirstHitOrExpire)
                     || ContainsNoise(action.Then) || ContainsNoise(action.Else) || ContainsNoise(action.Body) || ContainsNoise(action.Next)) return true;
             return false;
         }

@@ -25,6 +25,8 @@ namespace RuneCode
 
     public static class GameData
     {
+        private const string TABLES_FOLDER = "RuneCode/Tables";
+
         private static RuneCatalog _runes;
         private static BalanceData _balance;
         private static IReadOnlyList<SpellGraph> _spells;
@@ -34,7 +36,7 @@ namespace RuneCode
         public static BalanceData Balance => _balance;
         public static IReadOnlyList<SpellGraph> Spells => _spells;
 
-        /// <summary>Resources의 룬·밸런스·현지화·시작 마법 JSON을 한 번 읽고 스키마를 검증한다.</summary>
+        /// <summary>Resources의 룬 테이블과 밸런스·현지화·시작 마법 JSON을 한 번 읽고 스키마를 검증한다.</summary>
         public static void Load()
         {
             if (IsLoaded) return;
@@ -46,7 +48,7 @@ namespace RuneCode
                 if (entry == null || string.IsNullOrEmpty(entry.Key) || !_strings.TryAdd(entry.Key, entry.Value))
                     throw new FormatException("중복되거나 잘못된 한국어 문자열 키입니다.");
             }
-            RuneCatalog runes = RuneCatalog.FromJson(ReadResource("runes"));
+            RuneCatalog runes = RuneCatalog.FromTables(new ResourcesTableSource(TABLES_FOLDER));
             BalanceData balance = BalanceData.FromJson(ReadResource("balance"));
             List<SpellGraph> spells = new List<SpellGraph>
             {
@@ -58,7 +60,7 @@ namespace RuneCode
             };
             foreach (SpellGraph graph in spells)
             {
-                CompileResult result = GraphCompiler.Compile(graph, runes, balance, runes.StartRunes, int.MaxValue);
+                CompileResult result = GraphCompiler.Compile(graph, runes, balance.Grammar, runes.StartRunes, int.MaxValue);
                 if (!result.Ok) throw new FormatException("시작 마법이 유효하지 않습니다: " + graph.Name);
             }
             _balance = balance;

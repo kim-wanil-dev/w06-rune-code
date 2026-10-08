@@ -138,3 +138,39 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 검증 후 v2 저장은 시작 시 자료와 JSON 동일, v1은 바이트 동일로 확인했다. 기존22994 RAM·용량10·에너지6·최고완료1·선택2와 설계를 보존했다. v1 SHA256:86fb2cf4a1cff68252fe9bd04b3d2c1667a10b5f64fbc8d83bac3da59cf9850d.
 
 - 최종 배포 검사: ZIP185항목/38.51MiB, CRC 오류 없음, 필수 EXE·런타임·Core·자료·화면 포함, DoNotShip 제외, ZIP 안 EXE 해시 일치. SHA256:17d00aa5c16e1954e5e784750c5b137a034c8bc3db15816a36423eb2f606198a.
+
+## 구조 분리·테이블화 준비 — 2026-10-08
+
+목표: UI와 마법 문법 엔진 분리, 테이블 기반 데이터 준비, 구조 재점검.
+
+| 단계 | 구현 | 검증 |
+|---|---|---|
+| 상수 통합 | 포트·방향·종류·카테고리·형태·마법 타입 상수를 `SpellGrammar`로 모으고 UI·Presentation·편집 계층과 이벤트 포트 ID의 하드코딩 교체 | 컴파일 |
+| 조회 이동 | `CompiledSpell.FindAction`, `SpellAction.Branches` 추가. 패널의 트리 재귀 제거 | 순수 하네스에서 템플릿5종 조회 확인 |
+| 진단 | `CompileIssue`를 코드·상세·원인으로 바꾸고 문구는 `CompileIssueText`(Unity 계층)가 현지화 | 컴파일 |
+| 자동 연결 | `SpellAutoConnect`(문법)로 이동, UI는 거리 정책만 담당. 컴파일러 규칙과 다르던 Inline Magic 효과 대상 누락 해소 | 컴파일 |
+| 테이블 기반 | `RuneCode.Tables`(순수): CSV 파서·`DataTable`·`TableRow`·`TableErrorLog`·`ITableSource`. 규칙 문서 `docs/DATA_TABLES.md` | 순수 빌드, 손상 CSV에서 12건을 `파일:행:열`로 일괄 보고 |
+| 룬 테이블 | `runes.json` → 6개 CSV 변환 후 삭제. `RuneCatalog.FromTables` | CSV 재조립 비교 0건, C# 로더 결과와 원본 비교 0건(float32) |
+| 한도 분리 | `GrammarLimits`. 컴파일러는 `BalanceData` 대신 이 값만 받음 | 컴파일 |
+| 직렬화 분리 | `SpellGraph` 순수화, `SpellGraphData`(JSON 키 동일) DTO, `SpellGraphValidator`, `ShareCodec`을 Core/Data로 이동, `PlayerSave._library`는 DTO + 직렬화 콜백, `Clone`은 깊은 복사 | 컴파일, 순수 하네스에서 Clone 결과 컴파일 동일 |
+| 어셈블리 | `RuneCode.Grammar`(Core/Graph, `noEngineReferences`) ← `RuneCode.Core` | 문법 DLL 단독 빌드 후 나머지 빌드(경계 위반 4건 발견·수정), Unity 없이 템플릿5종 컴파일 성공 |
+
+### 남은 확인 (Unity 필요)
+
+- Unity 가져오기 후 새 `.meta` 생성, asmdef 3개 인식, Missing Script 없음.
+- 기존 v2 저장 파일 로드·저장 후 `_library` JSON 키와 값 유지, 공유 코드 내보내기·가져오기 왕복.
+- 도크 firebolt/dummy_line/600/seed1의 피해·EN·개체·실행 수가 이전 기록(287.5·290·3·87)과 같은지. 상태 해시는 같은 날 `onFirstHitOrExpire` 상태 필드 추가로 형식이 바뀌어 이전 값과 비교하지 않는다.
+- 테스트 코드는 작성하지 않았다. 검증용 하네스는 저장소 밖 임시 폴더에서만 실행했다.
+
+## UI 공용 Prefab 및 성장·해금 편집성 — 2026-10-08
+
+- UI 스크립트 26개를 `Assets/RuneCode/UI` 아래 Shared·Title·Workshop·Mission·SpellEditor·Editor/Layouts로 정리하고 이동한 `.meta` GUID를 보존했다. 미션·시험 도크 상태 로직은 기존 Features 폴더에 두었다.
+- 화면 생성에 `UiPanel.prefab`, `UiButton.prefab`을 연결하고, 강화·해금 및 Spell Editor의 반복 목록을 `UiRow.prefab` 하나로 통합했다. 벤치의 용량·에너지·전투 시간 카드는 `UpgradeCard.prefab`을 공유하도록 변경했다.
+- 사용하지 않는 5개 행 Prefab은 씬 재생성 후 Assets 참조가 없는지 확인하고 제거했다. 최근 수정된 `SpellParameterRow.prefab`은 기존 자산을 유지하고, Layout 빌더가 자산을 덮어쓰지 않도록 했다.
+- 스크립트별 역할, 씬·Prefab 편집 절차, 강화·룬 해금 변경 경로를 `docs/UI_AND_PROGRESSION_GUIDE.md`에 작성했다.
+
+### 실제 검증
+
+- Unity 6000.3.22f1에서 `RuneCode.RuneCodeBuild.BuildScenes` 실행: C# 컴파일 성공, 컴파일 오류 0, Build Scenes 정상 종료.
+- Boot·Title·Workshop·Mission 씬을 다시 생성하고 빌드 씬 목록을 갱신했다. 네 공용 Prefab과 `.meta`가 생성됐으며 Workshop 씬에 강화 카드 3개와 공용 행 Prefab 참조가 기록됐다.
+- 정적 참조 검색에서 제거한 5개 행 Prefab GUID의 Assets 내 외부 참조가 0건이었다. Play 모드와 Player 빌드는 실행하지 않았다.

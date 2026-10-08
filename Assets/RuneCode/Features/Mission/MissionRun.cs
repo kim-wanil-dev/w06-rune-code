@@ -51,6 +51,7 @@ namespace RuneCode
             _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.BattleDuration, session.EnergyRegen);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
+            _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);
             LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
         }
 
