@@ -15,13 +15,22 @@ namespace RuneCode
     public sealed class UiFactory
     {
         private readonly TMP_FontAsset _font;
+        private readonly GameObject _panelPrefab;
+        private readonly GameObject _buttonPrefab;
+        private readonly Func<GameObject, Transform, GameObject> _prefabInstantiator;
 
         public TMP_FontAsset Font => _font;
+        public GameObject PanelPrefab => _panelPrefab;
+        public GameObject ButtonPrefab => _buttonPrefab;
 
-        /// <summary>텍스트와 입력 필드에 사용할 글꼴로 생성기를 만든다.</summary>
-        public UiFactory(TMP_FontAsset font)
+        /// <summary>공통 패널·버튼 Prefab과 텍스트 글꼴로 UI 생성기를 만든다.</summary>
+        public UiFactory(TMP_FontAsset font, GameObject panelPrefab, GameObject buttonPrefab,
+            Func<GameObject, Transform, GameObject> prefabInstantiator = null)
         {
             _font = font;
+            _panelPrefab = panelPrefab;
+            _buttonPrefab = buttonPrefab;
+            _prefabInstantiator = prefabInstantiator;
         }
 
         /// <summary>1280×720 기준 Overlay Canvas와 중앙 정렬된 논리 화면 루트를 만들고 루트를 반환한다.</summary>
@@ -54,11 +63,12 @@ namespace RuneCode
             return rect;
         }
 
-        /// <summary>지정 색의 패널 이미지를 생성하며 기본적으로 포인터를 차단하지 않는다.</summary>
-        public static RectTransform Panel(Transform parent, float x, float y, float width, float height, Color tint, string name = "Panel")
+        /// <summary>공통 패널 Prefab을 지정 위치에 배치하고 색상과 포인터 차단 여부를 설정한다.</summary>
+        public RectTransform Panel(Transform parent, float x, float y, float width, float height, Color tint, string name = "Panel")
         {
-            RectTransform rect = Rect(parent, name, x, y, width, height);
-            Image image = rect.gameObject.AddComponent<Image>();
+            GameObject instance = InstantiatePrefab(_panelPrefab, parent, name);
+            RectTransform rect = Place(instance, x, y, width, height);
+            Image image = instance.GetComponent<Image>();
             image.color = tint;
             image.raycastTarget = false;
             return rect;
@@ -86,11 +96,12 @@ namespace RuneCode
             Color? tint = null, float size = 14, string name = "Button")
         {
             Color accent = tint ?? UiTheme.Muted;
-            RectTransform rect = Panel(parent, x, y, width, height,
-                new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f), name);
-            Image image = rect.GetComponent<Image>();
+            GameObject instance = InstantiatePrefab(_buttonPrefab, parent, name);
+            RectTransform rect = Place(instance, x, y, width, height);
+            Image image = instance.GetComponent<Image>();
+            image.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
             image.raycastTarget = true;
-            Button button = rect.gameObject.AddComponent<Button>();
+            Button button = instance.GetComponent<Button>();
             button.targetGraphic = image;
             ColorBlock colors = button.colors;
             colors.normalColor = Color.white;
@@ -98,7 +109,12 @@ namespace RuneCode
             colors.pressedColor = new Color(0.65f, 0.85f, 1);
             button.colors = colors;
             if (action != null) button.onClick.AddListener(() => action());
-            TextMeshProUGUI text = Text(rect, 6, 0, width - 12, height, label, size, accent);
+            TextMeshProUGUI text = instance.GetComponentInChildren<TextMeshProUGUI>(true);
+            text.font = _font;
+            text.fontSize = size;
+            text.color = accent;
+            text.text = label;
+            text.raycastTarget = false;
             text.alignment = TextAlignmentOptions.Midline;
             return button;
         }
@@ -130,8 +146,10 @@ namespace RuneCode
             scroll.horizontal = false;
             scroll.vertical = true;
             scroll.movementType = ScrollRect.MovementType.Clamped;
-            RectTransform viewport = Panel(root, 0, 0, width, height, new Color(1, 1, 1, 0.005f), "Viewport");
-            viewport.GetComponent<Image>().raycastTarget = true;
+            RectTransform viewport = Rect(root, "Viewport", 0, 0, width, height);
+            Image viewportImage = viewport.gameObject.AddComponent<Image>();
+            viewportImage.color = new Color(1, 1, 1, 0.005f);
+            viewportImage.raycastTarget = true;
             Mask mask = viewport.gameObject.AddComponent<Mask>();
             mask.showMaskGraphic = false;
             RectTransform content = Rect(viewport, "Content", 0, 0, width - 8, height);
@@ -146,6 +164,27 @@ namespace RuneCode
             scroll.viewport = viewport;
             scroll.content = content;
             return content;
+        }
+
+        /// <summary>지정된 부모 아래 공통 UI Prefab 인스턴스를 만들고 이름을 지정한다.</summary>
+        private GameObject InstantiatePrefab(GameObject prefab, Transform parent, string name)
+        {
+            GameObject instance = _prefabInstantiator == null
+                ? UnityEngine.Object.Instantiate(prefab, parent, false)
+                : _prefabInstantiator(prefab, parent);
+            instance.name = name;
+            return instance;
+        }
+
+        /// <summary>새 Prefab 인스턴스를 좌상단 기준 좌표와 크기에 맞춰 배치한다.</summary>
+        private static RectTransform Place(GameObject instance, float x, float y, float width, float height)
+        {
+            RectTransform rect = (RectTransform)instance.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(x, -y);
+            rect.sizeDelta = new Vector2(width, height);
+            return rect;
         }
 
         /// <summary>세로 목록 요소의 최소 높이와 원하는 높이를 고정한다.</summary>

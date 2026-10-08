@@ -1,6 +1,7 @@
 using UnityEngine;
 
 using TMPro;
+using UnityEditor;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -9,6 +10,7 @@ namespace RuneCode
     /// <summary>Workshop 씬의 헤더, 4개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
+        private const string UPGRADE_CARD_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeCard.prefab";
         private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
         private static readonly string[] TABS = { "editor", "bench", "deploy", "settings" };
 
@@ -19,9 +21,9 @@ namespace RuneCode
             Scene scene = LayoutUtility.CreateEmptyScene();
             GameObject root = new GameObject("Workshop");
             RectTransform canvas = UiFactory.CreateCanvas(root.transform, "WorkshopCanvas");
-            RectTransform page = UiFactory.Panel(canvas, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
+            RectTransform page = ui.Panel(canvas, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
 
-            UiFactory.Panel(page, 0, 0, 1280, 70, UiTheme.Panel, "Header");
+            ui.Panel(page, 0, 0, 1280, 70, UiTheme.Panel, "Header");
             ui.Text(page, 18, 18, 200, 36, GameData.L("ui.title"), 27, Color.white, FontStyles.Bold, "HeaderTitle");
             Button[] tabButtons = new Button[TABS.Length];
             TextMeshProUGUI[] tabLabels = new TextMeshProUGUI[TABS.Length];
@@ -67,7 +69,7 @@ namespace RuneCode
         /// <summary>시험 도크의 경기장, 시나리오·시험·리셋·자동 발사·적응·배속 조작과 지표 문구를 만들고 DockPanel 참조를 연결한다.</summary>
         private static DockPanel BuildDock(UiFactory ui, RectTransform parent)
         {
-            UiFactory.Panel(parent, 222, 512, 772, 143, UiTheme.Panel, "DockBackground");
+            ui.Panel(parent, 222, 512, 772, 143, UiTheme.Panel, "DockBackground");
             RectTransform arena = UiFactory.Rect(parent, "DockArena", 222, 541, 292, 110);
             RuneArenaGraphic arenaGraphic = arena.gameObject.AddComponent<RuneArenaGraphic>();
             Button scenarioButton = ui.Button(parent, 226, 515, 126, 22, GameData.L("scenario.dummy_single"), null, UiTheme.Muted, 10, "ScenarioButton");
@@ -99,39 +101,53 @@ namespace RuneCode
             ui.Text(parent, 30, 98, 850, 40, GameData.L("ui.bench"), 29, Color.white, FontStyles.Bold, "BenchTitle");
             TextMeshProUGUI balance = ui.Text(parent, 30, 144, 800, 34, "", 20, UiTheme.Cyan, FontStyles.Normal, "Balance");
             string[] types = { "capacity", "energy", "duration" };
-            TextMeshProUGUI[] cardValues = new TextMeshProUGUI[types.Length];
-            TextMeshProUGUI[] cardDescriptions = new TextMeshProUGUI[types.Length];
-            Button[] cardButtons = new Button[types.Length];
-            TextMeshProUGUI[] cardLabels = new TextMeshProUGUI[types.Length];
+            UpgradeCardView[] upgradeCards = new UpgradeCardView[types.Length];
+            UpgradeCardView upgradeCardPrefab = EnsureUpgradeCardPrefab(ui);
             for (int i = 0; i < types.Length; i++)
             {
-                string type = types[i];
-                RectTransform card = UiFactory.Panel(parent, 30 + i * 406, 196, 386, 184, UiTheme.Panel, type + "Card");
-                ui.Text(card, 18, 14, 350, 31, GameData.L("ui." + type), 21, Color.white, FontStyles.Normal, "CardTitle");
-                cardValues[i] = ui.Text(card, 18, 52, 350, 34, "", 28, UiTheme.Cyan, FontStyles.Bold, "CardValue");
-                cardDescriptions[i] = ui.Text(card, 18, 93, 350, 38, "", 12, UiTheme.Muted, FontStyles.Normal, "CardDescription");
-                cardButtons[i] = ui.Button(card, 16, 142, 354, 28, "", null, UiTheme.Muted, 12, "BuyButton");
-                cardLabels[i] = cardButtons[i].GetComponentInChildren<TextMeshProUGUI>();
+                upgradeCards[i] = LayoutUtility.InstantiatePrefab(upgradeCardPrefab, parent, types[i] + "UpgradeCard");
+                LayoutUtility.SetTopLeftRect((RectTransform)upgradeCards[i].transform, 30 + i * 406, 196, 386, 184);
             }
             ui.Text(parent, 30, 393, 1200, 24, GameData.L("ui.runeUnlocks"), 15, Color.white, FontStyles.Bold, "RuneUnlocksTitle");
             RectTransform unlockList = UiFactory.ScrollList(parent, "UnlockList", 28, 426, 1224, 228);
 
             BenchPanel benchPanel = parent.gameObject.AddComponent<BenchPanel>();
             LayoutUtility.SetReference(benchPanel, "_balanceText", balance);
-            LayoutUtility.SetReferences(benchPanel, "_cardValues", cardValues);
-            LayoutUtility.SetReferences(benchPanel, "_cardDescriptions", cardDescriptions);
-            LayoutUtility.SetReferences(benchPanel, "_cardButtons", cardButtons);
-            LayoutUtility.SetReferences(benchPanel, "_cardLabels", cardLabels);
+            LayoutUtility.SetReferences(benchPanel, "_upgradeCards", upgradeCards);
             LayoutUtility.SetReference(benchPanel, "_unlockList", unlockList);
-            UiRow runeRow = LayoutUtility.SaveRowPrefab(ui, "BenchRuneRow", 1198, 44, 15);
+            UiRow runeRow = LayoutUtility.GetSharedRowPrefab(ui);
             LayoutUtility.SetReference(benchPanel, "_runeRowPrefab", runeRow);
             return benchPanel;
+        }
+
+        /// <summary>성장 카드 공통 Prefab이 없을 때 기존 화면의 크기와 타이포그래피로 생성해 자산으로 저장한다.</summary>
+        private static UpgradeCardView EnsureUpgradeCardPrefab(UiFactory ui)
+        {
+            UpgradeCardView existing = AssetDatabase.LoadAssetAtPath<UpgradeCardView>(UPGRADE_CARD_PREFAB_PATH);
+            if (existing != null) return existing;
+
+            GameObject source = new GameObject("UpgradeCard", typeof(RectTransform));
+            LayoutUtility.SetTopLeftRect((RectTransform)source.transform, 0, 0, 386, 184);
+            ui.Panel(source.transform, 0, 0, 386, 184, UiTheme.Panel, "Background");
+            TextMeshProUGUI title = ui.Text(source.transform, 18, 14, 350, 31, "", 21, Color.white, FontStyles.Normal, "CardTitle");
+            TextMeshProUGUI value = ui.Text(source.transform, 18, 52, 350, 34, "", 28, UiTheme.Cyan, FontStyles.Bold, "CardValue");
+            TextMeshProUGUI description = ui.Text(source.transform, 18, 93, 350, 38, "", 12, UiTheme.Muted, FontStyles.Normal, "CardDescription");
+            Button buyButton = ui.Button(source.transform, 16, 142, 354, 28, "", null, UiTheme.Muted, 12, "BuyButton");
+
+            UpgradeCardView view = source.AddComponent<UpgradeCardView>();
+            LayoutUtility.SetReference(view, "_title", title);
+            LayoutUtility.SetReference(view, "_value", value);
+            LayoutUtility.SetReference(view, "_description", description);
+            LayoutUtility.SetReference(view, "_buyButton", buyButton);
+            LayoutUtility.SetReference(view, "_buyButtonImage", buyButton.GetComponent<Image>());
+            LayoutUtility.SetReference(view, "_buyLabel", buyButton.GetComponentInChildren<TextMeshProUGUI>());
+            return LayoutUtility.SavePrefab(source, "UpgradeCard").GetComponent<UpgradeCardView>();
         }
 
         /// <summary>시간제 전투 안내, 스테이지 선택과 출격 버튼을 만들고 DeployPanel 참조를 연결한다.</summary>
         private static DeployPanel BuildDeploy(UiFactory ui, RectTransform parent)
         {
-            RectTransform card = UiFactory.Panel(parent, 64, 122, 1152, 498, UiTheme.Panel, "DeployCard");
+            RectTransform card = ui.Panel(parent, 64, 122, 1152, 498, UiTheme.Panel, "DeployCard");
             ui.Text(card, 38, 32, 1070, 46, GameData.L("ui.timedBattle"), 32, Color.white, FontStyles.Bold, "BattleTitle");
             ui.Text(card, 38, 98, 1010, 72, GameData.L("ui.battleDescription"), 20, UiTheme.Muted, FontStyles.Normal, "BattleDescription");
             TextMeshProUGUI highest = ui.Text(card, 38, 202, 480, 30, "", 16, UiTheme.Muted, FontStyles.Normal, "HighestStage");
@@ -169,9 +185,9 @@ namespace RuneCode
             ui.Button(debugGroup, 0, 195, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "DebugSpawnButton");
 
             GameObject modal = UiFactory.Rect(parent, "ResetModal", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT).gameObject;
-            RectTransform shade = UiFactory.Panel(modal.transform, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "Shade");
+            RectTransform shade = ui.Panel(modal.transform, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "Shade");
             shade.GetComponent<Image>().raycastTarget = true;
-            RectTransform card = UiFactory.Panel(modal.transform, (UiTheme.SCREEN_WIDTH - 540) / 2, (UiTheme.SCREEN_HEIGHT - 240) / 2, 540, 240, UiTheme.Panel, "Card");
+            RectTransform card = ui.Panel(modal.transform, (UiTheme.SCREEN_WIDTH - 540) / 2, (UiTheme.SCREEN_HEIGHT - 240) / 2, 540, 240, UiTheme.Panel, "Card");
             ui.Text(card, 24, 21, 540 - 90, 35, GameData.L("ui.resetSave"), 24, Color.white, FontStyles.Bold, "ModalTitle");
             Button modalClose = ui.Button(card, 540 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseModalButton");
             Button modalConfirm = ui.Button(card, 28, 105, 232, 60, GameData.L("ui.resetSave"), null, RESET_COLOR, 14, "ConfirmResetButton");

@@ -16,9 +16,9 @@ namespace RuneCode
             Scene scene = LayoutUtility.CreateEmptyScene();
             GameObject root = new GameObject("Title");
             RectTransform canvas = UiFactory.CreateCanvas(root.transform, "TitleCanvas");
-            RectTransform page = UiFactory.Panel(canvas, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
-            UiFactory.Panel(page, 72, 72, 1136, 576, UiTheme.Panel, "IntroPanel");
-            UiFactory.Panel(page, 110, 116, 6, 430, UiTheme.Cyan, "AccentBar");
+            RectTransform page = ui.Panel(canvas, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
+            ui.Panel(page, 72, 72, 1136, 576, UiTheme.Panel, "IntroPanel");
+            ui.Panel(page, 110, 116, 6, 430, UiTheme.Cyan, "AccentBar");
             ui.Text(page, 150, 132, 960, 30, GameData.L("ui.introCode"), 16, UiTheme.Cyan, FontStyles.Normal, "IntroCode");
             ui.Text(page, 146, 190, 980, 92, GameData.L("ui.title"), 76, Color.white, FontStyles.Bold, "TitleLabel");
             ui.Text(page, 152, 310, 850, 60, GameData.L("ui.subtitle"), 24, UiTheme.Muted, FontStyles.Normal, "Subtitle");

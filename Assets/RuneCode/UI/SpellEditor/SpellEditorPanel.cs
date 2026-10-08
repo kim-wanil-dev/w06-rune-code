@@ -13,7 +13,7 @@ namespace RuneCode
     /// <summary>
     /// 비주얼 스크립팅 편집 패널이다. 마법 제목 줄, 메트릭, 룬 팔레트, 노드 그래프, 인스펙터, 편집 도구줄,
     /// 튜토리얼과 패널 내부 모달을 표시하고 모든 편집 명령을 ISpellEditor로 전달한다.
-    /// 레이아웃과 직렬화 참조는 Editor/Layouts/SpellEditorLayout이 만든다.
+    /// 레이아웃과 직렬화 참조는 UI/Editor/Layouts/SpellEditorLayout이 만든다.
     /// </summary>
     public sealed class SpellEditorPanel : MonoBehaviour
     {
@@ -95,6 +95,8 @@ namespace RuneCode
 
         [Header("공용")]
         [SerializeField] private TMP_FontAsset _font;
+        [SerializeField] private GameObject _panelPrefab;
+        [SerializeField] private GameObject _buttonPrefab;
 
         private ISpellEditor _editor;
         private ISpellEditorHost _host;
@@ -116,7 +118,7 @@ namespace RuneCode
             _editor = editor;
             _host = host;
             if (_font == null) _font = TMP_Settings.defaultFontAsset;
-            if (_ui == null) _ui = new UiFactory(_font);
+            if (_ui == null) _ui = new UiFactory(_font, _panelPrefab, _buttonPrefab);
             _searchField.onValueChanged.AddListener(_ => RefreshPalette());
             for (int i = 0; i < _categoryButtons.Length; i++)
             {
@@ -251,7 +253,7 @@ namespace RuneCode
                 if (!unlocked) label += "\n" + L("ui.locked") + " · " + (rune.UnlockType == "reward" ? L("ui.reward") : rune.UnlockCost + " " + L("ui.fragments"));
                 UiRow row = Instantiate(_runeRowPrefab, _runeList);
                 row.Configure(label, unlocked ? RuneMesh.CategoryColor(rune.Category) : LOCKED_TINT, unlocked ? 40 : 53,
-                    () => { if (unlocked) _graphCanvas.PlaceRune(selected.Id, _graphCanvas.SuggestPlacement(selected.Id)); });
+                    () => { if (unlocked) _graphCanvas.PlaceRune(selected.Id, _graphCanvas.SuggestPlacement(selected.Id)); }, 12);
                 row.gameObject.AddComponent<RunePaletteDrag>().Initialize(_graphCanvas, rune.Id, unlocked);
             }
         }
@@ -282,7 +284,8 @@ namespace RuneCode
                 if (!string.IsNullOrEmpty(query) && rune.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0 && rune.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 string id = rune.Id;
                 UiRow row = Instantiate(_quickPaletteRowPrefab, _quickPaletteList);
-                row.Configure(rune.Name + " · " + rune.Ram + " RAM", RuneMesh.CategoryColor(rune.Category), 36, () => { CloseModal(); _graphCanvas.PlaceRune(id, _quickPalettePosition); });
+                row.Configure(rune.Name + " · " + rune.Ram + " RAM", RuneMesh.CategoryColor(rune.Category), 36,
+                    () => { CloseModal(); _graphCanvas.PlaceRune(id, _quickPalettePosition); }, 14);
             }
         }
 
@@ -400,7 +403,7 @@ namespace RuneCode
             {
                 SpellGraph selected = graph;
                 UiRow row = Instantiate(_libraryRowPrefab, _libraryList);
-                row.Configure(graph.Name + "\n" + graph.Id, UiTheme.Cyan, 50, () => { _editor.SelectSpell(selected.Id); CloseModal(); });
+                row.Configure(graph.Name + "\n" + graph.Id, UiTheme.Cyan, 50, () => { _editor.SelectSpell(selected.Id); CloseModal(); }, 12);
             }
         }
 
@@ -417,7 +420,7 @@ namespace RuneCode
                 {
                     CloseModal();
                     _editor.SetNodeText(nodeId, "spellId", selected.Id);
-                });
+                }, 12);
             }
         }
 
@@ -444,7 +447,7 @@ namespace RuneCode
         private void AddIssueLabel(RectTransform list, string label, Color tint, string nodeId)
         {
             UiRow row = Instantiate(_issueRowPrefab, list);
-            row.Configure(label, tint, 56, () => { if (nodeId != null) _graphCanvas.FocusNode(nodeId); });
+            row.Configure(label, tint, 56, () => { if (nodeId != null) _graphCanvas.FocusNode(nodeId); }, 11);
         }
 
         /// <summary>공유 RAM, 마법 비용, 쿨다운과 예상 동시 개체 수를 표시한다.</summary>

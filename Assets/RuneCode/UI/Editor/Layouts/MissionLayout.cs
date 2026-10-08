@@ -1,10 +1,9 @@
 using UnityEngine;
 
 using TMPro;
+using UnityEditor;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
-using UnityEditor;
 
 namespace RuneCode
 {
@@ -25,33 +24,33 @@ namespace RuneCode
             MissionScreen screen = canvasObject.AddComponent<MissionScreen>();
             MissionHud hud = canvasObject.AddComponent<MissionHud>();
 
-            UiFactory.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Background");
+            ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Background");
 
             RectTransform arenaRect = UiFactory.Rect(page, "MissionArena", 12, 74, 1256, 572);
             RuneArenaGraphic arena = arenaRect.gameObject.AddComponent<RuneArenaGraphic>();
 
-            UiFactory.Panel(page, 0, 0, 1280, 74, UiTheme.Panel, "TopBar");
+            ui.Panel(page, 0, 0, 1280, 74, UiTheme.Panel, "TopBar");
             TextMeshProUGUI hpCaption = ui.Text(page, 18, 11, 238, 24, GameData.L("ui.hp"), 12, UiTheme.Muted, FontStyles.Normal, "HpCaption");
-            UiFactory.Panel(page, 18, 40, 238, 9, new Color(0.20f, 0.15f, 0.20f), "HpTrack");
-            Image hpFill = UiFactory.Panel(page, 18, 40, 238, 9, new Color(1f, 0.38f, 0.4f), "HpFill").GetComponent<Image>();
+            ui.Panel(page, 18, 40, 238, 9, new Color(0.20f, 0.15f, 0.20f), "HpTrack");
+            Image hpFill = ui.Panel(page, 18, 40, 238, 9, new Color(1f, 0.38f, 0.4f), "HpFill").GetComponent<Image>();
             TextMeshProUGUI energyCaption = ui.Text(page, 282, 11, 238, 24, GameData.L("ui.energy"), 12, UiTheme.Muted, FontStyles.Normal, "EnergyCaption");
-            UiFactory.Panel(page, 282, 40, 238, 9, new Color(0.1f, 0.2f, 0.28f), "EnergyTrack");
-            Image energyFill = UiFactory.Panel(page, 282, 40, 238, 9, UiTheme.Cyan, "EnergyFill").GetComponent<Image>();
+            ui.Panel(page, 282, 40, 238, 9, new Color(0.1f, 0.2f, 0.28f), "EnergyTrack");
+            Image energyFill = ui.Panel(page, 282, 40, 238, 9, UiTheme.Cyan, "EnergyFill").GetComponent<Image>();
             TextMeshProUGUI stageLabel = ui.Text(page, 542, 10, 280, 23, "", 16, Color.white, FontStyles.Bold, "StageLabel");
             TextMeshProUGUI statsLabel = ui.Text(page, 542, 37, 280, 26, "", 15, UiTheme.Cyan, FontStyles.Normal, "StatsLabel");
             TextMeshProUGUI timerLabel = ui.Text(page, 836, 14, 274, 50, "", 29, new Color(0.98f, 0.82f, 0.45f), FontStyles.Bold, "TimerLabel");
             Button pauseButton = ui.Button(page, 1142, 18, 114, 34, GameData.L("ui.pause"), null, UiTheme.Muted, 14, "PauseButton");
 
-            UiFactory.Panel(page, 0, 650, 1280, 70, UiTheme.Panel, "BottomBar");
+            ui.Panel(page, 0, 650, 1280, 70, UiTheme.Panel, "BottomBar");
             TextMeshProUGUI spellLabel = ui.Text(page, 270, 661, 968, 30, "", 17, UiTheme.Cyan, FontStyles.Normal, "SpellLabel");
             ui.Text(page, 20, 698, 1220, 19, GameData.L("ui.manualBattleControls"), 11, UiTheme.Muted, FontStyles.Normal, "ControlsHint");
             ui.Text(page, 1036, 96, 214, 32, GameData.L("ui.incoming"), 14, new Color(0.97f, 0.57f, 0.45f), FontStyles.Normal, "IncomingLabel");
             TextMeshProUGUI fragmentToast = ui.Text(page, 46, 98, 300, 35, "", 18, new Color(0.4f, 0.97f, 0.77f), FontStyles.Normal, "FragmentToast");
             Button debugButton = ui.Button(page, 20, 654, 116, 36, GameData.L("ui.debug"), null, UiTheme.Muted, 11, "DebugButton");
 
-            RectTransform pauseRoot = UiFactory.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "PauseModal");
+            RectTransform pauseRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "PauseModal");
             pauseRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform pauseCard = UiFactory.Panel(pauseRoot, (UiTheme.SCREEN_WIDTH - 500f) / 2f, (UiTheme.SCREEN_HEIGHT - 384f) / 2f, 500, 384, UiTheme.Panel, "Card");
+            RectTransform pauseCard = ui.Panel(pauseRoot, (UiTheme.SCREEN_WIDTH - 500f) / 2f, (UiTheme.SCREEN_HEIGHT - 384f) / 2f, 500, 384, UiTheme.Panel, "Card");
             ui.Text(pauseCard, 24, 21, 500 - 90, 35, GameData.L("ui.pause"), 24, Color.white, FontStyles.Bold, "Title");
             Button pauseCloseButton = ui.Button(pauseCard, 500 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
             Button resumeButton = ui.Button(pauseCard, 28, 90, 444, 48, GameData.L("ui.resume"), null, UiTheme.Cyan, 19, "ResumeButton");
@@ -60,9 +59,9 @@ namespace RuneCode
             Button retreatButton = ui.Button(pauseCard, 28, 292, 444, 48, GameData.L("ui.retreat"), null, UiTheme.Muted, 18, "RetreatButton");
             PausePanel pausePanel = pauseRoot.gameObject.AddComponent<PausePanel>();
 
-            RectTransform debugRoot = UiFactory.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "DebugModal");
+            RectTransform debugRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "DebugModal");
             debugRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform debugCard = UiFactory.Panel(debugRoot, (UiTheme.SCREEN_WIDTH - 510f) / 2f, (UiTheme.SCREEN_HEIGHT - 420f) / 2f, 510, 420, UiTheme.Panel, "Card");
+            RectTransform debugCard = ui.Panel(debugRoot, (UiTheme.SCREEN_WIDTH - 510f) / 2f, (UiTheme.SCREEN_HEIGHT - 420f) / 2f, 510, 420, UiTheme.Panel, "Card");
             ui.Text(debugCard, 24, 21, 510 - 90, 35, GameData.L("ui.debug"), 24, Color.white, FontStyles.Bold, "Title");
             Button debugCloseButton = ui.Button(debugCard, 510 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
             Button debugGrantButton = ui.Button(debugCard, 24, 82, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "GrantButton");
@@ -70,9 +69,9 @@ namespace RuneCode
             Button debugInvulnerableButton = ui.Button(debugCard, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
             Button debugSpawnButton = ui.Button(debugCard, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
 
-            RectTransform resultRoot = UiFactory.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
+            RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
             resultRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform resultCard = UiFactory.Panel(resultRoot, 92, 72, 1096, 570, UiTheme.Panel, "Card");
+            RectTransform resultCard = ui.Panel(resultRoot, 92, 72, 1096, 570, UiTheme.Panel, "Card");
             ui.Text(resultCard, 40, 32, 1016, 48, GameData.L("ui.result"), 34, Color.white, FontStyles.Bold, "Title");
             TextMeshProUGUI resultSummary = ui.Text(resultCard, 40, 108, 1016, 108, "", 26, UiTheme.Cyan, FontStyles.Normal, "Summary");
             TextMeshProUGUI resultStage = ui.Text(resultCard, 40, 250, 1016, 35, "", 23, Color.white, FontStyles.Normal, "Stage");

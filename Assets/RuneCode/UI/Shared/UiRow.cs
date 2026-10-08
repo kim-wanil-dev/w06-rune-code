@@ -18,15 +18,15 @@ namespace RuneCode
         public Button Button => _button;
         public TextMeshProUGUI Label => _label;
 
-        /// <summary>문구, 강조 색과 행 높이를 적용하고 기존 클릭 리스너를 action으로 교체한다.</summary>
-        public void Configure(string label, Color accent, float height, Action action)
+        /// <summary>문구, 강조 색, 글자 크기와 행 높이를 적용하고 기존 클릭 리스너를 action으로 교체한다.</summary>
+        public void Configure(string label, Color accent, float height, Action action, float fontSize = 12)
         {
             _label.text = label;
             _label.color = accent;
+            _label.fontSize = fontSize;
             _background.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
             RectTransform rect = (RectTransform)transform;
             rect.sizeDelta = new Vector2(rect.sizeDelta.x, height);
-            ((RectTransform)_label.transform).sizeDelta = new Vector2(((RectTransform)_label.transform).sizeDelta.x, height);
             UiFactory.Layout(gameObject, height);
             _button.onClick.RemoveAllListeners();
             if (action != null) _button.onClick.AddListener(() => action());

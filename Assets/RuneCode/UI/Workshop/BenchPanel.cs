@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using TMPro;
-using UnityEngine.UI;
 
 namespace RuneCode
 {
@@ -13,14 +12,11 @@ namespace RuneCode
     /// </summary>
     public sealed class BenchPanel : MonoBehaviour
     {
-        private static readonly string[] UPGRADE_TYPES = { "capacity", "energy", "duration" };
+        private static readonly string[] _upgradeTypes = { "capacity", "energy", "duration" };
 
         [Header("성장 카드")]
         [SerializeField] private TextMeshProUGUI _balanceText;
-        [SerializeField] private TextMeshProUGUI[] _cardValues;
-        [SerializeField] private TextMeshProUGUI[] _cardDescriptions;
-        [SerializeField] private Button[] _cardButtons;
-        [SerializeField] private TextMeshProUGUI[] _cardLabels;
+        [SerializeField] private UpgradeCardView[] _upgradeCards;
 
         [Header("룬 해금")]
         [SerializeField] private RectTransform _unlockList;
@@ -36,10 +32,10 @@ namespace RuneCode
             _session = session;
             _dockRun = dockRun;
             _screen = screen;
-            for (int i = 0; i < UPGRADE_TYPES.Length; i++)
+            for (int i = 0; i < _upgradeTypes.Length; i++)
             {
-                string type = UPGRADE_TYPES[i];
-                _cardButtons[i].onClick.AddListener(() => Purchase(type));
+                string type = _upgradeTypes[i];
+                _upgradeCards[i].SetPurchaseAction(() => Purchase(type));
             }
             Refresh();
         }
@@ -48,7 +44,7 @@ namespace RuneCode
         public void Refresh()
         {
             _balanceText.text = GameData.L("ui.balance") + "  " + _session.Save.Currency + " " + GameData.L("ui.fragments");
-            for (int i = 0; i < UPGRADE_TYPES.Length; i++) RefreshCard(i);
+            for (int i = 0; i < _upgradeTypes.Length; i++) RefreshCard(i);
             RefreshRuneRows();
         }
 
@@ -64,7 +60,7 @@ namespace RuneCode
         /// <summary>지정 성장 카드의 현재 값, 설명, 구매 비용과 구매 가능 색을 반영한다.</summary>
         private void RefreshCard(int index)
         {
-            string type = UPGRADE_TYPES[index];
+            string type = _upgradeTypes[index];
             string description = GameData.L("ui." + type + "Description");
             string value;
             if (type == "capacity") value = _session.Capacity.ToString();
@@ -74,13 +70,10 @@ namespace RuneCode
                 description += "  " + GameData.L("ui.regen") + " " + _session.EnergyRegen.ToString("0.#") + "/s";
             }
             else value = _session.BattleDuration.ToString("0") + "s";
-            _cardValues[index].text = value;
-            _cardDescriptions[index].text = description;
             int cost = _session.GetUpgradeCost(type);
             Color accent = cost >= 0 && _session.Save.Currency >= cost ? UiTheme.Cyan : UiTheme.Muted;
-            _cardLabels[index].text = cost < 0 ? GameData.L("ui.maxed") : GameData.L("ui.upgrade") + "  ·  " + cost + " " + GameData.L("ui.fragments");
-            _cardLabels[index].color = accent;
-            _cardButtons[index].image.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
+            string purchaseLabel = cost < 0 ? GameData.L("ui.maxed") : GameData.L("ui.upgrade") + "  ·  " + cost + " " + GameData.L("ui.fragments");
+            _upgradeCards[index].SetContent(GameData.L("ui." + type), value, description, purchaseLabel, accent);
         }
 
         /// <summary>해금 가능한 룬 행을 Prefab으로 다시 만들어 이름·분류·비용과 구매 동작을 연결한다.</summary>
@@ -96,7 +89,7 @@ namespace RuneCode
                 string label = rune.Name + "  /  " + GameData.L("category." + rune.Category) + "  /  " + rune.Ram + " RAM  ·  " + (unlocked ? GameData.L("ui.complete") : cost);
                 UiRow row = Instantiate(_runeRowPrefab, _unlockList);
                 row.Configure(label, unlocked ? UiTheme.Muted : RuneMesh.CategoryColor(rune.Category), 44,
-                    () => { if (!unlocked) Purchase(current.Id); });
+                    () => { if (!unlocked) Purchase(current.Id); }, 15);
             }
         }
 

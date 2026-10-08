@@ -161,3 +161,16 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 기존 v2 저장 파일 로드·저장 후 `_library` JSON 키와 값 유지, 공유 코드 내보내기·가져오기 왕복.
 - 도크 firebolt/dummy_line/600/seed1의 피해·EN·개체·실행 수가 이전 기록(287.5·290·3·87)과 같은지. 상태 해시는 같은 날 `onFirstHitOrExpire` 상태 필드 추가로 형식이 바뀌어 이전 값과 비교하지 않는다.
 - 테스트 코드는 작성하지 않았다. 검증용 하네스는 저장소 밖 임시 폴더에서만 실행했다.
+
+## UI 공용 Prefab 및 성장·해금 편집성 — 2026-10-08
+
+- UI 스크립트 26개를 `Assets/RuneCode/UI` 아래 Shared·Title·Workshop·Mission·SpellEditor·Editor/Layouts로 정리하고 이동한 `.meta` GUID를 보존했다. 미션·시험 도크 상태 로직은 기존 Features 폴더에 두었다.
+- 화면 생성에 `UiPanel.prefab`, `UiButton.prefab`을 연결하고, 강화·해금 및 Spell Editor의 반복 목록을 `UiRow.prefab` 하나로 통합했다. 벤치의 용량·에너지·전투 시간 카드는 `UpgradeCard.prefab`을 공유하도록 변경했다.
+- 사용하지 않는 5개 행 Prefab은 씬 재생성 후 Assets 참조가 없는지 확인하고 제거했다. 최근 수정된 `SpellParameterRow.prefab`은 기존 자산을 유지하고, Layout 빌더가 자산을 덮어쓰지 않도록 했다.
+- 스크립트별 역할, 씬·Prefab 편집 절차, 강화·룬 해금 변경 경로를 `docs/UI_AND_PROGRESSION_GUIDE.md`에 작성했다.
+
+### 실제 검증
+
+- Unity 6000.3.22f1에서 `RuneCode.RuneCodeBuild.BuildScenes` 실행: C# 컴파일 성공, 컴파일 오류 0, Build Scenes 정상 종료.
+- Boot·Title·Workshop·Mission 씬을 다시 생성하고 빌드 씬 목록을 갱신했다. 네 공용 Prefab과 `.meta`가 생성됐으며 Workshop 씬에 강화 카드 3개와 공용 행 Prefab 참조가 기록됐다.
+- 정적 참조 검색에서 제거한 5개 행 Prefab GUID의 Assets 내 외부 참조가 0건이었다. Play 모드와 Player 빌드는 실행하지 않았다.

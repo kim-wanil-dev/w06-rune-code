@@ -1,6 +1,7 @@
 using UnityEngine;
 
 using TMPro;
+using UnityEditor;
 using UnityEngine.UI;
 
 namespace RuneCode
@@ -23,7 +24,7 @@ namespace RuneCode
             Button shareButton = ui.Button(root, 862, 86, 132, 34, GameData.L("ui.share"), null, UiTheme.Muted, 13);
             TextMeshProUGUI metrics = ui.Text(root, 224, 129, 766, 23, "", 12, UiTheme.Cyan);
 
-            RectTransform palette = UiFactory.Panel(root, 16, 136, 190, 526, UiTheme.Panel, "Palette");
+            RectTransform palette = ui.Panel(root, 16, 136, 190, 526, UiTheme.Panel, "Palette");
             ui.Text(palette, 12, 12, 166, 26, GameData.L("ui.palette"), 17, Color.white, FontStyles.Bold);
             TMP_InputField search = ui.Input(palette, 10, 47, 170, 32, "", GameData.L("ui.search"));
             Button[] categoryButtons = new Button[SpellEditorPanel.CATEGORY_IDS.Length];
@@ -40,7 +41,7 @@ namespace RuneCode
             RectTransform graphSurface = UiFactory.Rect(graphViewport, "GraphCanvas", 0, 0, 772, 306);
             RuneGraphCanvas graphCanvas = graphSurface.gameObject.AddComponent<RuneGraphCanvas>();
 
-            RectTransform inspector = UiFactory.Panel(root, 1010, 136, 254, 526, UiTheme.Panel, "Inspector");
+            RectTransform inspector = ui.Panel(root, 1010, 136, 254, 526, UiTheme.Panel, "Inspector");
 
             Button undoButton = ui.Button(root, 222, 476, 72, 27, GameData.L("ui.undo"), null, UiTheme.Muted, 11);
             Button redoButton = ui.Button(root, 300, 476, 72, 27, GameData.L("ui.redo"), null, UiTheme.Muted, 11);
@@ -51,11 +52,11 @@ namespace RuneCode
             TextMeshProUGUI tutorial = ui.Text(root, 222, 662, 1026, 22, "", 12, UiTheme.Cyan);
             Button tutorialButton = ui.Button(root, 16, 666, 190, 19, GameData.L("ui.tutorial"), null, UiTheme.Cyan, 11);
 
-            UiRow runeRowPrefab = LayoutUtility.SaveRowPrefab(ui, "SpellPaletteRuneRow", 164, 40, 12);
-            UiRow quickPaletteRowPrefab = LayoutUtility.SaveRowPrefab(ui, "SpellQuickPaletteRow", 480, 36, 14);
-            UiRow issueRowPrefab = LayoutUtility.SaveRowPrefab(ui, "SpellValidationIssueRow", 216, 56, 11);
-            UiRow libraryRowPrefab = LayoutUtility.SaveRowPrefab(ui, "SpellLibraryRow", 552, 50, 12);
-            SpellParameterRow parameterRowPrefab = BuildParameterRowPrefab(ui);
+            UiRow runeRowPrefab = LayoutUtility.GetSharedRowPrefab(ui);
+            UiRow quickPaletteRowPrefab = runeRowPrefab;
+            UiRow issueRowPrefab = runeRowPrefab;
+            UiRow libraryRowPrefab = runeRowPrefab;
+            SpellParameterRow parameterRowPrefab = EnsureParameterRowPrefab(ui);
 
             RectTransform quickCard = BuildModal(ui, root, "QuickPaletteModal", GameData.L("ui.search"), 550, 470,
                 out RectTransform quickShade, out Button quickClose);
@@ -141,6 +142,8 @@ namespace RuneCode
             LayoutUtility.SetReference(panel, "_sharePasteButton", sharePasteButton);
             LayoutUtility.SetReference(panel, "_shareImportButton", shareImportButton);
             LayoutUtility.SetReference(panel, "_font", ui.Font);
+            LayoutUtility.SetReference(panel, "_panelPrefab", ui.PanelPrefab);
+            LayoutUtility.SetReference(panel, "_buttonPrefab", ui.ButtonPrefab);
             return panel;
         }
 
@@ -148,18 +151,21 @@ namespace RuneCode
         private static RectTransform BuildModal(UiFactory ui, Transform parent, string modalName, string title, float width, float height,
             out RectTransform shade, out Button closeButton)
         {
-            shade = UiFactory.Panel(parent, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, modalName);
+            shade = ui.Panel(parent, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, modalName);
             shade.GetComponent<Image>().raycastTarget = true;
-            RectTransform card = UiFactory.Panel(shade, (UiTheme.SCREEN_WIDTH - width) / 2, (UiTheme.SCREEN_HEIGHT - height) / 2, width, height, UiTheme.Panel, "Card");
+            RectTransform card = ui.Panel(shade, (UiTheme.SCREEN_WIDTH - width) / 2, (UiTheme.SCREEN_HEIGHT - height) / 2, width, height, UiTheme.Panel, "Card");
             ui.Text(card, 24, 21, width - 90, 35, title, 24, Color.white, FontStyles.Bold);
             closeButton = ui.Button(card, width - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23);
             shade.gameObject.SetActive(false);
             return card;
         }
 
-        /// <summary>인스펙터 파라미터 행 Prefab을 만들어 저장하고 행 컴포넌트를 반환한다.</summary>
-        private static SpellParameterRow BuildParameterRowPrefab(UiFactory ui)
+        /// <summary>기존 인스펙터 파라미터 행 Prefab을 보존해 반환하고 없을 때만 기본 구조로 생성한다.</summary>
+        private static SpellParameterRow EnsureParameterRowPrefab(UiFactory ui)
         {
+            SpellParameterRow existing = AssetDatabase.LoadAssetAtPath<SpellParameterRow>(LayoutUtility.PREFAB_FOLDER + "/SpellParameterRow.prefab");
+            if (existing != null) return existing;
+
             RectTransform rect = UiFactory.Rect(null, "SpellParameterRow", 0, 0, 224, 64);
             SpellParameterRow row = rect.gameObject.AddComponent<SpellParameterRow>();
             TextMeshProUGUI label = ui.Text(rect, 0, 0, 224, 20, "", 12, UiTheme.Muted);
