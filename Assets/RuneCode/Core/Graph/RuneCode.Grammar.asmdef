@@ -1,8 +1,7 @@
 {
-  "name": "RuneCode.Core",
+  "name": "RuneCode.Grammar",
   "rootNamespace": "RuneCode",
   "references": [
-    "RuneCode.Grammar",
     "RuneCode.Tables"
   ],
   "includePlatforms": [],
@@ -13,5 +12,5 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false
+  "noEngineReferences": true
 }

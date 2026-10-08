@@ -1,17 +1,13 @@
 using System;
 using System.Collections.Generic;
 
-using UnityEngine;
-
 namespace RuneCode
 {
-    [Serializable]
     public sealed class NodeParameter
     {
-        [Header("파라미터 값")]
-        [SerializeField] private string _key;
-        [SerializeField] private float _number;
-        [SerializeField] private string _text;
+        private readonly string _key;
+        private readonly float _number;
+        private readonly string _text;
         public string Key => _key;
         public float Number => _number;
         public string Text => _text;
@@ -25,15 +21,13 @@ namespace RuneCode
         }
     }
 
-    [Serializable]
     public sealed class GraphNode
     {
-        [Header("노드 구성")]
-        [SerializeField] private string _id;
-        [SerializeField] private string _runeId;
-        [SerializeField] private float _x;
-        [SerializeField] private float _y;
-        [SerializeField] private List<NodeParameter> _params = new List<NodeParameter>();
+        private readonly string _id;
+        private readonly string _runeId;
+        private readonly List<NodeParameter> _params = new List<NodeParameter>();
+        private float _x;
+        private float _y;
         public string Id => _id;
         public string RuneId => _runeId;
         public float X => _x;
@@ -47,6 +41,19 @@ namespace RuneCode
             _runeId = runeId;
             _x = x;
             _y = y;
+        }
+
+        /// <summary>
+        /// 저장 데이터 복원용으로 ID·룬 종류·좌표와 파라미터 목록을 그대로 받아 노드를 만든다.
+        /// 키 중복을 정리하지 않으므로 외부 데이터는 SpellGraphValidator로 검증한다.
+        /// </summary>
+        public GraphNode(string id, string runeId, float x, float y, IEnumerable<NodeParameter> parameters)
+            : this(id, runeId, x, y)
+        {
+            if (parameters != null)
+            {
+                _params.AddRange(parameters);
+            }
         }
 
         /// <summary>캔버스 좌표만 변경하며 마법 실행 의미는 유지한다.</summary>
@@ -100,16 +107,14 @@ namespace RuneCode
         }
     }
 
-    [Serializable]
     public sealed class GraphEdge
     {
-        [Header("연결")]
-        [SerializeField] private string _id;
-        [SerializeField] private string _fromNode;
-        [SerializeField] private string _fromPort;
-        [SerializeField] private string _toNode;
-        [SerializeField] private string _toPort;
-        [SerializeField] private int _order;
+        private readonly string _id;
+        private readonly string _fromNode;
+        private readonly string _fromPort;
+        private readonly string _toNode;
+        private readonly string _toPort;
+        private readonly int _order;
         public string Id => _id;
         public string FromNode => _fromNode;
         public string FromPort => _fromPort;
@@ -129,15 +134,13 @@ namespace RuneCode
         }
     }
 
-    [Serializable]
     public sealed class SpellGraph
     {
-        [Header("마법 구성")]
-        [SerializeField] private string _id;
-        [SerializeField] private string _name;
-        [SerializeField] private int _version = 2;
-        [SerializeField] private List<GraphNode> _nodes = new List<GraphNode>();
-        [SerializeField] private List<GraphEdge> _edges = new List<GraphEdge>();
+        private string _id;
+        private string _name;
+        private int _version = 2;
+        private readonly List<GraphNode> _nodes = new List<GraphNode>();
+        private readonly List<GraphEdge> _edges = new List<GraphEdge>();
         public string Id => _id;
         public string Name => _name;
         public int Version => _version;
@@ -151,11 +154,29 @@ namespace RuneCode
             _name = name;
         }
 
+        /// <summary>
+        /// 저장 데이터 복원용으로 ID·이름·스키마 버전과 노드·엣지 목록을 그대로 받아 그래프를 만든다.
+        /// 중복·참조를 정리하지 않으므로 외부 데이터는 SpellGraphValidator로 검증한다.
+        /// </summary>
+        public SpellGraph(string id, string name, int version, IEnumerable<GraphNode> nodes, IEnumerable<GraphEdge> edges)
+            : this(id, name)
+        {
+            _version = version;
+            if (nodes != null)
+            {
+                _nodes.AddRange(nodes);
+            }
+            if (edges != null)
+            {
+                _edges.AddRange(edges);
+            }
+        }
+
         /// <summary>삭제할 수 없는 시전 Core가 포함된 새 마법을 반환한다.</summary>
         public static SpellGraph Create(string id, string name)
         {
             SpellGraph graph = new SpellGraph(id, name);
-            graph.AddNode(new GraphNode("core", "core.cast", 80f, 140f));
+            graph.AddNode(new GraphNode("core", SpellGrammar.CORE_RUNE, 80f, 140f));
             return graph;
         }
 
@@ -185,7 +206,7 @@ namespace RuneCode
         public bool RemoveNode(string id)
         {
             GraphNode node = FindNode(id);
-            if (node == null || node.RuneId == "core.cast") return false;
+            if (node == null || node.RuneId == SpellGrammar.CORE_RUNE) return false;
             _nodes.Remove(node);
             _edges.RemoveAll(edge => edge.FromNode == id || edge.ToNode == id);
             return true;
@@ -230,17 +251,22 @@ namespace RuneCode
         /// <summary>ID·이름·스키마 버전을 유지하고 노드와 엣지만 전달된 목록으로 바꾼 새 그래프를 반환한다. 컴파일 정규화에서만 사용한다.</summary>
         internal SpellGraph CopyWith(IEnumerable<GraphNode> nodes, IEnumerable<GraphEdge> edges)
         {
-            SpellGraph copy = new SpellGraph(_id, _name) { _version = _version };
-            copy._nodes.AddRange(nodes);
-            copy._edges.AddRange(edges);
-            return copy;
+            return new SpellGraph(_id, _name, _version, nodes, edges);
         }
 
-        /// <summary>노드와 파라미터가 독립된 복사본을 만들고 선택적으로 새 ID를 지정한다.</summary>
+        /// <summary>
+        /// 노드와 파라미터 목록이 독립된 깊은 복사본을 만들고 선택적으로 새 ID를 지정한다.
+        /// 파라미터와 엣지는 변경 불가 값이라 공유하며, 이전 룬이 남아 있으면 문법 블록으로 변환한다.
+        /// </summary>
         public SpellGraph Clone(string id = null)
         {
-            SpellGraph clone = ShareCodec.Deserialize(ShareCodec.Serialize(this));
-            if (id != null) clone.SetIdentity(id);
+            var nodes = new List<GraphNode>(_nodes.Count);
+            foreach (GraphNode node in _nodes)
+            {
+                nodes.Add(new GraphNode(node.Id, node.RuneId, node.X, node.Y, node.Params));
+            }
+            SpellGraph clone = new SpellGraph(id ?? _id, _name, _version, nodes, _edges);
+            SpellGraphMigration.Migrate(clone);
             return clone;
         }
     }

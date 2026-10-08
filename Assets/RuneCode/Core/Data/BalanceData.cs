@@ -243,6 +243,13 @@ namespace RuneCode
         public RamBalance Ram => _ram;
         public SimulationBalance Sim => _sim;
 
+        private GrammarLimits _grammar;
+
+        /// <summary>문법 엔진(컴파일러)에 전달할 한도·기본값을 이 밸런스 값으로 만들어 반환한다. 처음 요청할 때 한 번 만든다.</summary>
+        public GrammarLimits Grammar => _grammar ??= new GrammarLimits(_limits.MaxGraphNodes, _limits.MaxGraphEdges,
+            _limits.HitTriggerCap, _limits.MaxCompiledActions, _limits.MaxLiveSpellEntities, _economy.BaseCapacity,
+            _player.MaxEnergy, _ram.CooldownBase, _ram.CooldownPerRam);
+
         /// <summary>밸런스 JSON을 읽고 필수 설정과 양수 제한값을 검증하여 반환한다.</summary>
         public static BalanceData FromJson(string json)
         {
