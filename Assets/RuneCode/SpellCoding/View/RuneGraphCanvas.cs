@@ -1,19 +1,17 @@
 using System;
 using System.Collections.Generic;
-
-using UnityEngine;
-
 using TMPro;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace RuneCode
 {
     [RequireComponent(typeof(CanvasRenderer))]
-    public sealed class RuneGraphCanvas : UnityEngine.UI.MaskableGraphic, IPointerDownHandler, IPointerUpHandler,
-        IDragHandler, IBeginDragHandler, IEndDragHandler, IScrollHandler, IPointerMoveHandler
+    public sealed class RuneGraphCanvas : UnityEngine.UI.MaskableGraphic, IPointerDownHandler, IPointerUpHandler, IDragHandler, IBeginDragHandler, IEndDragHandler, IScrollHandler, IPointerMoveHandler
     {
         private const float NODE_WIDTH = 160f;
         private const float PORT_SPACING = 23f;
+        private const float LABEL_FONT_SIZE = 12f;
         private const float AUTO_CONNECT_DISTANCE = 175f;
         private const float AUTO_CHAIN_DISTANCE = 320f;
 
@@ -23,6 +21,10 @@ namespace RuneCode
         private readonly Dictionary<string, TextMeshProUGUI> _labels = new Dictionary<string, TextMeshProUGUI>();
         private readonly Dictionary<string, Vector2> _dragOrigins = new Dictionary<string, Vector2>();
         private readonly Dictionary<string, float> _executedUntil = new Dictionary<string, float>();
+        private readonly Dictionary<string, GraphNode> _nodeLookup = new Dictionary<string, GraphNode>();
+        private readonly Dictionary<string, bool[]> _connectablePorts = new Dictionary<string, bool[]>();
+        private readonly HashSet<string> _existingNodes = new HashSet<string>();
+        private readonly List<string> _staleIds = new List<string>();
         private ISpellEditor _editor;
         private TMP_FontAsset _font;
         private Vector2 _pan = new Vector2(30, -35);
@@ -37,6 +39,8 @@ namespace RuneCode
         private string _sourcePort;
         private string _sourceKind;
         private bool _isSourceOutput;
+        private GraphNode _hoveredNode;
+        private bool _isHoverValid;
         private Action<GraphNode> _selectionChanged;
         private Action<GraphNode> _hoverChanged;
         private Action<Vector2> _quickPlacement;
@@ -71,8 +75,7 @@ namespace RuneCode
             float maximumY = float.MinValue;
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
-                RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-                float height = 39 + Math.Max(CountPorts(rune, "in"), CountPorts(rune, "out")) * PORT_SPACING;
+                float height = NodeHeight(GameData.Runes.Get(node.RuneId));
                 minimumX = Mathf.Min(minimumX, node.X); minimumY = Mathf.Min(minimumY, node.Y);
                 maximumX = Mathf.Max(maximumX, node.X + NODE_WIDTH); maximumY = Mathf.Max(maximumY, node.Y + height);
             }
@@ -81,35 +84,32 @@ namespace RuneCode
             _pan = new Vector2(24 - minimumX * _zoom, -24 + minimumY * _zoom);
         }
 
-        /// <summary>현재 그래프의 노드 라벨과 메시를 갱신하고 사라진 노드의 선택을 해제한다.</summary>
+        /// <summary>현재 그래프의 노드 라벨 텍스트·배치와 메시를 갱신하고 사라진 노드의 선택을 해제한다.</summary>
         public void RefreshGraph()
         {
             if (_editor == null || _editor.Graph == null) return;
-            var existing = new HashSet<string>();
+            _existingNodes.Clear();
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
-                existing.Add(node.Id);
+                _existingNodes.Add(node.Id);
                 if (!_labels.TryGetValue(node.Id, out TextMeshProUGUI label))
                 {
                     var target = new GameObject("NodeLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
                     target.transform.SetParent(transform, false);
                     label = target.GetComponent<TextMeshProUGUI>();
                     label.font = _font;
-                    label.fontSize = 13;
+                    label.fontSize = LABEL_FONT_SIZE;
+                    label.color = Color.white;
                     label.raycastTarget = false;
                     label.textWrappingMode = TextWrappingModes.NoWrap;
                     label.overflowMode = TextOverflowModes.Overflow;
+                    RectTransform textRect = label.rectTransform;
+                    textRect.anchorMin = textRect.anchorMax = new Vector2(0, 1);
+                    textRect.pivot = new Vector2(0, 1);
                     _labels.Add(node.Id, label);
                 }
                 RuneDefinition rune = GameData.Runes.Get(node.RuneId);
                 int rows = Math.Max(CountPorts(rune, "in"), CountPorts(rune, "out"));
-                Rect rect = NodeRect(node, rune);
-                RectTransform textRect = label.rectTransform;
-                textRect.anchorMin = textRect.anchorMax = new Vector2(0, 1);
-                textRect.pivot = new Vector2(0, 1);
-                textRect.anchoredPosition = new Vector2(rect.x + 14 * _zoom, rect.yMax - rectTransform.rect.yMax - 10 * _zoom);
-                textRect.sizeDelta = new Vector2((NODE_WIDTH - 28) * _zoom, rect.height - 14 * _zoom);
-                label.fontSize = 12 * _zoom;
                 string text = "<b>" + rune.Name + "</b>  <color=#8EACC6>" + rune.Ram + " RAM</color>\n";
                 string summary = NodeSummary(node);
                 if (!string.IsNullOrEmpty(summary)) text += "<size=10><color=#A8C9D8>" + summary + "</color></size>\n";
@@ -120,13 +120,34 @@ namespace RuneCode
                     text += "<size=10>" + (input == null ? "" : input.Id) +
                         "<pos=75>" + (output == null ? "" : output.Id) + "</size>\n";
                 }
-                label.text = text;
-                label.color = Color.white;
+                if (label.text != text) label.text = text;
             }
-            var remove = new List<string>();
-            foreach (var pair in _labels) if (!existing.Contains(pair.Key)) remove.Add(pair.Key);
-            foreach (string id in remove) { Destroy(_labels[id].gameObject); _labels.Remove(id); }
-            _selected.RemoveWhere(id => !existing.Contains(id));
+            _staleIds.Clear();
+            foreach (var pair in _labels) if (!_existingNodes.Contains(pair.Key)) _staleIds.Add(pair.Key);
+            foreach (string id in _staleIds) { Destroy(_labels[id].gameObject); _labels.Remove(id); }
+            _selected.RemoveWhere(id => !_existingNodes.Contains(id));
+            _isHoverValid = false;
+            LayoutLabels();
+        }
+
+        /// <summary>
+        /// 화면 이동·확대 배율에 맞춰 라벨 위치와 스케일만 갱신하고 메시 재구성을 예약한다.
+        /// 글꼴 크기는 고정하고 Transform 스케일로 확대해 rich text 크기·위치 태그가 노드와 같은 비율을 유지한다.
+        /// </summary>
+        private void LayoutLabels()
+        {
+            if (_editor == null || _editor.Graph == null) return;
+            Vector3 scale = new Vector3(_zoom, _zoom, 1);
+            foreach (GraphNode node in _editor.Graph.Nodes)
+            {
+                if (!_labels.TryGetValue(node.Id, out TextMeshProUGUI label)) continue;
+                RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+                Rect rect = NodeRect(node, rune);
+                RectTransform textRect = label.rectTransform;
+                textRect.anchoredPosition = new Vector2(rect.x + 14 * _zoom, rect.yMax - rectTransform.rect.yMax - 10 * _zoom);
+                textRect.sizeDelta = new Vector2(NODE_WIDTH - 28, NodeHeight(rune) - 14);
+                textRect.localScale = scale;
+            }
             SetVerticesDirty();
         }
 
@@ -283,10 +304,11 @@ namespace RuneCode
                 for (float y = bounds.yMax + _pan.y % step; y > bounds.yMin; y -= step)
                     RuneMesh.Rect(mesh, new Rect(x, y, 1.5f, 1.5f), new Color(0.16f, 0.24f, 0.31f));
             if (_editor == null || _editor.Graph == null) return;
+            RebuildNodeLookup();
             foreach (GraphEdge edge in _editor.Graph.Edges)
             {
-                Vector2 from = PortPosition(edge.FromNode, edge.FromPort);
-                Vector2 to = PortPosition(edge.ToNode, edge.ToPort);
+                Vector2 from = LookupPortPosition(edge.FromNode, edge.FromPort);
+                Vector2 to = LookupPortPosition(edge.ToNode, edge.ToPort);
                 Color edgeColor = edge.FromPort == "mod" ? new Color(0.70f, 0.47f, 0.98f)
                     : edge.ToPort == SpellGrammar.CHAIN_IN ? CHAIN_COLOR : new Color(0.2f, 0.70f, 0.82f);
                 RuneMesh.Line(mesh, from, to, 2.4f, edgeColor);
@@ -306,29 +328,19 @@ namespace RuneCode
                 int shape = rune.Category == SpellGrammar.CATEGORY_SHAPE ? 4 : rune.Category == SpellGrammar.CATEGORY_ELEMENT ? 3
                     : rune.Category == SpellGrammar.CATEGORY_MAGIC_TYPE ? 5 : rune.Category == "modifier" ? 6 : 20;
                 RuneMesh.Polygon(mesh, new Vector2(rect.x + 5 * _zoom, rect.yMax - 17 * _zoom), 3 * _zoom, accent, shape);
-                foreach (PortDefinition port in rune.Ports)
+                _connectablePorts.TryGetValue(node.Id, out bool[] connectable);
+                for (int i = 0; i < rune.Ports.Count; i++)
                 {
-                    Vector2 point = PortPosition(node.Id, port.Id);
+                    PortDefinition port = rune.Ports[i];
+                    Vector2 point = PortPosition(rect, rune, port.Id);
                     Color portColor = port.Kind == "mod" ? new Color(0.76f, 0.52f, 1f)
                         : port.Kind == SpellGrammar.CHAIN_KIND ? CHAIN_COLOR : new Color(0.32f, 0.88f, 0.98f);
                     if (_sourceNode != null)
-                    {
-                        bool isOppositeDirection = port.Direction == (_isSourceOutput ? "in" : "out");
-                        if (!isOppositeDirection) portColor = new Color(1, 0.26f, 0.29f);
-                        else
-                        {
-                            string fromNode = _isSourceOutput ? _sourceNode : node.Id;
-                            string fromPort = _isSourceOutput ? _sourcePort : port.Id;
-                            string toNode = _isSourceOutput ? node.Id : _sourceNode;
-                            string toPort = _isSourceOutput ? port.Id : _sourcePort;
-                            portColor = _editor.CanConnectPorts(fromNode, fromPort, toNode, toPort)
-                                ? new Color(0.28f, 1, 0.57f) : new Color(1, 0.26f, 0.29f);
-                        }
-                    }
+                        portColor = connectable != null && connectable[i] ? new Color(0.28f, 1, 0.57f) : new Color(1, 0.26f, 0.29f);
                     RuneMesh.Polygon(mesh, point, 5 * _zoom, portColor, port.Kind == "mod" ? 4 : port.Kind == SpellGrammar.CHAIN_KIND ? 6 : 16);
                 }
             }
-            if (_sourceNode != null) RuneMesh.Line(mesh, PortPosition(_sourceNode, _sourcePort), _pointer, 2.4f, Color.white);
+            if (_sourceNode != null) RuneMesh.Line(mesh, LookupPortPosition(_sourceNode, _sourcePort), _pointer, 2.4f, Color.white);
             if (_isBoxSelecting)
             {
                 Rect selection = MakeRect(_dragStart, _pointer);
@@ -340,7 +352,12 @@ namespace RuneCode
 
         void Update()
         {
-            if (_executedUntil.Count > 0) SetVerticesDirty();
+            if (_executedUntil.Count == 0) return;
+            _staleIds.Clear();
+            foreach (var pair in _executedUntil) if (pair.Value <= Time.unscaledTime) _staleIds.Add(pair.Key);
+            if (_staleIds.Count == 0) return;
+            foreach (string id in _staleIds) _executedUntil.Remove(id);
+            SetVerticesDirty();
         }
 
         /// <summary>포인터 위치에서 연결, 노드 선택, 화면 이동 또는 영역 선택을 시작한다.</summary>
@@ -354,10 +371,11 @@ namespace RuneCode
             if (eventData.button == PointerEventData.InputButton.Middle) { _isPanning = true; return; }
             if (eventData.button == PointerEventData.InputButton.Right)
             {
+                RebuildNodeLookup();
                 foreach (GraphEdge edge in _editor.Graph.Edges)
                 {
-                    Vector2 from = PortPosition(edge.FromNode, edge.FromPort);
-                    Vector2 to = PortPosition(edge.ToNode, edge.ToPort);
+                    Vector2 from = LookupPortPosition(edge.FromNode, edge.FromPort);
+                    Vector2 to = LookupPortPosition(edge.ToNode, edge.ToPort);
                     Vector2 span = to - from;
                     float t = Mathf.Clamp01(Vector2.Dot(_pointer - from, span) / Mathf.Max(1, span.sqrMagnitude));
                     if (Vector2.Distance(_pointer, from + span * t) < 8) { _editor.RemoveEdge(edge.Id); RefreshGraph(); return; }
@@ -368,6 +386,7 @@ namespace RuneCode
             if (FindPort(_pointer, out GraphNode portNode, out PortDefinition port))
             {
                 _sourceNode = portNode.Id; _sourcePort = port.Id; _sourceKind = port.Kind; _isSourceOutput = port.Direction == "out";
+                CacheConnectablePorts();
                 SetVerticesDirty(); return;
             }
             GraphNode selected = FindNodeAt(_pointer);
@@ -400,14 +419,14 @@ namespace RuneCode
         public void OnDrag(PointerEventData eventData)
         {
             _pointer = Local(eventData);
-            if (_isPanning) { _pan = _panStart + _pointer - _dragStart; RefreshGraph(); }
+            if (_isPanning) _pan = _panStart + _pointer - _dragStart;
             if (_isNodeDragging)
             {
                 Vector2 difference = (_pointer - _dragStart) / _zoom;
                 foreach (var pair in _dragOrigins) FindNode(pair.Key)?.Move(pair.Value.x + difference.x, pair.Value.y - difference.y);
-                RefreshGraph();
             }
-            SetVerticesDirty();
+            if (_isPanning || _isNodeDragging) LayoutLabels();
+            else SetVerticesDirty();
         }
 
         /// <summary>연결 시도와 영역 선택을 확정하고 그래프 변경을 애플리케이션에 알린다.</summary>
@@ -427,6 +446,7 @@ namespace RuneCode
             }
             if (_isNodeDragging && Vector2.Distance(_pointer, _dragStart) > 1) _editor.MarkChanged();
             _sourceNode = null; _isPanning = false; _isNodeDragging = false; _isBoxSelecting = false;
+            _connectablePorts.Clear();
             RefreshGraph();
         }
 
@@ -443,11 +463,18 @@ namespace RuneCode
             float next = Mathf.Clamp(_zoom * (eventData.scrollDelta.y > 0 ? 1.1f : 0.9f), 0.45f, 1.5f);
             _pan = point - (point - _pan) * (next / _zoom);
             _zoom = next;
-            RefreshGraph();
+            LayoutLabels();
         }
 
-        /// <summary>포인터 아래 노드의 툴팁에 사용할 선택 정보를 전달한다.</summary>
-        public void OnPointerMove(PointerEventData eventData) { _hoverChanged(FindNodeAt(Local(eventData))); }
+        /// <summary>포인터 아래 노드가 바뀐 경우에만 툴팁에 사용할 노드 정보를 전달한다.</summary>
+        public void OnPointerMove(PointerEventData eventData)
+        {
+            GraphNode hovered = FindNodeAt(Local(eventData));
+            if (_isHoverValid && hovered == _hoveredNode) return;
+            _hoveredNode = hovered;
+            _isHoverValid = true;
+            _hoverChanged(hovered);
+        }
 
         /// <summary>화면 포인터를 그래프 RectTransform의 로컬 좌표로 변환한다.</summary>
         private Vector2 Local(PointerEventData eventData)
@@ -484,29 +511,78 @@ namespace RuneCode
         /// <summary>화면 위치에 가장 가까운 연결 포트를 찾아 노드와 포트 정의를 반환한다.</summary>
         private bool FindPort(Vector2 point, out GraphNode foundNode, out PortDefinition foundPort)
         {
+            float radius = Mathf.Max(8, 9 * _zoom);
             foreach (GraphNode node in _editor.Graph.Nodes)
-                foreach (PortDefinition port in GameData.Runes.Get(node.RuneId).Ports)
-                    if (Vector2.Distance(point, PortPosition(node.Id, port.Id)) < Mathf.Max(8, 9 * _zoom))
-                    { foundNode = node; foundPort = port; return true; }
+            {
+                RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+                Rect rect = NodeRect(node, rune);
+                foreach (PortDefinition port in rune.Ports)
+                    if (Vector2.Distance(point, PortPosition(rect, rune, port.Id)) < radius)
+                    {
+                        foundNode = node; foundPort = port;
+                        return true;
+                    }
+            }
             foundNode = null; foundPort = null; return false;
+        }
+
+        /// <summary>
+        /// 연결 시작 포트 기준으로 모든 노드 포트의 연결 가능 여부를 계산해 노드 ID별 포트 순번 배열로 저장한다.
+        /// 연결 드래그 동안 그래프가 바뀌지 않으므로 메시 재구성마다 규칙 검사를 반복하지 않는다.
+        /// </summary>
+        private void CacheConnectablePorts()
+        {
+            _connectablePorts.Clear();
+            string oppositeDirection = _isSourceOutput ? "in" : "out";
+            foreach (GraphNode node in _editor.Graph.Nodes)
+            {
+                IReadOnlyList<PortDefinition> ports = GameData.Runes.Get(node.RuneId).Ports;
+                var connectable = new bool[ports.Count];
+                for (int i = 0; i < ports.Count; i++)
+                {
+                    PortDefinition port = ports[i];
+                    if (port.Direction != oppositeDirection) continue;
+                    connectable[i] = _isSourceOutput
+                        ? _editor.CanConnectPorts(_sourceNode, _sourcePort, node.Id, port.Id)
+                        : _editor.CanConnectPorts(node.Id, port.Id, _sourceNode, _sourcePort);
+                }
+                _connectablePorts[node.Id] = connectable;
+            }
+        }
+
+        /// <summary>현재 그래프 노드를 ID로 찾는 조회 테이블을 다시 채운다.</summary>
+        private void RebuildNodeLookup()
+        {
+            _nodeLookup.Clear();
+            foreach (GraphNode node in _editor.Graph.Nodes) _nodeLookup[node.Id] = node;
+        }
+
+        /// <summary>조회 테이블에서 노드를 찾아 포트 중심의 화면 좌표를 반환하며 노드가 없으면 원점을 반환한다. RebuildNodeLookup 이후 호출한다.</summary>
+        private Vector2 LookupPortPosition(string nodeId, string portId)
+        {
+            if (!_nodeLookup.TryGetValue(nodeId, out GraphNode node)) return Vector2.zero;
+            RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+            return PortPosition(NodeRect(node, rune), rune, portId);
+        }
+
+        /// <summary>룬 포트 수로 계산한 배율 적용 전 노드 높이를 반환한다.</summary>
+        private static float NodeHeight(RuneDefinition rune)
+        {
+            return 39 + Math.Max(CountPorts(rune, "in"), CountPorts(rune, "out")) * PORT_SPACING;
         }
 
         /// <summary>룬 포트 수와 배율을 반영한 화면상의 노드 사각형을 반환한다.</summary>
         private Rect NodeRect(GraphNode node, RuneDefinition rune)
         {
-            float height = 39 + Math.Max(CountPorts(rune, "in"), CountPorts(rune, "out")) * PORT_SPACING;
+            float height = NodeHeight(rune);
             float x = rectTransform.rect.xMin + _pan.x + node.X * _zoom;
             float y = rectTransform.rect.yMax + _pan.y - node.Y * _zoom;
             return new Rect(x, y - height * _zoom, NODE_WIDTH * _zoom, height * _zoom);
         }
 
-        /// <summary>노드 ID와 포트 ID에 대응하는 포트 중심의 화면 좌표를 반환한다.</summary>
-        private Vector2 PortPosition(string nodeId, string portId)
+        /// <summary>노드 화면 사각형과 룬 정의에서 포트 ID에 대응하는 포트 중심의 화면 좌표를 반환한다.</summary>
+        private Vector2 PortPosition(Rect rect, RuneDefinition rune, string portId)
         {
-            GraphNode node = FindNode(nodeId);
-            if (node == null) return Vector2.zero;
-            RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            Rect rect = NodeRect(node, rune);
             foreach (PortDefinition port in rune.Ports)
                 if (port.Id == portId)
                 {
