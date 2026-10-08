@@ -9,8 +9,10 @@ namespace RuneCode
     [Serializable]
     public sealed class PlayerSave
     {
+        private const string DEFAULT_SPELL_ID = "spell-1";
+
         [Header("저장 버전")]
-        [SerializeField] private int _version = 2;
+        [SerializeField] private int _version = 3;
 
         [Header("완드 및 진행")]
         [SerializeField] private int _currency;
@@ -23,7 +25,6 @@ namespace RuneCode
         [SerializeField] private int _selectedStage = 1;
         [SerializeField] private string _activeSpellId;
         [SerializeField] private bool _sectorCleared;
-        [SerializeField] private List<string> _unlockedRunes = new List<string>();
         [SerializeField] private List<SpellGraph> _library = new List<SpellGraph>();
         [SerializeField] private List<string> _loadout = new List<string>();
         [SerializeField] private List<KillRecord> _killCounts = new List<KillRecord>();
@@ -44,7 +45,6 @@ namespace RuneCode
         public int SelectedStage => _selectedStage;
         public string ActiveSpellId => _activeSpellId;
         public bool SectorCleared => _sectorCleared;
-        public IReadOnlyList<string> UnlockedRunes => _unlockedRunes;
         public IReadOnlyList<SpellGraph> Library => _library;
         public IReadOnlyList<string> Loadout => _loadout;
         public IReadOnlyList<KillRecord> KillCounts => _killCounts;
@@ -52,13 +52,11 @@ namespace RuneCode
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
 
-        /// <summary>시작 룬과 계속 강화할 파이어 볼트 하나를 가진 새 진행 데이터를 반환한다.</summary>
+        /// <summary>기본 그래프 마법 하나를 보관함과 첫 슬롯에 넣은 새 진행 데이터를 반환한다.</summary>
         public static PlayerSave CreateNew()
         {
             var save = new PlayerSave();
-            foreach (var rune in GameData.Runes.All)
-                if (rune.UnlockType == "start") save._unlockedRunes.Add(rune.Id);
-            save._library.Add(GameData.Spells[0].Clone());
+            save._library.Add(SpellGraph.Create(DEFAULT_SPELL_ID, GameData.L("spell.defaultName")));
             save._activeSpellId = save._library[0].Id;
             save._loadout.Add(save._library[0].Id);
             save._loadout.Add(null);
@@ -66,12 +64,12 @@ namespace RuneCode
             return save;
         }
 
-        /// <summary>저장된 값과 룬·마법 참조를 검사하고 유효하지 않은 저장이면 원인을 반환한다.</summary>
+        /// <summary>저장된 값과 마법 노드 종류를 검사하고 유효하지 않은 저장이면 원인을 반환한다.</summary>
         public bool Validate(out string error)
         {
             error = null;
             var economy = GameData.Balance.Economy;
-            if (_version != 2 || _currency < 0 || _currency > 100000000 ||
+            if (_version != 3 || _currency < 0 || _currency > 100000000 ||
                 _capacityLevel < 0 || _capacityLevel > economy.MaxGrowthLevel ||
                 _energyLevel < 0 || _energyLevel > economy.MaxGrowthLevel ||
                 _hpLevel < 0 || _hpLevel > economy.StatCosts.Count ||
@@ -84,7 +82,7 @@ namespace RuneCode
                 return false;
             }
             if (_library == null || _library.Count == 0 || _library.Count > economy.MaxLibrary ||
-                _loadout == null || _loadout.Count != 3 || _unlockedRunes == null || _killCounts == null)
+                _loadout == null || _loadout.Count != 3 || _killCounts == null)
             {
                 error = "save.invalidStructure";
                 return false;
@@ -101,18 +99,12 @@ namespace RuneCode
                 {
                     ShareCodec.Deserialize(ShareCodec.Serialize(graph));
                     foreach (var node in graph.Nodes)
-                        if (!GameData.Runes.TryGet(node.RuneId, out _))
+                        if (!SpellNodes.TryParse(node.RuneId, out _))
                         { error = "save.invalidStructure"; return false; }
                 }
                 catch (Exception exception) when (exception is FormatException || exception is ArgumentException)
                 { error = "save.invalidStructure"; return false; }
             }
-            foreach (var runeId in _unlockedRunes)
-                if (!GameData.Runes.TryGet(runeId, out _))
-                {
-                    error = "save.invalidStructure";
-                    return false;
-                }
             var killIds = new HashSet<string>();
             foreach (var record in _killCounts)
                 if (record == null || string.IsNullOrWhiteSpace(record.Id) || record.Id.Length > 80 || record.Count < 0 || !killIds.Add(record.Id))
@@ -145,6 +137,19 @@ namespace RuneCode
             _durationLevel = 0; _highestClearedStage = _sectorCleared ? 1 : 0;
             _selectedStage = _highestClearedStage + 1;
             _version = 2;
+        }
+
+        /// <summary>v2 진행값을 유지하고 그래프는 기본 그래프로 다시 시작하며 튜토리얼을 처음부터 보이게 한다.</summary>
+        public void MigrateToGraphTokens()
+        {
+            if (_version != 2) return;
+            var graph = SpellGraph.Create(DEFAULT_SPELL_ID, GameData.L("spell.defaultName"));
+            _library = new List<SpellGraph> { graph };
+            _activeSpellId = graph.Id;
+            _loadout = new List<string> { graph.Id, null, null };
+            _slotCount = 1;
+            _tutorialStep = 0;
+            _version = 3;
         }
 
         /// <summary>해금한 범위 안의 전투 스테이지를 선택하고 저장 상태를 변경한다.</summary>
@@ -202,14 +207,13 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>양수 RAM 보상을 누적하고 시간제 전투 완주 시 노이즈 룬을 해금한다.</summary>
+        /// <summary>양수 조각 보상을 누적하고 시간제 전투 완주 시 섹터 클리어 기록을 남긴다.</summary>
         public void Settle(int fragments, bool cleared)
         {
             _currency = (int)Math.Min(100000000L, _currency + (long)Math.Max(0, fragments));
             if (cleared)
             {
                 _sectorCleared = true;
-                Unlock("mod.noise");
             }
         }
 
@@ -234,13 +238,6 @@ namespace RuneCode
                 case "energy": if (_energyLevel < GameData.Balance.Economy.MaxGrowthLevel) _energyLevel++; break;
                 case "duration": if (_durationLevel < GameData.Balance.Economy.MaxDurationLevel) _durationLevel++; break;
             }
-        }
-
-        /// <summary>유효한 룬 ID를 중복 없이 해금 목록에 추가한다.</summary>
-        public void Unlock(string runeId)
-        {
-            if (GameData.Runes.TryGet(runeId, out _) && !_unlockedRunes.Contains(runeId))
-                _unlockedRunes.Add(runeId);
         }
 
         /// <summary>진행한 튜토리얼 단계를 완료 범위 안에서 저장한다.</summary>

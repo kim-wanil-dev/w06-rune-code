@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace RuneCode
@@ -68,7 +67,6 @@ namespace RuneCode
 
     public sealed class SimulationPlayer
     {
-        private readonly double[] _cooldowns = new double[3];
         private SimVector _position;
         private SimVector _aimDirection = new SimVector(1, 0);
         private SimVector _dashDirection;
@@ -90,7 +88,6 @@ namespace RuneCode
         public double Shield => _shield;
         public double DashCooldown => _dashCooldown;
         public double DashRemaining => _dashRemaining;
-        public IReadOnlyList<double> Cooldowns => _cooldowns;
 
         /// <summary>최대 체력과 에너지 및 시작 위치로 플레이어의 전투 상태를 초기화한다.</summary>
         internal SimulationPlayer(double hp, double energy, SimVector position) { _maxHp = hp; _hp = hp; _maxEnergy = energy; _energy = energy; _position = position; }
@@ -101,13 +98,13 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>쿨다운과 에너지를 확인하여 슬롯의 시전 비용을 선지불하고 성공 여부를 반환한다.</summary>
-        internal bool Pay(CompiledSpell spell, int slot)
-        { if (_cooldowns[slot] > 0.000001 || _energy + 0.000001 < spell.EnergyCost) return false; _energy -= spell.EnergyCost; _cooldowns[slot] = spell.Cooldown; return true; }
+        /// <summary>마나풀 에너지가 요구량 이상이면 요구량만큼 차감하고 성공 여부를 반환한다.</summary>
+        internal bool TrySpendEnergy(double amount)
+        { if (_energy < amount) return false; _energy -= amount; return true; }
 
-        /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
+        /// <summary>시간 경과에 따라 에너지를 회복하고 대시 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
-        { _energy = Math.Min(_maxEnergy, _energy + dt * regen); for (int i = 0; i < _cooldowns.Length; i++) _cooldowns[i] = Math.Max(0, _cooldowns[i] - dt); _dashCooldown = Math.Max(0, _dashCooldown - dt); _dashRemaining = Math.Max(0, _dashRemaining - dt); if (time >= _shieldUntil) _shield = 0; }
+        { _energy = Math.Min(_maxEnergy, _energy + dt * regen); _dashCooldown = Math.Max(0, _dashCooldown - dt); _dashRemaining = Math.Max(0, _dashRemaining - dt); if (time >= _shieldUntil) _shield = 0; }
 
         /// <summary>대시가 가능한 경우 방향, 지속 시간, 무적 및 쿨다운을 설정한다.</summary>
         internal bool StartDash(SimVector direction, double seconds, double cooldown, double time)
@@ -124,13 +121,12 @@ namespace RuneCode
         internal void GiveShield(double amount, double seconds, double time) { _shield = Math.Max(_shield, amount); _shieldUntil = time + seconds; }
 
         /// <summary>터미널에 도착하여 최대 체력 비율을 회복하고 에너지를 충전한다.</summary>
-        internal void Rest(double healFraction) { _hp = Math.Min(_maxHp, _hp + _maxHp * healFraction); _energy = _maxEnergy; for (int i = 0; i < _cooldowns.Length; i++) _cooldowns[i] = 0; _dashRemaining = 0; }
+        internal void Rest(double healFraction) { _hp = Math.Min(_maxHp, _hp + _maxHp * healFraction); _energy = _maxEnergy; _dashRemaining = 0; }
 
         /// <summary>위치, 능력치, 보호막, 대시 및 무적의 현재와 예정 상태를 결정성 해시 버퍼에 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}"));
-            foreach (double cooldown in _cooldowns) state.Append(FormattableString.Invariant($"|{cooldown:R}"));
         }
     }
 
@@ -178,6 +174,7 @@ namespace RuneCode
         public double Damage => _damage;
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
+        public double Armor => _isDummy ? 0 : _definition.Armor;
         public bool IsAlive => _hp > 0;
         public bool IsBurning => _observedTime < _burnUntil;
         public int ChillStacks => _chillStacks;
@@ -216,6 +213,10 @@ namespace RuneCode
         /// <summary>피해를 체력에 적용하고 실제 감소량을 반환하며 피격 표시 시간을 설정한다.</summary>
         internal double Hurt(double damage, double time) { double actual = Math.Min(_hp, Math.Max(0, damage)); _hp -= actual; _flashUntil = time + _hitFlashSeconds; return actual; }
 
+        /// <summary>위력에서 경감을 뺀 실피해를 적용하고 실제 감소량을 반환하며, 더미는 체력을 줄이지 않고 피해 수치와 피격 표시만 반환한다.</summary>
+        internal double TakeSpellDamage(double power, double time)
+        { if (!IsAlive) return 0; double damage = Math.Max(0, power - Armor); if (_isDummy) { _flashUntil = time + _hitFlashSeconds; return damage; } return Hurt(damage, time); }
+
         /// <summary>화염 피해의 출처를 보관하고 지속시간을 갱신하되 진행 중인 틱을 유지한다.</summary>
         internal void Burn(double time, double duration, double interval, string form, bool noise)
         { if (time >= _burnUntil) _burnNext = time + interval; _burnUntil = time + duration; _burnForm = form; _burnNoise = noise; }
@@ -243,62 +244,6 @@ namespace RuneCode
             state.Append(FormattableString.Invariant($"|{_damage:R}|{_damageMultiplier:R}|{_reward}"));
             state.Append('|').Append(_lastDamageElement).Append('|').Append(_lastDamageForm);
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_burnUntil:R}|{_burnNext:R}|{_burnForm}|{_burnNoise}|{_chillUntil:R}|{_chillStacks}|{_freezeUntil:R}|{_freezeImmuneUntil:R}|{_empUntil:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));
-        }
-    }
-
-    public sealed class SimulationSpellEntity
-    {
-        private readonly int _id;
-        private readonly SpellAction _action;
-        private readonly string _element;
-        private readonly string _castNoiseElement;
-        private readonly bool _fromEvent;
-        private readonly double _visualSeconds;
-        private readonly SimVector _anchor;
-        private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
-        private SimVector _position;
-        private SimVector _direction;
-        private double _age;
-        private double _angle;
-        private int _hits;
-        private int _triggerCount;
-        private bool _hasExpired;
-        public int Id => _id;
-        public string Kind => _action.Form;
-        public string Element => _element;
-        public SimVector Position => _position;
-        public SimVector Direction => _direction;
-        public double Radius => _action.Stats.Radius;
-        public double Age => _age;
-        public double Lifetime => _action.Form == "burst" ? _visualSeconds : _action.Stats.Lifetime;
-        public string NodeId => _action.NodeId;
-        internal SpellAction Action => _action;
-        internal bool FromEvent => _fromEvent;
-        internal string CastNoiseElement => _castNoiseElement;
-        internal SimVector Anchor => _anchor;
-        internal Dictionary<int, double> HitTimes => _hitTimes;
-        internal int Hits { get => _hits; set => _hits = value; }
-        internal int TriggerCount { get => _triggerCount; set => _triggerCount = value; }
-        internal double Angle { get => _angle; set => _angle = value; }
-        internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
-
-        /// <summary>컴파일된 Form, 속성, 위치, 방향 및 앵커 컨텍스트로 스펠 개체를 생성한다.</summary>
-        internal SimulationSpellEntity(int id, SpellAction action, string element, SimVector position, SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement, double visualSeconds)
-        { _id = id; _action = action; _element = element; _castNoiseElement = castNoiseElement; _position = position; _direction = direction; _fromEvent = fromEvent; _visualSeconds = visualSeconds; _anchor = anchor; _angle = angle; }
-
-        /// <summary>스펠 개체의 위치와 진행 방향을 갱신한다.</summary>
-        internal void Move(SimVector position, SimVector direction) { _position = position; _direction = direction; }
-
-        /// <summary>스펠 개체의 수명 경과를 고정 시간만큼 증가시킨다.</summary>
-        internal void Advance(double dt) { _age += dt; }
-
-        /// <summary>마법의 이동, 앵커, 수명, 적중 대상 및 이벤트 실행 상태를 결정성 해시 버퍼에 기록한다.</summary>
-        internal void WriteState(StringBuilder state)
-        {
-            state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}"));
-            var ids = new List<int>(_hitTimes.Keys); ids.Sort();
-            foreach (int id in ids) state.Append(FormattableString.Invariant($"|{id}:{_hitTimes[id]:R}"));
         }
     }
 

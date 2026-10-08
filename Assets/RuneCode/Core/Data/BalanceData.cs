@@ -36,50 +36,14 @@ namespace RuneCode
     public sealed class LimitBalance
     {
         [Header("제한")]
-        [SerializeField] private int _maxLiveSpellEntities;
-        [SerializeField] private int _hitTriggerCap;
         [SerializeField] private int _maxFrameSteps;
         [SerializeField] private int _maxGraphNodes;
         [SerializeField] private int _maxGraphEdges;
         [SerializeField] private int _maxEnemies = 300;
-        [SerializeField] private int _maxCompiledActions = 2048;
-        [SerializeField] private int _maxScheduledExecutions = 2048;
-        [SerializeField] private int _maxActionsPerTick = 512;
-        public int MaxLiveSpellEntities => _maxLiveSpellEntities;
-        public int HitTriggerCap => _hitTriggerCap;
         public int MaxFrameSteps => _maxFrameSteps;
         public int MaxGraphNodes => _maxGraphNodes;
         public int MaxGraphEdges => _maxGraphEdges;
         public int MaxEnemies => _maxEnemies;
-        public int MaxCompiledActions => _maxCompiledActions;
-        public int MaxScheduledExecutions => _maxScheduledExecutions;
-        public int MaxActionsPerTick => _maxActionsPerTick;
-    }
-
-    [Serializable]
-    public sealed class AdaptationBalance
-    {
-        [Header("적응")]
-        [SerializeField] private float _elementLearning;
-        [SerializeField] private float _formLearning;
-        [SerializeField] private float _elementCap;
-        [SerializeField] private float _formCap;
-        [SerializeField] private float _dotWeight;
-        [SerializeField] private float _noiseMultiplier;
-        [SerializeField] private float _relayMultiplier;
-        [SerializeField] private float _decayDelay;
-        [SerializeField] private float _decayPerSecond;
-        [SerializeField] private float _resistanceThreshold;
-        public float ElementLearning => _elementLearning;
-        public float FormLearning => _formLearning;
-        public float ElementCap => _elementCap;
-        public float FormCap => _formCap;
-        public float DotWeight => _dotWeight;
-        public float NoiseMultiplier => _noiseMultiplier;
-        public float RelayMultiplier => _relayMultiplier;
-        public float DecayDelay => _decayDelay;
-        public float DecayPerSecond => _decayPerSecond;
-        public float ResistanceThreshold => _resistanceThreshold;
     }
 
     [Serializable]
@@ -165,18 +129,6 @@ namespace RuneCode
     }
 
     [Serializable]
-    public sealed class RamBalance
-    {
-        [Header("RAM")]
-        [SerializeField] private string _mode;
-        [SerializeField] private float _cooldownBase;
-        [SerializeField] private float _cooldownPerRam;
-        public string Mode => _mode;
-        public float CooldownBase => _cooldownBase;
-        public float CooldownPerRam => _cooldownPerRam;
-    }
-
-    [Serializable]
     public sealed class SimulationBalance
     {
         [Header("시뮬레이션")]
@@ -225,44 +177,136 @@ namespace RuneCode
     }
 
     [Serializable]
+    public sealed class SpellSettings
+    {
+        [Header("마법 그래프")]
+        [SerializeField] private float _basePower;
+        [SerializeField] private float _tokenLifetime;
+        [SerializeField] private int _maxNodesPerFrame;
+        [SerializeField] private float _manaMax;
+        [SerializeField] private float _manaRegen;
+        [SerializeField] private float _loadMin;
+        [SerializeField] private float _loadMax;
+        [SerializeField] private float _loadDefault;
+        [SerializeField] private float _loadStep;
+        [SerializeField] private float _costFloor;
+        [SerializeField] private float _projectileCostPerShot;
+        [SerializeField] private float _amplifyCostFactor;
+        [SerializeField] private float _addCost;
+        [SerializeField] private float _addPower;
+        [SerializeField] private float _splitCostFactor;
+        [SerializeField] private float _splitPowerFactor;
+        [SerializeField] private float _forkCost;
+        [SerializeField] private float _joinCost;
+        [SerializeField] private float _branchCost;
+        [SerializeField] private float _amplifyMin;
+        [SerializeField] private float _amplifyMax;
+        [SerializeField] private float _amplifyDefault;
+        [SerializeField] private float _amplifyStep;
+        [SerializeField] private float _forkShareMin;
+        [SerializeField] private float _forkShareMax;
+        [SerializeField] private float _forkShareDefault;
+        [SerializeField] private float _forkShareStep;
+        [SerializeField] private float _branchThresholdMin;
+        [SerializeField] private float _branchThresholdMax;
+        [SerializeField] private float _branchThresholdDefault;
+        [SerializeField] private float _branchThresholdStep;
+        [SerializeField] private float _projectileDwell;
+        [SerializeField] private float _defaultDwell;
+        [SerializeField] private float _onHitDwell;
+        [SerializeField] private float _minDwell;
+        [SerializeField] private float _joinMaxWait;
+        [SerializeField] private float _projectileSpeedTiles;
+        [SerializeField] private float _projectileRangeTiles;
+        [SerializeField] private float _projectileRadius;
+        [SerializeField] private float _fanStepDegrees;
+        [SerializeField] private float _fanMaxDegrees;
+        [SerializeField] private float _batchPositionTolerance;
+        [SerializeField] private float _batchAngleToleranceDegrees;
+        [SerializeField] private int _maxTokens;
+        [SerializeField] private int _maxProjectiles;
+        [SerializeField] private float _endEventSeconds;
+        public float BasePower => _basePower;
+        public float TokenLifetime => _tokenLifetime;
+        public int MaxNodesPerFrame => _maxNodesPerFrame;
+        public float ManaMax => _manaMax;
+        public float ManaRegen => _manaRegen;
+        public float LoadMin => _loadMin;
+        public float LoadMax => _loadMax;
+        public float LoadDefault => _loadDefault;
+        public float LoadStep => _loadStep;
+        public float CostFloor => _costFloor;
+        public float ProjectileCostPerShot => _projectileCostPerShot;
+        public float AmplifyCostFactor => _amplifyCostFactor;
+        public float AddCost => _addCost;
+        public float AddPower => _addPower;
+        public float SplitCostFactor => _splitCostFactor;
+        public float SplitPowerFactor => _splitPowerFactor;
+        public float ForkCost => _forkCost;
+        public float JoinCost => _joinCost;
+        public float BranchCost => _branchCost;
+        public float AmplifyMin => _amplifyMin;
+        public float AmplifyMax => _amplifyMax;
+        public float AmplifyDefault => _amplifyDefault;
+        public float AmplifyStep => _amplifyStep;
+        public float ForkShareMin => _forkShareMin;
+        public float ForkShareMax => _forkShareMax;
+        public float ForkShareDefault => _forkShareDefault;
+        public float ForkShareStep => _forkShareStep;
+        public float BranchThresholdMin => _branchThresholdMin;
+        public float BranchThresholdMax => _branchThresholdMax;
+        public float BranchThresholdDefault => _branchThresholdDefault;
+        public float BranchThresholdStep => _branchThresholdStep;
+        public float ProjectileDwell => _projectileDwell;
+        public float DefaultDwell => _defaultDwell;
+        public float OnHitDwell => _onHitDwell;
+        public float MinDwell => _minDwell;
+        public float JoinMaxWait => _joinMaxWait;
+        public float ProjectileSpeedTiles => _projectileSpeedTiles;
+        public float ProjectileRangeTiles => _projectileRangeTiles;
+        public float ProjectileRadius => _projectileRadius;
+        public float FanStepDegrees => _fanStepDegrees;
+        public float FanMaxDegrees => _fanMaxDegrees;
+        public float BatchPositionTolerance => _batchPositionTolerance;
+        public float BatchAngleToleranceDegrees => _batchAngleToleranceDegrees;
+        public int MaxTokens => _maxTokens;
+        public int MaxProjectiles => _maxProjectiles;
+        public float EndEventSeconds => _endEventSeconds;
+    }
+
+    [Serializable]
     public sealed class BalanceData
     {
         [Header("공용 밸런스")]
         [SerializeField] private PlayerBalance _player;
         [SerializeField] private LimitBalance _limits;
-        [SerializeField] private AdaptationBalance _adaptation;
         [SerializeField] private CombatBalance _combat;
         [SerializeField] private EconomyBalance _economy;
-        [SerializeField] private RamBalance _ram;
         [SerializeField] private SimulationBalance _sim;
+        [SerializeField] private SpellSettings _spell;
         public PlayerBalance Player => _player;
         public LimitBalance Limits => _limits;
-        public AdaptationBalance Adaptation => _adaptation;
         public CombatBalance Combat => _combat;
         public EconomyBalance Economy => _economy;
-        public RamBalance Ram => _ram;
         public SimulationBalance Sim => _sim;
+        public SpellSettings Spell => _spell;
 
         /// <summary>밸런스 JSON을 읽고 필수 설정과 양수 제한값을 검증하여 반환한다.</summary>
         public static BalanceData FromJson(string json)
         {
             BalanceData data = JsonUtility.FromJson<BalanceData>(json);
-            if (data == null || data.Player == null || data.Limits == null || data.Adaptation == null
-                || data.Combat == null || data.Economy == null || data.Ram == null || data.Sim == null
+            if (data == null || data.Player == null || data.Limits == null
+                || data.Combat == null || data.Economy == null || data.Sim == null
                 || data.Player.MaxHp <= 0f || data.Player.MaxEnergy <= 0f || data.Sim.TickRate != 60
-                || data.Limits.MaxLiveSpellEntities <= 0 || data.Limits.HitTriggerCap <= 0
-                || data.Economy.BaseCapacity <= 0 || data.Economy.CapacityCosts == null || data.Economy.StatCosts == null
-                || (data.Ram.Mode != "shared" && data.Ram.Mode != "perSpell"))
+                || data.Economy.BaseCapacity <= 0 || data.Economy.CapacityCosts == null || data.Economy.StatCosts == null)
                 throw new FormatException("유효하지 않은 밸런스 데이터입니다.");
             float[] values = { data.Player.MaxHp, data.Player.MoveSpeed, data.Player.MaxEnergy, data.Player.EnergyRegen,
                 data.Player.DashDistance, data.Player.DashDuration, data.Player.DashCooldown, data.Player.HitInvulnerability,
-                data.Adaptation.ElementLearning, data.Adaptation.FormLearning, data.Adaptation.ElementCap, data.Adaptation.FormCap,
-                data.Adaptation.DotWeight, data.Adaptation.NoiseMultiplier, data.Adaptation.RelayMultiplier, data.Adaptation.DecayDelay,
-                data.Adaptation.DecayPerSecond, data.Adaptation.ResistanceThreshold, data.Combat.BurnDps, data.Combat.BurnInterval,
+                data.Combat.BurnDps, data.Combat.BurnInterval,
                 data.Combat.BurnSeconds, data.Combat.ChillSlow, data.Combat.ChillSeconds, data.Combat.FreezeSeconds,
                 data.Combat.FreezeImmunity, data.Combat.EmpSeconds, data.Combat.AegisAngle, data.Combat.AegisReduction,
                 data.Combat.RelayRadius, data.Combat.RelayReduction, data.Economy.DeathRetention, data.Economy.OrbAbsorbRadius,
-                data.Economy.TerminalHeal, data.Ram.CooldownBase, data.Ram.CooldownPerRam, data.Sim.MultiOffset,
+                data.Economy.TerminalHeal, data.Sim.MultiOffset,
                 data.Sim.TelemetryHighlightSeconds, data.Sim.BenchPlayerX, data.Sim.BenchPlayerY, data.Sim.BenchDummyX,
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
@@ -272,7 +316,7 @@ namespace RuneCode
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
                     throw new FormatException("밸런스 값은 유한한 0 이상이어야 합니다.");
             if (data.Player.MoveSpeed <= 0f || data.Player.DashDuration <= 0f || data.Combat.BurnInterval <= 0f
-                || data.Combat.ChillMaxStacks <= 0 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
+                || data.Combat.ChillMaxStacks <= 0
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.CapacityStep <= 0
                 || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.SlotCost <= 0
@@ -280,8 +324,7 @@ namespace RuneCode
                 || data.Economy.CapacityCosts.Count == 0 || data.Economy.StatCosts.Count == 0 || data.Sim.BenchHp <= 0f
                 || data.Sim.BenchLineCount <= 0 || data.Sim.BenchSwarmColumns <= 0 || data.Sim.BenchSwarmRows <= 0
                 || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f
-                || data.Limits.MaxEnemies <= 0 || data.Limits.MaxCompiledActions <= 0
-                || data.Limits.MaxScheduledExecutions <= 0 || data.Limits.MaxActionsPerTick <= 0
+                || data.Limits.MaxEnemies <= 0
                 || data.Economy.MaxGrowthLevel <= 0 || data.Economy.MaxGrowthLevel > 255
                 || data.Economy.MaxDurationLevel <= 0 || data.Economy.MaxDurationLevel > 100
                 || data.Economy.DurationStep <= 0 || data.Economy.EnergyRegenStep < 0
@@ -293,7 +336,63 @@ namespace RuneCode
                 if (cost <= 0) throw new FormatException("RAM 용량 비용은 양수여야 합니다.");
             foreach (int cost in data.Economy.StatCosts)
                 if (cost <= 0) throw new FormatException("능력치 비용은 양수여야 합니다.");
+            ValidateSpell(data.Spell);
             return data;
+        }
+
+        /// <summary>마법 그래프 설정의 존재, 유한한 값, 최소값과 범위 관계를 검증하고 위반 시 예외를 던진다.</summary>
+        private static void ValidateSpell(SpellSettings spell)
+        {
+            if (spell == null)
+                throw new FormatException("유효하지 않은 마법 그래프 설정입니다.");
+            float[] values = {
+                spell.BasePower, spell.TokenLifetime, spell.ManaMax, spell.ManaRegen, spell.LoadMin,
+                spell.LoadMax, spell.LoadDefault, spell.LoadStep, spell.CostFloor, spell.ProjectileCostPerShot,
+                spell.AmplifyCostFactor, spell.AddCost, spell.AddPower, spell.SplitCostFactor, spell.SplitPowerFactor,
+                spell.ForkCost, spell.JoinCost, spell.BranchCost, spell.AmplifyMin, spell.AmplifyMax,
+                spell.AmplifyDefault, spell.AmplifyStep, spell.ForkShareMin, spell.ForkShareMax, spell.ForkShareDefault,
+                spell.ForkShareStep, spell.BranchThresholdMin, spell.BranchThresholdMax, spell.BranchThresholdDefault, spell.BranchThresholdStep,
+                spell.ProjectileDwell, spell.DefaultDwell, spell.OnHitDwell, spell.MinDwell, spell.JoinMaxWait,
+                spell.ProjectileSpeedTiles, spell.ProjectileRangeTiles, spell.ProjectileRadius, spell.FanStepDegrees, spell.FanMaxDegrees,
+                spell.BatchPositionTolerance, spell.BatchAngleToleranceDegrees, spell.EndEventSeconds
+            };
+            foreach (float value in values)
+                if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
+                    throw new FormatException("유효하지 않은 마법 그래프 설정입니다.");
+            if (spell.CostFloor < 1f
+                || spell.BasePower <= 0f
+                || spell.TokenLifetime <= 0f
+                || spell.MaxNodesPerFrame <= 0
+                || spell.MaxTokens <= 0
+                || spell.MaxProjectiles <= 0
+                || spell.ManaMax <= 0f
+                || spell.LoadMin <= 0f
+                || spell.LoadMin > spell.LoadDefault
+                || spell.LoadDefault > spell.LoadMax
+                || spell.LoadStep <= 0f
+                || spell.AmplifyMin <= 1f
+                || spell.AmplifyMin > spell.AmplifyDefault
+                || spell.AmplifyDefault > spell.AmplifyMax
+                || spell.AmplifyStep <= 0f
+                || spell.ForkShareMin <= 0f
+                || spell.ForkShareMin > spell.ForkShareDefault
+                || spell.ForkShareDefault > spell.ForkShareMax
+                || spell.ForkShareMax >= 100f
+                || spell.ForkShareStep <= 0f
+                || spell.BranchThresholdMin > spell.BranchThresholdDefault
+                || spell.BranchThresholdDefault > spell.BranchThresholdMax
+                || spell.BranchThresholdStep <= 0f
+                || spell.MinDwell <= 0f
+                || spell.ProjectileDwell < spell.MinDwell
+                || spell.DefaultDwell < spell.MinDwell
+                || spell.JoinMaxWait <= 0f
+                || spell.ProjectileSpeedTiles <= 0f
+                || spell.ProjectileRangeTiles <= 0f
+                || spell.ProjectileRadius <= 0f
+                || spell.FanStepDegrees <= 0f
+                || spell.FanMaxDegrees <= 0f
+                || spell.EndEventSeconds <= 0f)
+                throw new FormatException("유효하지 않은 마법 그래프 설정입니다.");
         }
     }
 }

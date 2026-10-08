@@ -138,3 +138,43 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 검증 후 v2 저장은 시작 시 자료와 JSON 동일, v1은 바이트 동일로 확인했다. 기존22994 RAM·용량10·에너지6·최고완료1·선택2와 설계를 보존했다. v1 SHA256:86fb2cf4a1cff68252fe9bd04b3d2c1667a10b5f64fbc8d83bac3da59cf9850d.
 
 - 최종 배포 검사: ZIP185항목/38.51MiB, CRC 오류 없음, 필수 EXE·런타임·Core·자료·화면 포함, DoNotShip 제외, ZIP 안 EXE 해시 일치. SHA256:17d00aa5c16e1954e5e784750c5b137a034c8bc3db15816a36423eb2f606198a.
+
+## 마법 그래프 리팩토링 — 2026-10-08
+
+기준: `Assets/Docs~/Refactoring/마법 그래프 구현 규칙.md`, 계획: `Assets/Docs~/Refactoring/마법 그래프 리팩토링 계획.md`. 0단계 결정은 계획서의 권장안(D1~D9)을 그대로 적용한다.
+
+| 단계 | 단위 | 상태 | 확인 |
+|---|---|---|---|
+| 0 | U0.1 서브 에이전트 정의 갱신 | 완료 | `.claude/agents/rune-graph-coder.md` 불변식을 토큰 모델로 교체 |
+| 1 | U1.1 SpellSettings(balance.json `_spell`) | 완료 | 46개 키, 로드 검증 추가 |
+| 1 | U1.2 적 경감(`_armor`)과 D6 체력 | 완료 | 6종 값 대조 |
+| 1 | U1.3 SpellNodes | 완료 | 비용 공식 코드 대조 |
+| 1 | U1.4 SpellProgram | 완료 | 구조 검증·도달성·W1 손 계산 5건 |
+| 1 | U1.5 문자열 60개 | 완료 | 키 277개 중복 0 |
+| 2 | U2.1 런타임 타입 | 완료 | 토큰·투사체·발사 요청·소멸 이벤트 |
+| 2 | U2.2 시전·토큰 처리 | 완료 | V1~V4, V7, V8, V9 손 계산 일치 |
+| 2 | U2.3 발사 묶음·투사체·적중 토큰 | 완료 | V5 1세대, V6 ±5°, M=12 간격 7.5° 손 계산 일치 |
+| 2 | U2.4 경감 피해·마나 지출 | 완료 | 잡몹 위력 10→0, 40→28, 더미 무한 체력 |
+| 3 | U3.1 RuneSimulation 통합 | 완료 | 틱 순서 계획서 3.6, 적응·상태이상·예약 실행 제거 |
+| 3 | U3.2 저장 v3 | 완료 | v2·v1 진행값 이전, 그래프는 기본 그래프로 시작, 이전 파일 미수정 |
+| 3 | U3.3 앱 편집·입력 | 완료 | 출력 엣지 교체, 클릭 1회 시전, G 토글 |
+| 3 | U3.4 캔버스 + GraphLayout | 완료 | 포트 번호 체계, 곡선 엣지, 도달 불가 회색 |
+| 3 | U3.5 화면 | 완료 | 팔레트 8종, 인스펙터 파라미터, 검증 목록, 벤치 2종 |
+| 3 | U3.6 CLI·경기장 | 완료 | `--cast-interval`, 투사체 세대 색·운반 마나 링 |
+| 4 | U4.2+U4.3 SpellFlowLayer·캔버스 실시간 흐름 | 완료 | 캔버스와 같은 원점·줌·곡선 함수, 삭제된 노드 토큰은 건너뜀 |
+| 4 | U4.4 전투 오버레이 | 완료 | G 토글, 경계 맞춤 배치. 곡선 규칙은 메인이 공용 함수로 통일 |
+| 6 | U6.1 옛 코드·데이터 삭제 | 완료 | GraphCompiler·CompiledSpell·RuneData·AdaptationNet·runes.json·spells/*.json(+meta), RC1, 적응·RAM 설정 |
+| 6 | U6.2 문서 | 완료 | Docs~ README·03·04·05·07·08, 루트 README, DECISIONS |
+| 5 | 정적 확인 | 완료 | 두 어셈블리 빌드 오류0, 옛 타입 참조 0건, V1~V9 손 계산 |
+| 5 | Unity Editor 컴파일·Play(V1~V10) | 미검증 | 아래 절차로 사용자 확인 필요 |
+
+- 빌드: dotnet `RuneCode.Core` 오류0·경고2, `Assembly-CSharp` 오류0·경고4(기준과 동일).
+- 새 `.cs` 파일(SpellNodes, SpellProgram)은 Unity가 csproj를 다시 만들기 전까지 gitignore 대상 csproj에 임시 `Compile Include`를 넣어 빌드했다. Unity Editor 컴파일은 미확인.
+- 메인 에이전트 직접 수정: 토큰 대기 판정에 1e-9 허용 오차(1/60 누적 뺄셈 잔차로 도착이 1틱 밀리는 문제), Undo/Redo 시 도크 실행 상태 삭제(D5), CLI 자동 시전 거리 함수의 미사용 인수 제거.
+- 3단계 끝 빌드: dotnet `RuneCode.Core` 오류0·경고2, `Assembly-CSharp` 오류0·경고4.
+- 계획 대비 변경: 3단계에서 파일이 겹치지 않는 단위 4개(U3.3~U3.6)를 동시에 실행했다(계획 6.4의 병렬 2개 기준 초과). U4.1(GraphLayout)은 U3.4에, U4.5(경기장 강조)는 U3.6에 합쳤다. 도크 자동 발사는 규칙 4.1과 충돌해 제거했다.
+- 새 파일 GraphLayout.cs도 csproj에 임시 항목으로 넣어 빌드했다. Unity Editor 컴파일·Play 동작은 미확인.
+- 최종 빌드(dotnet): `RuneCode.Core` 오류0·경고2, `Assembly-CSharp` 오류0·경고4(MSB3277, 기준과 동일).
+- Unity Editor는 작업 중 새 파일을 가져오지 않았다(새 .cs의 .meta 없음, Editor.log 갱신 없음). csproj는 gitignore 대상이며 새 파일 7개를 임시 `Compile Include`로 넣어 빌드했다. Unity가 csproj를 다시 만들면 정상 목록으로 대체된다.
+- Unity 확인 절차: Editor에 포커스 → 가져오기·컴파일 후 Console 오류 0과 새 .cs 7개의 .meta 생성 확인 → `RuneCodePoC` Play → 계획서 8.2 표의 V1~V10을 도크에서 확인(오버레이 숫자로 비용·마나·위력 판독) → Missing Script·Missing Reference 확인.
+- 남은 문제: 적 상태이상·이지스·릴레이·용량 관련 휴면 코드와 설정(08-file-reference 8.5), 쓰지 않는 문자열 키(룬·적응·RC1 관련) 정리, 인스펙터·툴팁·도크 지표 줄의 레이아웃 겹침 가능성(U3.5 보고), 툴팁 토큰 정보는 호버 노드가 바뀔 때만 갱신.

@@ -68,6 +68,24 @@ namespace RuneCode
             }
         }
 
+        /// <summary>노드 종류에 대응하는 강조 색을 반환한다. 알 수 없는 종류는 적중 색을 쓴다.</summary>
+        public static Color NodeColor(SpellNodeKind kind)
+        {
+            switch (kind)
+            {
+                case SpellNodeKind.Cast: return new Color(1f, 0.82f, 0.36f);
+                case SpellNodeKind.Projectile: return new Color(0.32f, 0.88f, 0.98f);
+                case SpellNodeKind.Amplify: return new Color(1f, 0.55f, 0.3f);
+                case SpellNodeKind.Add: return new Color(0.45f, 0.95f, 0.55f);
+                case SpellNodeKind.Split: return new Color(0.98f, 0.45f, 0.75f);
+                case SpellNodeKind.Fork: return new Color(0.7f, 0.52f, 1f);
+                case SpellNodeKind.Join: return new Color(0.4f, 0.6f, 1f);
+                case SpellNodeKind.Branch: return new Color(0.95f, 0.9f, 0.45f);
+                case SpellNodeKind.OnHit:
+                default: return new Color(1f, 0.4f, 0.42f);
+            }
+        }
+
         /// <summary>피해 속성의 시각적 구분에 사용하는 색상을 반환한다.</summary>
         internal static Color ElementColor(string element)
         {

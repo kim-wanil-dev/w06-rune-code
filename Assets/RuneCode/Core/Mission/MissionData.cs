@@ -11,6 +11,7 @@ namespace RuneCode
         [Header("적 설정")]
         [SerializeField] private string _id;
         [SerializeField] private double _hp;
+        [SerializeField] private double _armor;
         [SerializeField] private double _speed;
         [SerializeField] private double _radius;
         [SerializeField] private double _damage;
@@ -27,6 +28,7 @@ namespace RuneCode
         [SerializeField] private int _reward;
         public string Id => _id;
         public double Hp => _hp;
+        public double Armor => _armor;
         public double Speed => _speed;
         public double Radius => _radius;
         public double Damage => _damage;
@@ -61,7 +63,7 @@ namespace RuneCode
             if (catalog == null || catalog._enemies == null || catalog._enemies.Length != 6) throw new FormatException("적 설정은 6종이어야 합니다.");
             var ids = new HashSet<string>();
             foreach (EnemyDefinition enemy in catalog._enemies)
-                if (!ids.Add(enemy.Id) || enemy.Hp <= 0 || enemy.Radius <= 0 || enemy.Reward < 0) throw new FormatException("적 설정 값이 유효하지 않습니다.");
+                if (!ids.Add(enemy.Id) || enemy.Hp <= 0 || enemy.Radius <= 0 || enemy.Reward < 0 || enemy.Armor < 0 || double.IsNaN(enemy.Armor) || double.IsInfinity(enemy.Armor)) throw new FormatException("적 설정 값이 유효하지 않습니다.");
             return catalog;
         }
     }

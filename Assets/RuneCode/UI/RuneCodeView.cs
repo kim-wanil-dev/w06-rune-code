@@ -12,9 +12,12 @@ namespace RuneCode
 {
     public sealed class RuneCodeView : MonoBehaviour
     {
+        private const string FAILURE_OPEN_TAG = "<color=#FF6E5C>";
+
         private static readonly Color PANEL = new Color(0.065f, 0.10f, 0.155f);
         private static readonly Color MUTED = new Color(0.54f, 0.67f, 0.77f);
         private static readonly Color CYAN = new Color(0.24f, 0.84f, 0.94f);
+        private static readonly Color DISABLED = new Color(0.35f, 0.42f, 0.50f);
 
         private RuneCodeApp _app;
         private RectTransform _page;
@@ -23,6 +26,7 @@ namespace RuneCode
         private RectTransform _palette;
         private RectTransform _modal;
         private RuneGraphCanvas _graph;
+        private RuneGraphOverlay _graphOverlay;
         private RuneArenaGraphic _dockArena;
         private RuneArenaGraphic _missionArena;
         private TextMeshProUGUI _status;
@@ -37,19 +41,17 @@ namespace RuneCode
         private TextMeshProUGUI _energyCaption;
         private TextMeshProUGUI _missionSpell;
         private TextMeshProUGUI _missionTimer;
-        private TextMeshProUGUI _adaptation;
+        private TextMeshProUGUI _dockInfo;
         private TextMeshProUGUI _fragmentToast;
         private UnityEngine.UI.Image _hpFill;
         private UnityEngine.UI.Image _energyFill;
         private string _missionSpellName;
-        private float _missionSpellCost;
         private int _lastFragments;
         private float _fragmentToastUntil;
         private bool _isTutorialActive;
         private int _tutorialStartExecutions;
         private TMP_InputField _search;
         private GraphNode _selected;
-        private string _category = "all";
         private string _scenario = "dummy_single";
         private int _lastDockEventCount;
         private RuneSimulation _observedDock;
@@ -87,8 +89,8 @@ namespace RuneCode
         {
             if (_logicalRoot == null) return;
             if (_page != null) { _page.gameObject.SetActive(false); Destroy(_page.gameObject); }
-            _modal = null; _isModalOpen = false; _graph = null; _dockArena = null; _missionArena = null;
-            _missionStats = null; _missionSpell = null; _missionTimer = null; _adaptation = null;
+            _modal = null; _isModalOpen = false; _graph = null; _graphOverlay = null; _dockArena = null; _missionArena = null;
+            _missionStats = null; _missionSpell = null; _missionTimer = null; _dockInfo = null;
             _metrics = null; _headerStats = null; _spellTitle = null; _dockMetrics = null; _tutorial = null; _tooltip = null; _selected = null;
             _inspector = null; _palette = null; _status = null;
             _page = Panel(_logicalRoot, 0, 0, 1280, 720, new Color(0.025f, 0.045f, 0.075f));
@@ -103,12 +105,13 @@ namespace RuneCode
             _status = Text(_page, 18, 686, 1240, 22, "", 12, MUTED);
         }
 
-        /// <summary>페이지를 재생성하지 않고 노드, 컴파일 지표와 선택 파라미터를 갱신한다.</summary>
+        /// <summary>페이지를 재생성하지 않고 노드, 팔레트, 지표와 선택 파라미터를 갱신한다.</summary>
         public void RefreshGraph()
         {
             _graph?.RefreshGraph();
             if (_headerStats != null) _headerStats.text = HeaderStatsText();
             if (_spellTitle != null) _spellTitle.text = _app.EditingGraph.Name;
+            if (_palette != null) RefreshPalette();
             RefreshMetrics();
             if (_selected != null) _selected = _app.EditingGraph.FindNode(_selected.Id);
             if (_inspector != null) BuildInspector(_selected);
@@ -148,12 +151,17 @@ namespace RuneCode
         {
             if (_app == null) return;
             if (_status != null) _status.text = _app.StatusMessage;
+            if (_graphOverlay != null)
+            {
+                bool isOverlayVisible = _app.IsGraphOverlayVisible;
+                if (_graphOverlay.gameObject.activeSelf != isOverlayVisible) _graphOverlay.gameObject.SetActive(isOverlayVisible);
+            }
             if (_dockMetrics != null && _app.Dock != null)
             {
                 if (_observedDock != _app.Dock)
                 { _observedDock = _app.Dock; _lastDockEventCount = 0; if (_isTutorialActive) _tutorialStartExecutions = 0; }
                 _dockMetrics.text = L("ui.damage") + " " + _app.Dock.TotalDamage.ToString("0") + "   " + L("ui.dps") + " " + _app.Dock.RollingDps.ToString("0.0") +
-                    "   " + L("ui.energy") + " " + _app.Dock.EnergySpent.ToString("0") + "   " + L("ui.peak") + " " + _app.Dock.PeakSpellEntities;
+                    "   " + L("ui.energy") + " " + _app.Dock.EnergySpent.ToString("0") + "   " + L("ui.peak") + " " + _app.Dock.PeakProjectiles;
                 int newEvents = _app.Dock.NodeExecutionCount - _lastDockEventCount;
                 for (int index = Math.Max(0, _app.Dock.NodeEvents.Count - newEvents); index < _app.Dock.NodeEvents.Count; index++)
                 {
@@ -162,6 +170,7 @@ namespace RuneCode
                 }
                 _lastDockEventCount = _app.Dock.NodeExecutionCount;
             }
+            if (_dockInfo != null && _app.Dock != null) UpdateDockInfo();
             if (_tutorial != null) UpdateTutorial();
             if (_missionStats != null && _app.Mission != null) UpdateMissionHud();
             if (_graph == null || _isModalOpen || IsTyping()) return;
@@ -203,10 +212,10 @@ namespace RuneCode
             _headerStats = Text(_page, 816, 23, 440, 30, HeaderStatsText(), 16, CYAN);
         }
 
-        /// <summary>현재 보유 RAM과 단일 마법의 사용량·용량을 작업실 머리글 문자열로 반환한다.</summary>
+        /// <summary>현재 조각 수와 마나풀 최대치 및 초당 회복량을 작업실 머리글 문자열로 반환한다.</summary>
         private string HeaderStatsText()
         {
-            return L("ui.fragments") + "  " + _app.Save.Currency + "   /   " + L("ui.capacity") + " " + _app.EquippedRam + "/" + _app.Capacity;
+            return L("ui.fragments") + "  " + _app.Save.Currency + "   /   " + L("ui.energy") + " " + _app.MaxEnergy.ToString("0") + " (+" + _app.EnergyRegen.ToString("0.#") + "/s)";
         }
 
         /// <summary>룬 팔레트, 편집 화면, 인스펙터 및 도킹된 실험 공간을 생성한다.</summary>
@@ -216,19 +225,11 @@ namespace RuneCode
             _spellTitle = Text(_page, 222, 89, 390, 33, _app.EditingGraph.Name, 22, Color.white, FontStyles.Bold);
             Button(_page, 628, 86, 116, 34, L("ui.rename"), OpenRename, MUTED, 13);
             Button(_page, 756, 86, 92, 34, L("ui.save"), _app.SaveGraph, CYAN, 13);
-            Button(_page, 862, 86, 132, 34, L("ui.share"), OpenShare, MUTED, 13);
             _metrics = Text(_page, 224, 129, 766, 23, "", 12, CYAN);
             _palette = Panel(_page, 16, 136, 190, 526, PANEL);
             Text(_palette, 12, 12, 166, 26, L("ui.palette"), 17, Color.white, FontStyles.Bold);
             _search = Input(_palette, 10, 47, 170, 32, "", L("ui.search"));
             _search.onValueChanged.AddListener(_ => RefreshPalette());
-            string[] categories = { "all", "form", "element", "modifier", "flow", "action" };
-            for (int i = 0; i < categories.Length; i++)
-            {
-                string category = categories[i];
-                Button(_palette, 10 + i % 3 * 58, 87 + i / 3 * 29, 54, 25,
-                    category == "all" ? L("ui.all") : L("category." + category), () => { _category = category; RefreshPalette(); }, MUTED, 10);
-            }
             RectTransform graphRect = Rect(_page, "GraphViewport", 222, 162, 772, 306);
             graphRect.gameObject.AddComponent<UnityEngine.UI.RectMask2D>();
             RectTransform graphSurface = Rect(graphRect, "GraphCanvas", 0, 0, 772, 306);
@@ -254,30 +255,28 @@ namespace RuneCode
             RefreshMetrics();
         }
 
-        /// <summary>선택 계열과 검색 문자열에 해당하는 룬 목록을 다시 표시한다.</summary>
+        /// <summary>검색어에 맞는 노드 종류를 SpellNodeKind 순서대로 팔레트에 다시 표시한다. 적중 노드는 그래프에 이미 있으면 회색으로 두고 배치를 막는다.</summary>
         private void RefreshPalette()
         {
             Transform existing = _palette.Find("RuneList");
             if (existing != null) { existing.gameObject.SetActive(false); Destroy(existing.gameObject); }
             RectTransform list = ScrollList(_palette, "RuneList", 8, 153, 174, 362);
             string query = _search.text.Trim();
-            foreach (RuneDefinition rune in GameData.Runes.All)
+            bool hasOnHit = HasNodeOfKind(SpellNodeKind.OnHit);
+            foreach (SpellNodeKind kind in Enum.GetValues(typeof(SpellNodeKind)))
             {
-                if (rune.Category == "core" || (_category != "all" && rune.Category != _category)) continue;
-                if (!string.IsNullOrEmpty(query) && rune.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0 && rune.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                bool unlocked = Contains(_app.Save.UnlockedRunes, rune.Id);
-                RuneDefinition selected = rune;
-                string label = rune.Name + "   " + rune.Ram + " RAM";
-                if (!unlocked) label += "\n" + L("ui.locked") + " · " + (rune.UnlockType == "reward" ? L("ui.reward") : rune.UnlockCost + " " + L("ui.fragments"));
-                UnityEngine.UI.Button button = Button(list, 0, 0, 164, unlocked ? 40 : 53, label,
-                    () => { if (unlocked) _graph.PlaceRune(selected.Id, _graph.SuggestPlacement(selected.Id)); },
-                    unlocked ? RuneMesh.CategoryColor(rune.Category) : new Color(0.35f, 0.42f, 0.50f), 12);
-                Layout(button.gameObject, unlocked ? 40 : 53);
-                button.gameObject.AddComponent<RunePaletteDrag>().Initialize(_graph, rune.Id, unlocked);
+                if (kind == SpellNodeKind.Cast || !IsPaletteMatch(kind, query)) continue;
+                string id = SpellNodes.GetId(kind);
+                bool canPlace = kind != SpellNodeKind.OnHit || !hasOnHit;
+                UnityEngine.UI.Button button = Button(list, 0, 0, 164, 40, L("node." + id),
+                    () => { if (canPlace) _graph.PlaceRune(id, _graph.SuggestPlacement(id)); },
+                    canPlace ? RuneMesh.NodeColor(kind) : DISABLED, 12);
+                Layout(button.gameObject, 40);
+                button.gameObject.AddComponent<RunePaletteDrag>().Initialize(_graph, id, canPlace);
             }
         }
 
-        /// <summary>빈 편집 영역의 빠른 검색 입력과 검색된 룬의 현재 위치 배치를 제공한다.</summary>
+        /// <summary>빈 편집 영역의 빠른 검색 입력을 열고, 검색된 노드 종류를 클릭한 위치에 배치한다. 적중 노드가 이미 있으면 그 항목은 누를 수 없다.</summary>
         private void OpenQuickPalette(Vector2 position)
         {
             RectTransform card = OpenModal(L("ui.search"), 550, 470);
@@ -286,12 +285,15 @@ namespace RuneCode
             Action<string> populate = query =>
             {
                 ClearChildren(list);
-                foreach (RuneDefinition rune in GameData.Runes.All)
+                bool hasOnHit = HasNodeOfKind(SpellNodeKind.OnHit);
+                foreach (SpellNodeKind kind in Enum.GetValues(typeof(SpellNodeKind)))
                 {
-                    if (rune.Category == "core" || !Contains(_app.Save.UnlockedRunes, rune.Id)) continue;
-                    if (!string.IsNullOrEmpty(query) && rune.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0 && rune.Id.IndexOf(query, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    string id = rune.Id;
-                    UnityEngine.UI.Button button = Button(list, 0, 0, 480, 36, rune.Name + " · " + rune.Ram + " RAM", () => { CloseModal(); _graph.PlaceRune(id, position); }, RuneMesh.CategoryColor(rune.Category));
+                    if (kind == SpellNodeKind.Cast || !IsPaletteMatch(kind, query)) continue;
+                    string id = SpellNodes.GetId(kind);
+                    bool canPlace = kind != SpellNodeKind.OnHit || !hasOnHit;
+                    UnityEngine.UI.Button button = Button(list, 0, 0, 480, 36, L("node." + id),
+                        () => { if (!canPlace) return; CloseModal(); _graph.PlaceRune(id, position); },
+                        canPlace ? RuneMesh.NodeColor(kind) : DISABLED);
                     Layout(button.gameObject, 36);
                 }
             };
@@ -299,7 +301,24 @@ namespace RuneCode
             populate(""); search.ActivateInputField();
         }
 
-        /// <summary>선택한 노드의 조정 가능한 파라미터와 그래프 검증 메시지를 표시한다.</summary>
+        /// <summary>현재 편집 그래프에 지정 종류의 노드가 하나라도 있으면 true를 반환한다.</summary>
+        private bool HasNodeOfKind(SpellNodeKind kind)
+        {
+            string id = SpellNodes.GetId(kind);
+            foreach (GraphNode node in _app.EditingGraph.Nodes)
+                if (node.RuneId == id) return true;
+            return false;
+        }
+
+        /// <summary>노드 종류의 현지화 이름 또는 ID에 검색어가 포함되면 true를 반환한다. 검색어가 비어 있으면 항상 true를 반환한다.</summary>
+        private static bool IsPaletteMatch(SpellNodeKind kind, string query)
+        {
+            if (string.IsNullOrEmpty(query)) return true;
+            string id = SpellNodes.GetId(kind);
+            return L("node." + id).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || id.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>선택한 노드의 이름, 설명, 비용 공식과 파라미터를 표시하고 프로그램의 검증 목록을 갱신한다. 노드가 없으면 안내 문구를 표시한다.</summary>
         private void BuildInspector(GraphNode node)
         {
             if (_inspector == null) return;
@@ -307,83 +326,92 @@ namespace RuneCode
             Text(_inspector, 14, 12, 222, 27, L("ui.inspector"), 17, Color.white, FontStyles.Bold);
             float top = 50;
             if (node == null) { Text(_inspector, 14, top, 224, 62, L("ui.selectNode"), 13, MUTED); top += 72; }
-            else
-            {
-                RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-                Text(_inspector, 14, top, 222, 28, rune.Name + " / " + rune.Ram + " RAM", 17, RuneMesh.CategoryColor(rune.Category)); top += 37;
-                foreach (ParameterDefinition param in rune.Params)
-                {
-                    ParameterDefinition definition = param;
-                    string nodeId = node.Id;
-                    Text(_inspector, 14, top, 224, 20, L("param." + param.Id), 12, MUTED); top += 24;
-                    if (param.Kind == "number")
-                    {
-                        bool isModifierScale = rune.Category == "modifier";
-                        TMP_InputField field = Input(_inspector, isModifierScale ? 56 : 14, top, isModifierScale ? 132 : 222, 30,
-                            node.GetNumber(param.Id, param.DefaultNumber).ToString("0.###"), "");
-                        field.contentType = TMP_InputField.ContentType.DecimalNumber;
-                        field.onEndEdit.AddListener(value => { if (float.TryParse(value, out float amount)) _app.SetNodeNumber(nodeId, definition.Id, Mathf.Clamp(amount, definition.Min, definition.Max)); });
-                        if (isModifierScale)
-                        {
-                            Button(_inspector, 14, top, 34, 30, "−", () => ChangeModifierNumber(nodeId, definition, -1), MUTED, 18);
-                            Button(_inspector, 196, top, 40, 30, "+", () => ChangeModifierNumber(nodeId, definition, 1), CYAN, 18);
-                        }
-                    }
-                    else
-                    {
-                        string current = node.GetText(param.Id, param.DefaultText);
-                        Button(_inspector, 14, top, 222, 30, L((param.Id == "status" ? "status." : "condition.") + current), () =>
-                        {
-                            int index = 0;
-                            for (int i = 0; i < definition.Options.Count; i++) if (definition.Options[i] == current) index = i;
-                            _app.SetNodeText(nodeId, definition.Id, definition.Options[(index + 1) % definition.Options.Count]);
-                        }, MUTED, 12);
-                    }
-                    top += 40;
-                }
-                if (rune.Category == "modifier" && rune.Params.Count > 0)
-                {
-                    ParameterDefinition parameter = rune.Params[0];
-                    Text(_inspector, 14, top, 222, 26, L("ui.scaleBounds") + " " + parameter.Min.ToString("0.#") + "–" + parameter.Max.ToString("0.#") + "×", 12, CYAN);
-                    top += 30;
-                    Text(_inspector, 14, top, 222, 72, L("ui." + rune.Id + "Hint"), 12, MUTED); top += 78;
-                }
-                if (rune.Params.Count == 0)
-                {
-                    Text(_inspector, 14, top, 222, 34, L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + L("ui.damage") + " " + rune.Stats.Damage.ToString("0.#"), 12, MUTED); top += 42;
-                }
-                if (rune.Category == "form")
-                {
-                    SpellAction action = _app.CompileResult.Spell == null ? null : FindAction(_app.CompileResult.Spell.Root, node.Id);
-                    if (action != null)
-                    {
-                        SpellStats stats = action.Stats;
-                        float reach = action.Form == "bolt" ? stats.Speed * stats.Lifetime : action.Form == "orbit" ? stats.OrbitRadius : stats.Offset;
-                        Text(_inspector, 14, top, 222, 70,
-                            L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n" +
-                            L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px\n" +
-                            L("ui.spellSpeed") + " " + (action.Form == "orbit" ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s"), 12, CYAN);
-                        top += 76;
-                    }
-                }
-                if (rune.Category != "core") { Button(_inspector, 14, top, 222, 29, L("ui.delete"), () => _app.RemoveNode(node.Id), new Color(0.97f, 0.43f, 0.45f), 12); top += 42; }
-            }
+            else top = BuildNodeSection(node, top);
             Text(_inspector, 14, top, 222, 25, L("ui.validation"), 15, Color.white, FontStyles.Bold); top += 31;
             RectTransform errors = ScrollList(_inspector, "Validation", 12, top, 228, Mathf.Max(80, 510 - top));
-            CompileResult result = _app.CompileResult;
-            if (result.Ok) AddIssueLabel(errors, L("ui.valid"), CYAN, null);
-            foreach (CompileIssue issue in result.Errors) AddIssueLabel(errors, issue.Code + " · " + issue.Message, new Color(1, 0.41f, 0.44f), issue.NodeId);
-            foreach (CompileIssue issue in result.Warnings) AddIssueLabel(errors, issue.Code + " · " + issue.Message, new Color(1, 0.76f, 0.38f), issue.NodeId);
+            SpellProgram program = _app.Program;
+            if (program != null) AddValidationLabels(errors, program);
             AddIssueLabel(errors, L("ui.controls"), MUTED, null);
         }
 
-        /// <summary>선택 수식의 숫자 배율을 데이터의 한 단계만큼 조절하고 범위 안으로 제한하여 표시를 갱신한다.</summary>
-        private void ChangeModifierNumber(string nodeId, ParameterDefinition parameter, int direction)
+        /// <summary>선택 노드의 종류 이름, 설명, 비용 공식, 파라미터 조절부와 삭제 버튼을 세로로 배치하고 다음 줄 위치를 반환한다. 종류를 알 수 없으면 G5 문구만 표시한다.</summary>
+        private float BuildNodeSection(GraphNode node, float top)
         {
+            string nodeId = node.Id;
+            bool isKnown = SpellNodes.TryParse(node.RuneId, out SpellNodeKind kind);
+            if (isKnown)
+            {
+                Text(_inspector, 14, top, 222, 28, L("node." + node.RuneId), 17, RuneMesh.NodeColor(kind)); top += 37;
+                Text(_inspector, 14, top, 222, 54, L("node." + node.RuneId + ".desc"), 12, MUTED); top += 58;
+                float ratio = node.GetNumber(SpellNodes.PARAM_RATIO, GameData.Balance.Spell.AmplifyDefault);
+                Text(_inspector, 14, top, 222, 34, L("ui.costFormula") + "  " + SpellNodes.GetCostFormula(kind, ratio, GameData.Balance.Spell), 12, CYAN); top += 40;
+                foreach (string key in SpellNodes.GetParameterKeys(kind))
+                {
+                    Text(_inspector, 14, top, 224, 20, L("param." + key), 12, MUTED); top += 24;
+                    top = SpellNodes.IsNumberParameter(key) ? AddNumberParameter(node, key, top) : AddTextParameter(node, key, top);
+                }
+            }
+            else
+            {
+                Text(_inspector, 14, top, 222, 40, L("graph.G5"), 12, new Color(1, 0.41f, 0.44f)); top += 48;
+            }
+            if (!isKnown || kind != SpellNodeKind.Cast)
+            {
+                Button(_inspector, 14, top, 222, 29, L("ui.delete"), () => _app.RemoveNode(nodeId), new Color(0.97f, 0.43f, 0.45f), 12); top += 42;
+            }
+            return top;
+        }
+
+        /// <summary>숫자 파라미터의 입력칸과 단계 버튼을 배치하고, 입력과 버튼 조작을 설정 범위 안의 값으로 저장하도록 연결한다. 다음 줄 위치를 반환한다.</summary>
+        private float AddNumberParameter(GraphNode node, string key, float top)
+        {
+            SpellNodes.TryGetNumberRange(key, GameData.Balance.Spell, out float min, out float max, out float defaultValue, out _);
+            string nodeId = node.Id;
+            TMP_InputField field = Input(_inspector, 56, top, 132, 30, node.GetNumber(key, defaultValue).ToString("0.###"), "");
+            field.contentType = TMP_InputField.ContentType.DecimalNumber;
+            field.onEndEdit.AddListener(value => { if (float.TryParse(value, out float amount)) _app.SetNodeNumber(nodeId, key, Mathf.Clamp(amount, min, max)); });
+            Button(_inspector, 14, top, 34, 30, "−", () => ChangeNumber(nodeId, key, -1), MUTED, 18);
+            Button(_inspector, 196, top, 40, 30, "+", () => ChangeNumber(nodeId, key, 1), CYAN, 18);
+            return top + 40;
+        }
+
+        /// <summary>텍스트 파라미터의 현재 옵션을 버튼에 표시하고, 누를 때마다 다음 옵션으로 바꾸도록 연결한다. 다음 줄 위치를 반환한다.</summary>
+        private float AddTextParameter(GraphNode node, string key, float top)
+        {
+            string nodeId = node.Id;
+            string current = node.GetText(key, SpellNodes.GetDefaultText(key));
+            Button(_inspector, 14, top, 222, 30, L("option." + key + "." + current), () => CycleText(nodeId, key), MUTED, 12);
+            return top + 40;
+        }
+
+        /// <summary>노드의 숫자 파라미터를 단계만큼 더하거나 빼고 설정 범위 안으로 제한해 저장한 뒤 화면을 갱신한다.</summary>
+        private void ChangeNumber(string nodeId, string key, int direction)
+        {
+            SpellNodes.TryGetNumberRange(key, GameData.Balance.Spell, out float min, out float max, out float defaultValue, out float step);
             GraphNode node = _app.EditingGraph.FindNode(nodeId);
-            float value = node.GetNumber(parameter.Id, parameter.DefaultNumber) + parameter.Step * direction;
-            _app.SetNodeNumber(nodeId, parameter.Id, Mathf.Clamp(value, parameter.Min, parameter.Max));
+            float value = node.GetNumber(key, defaultValue) + step * direction;
+            _app.SetNodeNumber(nodeId, key, Mathf.Clamp(value, min, max));
             RefreshGraph();
+        }
+
+        /// <summary>노드의 텍스트 파라미터를 옵션 목록에서 현재 값의 다음 항목으로 바꾸어 저장한다.</summary>
+        private void CycleText(string nodeId, string key)
+        {
+            string current = _app.EditingGraph.FindNode(nodeId).GetText(key, SpellNodes.GetDefaultText(key));
+            IReadOnlyList<string> options = SpellNodes.GetTextOptions(key);
+            int index = 0;
+            for (int i = 0; i < options.Count; i++) if (options[i] == current) index = i;
+            _app.SetNodeText(nodeId, key, options[(index + 1) % options.Count]);
+        }
+
+        /// <summary>프로그램의 정상 표시, 오류, 경고와 도달 불가 노드 수를 검증 목록에 추가한다. 오류와 경고는 해당 노드 포커스와 연결된다.</summary>
+        private void AddValidationLabels(RectTransform list, SpellProgram program)
+        {
+            if (program.IsValid && program.Warnings.Count == 0) AddIssueLabel(list, L("ui.valid"), CYAN, null);
+            foreach (SpellProgramIssue issue in program.Errors) AddIssueLabel(list, issue.Code + " · " + L("graph." + issue.Code), new Color(1, 0.41f, 0.44f), issue.NodeId);
+            foreach (SpellProgramIssue issue in program.Warnings) AddIssueLabel(list, issue.Code + " · " + L("graph." + issue.Code), new Color(1, 0.76f, 0.38f), issue.NodeId);
+            int unreachable = CountUnreachable(program);
+            if (unreachable > 0) AddIssueLabel(list, L("ui.unreachable") + " " + unreachable, MUTED, null);
         }
 
         /// <summary>검증 메시지를 선택 노드 포커스 기능과 함께 목록에 추가한다.</summary>
@@ -393,7 +421,7 @@ namespace RuneCode
             Layout(button.gameObject, 56);
         }
 
-        /// <summary>시험 도크의 시나리오, 자동 발사, 적응, 속도와 리셋 조작을 생성한다.</summary>
+        /// <summary>시험 도크의 경기장, 시나리오·시전·리셋·속도 조작과 지표 두 줄을 생성한다.</summary>
         private void BuildDock()
         {
             Panel(_page, 222, 512, 772, 143, PANEL);
@@ -403,12 +431,19 @@ namespace RuneCode
             Button(_page, 226, 515, 126, 22, L("scenario." + _scenario), CycleScenario, MUTED, 10);
             Button(_page, 360, 515, 50, 22, L("ui.test"), _app.FireDock, CYAN, 10);
             Button(_page, 418, 515, 86, 22, L("ui.reset"), () => { _app.ResetDock(); _lastDockEventCount = 0; }, MUTED, 10);
-            Button(_page, 528, 521, 128, 27, L("ui.autofire"), () => _app.SetDockOptions(!_app.DockAutoFire, _app.DockAdaptation, _app.DockSpeed), CYAN, 11);
-            Button(_page, 666, 521, 124, 27, L("ui.adaptation"), () => _app.SetDockAdaptation(!_app.Dock.Adaptation.Enabled), CYAN, 11);
-            Button(_page, 800, 521, 76, 27, "0.5 / 1 / 2×", () => _app.SetDockOptions(_app.DockAutoFire, _app.DockAdaptation, _app.DockSpeed == 1 ? 2 : _app.DockSpeed == 2 ? 0.5f : 1), MUTED, 10);
+            Button(_page, 800, 521, 76, 27, "0.5 / 1 / 2×", () => _app.SetDockSpeed(_app.DockSpeed == 1 ? 2 : _app.DockSpeed == 2 ? 0.5f : 1), MUTED, 10);
             _dockMetrics = Text(_page, 528, 562, 455, 46, "", 12, Color.white);
-            _adaptation = Text(_page, 528, 605, 452, 45, "", 10, MUTED);
+            _dockInfo = Text(_page, 528, 605, 452, 45, "", 10, MUTED);
             if (_app.Dock == null) _app.StartDock(_scenario);
+        }
+
+        /// <summary>도크의 플레이어 마나, 활성 토큰과 투사체 수, 실행 속도와 최근 시전 실패 문구를 한 줄로 갱신한다.</summary>
+        private void UpdateDockInfo()
+        {
+            RuneSimulation sim = _app.Dock;
+            _dockInfo.text = L("ui.energy") + " " + sim.Player.Energy.ToString("0") + "/" + sim.Player.MaxEnergy.ToString("0") +
+                "  ·  " + L("ui.tokens") + " " + sim.Spell.ActiveTokenCount + "  ·  " + sim.Spell.Projectiles.Count +
+                "  ·  " + _app.DockSpeed.ToString("0.#") + "×" + CastFailureText(sim);
         }
 
         /// <summary>시험 시나리오를 다음 항목으로 전환하고 독립 시뮬레이션을 다시 시작한다.</summary>
@@ -421,61 +456,81 @@ namespace RuneCode
             Refresh();
         }
 
-        /// <summary>공유 RAM, 마법 비용, 쿨다운과 예상 동시 개체 수를 표시한다.</summary>
+        /// <summary>노드 수, 시전 노드의 적재량, 도달 불가 노드 수와 최대 마나를 지표 한 줄로 갱신한다.</summary>
         private void RefreshMetrics()
         {
             if (_metrics == null) return;
-            CompiledSpell spell = _app.CompileResult.Spell;
-            int ram = 0;
-            foreach (GraphNode node in _app.EditingGraph.Nodes) ram += GameData.Runes.Get(node.RuneId).Ram;
-            _metrics.text = L("ui.ram") + " " + _app.EquippedRam + "/" + _app.Capacity + "  ·  " + ram + " RAM" +
-                (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + L("ui.energy") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
+            SpellProgram program = _app.Program;
+            _metrics.text = L("ui.nodeCount") + " " + _app.EditingGraph.Nodes.Count + "  ·  " + L("param.load") + " " + LoadText(program) +
+                "  ·  " + L("ui.unreachable") + " " + CountUnreachable(program) + "  ·  " + L("ui.energy") + " " + _app.MaxEnergy.ToString("0");
         }
 
-        /// <summary>마우스가 가리키는 룬의 기본 수치와 연결 시 계산되는 효과를 표시한다.</summary>
+        /// <summary>프로그램이 유효하면 시전 노드의 적재량을, 아니면 "-"를 반환한다.</summary>
+        private static string LoadText(SpellProgram program)
+        {
+            return program != null && program.IsValid ? program.GetLoad(program.CastNode).ToString("0.#") : "-";
+        }
+
+        /// <summary>시전과 적중에서 도달할 수 없는 노드 수를 반환하며 프로그램이 없으면 0을 반환한다.</summary>
+        private static int CountUnreachable(SpellProgram program)
+        {
+            if (program == null) return 0;
+            int count = 0;
+            for (int node = 0; node < program.NodeCount; node++)
+                if (!program.IsReachable(node)) count++;
+            return count;
+        }
+
+        /// <summary>마우스가 가리키는 노드의 이름과 비용 공식을 표시하고, 도크 실행 중이면 그 노드에 있는 살아 있는 토큰 수와 첫 토큰의 값을 덧붙인다.</summary>
         private void UpdateTooltip(GraphNode node)
         {
             if (_tooltip == null) return;
             if (node == null) { _tooltip.text = ""; return; }
-            RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            SpellAction action = _app.CompileResult.Spell == null ? null : FindAction(_app.CompileResult.Spell.Root, node.Id);
-            _tooltip.text = rune.Name + "  ·  " + L("ui.damage") + " " + (action?.Stats?.Damage ?? rune.Stats.Damage).ToString("0.#") +
-                "  ·  " + L("ui.energy") + " " + (action?.OwnEnergy ?? rune.Energy).ToString("0.#");
+            if (!SpellNodes.TryParse(node.RuneId, out SpellNodeKind kind)) { _tooltip.text = L("graph.G5"); return; }
+            float ratio = node.GetNumber(SpellNodes.PARAM_RATIO, GameData.Balance.Spell.AmplifyDefault);
+            string text = L("node." + node.RuneId) + "  ·  " + L("ui.costFormula") + " " + SpellNodes.GetCostFormula(kind, ratio, GameData.Balance.Spell);
+            SpellRuntime spell = _app.Dock?.Spell;
+            if (spell != null) text += TokenSummaryText(spell, node.Id);
+            _tooltip.text = text;
         }
 
-        /// <summary>실행 트리를 탐색하여 선택 노드의 컴파일된 명령을 반환한다.</summary>
-        private static SpellAction FindAction(IReadOnlyList<SpellAction> actions, string id)
+        /// <summary>런타임에서 지정 노드에 있는 살아 있는 토큰 수와 첫 토큰의 마나, 위력, 개수, 세대를 문자열로 반환한다. 토큰이 없으면 빈 문자열을 반환한다.</summary>
+        private static string TokenSummaryText(SpellRuntime spell, string nodeId)
         {
-            foreach (SpellAction action in actions)
+            int count = 0;
+            SpellToken first = null;
+            foreach (SpellToken token in spell.Tokens)
             {
-                if (action.NodeId == id) return action;
-                SpellAction found = FindAction(action.OnHit, id) ?? FindAction(action.OnExpire, id) ?? FindAction(action.Then, id) ??
-                    FindAction(action.Else, id) ?? FindAction(action.Body, id) ?? FindAction(action.Next, id);
-                if (found != null) return found;
+                if (token.IsEnded || spell.Program.GetNodeId(token.Node) != nodeId) continue;
+                if (first == null) first = token;
+                count++;
             }
-            return null;
+            if (first == null) return "";
+            return "  ·  " + L("ui.tokens") + " " + count + "  ·  " + L("ui.mana") + " " + first.Mana.ToString("0.#") +
+                "  ·  " + L("formula.power") + " " + first.Power.ToString("0.#") + "  ·  " + L("formula.count") + " " + first.Count.ToString("0.#") +
+                "  ·  " + L("option.condition.generation") + " " + first.Generation.ToString("0.#");
         }
 
-        /// <summary>볼트 배치, 화염 연결, 실제 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시한다.</summary>
+        /// <summary>도달 가능한 증폭, 가산, 분열 노드와 도크 시험 여부에 맞춰 안내 문구를 표시하고, 두 조건이 모두 충족되면 튜토리얼 단계를 완료한다.</summary>
         private void UpdateTutorial()
         {
-            bool hasBolt = false;
-            bool hasFire = false;
-            foreach (GraphNode node in _app.EditingGraph.Nodes)
-            {
-                if (node.RuneId == "form.bolt")
-                    foreach (GraphEdge edge in _app.EditingGraph.Edges)
-                        if (edge.ToNode == node.Id && edge.ToPort == "exec") hasBolt = true;
-                if (node.RuneId != "elem.fire") continue;
-                foreach (GraphEdge edge in _app.EditingGraph.Edges) if (edge.FromNode == node.Id) hasFire = true;
-            }
+            bool hasPowerNode = HasReachablePowerNode(_app.Program);
             bool hasTested = _app.Dock != null && _app.Dock.NodeExecutionCount > (_isTutorialActive ? _tutorialStartExecutions : 0);
-            _tutorial.text = L(!hasBolt ? "ui.tutorial1" : !hasFire ? "ui.tutorial2" : !hasTested ? "ui.tutorial3" : "ui.complete");
-            if (_isTutorialActive && hasBolt && hasFire && hasTested) { _isTutorialActive = false; _app.AdvanceTutorial(3); }
-            if (_adaptation != null && _app.Dock != null)
+            _tutorial.text = L(!hasPowerNode ? "ui.tutorial1" : !hasTested ? "ui.tutorial2" : "ui.complete");
+            if (_isTutorialActive && hasPowerNode && hasTested) { _isTutorialActive = false; _app.AdvanceTutorial(3); }
+        }
+
+        /// <summary>프로그램에서 시전 또는 적중으로부터 도달 가능한 증폭, 가산, 분열 노드가 있는지 반환한다. 프로그램이 없으면 false이다.</summary>
+        private static bool HasReachablePowerNode(SpellProgram program)
+        {
+            if (program == null) return false;
+            for (int node = 0; node < program.NodeCount; node++)
             {
-                _adaptation.text = L("ui.autofire") + " " + L(_app.DockAutoFire ? "ui.on" : "ui.off") + "  ·  " + _app.DockSpeed.ToString("0.#") + "×  ·  " + L("ui.adaptation") + " " + L(_app.Dock.Adaptation.Enabled ? "ui.on" : "ui.off") + "\n" + AdaptationText(_app.Dock, false);
+                SpellNodeKind kind = program.GetKind(node);
+                bool isPowerKind = kind == SpellNodeKind.Amplify || kind == SpellNodeKind.Add || kind == SpellNodeKind.Split;
+                if (isPowerKind && program.IsReachable(node)) return true;
             }
+            return false;
         }
 
         /// <summary>현재 마법을 보존하면서 노드 배치, 연결과 시험 안내를 표시한다.</summary>
@@ -495,25 +550,13 @@ namespace RuneCode
             Button(card, 352, 164, 180, 40, L("ui.save"), () => { _app.RenameSpell(name.text); CloseModal(); }, CYAN);
         }
 
-        /// <summary>RC1 공유 코드의 클립보드 복사와 검증된 가져오기 입력을 표시한다.</summary>
-        private void OpenShare()
-        {
-            RectTransform card = OpenModal(L("ui.share"), 770, 400);
-            Text(card, 26, 74, 718, 40, L("ui.importCurrent"), 12, MUTED);
-            TMP_InputField field = Input(card, 26, 122, 718, 168, _app.ExportSpell(), "RC1.");
-            field.lineType = TMP_InputField.LineType.MultiLineNewline;
-            Button(card, 26, 322, 180, 42, L("ui.export"), () => GUIUtility.systemCopyBuffer = field.text, CYAN);
-            Button(card, 220, 322, 180, 42, L("ui.paste"), () => field.text = GUIUtility.systemCopyBuffer);
-            Button(card, 564, 322, 180, 42, L("ui.import"), () => { _app.ImportSpell(field.text); CloseModal(); }, CYAN);
-        }
-
-        /// <summary>RAM을 사용하여 노드 용량, 최대 에너지, 전투 시간을 각각 강화하고 룬을 해금한다.</summary>
+        /// <summary>마나풀 최대치와 전투 시간을 각각 강화하는 카드를 표시한다.</summary>
         private void BuildBench()
         {
             Text(_page, 30, 98, 850, 40, L("ui.bench"), 29, Color.white, FontStyles.Bold);
             Text(_page, 30, 144, 800, 34, L("ui.balance") + "  " + _app.Save.Currency + " " + L("ui.fragments"), 20, CYAN);
-            string[] types = { "capacity", "energy", "duration" };
-            string[] values = { _app.Capacity.ToString(), _app.MaxEnergy.ToString("0"), _app.BattleDuration.ToString("0") + "s" };
+            string[] types = { "energy", "duration" };
+            string[] values = { _app.MaxEnergy.ToString("0"), _app.BattleDuration.ToString("0") + "s" };
             for (int i = 0; i < types.Length; i++)
             {
                 string type = types[i];
@@ -525,18 +568,6 @@ namespace RuneCode
                 Text(card, 18, 93, 350, 38, description, 12, MUTED);
                 int cost = _app.GetUpgradeCost(type);
                 Button(card, 16, 142, 354, 28, cost < 0 ? L("ui.maxed") : L("ui.upgrade") + "  ·  " + cost + " " + L("ui.fragments"), () => _app.BuyUpgrade(type), cost >= 0 && _app.Save.Currency >= cost ? CYAN : MUTED, 12);
-            }
-            Text(_page, 30, 393, 1200, 24, L("ui.runeUnlocks"), 15, Color.white, FontStyles.Bold);
-            RectTransform runes = ScrollList(_page, "UnlockList", 28, 426, 1224, 228);
-            foreach (RuneDefinition rune in GameData.Runes.All)
-            {
-                if (rune.UnlockType == "start") continue;
-                RuneDefinition current = rune;
-                bool unlocked = Contains(_app.Save.UnlockedRunes, rune.Id);
-                string cost = rune.UnlockType == "reward" ? L("ui.reward") : rune.UnlockCost + " " + L("ui.fragments");
-                UnityEngine.UI.Button button = Button(runes, 0, 0, 1198, 44, rune.Name + "  /  " + L("category." + rune.Category) + "  /  " + rune.Ram + " RAM  ·  " + (unlocked ? L("ui.complete") : cost),
-                    () => { if (!unlocked) _app.BuyUpgrade(current.Id); }, unlocked ? MUTED : RuneMesh.CategoryColor(rune.Category), 15);
-                Layout(button.gameObject, 44);
             }
         }
 
@@ -578,6 +609,10 @@ namespace RuneCode
             RectTransform arena = Rect(_page, "MissionArena", 12, 74, 1256, 572);
             _missionArena = arena.gameObject.AddComponent<RuneArenaGraphic>();
             _missionArena.Initialize(() => _app.Mission, Font, () => _app.Save.ScreenShake, () => _app.Save.HitStop);
+            RectTransform overlayRect = Rect(_page, "GraphOverlay", 896, 84, 360, 220);
+            _graphOverlay = overlayRect.gameObject.AddComponent<RuneGraphOverlay>();
+            _graphOverlay.Initialize(Font, () => _app.Mission, () => _app.EditingGraph, () => _app.Program);
+            overlayRect.gameObject.SetActive(_app.IsGraphOverlayVisible);
             Panel(_page, 0, 0, 1280, 74, PANEL);
             _hpCaption = Text(_page, 18, 11, 238, 24, L("ui.hp"), 12, MUTED);
             Panel(_page, 18, 40, 238, 9, new Color(0.20f, 0.15f, 0.20f));
@@ -592,17 +627,17 @@ namespace RuneCode
             Panel(_page, 0, 650, 1280, 70, PANEL);
             _missionSpell = Text(_page, 270, 661, 968, 30, "", 17, CYAN);
             Text(_page, 20, 698, 1220, 19, L(_app.RunIsAutomatic ? "ui.autoBattleControls" : "ui.manualBattleControls"), 11, MUTED);
-            Text(_page, 1036, 96, 214, 32, L("ui.incoming"), 14, new Color(0.97f, 0.57f, 0.45f));
+            Text(_page, 1036, 312, 214, 32, L("ui.incoming"), 14, new Color(0.97f, 0.57f, 0.45f));
+            Text(_page, 896, 306, 220, 18, L("ui.overlayHint"), 10, MUTED);
             _fragmentToast = Text(_page, 46, 98, 300, 35, "", 18, new Color(0.4f, 0.97f, 0.77f));
             _lastFragments = _app.Mission.EarnedFragments;
             _missionSpellName = _app.EditingGraph.Name;
-            _missionSpellCost = _app.CompileResult.Spell?.EnergyCost ?? 0;
             UpdateMissionHud();
             if (_app.IsDebugEnabled) Button(_page, 20, 654, 116, 36, L("ui.debug"), () => { RectTransform card = OpenModal(L("ui.debug"), 510, 420); BuildDebug(card, 24, 82); }, MUTED, 11);
             if (_app.IsPaused) OpenPause();
         }
 
-        /// <summary>전투의 남은 시간, 처치 수, RAM과 현재 마법의 체력·에너지·쿨다운을 갱신한다.</summary>
+        /// <summary>전투의 남은 시간, 처치 수, 체력과 마나풀 게이지, 현재 마법의 적재량과 최근 시전 실패를 갱신한다.</summary>
         private void UpdateMissionHud()
         {
             RuneSimulation sim = _app.Mission;
@@ -613,8 +648,7 @@ namespace RuneCode
             _missionStats.text = L("ui.kills") + " " + sim.KillCount + "  ·  " + L("ui.fragments") + " " + sim.EarnedFragments;
             _missionTimer.text = L("ui.remaining") + " " + sim.RemainingTime.ToString("0.0") + "s";
             _missionTimer.color = sim.RemainingTime <= 5 ? new Color(1, 0.43f, 0.36f) : new Color(0.98f, 0.82f, 0.45f);
-            _missionSpell.text = L("ui.singleSpell") + "  " + _missionSpellName + "  ·  " + L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") +
-                "s  ·  " + L("ui.cost") + " " + _missionSpellCost.ToString("0.#") + " EN";
+            _missionSpell.text = L("ui.singleSpell") + "  " + _missionSpellName + "  ·  " + L("param.load") + " " + LoadText(_app.Program) + " " + L("ui.mana") + CastFailureText(sim);
             if (sim.EarnedFragments > _lastFragments)
             {
                 _fragmentToast.text = "+" + (sim.EarnedFragments - _lastFragments) + " " + L("ui.fragments");
@@ -650,40 +684,38 @@ namespace RuneCode
             Button(card, 412, 464, 344, 58, L("ui.retryStage"), _app.RetryStage, MUTED, 20);
         }
 
-        /// <summary>활성화된 디버그 전용 조각 지급, 해금, 무적 및 적 소환 조작을 표시한다.</summary>
+        /// <summary>활성화된 디버그 전용 조각 지급, 무적 및 적 소환 조작을 표시한다.</summary>
         private void BuildDebug(Transform parent, float left, float top)
         {
             Button(parent, left, top, 444, 48, L("ui.grant"), _app.DebugGrant, CYAN);
-            Button(parent, left, top + 65, 444, 48, L("ui.unlockAll"), _app.DebugUnlock);
-            Button(parent, left, top + 130, 444, 48, L("ui.invulnerable"), _app.DebugInvulnerable);
-            Button(parent, left, top + 195, 444, 48, L("ui.spawn"), () => _app.DebugSpawn());
+            Button(parent, left, top + 65, 444, 48, L("ui.invulnerable"), _app.DebugInvulnerable);
+            Button(parent, left, top + 130, 444, 48, L("ui.spawn"), () => _app.DebugSpawn());
         }
 
-        /// <summary>HUD는 전체 태그의 학습값과 고정 상태를 한 줄 막대로, 도크는 사용된 태그의 수치를 표시한다.</summary>
-        private string AdaptationText(RuneSimulation sim, bool bars)
+        /// <summary>최근 1초 안의 시전 실패를 빨간 글자 문구로 반환하며 실패가 없으면 빈 문자열을 반환한다. 마나 부족을 과부하보다 먼저 본다.</summary>
+        private static string CastFailureText(RuneSimulation sim)
         {
-            string text = bars ? L("ui.adaptation") + "\n" : "";
-            foreach (string tag in sim.Adaptation.Tags)
-            {
-                double value = sim.Adaptation.GetValue(tag);
-                if (bars)
-                {
-                    bool isElement = tag == "fire" || tag == "ice" || tag == "arc" || tag == "raw";
-                    float cap = isElement ? GameData.Balance.Adaptation.ElementCap : GameData.Balance.Adaptation.FormCap;
-                    int filled = Mathf.Clamp(Mathf.RoundToInt((float)value / Mathf.Max(0.001f, cap) * 8), 0, 8);
-                    string locked = sim.Adaptation.IsLocked(tag) ? "<color=#FFC96B>*</color>" : "";
-                    text += "<color=#DDEBFA>" + L("tag." + tag) + "<pos=62>" + (value * 100).ToString("0") + "%</color>" + locked +
-                        "<pos=112><color=#344455>" + new string('■', 8) + "</color><pos=112><color=#BFB2FF>" + new string('■', filled) + "</color>\n";
-                }
-                else if (value > 0) text += L("tag." + tag) + " " + (value * 100).ToString("0") + "%  ";
-            }
-            return text;
+            SpellRuntime spell = sim.Spell;
+            if (spell.LastCastResult == CastResult.NoMana && IsRecentTick(spell.LastCastTick, sim.Tick))
+                return "  ·  " + FAILURE_OPEN_TAG + L("cast.noMana") + "</color>";
+            if (IsRecentTick(spell.LastOverloadTick, sim.Tick))
+                return "  ·  " + FAILURE_OPEN_TAG + L("cast.overload") + "</color>";
+            return "";
         }
 
-        /// <summary>현재 단일 마법의 이름과 노드 용량 사용량을 반환한다.</summary>
+        /// <summary>기록된 틱이 있고 현재 틱에서 1초(TICK_RATE틱) 이내이면 true를 반환한다. 기록이 없으면 음수 틱이므로 false를 반환한다.</summary>
+        private static bool IsRecentTick(int recordedTick, int currentTick)
+        {
+            return recordedTick >= 0 && currentTick - recordedTick <= RuneSimulation.TICK_RATE;
+        }
+
+        /// <summary>현재 단일 마법의 이름, 적재량을 표시하고, 프로그램이 유효하지 않으면 첫 오류 문구를 덧붙인 한 줄을 반환한다.</summary>
         private string CurrentSpellText()
         {
-            return L("ui.singleSpell") + "  " + _app.EditingGraph.Name + "  ·  " + L("ui.capacity") + " " + _app.EquippedRam + "/" + _app.Capacity;
+            SpellProgram program = _app.Program;
+            string text = L("ui.singleSpell") + "  " + _app.EditingGraph.Name + "  ·  " + L("param.load") + " " + LoadText(program);
+            if (program != null && !program.IsValid) text += "  ·  " + L("graph." + program.Errors[0].Code);
+            return text;
         }
 
         /// <summary>입력 뒤의 화면을 가리는 모달을 표시하고 조작을 받는 카드 영역을 반환한다.</summary>
@@ -798,13 +830,6 @@ namespace RuneCode
 
         /// <summary>현재 선택 입력이 TMP 필드이면 단축키 처리를 제한한다.</summary>
         private static bool IsTyping() => EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null && EventSystem.current.currentSelectedGameObject.GetComponent<TMP_InputField>() != null;
-
-        /// <summary>특정 값이 읽기 전용 문자열 목록에 포함되어 있는지 반환한다.</summary>
-        private static bool Contains(IReadOnlyList<string> values, string value)
-        {
-            foreach (string entry in values) if (entry == value) return true;
-            return false;
-        }
 
         /// <summary>패널의 기존 표시 요소를 비활성화한 뒤 제거한다.</summary>
         private static void ClearChildren(Transform parent)

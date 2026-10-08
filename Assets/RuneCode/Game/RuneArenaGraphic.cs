@@ -12,6 +12,7 @@ namespace RuneCode
     {
         private const float WORLD_WIDTH = 1280;
         private const float WORLD_HEIGHT = 704;
+        private const float GENERATION_COLOR_RANGE = 4f;
 
         private readonly List<TextMeshProUGUI> _damageLabels = new List<TextMeshProUGUI>();
         private Func<RuneSimulation> _simulation;
@@ -60,6 +61,12 @@ namespace RuneCode
                 _origin += new Vector2(Mathf.Sin(Time.unscaledTime * 170), Mathf.Cos(Time.unscaledTime * 190)) * (3 * _scale);
         }
 
+        /// <summary>투사체 세대 번호를 받아 세대 0의 청록색에서 세대가 늘수록 주황색으로 보간한 색을 반환한다.</summary>
+        public static Color GenerationColor(int generation)
+        {
+            return Color.Lerp(new Color(0.35f, 0.9f, 1f), new Color(1f, 0.62f, 0.25f), Mathf.Clamp01(generation / GENERATION_COLOR_RANGE));
+        }
+
         /// <summary>벽, 전투 개체와 시각적 상태를 현재 시뮬레이션 데이터로 그린다.</summary>
         protected override void OnPopulateMesh(UnityEngine.UI.VertexHelper mesh)
         {
@@ -89,26 +96,16 @@ namespace RuneCode
                     }
                 }
             if (sim.IsTimedBattle) DrawIncomingFlow(mesh, sim);
-            foreach (SimulationSpellEntity spell in sim.SpellEntities)
+            foreach (SpellProjectile projectile in sim.Spell.Projectiles)
             {
-                Vector2 point = Point(spell.Position);
-                Color tint = RuneMesh.ElementColor(spell.Element);
-                float radius = (float)spell.Radius * _scale;
-                if (spell.Kind == "zone" || spell.Kind == "burst")
-                {
-                    Color fill = tint; fill.a = spell.Kind == "zone" ? 0.12f : 0.22f;
-                    RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);
-                    RuneMesh.Ring(mesh, point, radius, 1.8f * _scale, tint, spell.Element == "fire" ? 12 : 24);
-                    RuneMesh.Ring(mesh, point, radius * 0.6f, _scale, fill * 2);
-                }
-                else
-                {
-                    Vector2 direction = new Vector2((float)spell.Direction.X, -(float)spell.Direction.Y);
-                    Color trail = tint; trail.a = 0.25f;
-                    RuneMesh.Line(mesh, point - direction * 24 * _scale, point, Math.Max(2, radius), trail);
-                    RuneMesh.Polygon(mesh, point, Math.Max(2.5f, radius), tint, spell.Element == "fire" ? 3 : spell.Element == "ice" ? 6 : spell.Element == "arc" ? 4 : 16,
-                        Mathf.Atan2(direction.y, direction.x));
-                }
+                Vector2 point = Point(projectile.Position);
+                Vector2 direction = new Vector2((float)projectile.Direction.X, -(float)projectile.Direction.Y);
+                Color tint = GenerationColor(projectile.Generation);
+                float radius = Mathf.Max(2.5f, GameData.Balance.Spell.ProjectileRadius * _scale);
+                Color trail = tint; trail.a = 0.25f;
+                RuneMesh.Line(mesh, point - direction * 24 * _scale, point, radius, trail);
+                RuneMesh.Polygon(mesh, point, radius, tint, 16, Mathf.Atan2(direction.y, direction.x));
+                if (projectile.CarriedMana > 0) RuneMesh.Ring(mesh, point, radius + 4 * _scale, 1.5f * _scale, new Color(1f, 0.95f, 0.6f), 12);
             }
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles)
             {
@@ -163,7 +160,7 @@ namespace RuneCode
             RuneMesh.Ring(mesh, Point(sim.Player.Position), 33 * _scale, 1.5f * _scale, new Color(0.26f, 0.75f, 0.86f, 0.35f), 12);
         }
 
-        /// <summary>적 종류에 따른 도형과 체력, 공격 예고, 상태 및 내성 표시를 그린다.</summary>
+        /// <summary>적 종류에 따른 도형과 체력, 공격 예고, 상태 표시를 그린다.</summary>
         private void DrawEnemy(UnityEngine.UI.VertexHelper mesh, SimulationEnemy enemy, RuneSimulation sim)
         {
             Vector2 point = Point(enemy.Position);
@@ -193,9 +190,6 @@ namespace RuneCode
             if (enemy.IsBurning) RuneMesh.Polygon(mesh, point + new Vector2(-radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("fire"), 3);
             if (enemy.ChillStacks > 0 || enemy.IsFrozen) RuneMesh.Polygon(mesh, point + new Vector2(0, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("ice"), 6);
             if (enemy.IsEmp) RuneMesh.Polygon(mesh, point + new Vector2(radius, radius + 8 * _scale), 4 * _scale, RuneMesh.ElementColor("arc"), 4);
-            bool isResistant = sim.Adaptation.Enabled && (sim.Adaptation.GetValue(enemy.LastDamageElement) >= GameData.Balance.Adaptation.ResistanceThreshold ||
-                sim.Adaptation.GetValue(enemy.LastDamageForm) >= GameData.Balance.Adaptation.ResistanceThreshold);
-            if (isResistant) RuneMesh.Ring(mesh, point + new Vector2(radius + 8 * _scale, radius), 4 * _scale, 1.5f * _scale, new Color(0.77f, 0.69f, 1), 6);
             float hpWidth = Math.Max(28, radius * 2);
             RuneMesh.Rect(mesh, new Rect(point.x - hpWidth / 2, point.y - radius - 8 * _scale, hpWidth, 3 * _scale), new Color(0.24f, 0.16f, 0.20f));
             RuneMesh.Rect(mesh, new Rect(point.x - hpWidth / 2, point.y - radius - 8 * _scale, hpWidth * (float)(enemy.Hp / enemy.MaxHp), 3 * _scale), tint);

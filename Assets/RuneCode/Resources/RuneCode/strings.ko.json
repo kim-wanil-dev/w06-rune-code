@@ -126,7 +126,7 @@
     },
     {
       "_key": "ui.energy",
-      "_value": "에너지"
+      "_value": "마나"
     },
     {
       "_key": "ui.peak",
@@ -282,15 +282,15 @@
     },
     {
       "_key": "ui.tutorial1",
-      "_value": "1 / 3 · 현재 마법에 형태 룬을 추가하고 시전 포트를 연결하세요"
+      "_value": "증폭·가산·분열 노드를 팔레트에서 꺼내 시전과 투사체 사이에 연결하세요. 출력 포트에서 입력 포트로 끌어 놓습니다."
     },
     {
       "_key": "ui.tutorial2",
-      "_value": "2 / 3 · 화염을 추가하고 mod 포트를 볼트에 연결하세요"
+      "_value": "도크를 클릭하거나 1 키로 시전해 토큰이 노드를 지나며 비용을 내는 모습을 확인하세요."
     },
     {
       "_key": "ui.tutorial3",
-      "_value": "3 / 3 · 시험 도크에서 마법을 발사하세요"
+      "_value": "분배·합류·분기와 적중 노드로 갈래와 루프를 만들어 보세요. 마나가 부족하면 토큰은 그 노드에서 소멸합니다."
     },
     {
       "_key": "ui.complete",
@@ -734,7 +734,7 @@
     },
     {
       "_key": "ui.energyDescription",
-      "_value": "최대 에너지와 초당 회복량을 함께 높입니다"
+      "_value": "마나풀 최대치와 초당 회복량을 늘립니다."
     },
     {
       "_key": "ui.durationDescription",
@@ -782,7 +782,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 전투 영역에서 연속 시전 · Space 대시 · Esc 일시정지"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭 시전 · Space 대시 · G 그래프 오버레이 · Esc 일시정지"
     },
     {
       "_key": "ui.incoming",
@@ -867,6 +867,262 @@
     {
       "_key": "ui.spellSpeed",
       "_value": "이동 / 회전 속도"
+    },
+    {
+      "_key": "node.cast",
+      "_value": "시전"
+    },
+    {
+      "_key": "node.projectile",
+      "_value": "투사체"
+    },
+    {
+      "_key": "node.amplify",
+      "_value": "증폭"
+    },
+    {
+      "_key": "node.add",
+      "_value": "가산"
+    },
+    {
+      "_key": "node.split",
+      "_value": "분열"
+    },
+    {
+      "_key": "node.fork",
+      "_value": "분배"
+    },
+    {
+      "_key": "node.join",
+      "_value": "합류"
+    },
+    {
+      "_key": "node.branch",
+      "_value": "분기"
+    },
+    {
+      "_key": "node.onHit",
+      "_value": "적중"
+    },
+    {
+      "_key": "node.cast.desc",
+      "_value": "마나풀에서 적재량을 꺼내 토큰을 만든다. 토큰은 흐름선을 따라 노드를 지나며 비용을 낸다."
+    },
+    {
+      "_key": "node.projectile.desc",
+      "_value": "토큰의 위력으로 투사체를 개수만큼 쏜다. 출력이 연결되지 않았으면 남은 마나를 투사체에 나눠 싣고 토큰이 끝난다."
+    },
+    {
+      "_key": "node.amplify.desc",
+      "_value": "위력에 배율을 곱한다."
+    },
+    {
+      "_key": "node.add.desc",
+      "_value": "위력에 10을 더한다."
+    },
+    {
+      "_key": "node.split.desc",
+      "_value": "개수를 1 늘리고 위력에 0.7을 곱한다."
+    },
+    {
+      "_key": "node.fork.desc",
+      "_value": "남은 마나를 비율대로 나눠 두 갈래로 보낸다."
+    },
+    {
+      "_key": "node.join.desc",
+      "_value": "양쪽 입력의 토큰을 하나로 합친다. 1초 안에 짝이 오지 않으면 혼자 나간다."
+    },
+    {
+      "_key": "node.branch.desc",
+      "_value": "조건이 참이면 위쪽 출력, 거짓이면 아래쪽 출력으로 보낸다."
+    },
+    {
+      "_key": "node.onHit.desc",
+      "_value": "마나를 실은 투사체가 적에게 맞으면 이 자리에서 새 토큰이 태어난다."
+    },
+    {
+      "_key": "param.aim",
+      "_value": "조준 모드"
+    },
+    {
+      "_key": "param.load",
+      "_value": "적재량"
+    },
+    {
+      "_key": "param.ratio",
+      "_value": "배율"
+    },
+    {
+      "_key": "param.share",
+      "_value": "비율(%)"
+    },
+    {
+      "_key": "param.condition",
+      "_value": "조건"
+    },
+    {
+      "_key": "param.compare",
+      "_value": "비교"
+    },
+    {
+      "_key": "param.threshold",
+      "_value": "기준값"
+    },
+    {
+      "_key": "option.aim.cursor",
+      "_value": "커서 방향"
+    },
+    {
+      "_key": "option.aim.nearest",
+      "_value": "가장 가까운 적"
+    },
+    {
+      "_key": "option.compare.ge",
+      "_value": "이상(≥)"
+    },
+    {
+      "_key": "option.compare.le",
+      "_value": "이하(≤)"
+    },
+    {
+      "_key": "option.condition.targetDistance",
+      "_value": "대상 거리"
+    },
+    {
+      "_key": "option.condition.targetHpPercent",
+      "_value": "대상 체력 %"
+    },
+    {
+      "_key": "option.condition.mana",
+      "_value": "마나"
+    },
+    {
+      "_key": "option.condition.power",
+      "_value": "위력"
+    },
+    {
+      "_key": "option.condition.generation",
+      "_value": "세대"
+    },
+    {
+      "_key": "option.condition.passCount",
+      "_value": "통과 횟수"
+    },
+    {
+      "_key": "formula.power",
+      "_value": "위력"
+    },
+    {
+      "_key": "formula.count",
+      "_value": "개수"
+    },
+    {
+      "_key": "graph.G1",
+      "_value": "시전 노드는 정확히 하나여야 합니다."
+    },
+    {
+      "_key": "graph.G2",
+      "_value": "적중 노드는 하나만 둘 수 있습니다."
+    },
+    {
+      "_key": "graph.G3",
+      "_value": "시전·적중 노드에는 입력을 연결할 수 없습니다."
+    },
+    {
+      "_key": "graph.G4",
+      "_value": "출력 포트 하나에는 연결을 하나만 둘 수 있습니다."
+    },
+    {
+      "_key": "graph.G5",
+      "_value": "그래프 데이터가 유효하지 않습니다."
+    },
+    {
+      "_key": "graph.G6",
+      "_value": "파라미터 값이 유효하지 않습니다."
+    },
+    {
+      "_key": "graph.W1",
+      "_value": "시전에서 도달할 수 있는 투사체 노드가 없습니다."
+    },
+    {
+      "_key": "cast.noMana",
+      "_value": "마나 부족"
+    },
+    {
+      "_key": "cast.overload",
+      "_value": "과부하"
+    },
+    {
+      "_key": "token.need",
+      "_value": "필요"
+    },
+    {
+      "_key": "token.have",
+      "_value": "보유"
+    },
+    {
+      "_key": "token.expired",
+      "_value": "수명 초과"
+    },
+    {
+      "_key": "ui.mana",
+      "_value": "마나"
+    },
+    {
+      "_key": "ui.nodeCount",
+      "_value": "노드"
+    },
+    {
+      "_key": "port.true",
+      "_value": "참"
+    },
+    {
+      "_key": "port.false",
+      "_value": "거짓"
+    },
+    {
+      "_key": "ui.unreachable",
+      "_value": "도달 불가 노드"
+    },
+    {
+      "_key": "ui.costFormula",
+      "_value": "비용"
+    },
+    {
+      "_key": "ui.graphOverlay",
+      "_value": "그래프 오버레이"
+    },
+    {
+      "_key": "ui.overlayHint",
+      "_value": "G: 그래프 오버레이"
+    },
+    {
+      "_key": "ui.tokens",
+      "_value": "토큰"
+    },
+    {
+      "_key": "ui.power",
+      "_value": "위력"
+    },
+    {
+      "_key": "ui.count",
+      "_value": "개수"
+    },
+    {
+      "_key": "ui.generation",
+      "_value": "세대"
+    },
+    {
+      "_key": "editor.onHitLimit",
+      "_value": "적중 노드는 하나만 둘 수 있습니다."
+    },
+    {
+      "_key": "editor.noInput",
+      "_value": "이 노드에는 입력을 연결할 수 없습니다."
+    },
+    {
+      "_key": "spell.defaultName",
+      "_value": "기본 마법"
     }
   ]
 }

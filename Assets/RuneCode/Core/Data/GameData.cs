@@ -25,16 +25,12 @@ namespace RuneCode
 
     public static class GameData
     {
-        private static RuneCatalog _runes;
         private static BalanceData _balance;
-        private static IReadOnlyList<SpellGraph> _spells;
         private static Dictionary<string, string> _strings;
-        public static bool IsLoaded => _runes != null;
-        public static RuneCatalog Runes => _runes;
+        public static bool IsLoaded => _balance != null;
         public static BalanceData Balance => _balance;
-        public static IReadOnlyList<SpellGraph> Spells => _spells;
 
-        /// <summary>Resources의 룬·밸런스·현지화·시작 마법 JSON을 한 번 읽고 스키마를 검증한다.</summary>
+        /// <summary>Resources의 밸런스·현지화 JSON을 한 번 읽고 스키마를 검증한다.</summary>
         public static void Load()
         {
             if (IsLoaded) return;
@@ -46,22 +42,8 @@ namespace RuneCode
                 if (entry == null || string.IsNullOrEmpty(entry.Key) || !_strings.TryAdd(entry.Key, entry.Value))
                     throw new FormatException("중복되거나 잘못된 한국어 문자열 키입니다.");
             }
-            RuneCatalog runes = RuneCatalog.FromJson(ReadResource("runes"));
             BalanceData balance = BalanceData.FromJson(ReadResource("balance"));
-            List<SpellGraph> spells = new List<SpellGraph>
-            {
-                ShareCodec.Deserialize(ReadResource("spells/firebolt")),
-                ShareCodec.Deserialize(ReadResource("spells/shockwave")),
-                ShareCodec.Deserialize(ReadResource("spells/triplefire"))
-            };
-            foreach (SpellGraph graph in spells)
-            {
-                CompileResult result = GraphCompiler.Compile(graph, runes, balance, runes.StartRunes, int.MaxValue);
-                if (!result.Ok) throw new FormatException("시작 마법이 유효하지 않습니다: " + graph.Name);
-            }
             _balance = balance;
-            _spells = spells;
-            _runes = runes;
         }
 
         /// <summary>현지화 키의 한국어 문구를 반환하고 누락된 키는 그대로 표시한다.</summary>

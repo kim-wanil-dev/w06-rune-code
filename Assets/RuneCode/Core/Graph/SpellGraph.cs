@@ -148,11 +148,13 @@ namespace RuneCode
             _name = name;
         }
 
-        /// <summary>삭제할 수 없는 시전 Core가 포함된 새 마법을 반환한다.</summary>
+        /// <summary>ID와 이름으로 시전 노드와 투사체 노드를 흐름선으로 잇는 기본 마법을 만들어 반환한다.</summary>
         public static SpellGraph Create(string id, string name)
         {
             SpellGraph graph = new SpellGraph(id, name);
-            graph.AddNode(new GraphNode("core", "core.cast", 80f, 140f));
+            graph.AddNode(new GraphNode("core", SpellNodes.CAST_ID, 80f, 140f));
+            graph.AddNode(new GraphNode("projectile", SpellNodes.PROJECTILE_ID, 330f, 140f));
+            graph.AddEdge(new GraphEdge("edge-core", "core", "0", "projectile", "0"));
             return graph;
         }
 
@@ -178,11 +180,11 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>Core를 제외한 노드와 연결된 엣지를 제거하고 제거 성공 여부를 반환한다.</summary>
+        /// <summary>시전 노드를 제외한 노드와 연결된 엣지를 제거하고 제거 성공 여부를 반환한다.</summary>
         public bool RemoveNode(string id)
         {
             GraphNode node = FindNode(id);
-            if (node == null || node.RuneId == "core.cast") return false;
+            if (node == null || node.RuneId == SpellNodes.CAST_ID) return false;
             _nodes.Remove(node);
             _edges.RemoveAll(edge => edge.FromNode == id || edge.ToNode == id);
             return true;
