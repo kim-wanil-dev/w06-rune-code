@@ -1,0 +1,12 @@
+﻿runeId,order,tag
+#룬 ID,순서,태그
+form.bolt,0,bolt
+form.burst,0,burst
+form.orbit,0,orbit
+form.zone,0,zone
+elem.fire,0,fire
+elem.ice,0,ice
+elem.arc,0,arc
+magic.inline,0,magic
+spell.call,0,call
+mod.duration,0,duration
