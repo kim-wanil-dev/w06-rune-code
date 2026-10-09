@@ -14,6 +14,8 @@ namespace RuneCode
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
         private const int STATUS_TYPE_COUNT = 4;
         private const int PLAYER_TARGET_ID = -1;
+        private const string BURST_FORM_ID = "form.burst";
+        private const string PERSIST_FORM_ID = "form.zone";
         private const double SAME_SPAWN_DISTANCE = 0.5;
         private const string BOLT_RUNE_ID = "form.bolt";
         private const string SURROUND_SHAPE = "ringAllSlots";
@@ -29,6 +31,8 @@ namespace RuneCode
         private readonly double _maxHp;
         private readonly double _maxEnergy;
         private readonly double _energyRegen;
+        private readonly double _burstExpandSeconds;
+        private readonly double _persistWarnSeconds;
         private readonly List<SimulationEnemy> _enemies = new List<SimulationEnemy>();
         private readonly List<SimulationSpellEntity> _spellEntities = new List<SimulationSpellEntity>();
         private readonly List<SimulationProjectile> _enemyProjectiles = new List<SimulationProjectile>();
@@ -150,6 +154,8 @@ namespace RuneCode
             _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
             _stageNumber = Math.Max(1, stageNumber);
             _energyRegen = energyRegen > 0 ? energyRegen : _balance.Player.EnergyRegen;
+            _burstExpandSeconds = GameData.Runes.Get(BURST_FORM_ID).Stats.ExpandSeconds;
+            _persistWarnSeconds = GameData.Runes.Get(PERSIST_FORM_ID).Stats.WarnSeconds;
             _spawnSlots = new SpawnSlots(NextRandom);
             Adaptation = new AdaptationNet(_balance);
             if (isMission) BeginTimedBattle();
@@ -516,17 +522,18 @@ namespace RuneCode
                 }
                 double angle = i * 2 * Math.PI / action.Count;
                 if (action.Form == "orbit") position = (context.FromEvent ? context.Origin : _player.Position) + new SimVector(Math.Cos(angle), Math.Sin(angle)) * stats.OrbitRadius;
+                double warmup = action.Form == SpellGrammar.FORM_BURST ? _burstExpandSeconds : action.Form == SpellGrammar.FORM_ZONE ? _persistWarnSeconds : 0;
                 var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, position, direction,
-                    context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds,
+                    context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds, warmup,
                     context.CallEvents, context.Modifiers, context.CostMultiplier, context.Caster);
                 _spellEntities.Add(entity); _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
                 // 보호 Orbit(방벽)은 생성 시 보호막을 준다. 보호 Burst는 범위 안의 시전자에게만 HitArea에서 준다.
                 if (action.SourceElement == "protection" && action.Form == SpellGrammar.FORM_ORBIT)
                     _player.GiveShield(action.Power * action.ModifierValues.DamageMultiplier * context.Modifiers.DamageMultiplier,
                         action.BuffDuration * action.ModifierValues.DurationMultiplier * context.Modifiers.DurationMultiplier, Time);
-                if (action.Form == "burst")
-                { HitArea(entity, true); Expire(entity); }
-                else if (action.Form == "zone" && action.SourceElement != "protection") HitArea(entity, false);
+                // Burst는 크기 0에서 확장을 시작하고, Persist는 예고가 끝난 뒤에만 판정한다(백서 v3).
+                if (action.Form == "burst") HitArea(entity, true);
+                else if (action.Form == "zone" && action.SourceElement != "protection" && !entity.IsWarning) HitArea(entity, false);
             }
         }
 
@@ -547,8 +554,10 @@ namespace RuneCode
                     entity.Move(position, new SimVector(-Math.Sin(entity.Angle), Math.Cos(entity.Angle)));
                     if (entity.Action.SourceElement != "protection") HitArea(entity, false);
                 }
-                else if (entity.Kind == "zone") HitArea(entity, false);
+                else if (entity.Kind == "zone" && !entity.IsWarning) HitArea(entity, false);
                 entity.Advance(STEP_SECONDS);
+                // Burst는 커진 반경으로 판정하도록 진행 후에 확장이 끝날 때까지 새 대상을 판정한다.
+                if (entity.Kind == SpellGrammar.FORM_BURST && entity.IsExpanding) HitArea(entity, true);
                 if ((entity.Kind != "burst" && entity.HasExpired) || entity.Age + 0.000001 >= entity.Lifetime)
                 { Expire(entity); _spellEntities.RemoveAt(i); }
                 else i++;
@@ -679,9 +688,17 @@ namespace RuneCode
         private static bool IntersectsCone(SimulationSpellEntity entity, SimVector target, double targetRadius)
             => IntersectsSector(entity.Position, entity.Direction, entity.Radius, entity.ConeAngle, target, targetRadius);
 
+        /// <summary>범위 중심에서 대상 쪽으로 현재 반경만큼(대상이 더 가까우면 대상 위치까지) 간 접촉 위치를 반환한다.</summary>
+        private static SimVector GetContactPoint(SimulationSpellEntity entity, SimVector target)
+        {
+            SimVector offset = target - entity.Position;
+            double distance = offset.Length;
+            return distance <= 0.000001 ? entity.Position : entity.Position + offset / distance * Math.Min(entity.Radius, distance);
+        }
+
         /// <summary>
-        /// 범위 마법의 가까운 적부터 대상별 주기에 맞춰 피해를 적용한다. 범위 적중은 OnHit을 만들지 않는다.
-        /// 공전만 대상과의 접촉이 시작될 때(떨어졌다 다시 닿을 때 포함) OnHit을 낸다.
+        /// 범위 마법의 가까운 적부터 대상별 주기에 맞춰 피해를 적용한다. Persist 적중은 OnHit을 만들지 않는다.
+        /// Burst는 확장 범위가 대상과 처음 겹칠 때 대상별 한 번, 공전은 대상과의 접촉이 시작될 때(떨어졌다 다시 닿을 때 포함) OnHit을 낸다.
         /// </summary>
         private void HitArea(SimulationSpellEntity entity, bool isBurst)
         {
@@ -713,6 +730,8 @@ namespace RuneCode
                 {
                     entity.HitTimes[enemy.Id] = Time;
                     Hit(entity, enemy, entity.Stats.Damage, entity.Kind == "zone");
+                    // Burst.OnHit은 확장 범위가 대상과 처음 겹칠 때 대상별 한 번, 접촉 위치로 낸다.
+                    if (isBurst) RaiseHitEvent(entity, GetContactPoint(entity, enemy.Position), enemy);
                 }
                 if (isNewContact) RaiseHitEvent(entity, enemy.Position, enemy);
             }

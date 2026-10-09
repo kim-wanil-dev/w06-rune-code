@@ -46,11 +46,13 @@ namespace RuneCode
 
         /// <summary>
         /// 지원 중단 포트에서 나가는 연결을 W5 경고와 함께 뺀 컴파일용 그래프를 반환한다. 원본 그래프의 연결은 그대로 보존된다.
+        /// 연결 수 상한이 있는 효과 출력(효과 룬은 대상 하나)은 순서상 앞선 연결만 남기고 나머지는 W9 경고와 함께 뺀다.
         /// 남는 연결 중 이전 이벤트 의미로 만든 연결(IsLegacyEvent)에는 W6 경고를 추가한다. 뺄 연결이 없으면 원본을 반환한다.
         /// </summary>
         private static SpellGraph RemoveDeprecatedEdges(SpellGraph graph, RuneCatalog runes, List<CompileIssue> warnings)
         {
             if (graph.Nodes == null || graph.Edges == null) return graph;
+            HashSet<GraphEdge> extraModifierEdges = FindExtraModifierEdges(graph, runes);
             var kept = new List<GraphEdge>(graph.Edges.Count);
             foreach (GraphEdge edge in graph.Edges)
             {
@@ -62,10 +64,36 @@ namespace RuneCode
                     warnings.Add(new CompileIssue("W5", edge.FromNode, edge.FromPort));
                     continue;
                 }
+                if (edge != null && extraModifierEdges.Contains(edge))
+                {
+                    warnings.Add(new CompileIssue("W9", edge.FromNode));
+                    continue;
+                }
                 if (port != null && edge.IsLegacyEvent) warnings.Add(new CompileIssue("W6", edge.FromNode, edge.FromPort));
                 kept.Add(edge);
             }
             return kept.Count == graph.Edges.Count ? graph : graph.CopyWith(graph.Nodes, kept);
+        }
+
+        /// <summary>
+        /// 연결 수 상한이 있는 효과 출력마다 순서(Order, 같으면 저장 순)상 상한을 넘는 연결을 찾아 반환한다.
+        /// 효과 룬은 대상 하나에만 적용하므로(백서 v3) 기존 그래프의 추가 연결은 보존하되 컴파일에서 뺀다.
+        /// </summary>
+        private static HashSet<GraphEdge> FindExtraModifierEdges(SpellGraph graph, RuneCatalog runes)
+        {
+            var extra = new HashSet<GraphEdge>();
+            var uses = new Dictionary<(string node, string port), int>();
+            foreach (GraphEdge edge in graph.Edges.Where(edge => edge != null).OrderBy(edge => edge.Order))
+            {
+                GraphNode from = graph.FindNode(edge.FromNode);
+                PortDefinition port = from != null && runes.TryGet(from.RuneId, out RuneDefinition rune)
+                    ? rune.FindPort(edge.FromPort, SpellGrammar.DIRECTION_OUT) : null;
+                if (port == null || port.Kind != "mod" || port.Max <= 0) continue;
+                uses.TryGetValue((edge.FromNode, edge.FromPort), out int count);
+                uses[(edge.FromNode, edge.FromPort)] = count + 1;
+                if (count >= port.Max) extra.Add(edge);
+            }
+            return extra;
         }
 
         /// <summary>
@@ -180,6 +208,8 @@ namespace RuneCode
                 issue = new CompileIssue("E2", edge.ToNode);
             else if (input.Kind == "mod" && input.Max > 0 && graph.Edges.Count(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort) >= input.Max)
                 issue = new CompileIssue("E5", edge.ToNode);
+            else if (output.Kind == "mod" && output.Max > 0 && graph.Edges.Count(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort) >= output.Max)
+                issue = new CompileIssue("E20", edge.FromNode);
             else if (input.Kind == "mod" && graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort
                 && graph.FindNode(current.FromNode)?.RuneId == from.RuneId))
                 issue = new CompileIssue("E9", edge.ToNode);
@@ -541,7 +571,7 @@ namespace RuneCode
 
         /// <summary>
         /// 개체 하나가 이벤트를 낼 수 있는 최대 OnHit 횟수를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽),
-        /// 공전은 접촉 시작마다 내므로 개체당 이벤트 상한을 쓴다.
+        /// 공전·Burst는 대상마다 내므로 개체당 이벤트 안전 상한을 쓴다. Burst의 마나 비용은 Cost에서 산정 불가로 따로 다룬다.
         /// </summary>
         private static int MaxHitEvents(SpellAction action, int hitCap)
         {
@@ -560,7 +590,11 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        float hitCost = MaxHitEvents(action, hitCap) * Cost(action.OnHit, hitCap);
+                        float hitChainCost = Cost(action.OnHit, hitCap);
+                        // Burst.OnHit은 개체당 상한이 없어(결정) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
+                        float hitCost = action.Form == SpellGrammar.FORM_BURST
+                            ? (hitChainCost > 0f ? float.PositiveInfinity : 0f)
+                            : MaxHitEvents(action, hitCap) * hitChainCost;
                         float expireCost = Cost(action.OnExpire, hitCap);
                         float eventCost = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitCost, expireCost) : hitCost + expireCost;
                         sum += action.OwnEnergy + action.Count * (eventCost + Cost(action.OnFirstHitOrExpire, hitCap));

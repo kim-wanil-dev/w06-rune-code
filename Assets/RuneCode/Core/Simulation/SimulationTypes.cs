@@ -258,6 +258,7 @@ namespace RuneCode
         private readonly string _castNoiseElement;
         private readonly bool _fromEvent;
         private readonly double _visualSeconds;
+        private readonly double _warmupSeconds;
         private readonly SimVector _anchor;
         private readonly SpellEventScope _callEvents;
         private readonly SpellModifierValues _modifiers;
@@ -280,7 +281,18 @@ namespace RuneCode
         public string Element => _element;
         public SimVector Position => _position;
         public SimVector Direction => _direction;
-        public double Radius => _stats.Radius;
+        /// <summary>현재 판정 반경이다. Burst는 확장 시간 동안 0에서 최종 반경까지 커지고, 그 외는 최종 반경이다.</summary>
+        public double Radius => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
+            ? _stats.Radius * Math.Min(1, _age / _warmupSeconds) : _stats.Radius;
+
+        /// <summary>Persist가 활성화 전 예고 중인지 나타낸다. 예고 중에는 효과·적중 판정을 하지 않는다.</summary>
+        public bool IsWarning => _action.Form == SpellGrammar.FORM_ZONE && _age + 0.000001 < _warmupSeconds;
+
+        /// <summary>Persist 예고 진행률(0~1)이다. 예고가 없거나 끝났으면 1이다.</summary>
+        public double WarnProgress => _action.Form == SpellGrammar.FORM_ZONE && _warmupSeconds > 0 ? Math.Min(1, _age / _warmupSeconds) : 1;
+
+        /// <summary>Burst가 아직 확장 중이라 새 대상을 판정하는지 나타낸다.</summary>
+        internal bool IsExpanding => _action.Form == SpellGrammar.FORM_BURST && _age <= _warmupSeconds + 0.000001;
         public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
 
         /// <summary>부채꼴인지 나타낸다. 판정·그리기는 꼭짓점(ConeApex)에서 진행 방향으로 펼친 부채꼴이다.</summary>
@@ -295,7 +307,9 @@ namespace RuneCode
         /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
         public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
         public double Age => _age;
-        public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
+        /// <summary>개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간, 그 외는 유지 시간이다.</summary>
+        public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _warmupSeconds + _visualSeconds
+            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -322,11 +336,15 @@ namespace RuneCode
         /// <summary>부채꼴 발사체 중심(center)과 진행 방향, 반경으로 꼭짓점(중심에서 반경만큼 뒤)을 반환한다.</summary>
         internal static SimVector GetConeApex(SimVector center, SimVector direction, double radius) => center - direction.Normalized() * radius;
 
-        /// <summary>컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.</summary>
+        /// <summary>
+        /// 컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.
+        /// warmupSeconds는 Burst의 확장 시간 또는 Persist의 예고 시간이며 그 외 형태는 0이다.
+        /// </summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
+            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
         {
+            _warmupSeconds = warmupSeconds;
             _costMultiplier = costMultiplier;
             _caster = caster;
             _id = id;

@@ -94,6 +94,8 @@ namespace RuneCode
         private readonly float _shieldAmount;
         private readonly float _shieldSeconds;
         private readonly float _coneAngle;
+        private readonly float _expandSeconds;
+        private readonly float _warnSeconds;
 
         public float Damage => _damage;
         public float Speed => _speed;
@@ -123,6 +125,12 @@ namespace RuneCode
         /// <summary>부채꼴(Cone) Shape의 전체 각도(도)다. Cone이 아닌 룬은 0이다.</summary>
         public float ConeAngle => _coneAngle;
 
+        /// <summary>Burst 범위가 0에서 최종 크기까지 커지는 시간(초)이다. Burst가 아닌 룬은 0이다.</summary>
+        public float ExpandSeconds => _expandSeconds;
+
+        /// <summary>Persist 영역이 활성화되기 전 예고 시간(초)이다. Persist가 아닌 룬은 0이다.</summary>
+        public float WarnSeconds => _warnSeconds;
+
         /// <summary>rune_stats 테이블 행으로 효과 수치를 만든다. 빈 칸은 배율 열이면 1, 그 외는 0이다.</summary>
         internal RuneStats(TableRow row)
         {
@@ -151,6 +159,8 @@ namespace RuneCode
             _shieldAmount = row.GetOptionalFloat("shieldAmount", 0f);
             _shieldSeconds = row.GetOptionalFloat("shieldSeconds", 0f);
             _coneAngle = row.GetOptionalFloat("coneAngle", 0f);
+            _expandSeconds = row.GetOptionalFloat("expandSeconds", 0f);
+            _warnSeconds = row.GetOptionalFloat("warnSeconds", 0f);
         }
     }
 
@@ -570,7 +580,7 @@ namespace RuneCode
             float[] numbers = { stats.Damage, stats.Speed, stats.Radius, stats.Lifetime, stats.Offset, stats.OrbitRadius,
                 stats.AngularSpeed, stats.HitInterval, stats.TickInterval, stats.DamageMultiplier, stats.RadiusMultiplier,
                 stats.PierceLoss, stats.HomingTurn, stats.HomingRange, stats.ArcRange, stats.ArcMultiplier,
-                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle };
+                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle, stats.ExpandSeconds, stats.WarnSeconds };
             foreach (float value in numbers)
             {
                 if (value < 0f)

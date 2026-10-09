@@ -210,7 +210,7 @@ namespace RuneCode
             _hud.SetTimer(sim.IsBossStage ? remainingEnemies + " · " + sim.RemainingTime.ToString("0.0") + "s" : remainingEnemies,
                 sim.IsBossStage && sim.RemainingTime <= TIMER_WARNING_SECONDS);
             _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " "
-                + sim.Player.Cooldowns[0].ToString("0.0") + "s  ·  " + GameData.L("ui.cost") + " " + _run.SpellCost.ToString("0.#") + " EN");
+                + sim.Player.Cooldowns[0].ToString("0.0") + "s  ·  " + GameData.L("ui.cost") + " " + (float.IsInfinity(_run.SpellCost) ? GameData.L("ui.costUnbounded") : _run.SpellCost.ToString("0.#") + " EN"));
             if (sim.EarnedFragments > _lastFragments)
             {
                 _hud.SetToast("+" + (sim.EarnedFragments - _lastFragments) + " " + GameData.L("ui.fragments"));

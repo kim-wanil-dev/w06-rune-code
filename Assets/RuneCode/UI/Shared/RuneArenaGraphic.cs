@@ -29,6 +29,7 @@ namespace RuneCode
         private static readonly Color TERMINAL_ACTIVE_COLOR = new Color(0.26f, 0.91f, 0.66f);
         private static readonly Color TERMINAL_IDLE_COLOR = new Color(0.26f, 0.43f, 0.49f);
         private static readonly Color HOSTILE_COLOR = new Color(1, 0.33f, 0.42f);
+        private static readonly Color PERSIST_WARNING_COLOR = new Color(1f, 0.25f, 0.25f);
         private static readonly Color HOSTILE_TRAIL_COLOR = new Color(1, 0.25f, 0.3f, 0.25f);
         private static readonly Color ORB_COLOR = new Color(0.43f, 1f, 0.82f);
         private static readonly Color ORB_RING_COLOR = new Color(0.3f, 0.9f, 0.7f, 0.3f);
@@ -188,10 +189,15 @@ namespace RuneCode
                 DrawMovingSpell(mesh, spell, point, radius, direction, angle, boxRotation, tint);
         }
 
-        /// <summary>폭발·잔류 범위를 사각형·부채꼴·원 판정 모양 그대로 채움과 외곽선으로 그린다.</summary>
+        /// <summary>폭발·잔류 범위를 사각형·부채꼴·원 판정 모양 그대로 채움과 외곽선으로 그린다. 예고 중인 잔류는 예고 표시로 그린다.</summary>
         private void DrawAreaSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
             float angle, float boxRotation, Color tint)
         {
+            if (spell.IsWarning)
+            {
+                DrawWarningArea(mesh, spell, point, radius, angle, boxRotation);
+                return;
+            }
             Color fill = tint;
             fill.a = spell.Kind == SpellGrammar.FORM_ZONE ? 0.12f : 0.22f;
             if (spell.IsBox)
@@ -211,6 +217,31 @@ namespace RuneCode
                 RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);
                 RuneMesh.Ring(mesh, point, radius, 1.8f * _scale, tint, spell.Element == "fire" ? 12 : 24);
                 RuneMesh.Ring(mesh, point, radius * 0.6f, _scale, fill * 2);
+            }
+        }
+
+        /// <summary>예고 중인 잔류 범위를 판정 모양 그대로 빨간 외곽선과 진행률만큼 커지는 반투명 채움으로 그린다.</summary>
+        private void DrawWarningArea(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
+            float angle, float boxRotation)
+        {
+            Color fill = PERSIST_WARNING_COLOR;
+            fill.a = 0.25f;
+            float filled = radius * (float)spell.WarnProgress;
+            if (spell.IsBox)
+            {
+                RuneMesh.Square(mesh, point, filled, boxRotation, fill);
+                RuneMesh.SquareOutline(mesh, point, radius, boxRotation, 1.8f * _scale, PERSIST_WARNING_COLOR);
+            }
+            else if (spell.IsCone)
+            {
+                float coneAngle = (float)spell.ConeAngle * Mathf.Deg2Rad;
+                RuneMesh.Sector(mesh, point, filled, angle, coneAngle, fill);
+                RuneMesh.SectorOutline(mesh, point, radius, angle, coneAngle, 1.8f * _scale, PERSIST_WARNING_COLOR);
+            }
+            else
+            {
+                RuneMesh.Polygon(mesh, point, filled, fill, 24);
+                RuneMesh.Ring(mesh, point, radius, 1.8f * _scale, PERSIST_WARNING_COLOR, 24);
             }
         }
 

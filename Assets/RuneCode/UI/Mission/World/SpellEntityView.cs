@@ -8,6 +8,7 @@ namespace RuneCode
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
     /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
     /// 부채꼴(범위·발사체)은 실행 중 만드는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
+    /// 예고 중인 Persist는 최종 범위를 빨간 외곽선으로 두고 진행률만큼 안쪽을 채운다.
     /// </summary>
     public sealed class SpellEntityView : MonoBehaviour
     {
@@ -21,6 +22,9 @@ namespace RuneCode
         private const float LAUNCH_CONE_FILL_ALPHA = 0.6f;
         private const float CONE_EDGE_WIDTH = 2f;
         private const int CONE_SEGMENTS = 24;
+        private const float WARNING_FILL_ALPHA = 0.25f;
+
+        private static readonly Color WarningColor = new Color(1f, 0.25f, 0.25f);
 
         [Header("모양")]
         [SerializeField] private Sprite _fireShape;
@@ -72,16 +76,19 @@ namespace RuneCode
             else ApplyProjectile(spell, tint, radius, angle, boxRotation);
         }
 
-        /// <summary>폭발·잔류를 원 또는 사각형의 채움, 외곽선, 안쪽 선으로 표시한다.</summary>
+        /// <summary>폭발·잔류를 원 또는 사각형의 채움, 외곽선, 안쪽 선으로 표시한다. 예고 중인 잔류는 빨간 외곽선과 진행률만큼의 채움만 그린다.</summary>
         private void ApplyArea(SimulationSpellEntity spell, Color tint, float radius, float boxRotation)
         {
-            Color fill = tint; fill.a = spell.Kind == SpellGrammar.FORM_ZONE ? ZONE_FILL_ALPHA : BURST_FILL_ALPHA;
-            _fill.sprite = spell.IsBox ? _squareShape : spell.Element == "ice" ? _iceShape : _defaultShape;
+            bool isWarning = spell.IsWarning;
+            Color fill = isWarning ? WarningColor : tint;
+            fill.a = isWarning ? WARNING_FILL_ALPHA : spell.Kind == SpellGrammar.FORM_ZONE ? ZONE_FILL_ALPHA : BURST_FILL_ALPHA;
+            _fill.sprite = spell.IsBox ? _squareShape : spell.Element == "ice" && !isWarning ? _iceShape : _defaultShape;
             _outline.sprite = _inner.sprite = spell.IsBox ? _squareOutlineShape : _ringShape;
             Quaternion rotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : 0);
-            MissionWorldSpace.Place(_fill, Vector2.zero, radius * 2, fill);
-            MissionWorldSpace.Place(_outline, Vector2.zero, radius * 2, tint);
+            MissionWorldSpace.Place(_fill, Vector2.zero, radius * 2 * (float)spell.WarnProgress, fill);
+            MissionWorldSpace.Place(_outline, Vector2.zero, radius * 2, isWarning ? WarningColor : tint);
             MissionWorldSpace.Place(_inner, Vector2.zero, radius * 2 * INNER_SCALE, fill * 2);
+            MissionWorldSpace.SetVisible(_inner, !isWarning);
             _fill.transform.localRotation = _outline.transform.localRotation = _inner.transform.localRotation = rotation;
         }
 
@@ -103,14 +110,19 @@ namespace RuneCode
 
         /// <summary>
         /// 부채꼴을 꼭짓점(ConeApex)에서 진행 방향(월드 각도, 도)으로 반경(ConeReach)만큼 펼친 채움과 앞쪽 호로 표시한다.
+        /// 예고 중인 Persist는 빨간 호와 진행률만큼의 채움으로 표시한다.
         /// 발사체는 꼭짓점이 중심보다 뒤에 있어 개체 위치 기준 오프셋을 둔다.
         /// </summary>
         private void ApplyCone(SimulationSpellEntity spell, Color tint, float angle, SimVector origin)
         {
+            bool isWarning = spell.IsWarning;
+            if (isWarning) tint = WarningColor;
             Color fill = tint;
-            fill.a = spell.Kind == SpellGrammar.FORM_ZONE ? ZONE_FILL_ALPHA : spell.Kind == SpellGrammar.FORM_BURST ? BURST_FILL_ALPHA : LAUNCH_CONE_FILL_ALPHA;
+            fill.a = isWarning ? WARNING_FILL_ALPHA : spell.Kind == SpellGrammar.FORM_ZONE ? ZONE_FILL_ALPHA
+                : spell.Kind == SpellGrammar.FORM_BURST ? BURST_FILL_ALPHA : LAUNCH_CONE_FILL_ALPHA;
             Vector2 apex = MissionWorldSpace.ToWorld(spell.ConeApex, origin) - MissionWorldSpace.ToWorld(spell.Position, origin);
             float reach = MissionWorldSpace.ToWorldLength(spell.ConeReach);
+            float fillReach = reach * (float)spell.WarnProgress;
             float edge = Mathf.Min(reach, MissionWorldSpace.ToWorldLength(CONE_EDGE_WIDTH));
             float half = (float)spell.ConeAngle * 0.5f;
             _coneVertices.Clear(); _coneColors.Clear(); _coneTriangles.Clear();
@@ -119,7 +131,7 @@ namespace RuneCode
             {
                 float radians = (angle - half + (float)spell.ConeAngle * i / CONE_SEGMENTS) * Mathf.Deg2Rad;
                 Vector2 unit = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
-                _coneVertices.Add(apex + unit * reach); _coneColors.Add(fill);
+                _coneVertices.Add(apex + unit * fillReach); _coneColors.Add(fill);
                 _coneVertices.Add(apex + unit * (reach - edge)); _coneColors.Add(tint);
                 _coneVertices.Add(apex + unit * reach); _coneColors.Add(tint);
                 if (i == 0) continue;

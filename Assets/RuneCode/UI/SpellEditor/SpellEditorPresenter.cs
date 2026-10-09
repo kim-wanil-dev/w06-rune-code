@@ -139,7 +139,7 @@ namespace RuneCode
             string text = GameData.L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM";
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
-                : "  ·  " + GameData.L("ui.cost") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + GameData.L("ui.cooldown") + " "
+                : "  ·  " + GameData.L("ui.cost") + " " + (float.IsInfinity(spell.EnergyCost) ? GameData.L("ui.costUnbounded") : spell.EnergyCost.ToString("0.#")) + "  ·  " + GameData.L("ui.cooldown") + " "
                     + spell.Cooldown.ToString("0.00") + "s  ·  " + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
             _view.SetMetrics(text);
         }
