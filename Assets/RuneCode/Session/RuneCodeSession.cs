@@ -88,6 +88,10 @@ namespace RuneCode
         {
             var elements = new List<string> { "raw" };
             foreach (var id in _save.UnlockedRunes) if (id.StartsWith("elem.", StringComparison.Ordinal)) elements.Add(id.Substring(5));
+            // 문법 v3 속성은 element.* 룬으로 해금하므로 해금된 속성의 시뮬레이션 태그도 넣는다.
+            foreach (ElementDefinition element in GameData.Runes.Elements)
+                if (!string.IsNullOrEmpty(element.RuntimeTag) && _save.UnlockedRunes.Contains(element.RuneId) && !elements.Contains(element.RuntimeTag))
+                    elements.Add(element.RuntimeTag);
             return elements;
         }
 
