@@ -14,6 +14,7 @@ namespace RuneCode
     {
         private const float SHAKE_SECONDS = 0.08f;
         private const float HIT_STOP_SECONDS = 0.025f;
+        private const double DAMAGE_EPSILON = 0.000001;
         private const int MAX_DAMAGE_NUMBERS = 64;
         private const int DAMAGE_NUMBER_TICKS = 40;
         private const float WALL_EDGE_WIDTH = 1f;
@@ -54,6 +55,7 @@ namespace RuneCode
         private Transform _mapRoot;
         private PlayerView _playerView;
         private double _lastDamage;
+        private double _lastStatusDamage;
         private double _lastHp;
         private float _hitStopUntil;
 
@@ -105,19 +107,23 @@ namespace RuneCode
         {
             _observedSimulation = sim;
             _lastDamage = sim.TotalDamage;
+            _lastStatusDamage = sim.StatusDamage;
             _lastHp = sim.Player.Hp;
             BuildMap(sim.Map, sim.MapCenter);
         }
 
-        /// <summary>적에게 준 피해나 플레이어 체력 감소가 있으면 설정에 따라 카메라를 흔들고 히트 스톱을 시작한다.</summary>
+        /// <summary>
+        /// 적에게 준 직접 피해나 플레이어 체력 감소가 있으면 설정에 따라 카메라를 흔들고 히트 스톱을 시작한다.
+        /// 상태 이상 피해(화염)만으로는 카메라가 흔들리지 않고 히트 스톱도 시작하지 않는다.
+        /// </summary>
         private void DetectImpact(RuneSimulation sim)
         {
-            if (sim.TotalDamage > _lastDamage || sim.Player.Hp < _lastHp)
-            {
-                if (_isShakeEnabled?.Invoke() ?? false) _camera.Shake(SHAKE_SECONDS);
-                _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
-            }
+            bool isHpLost = sim.Player.Hp < _lastHp;
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
+            if ((directDelta > DAMAGE_EPSILON || isHpLost) && (_isShakeEnabled?.Invoke() ?? false)) _camera.Shake(SHAKE_SECONDS);
+            if (directDelta > DAMAGE_EPSILON || isHpLost) _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
             _lastDamage = sim.TotalDamage;
+            _lastStatusDamage = sim.StatusDamage;
             _lastHp = sim.Player.Hp;
         }
 

@@ -19,6 +19,7 @@ namespace RuneCode
         private const float TILE_SIZE = 32;
         private const float SHAKE_SECONDS = 0.08f;
         private const float HIT_STOP_SECONDS = 0.025f;
+        private const double DAMAGE_EPSILON = 0.000001;
         private const int DAMAGE_NUMBER_TICKS = 40;
         private const int MAX_DAMAGE_NUMBERS = 64;
 
@@ -64,6 +65,7 @@ namespace RuneCode
         private Vector2 _origin;
         private RuneSimulation _observedSimulation;
         private double _lastDamage;
+        private double _lastStatusDamage;
         private double _lastHp;
         private float _shakeUntil;
         private float _hitStopUntil;
@@ -132,21 +134,27 @@ namespace RuneCode
                 _origin += new Vector2(Mathf.Sin(Time.unscaledTime * 170), Mathf.Cos(Time.unscaledTime * 190)) * (3 * _scale);
         }
 
-        /// <summary>총 피해가 늘거나 플레이어 체력이 줄었으면 화면 흔들림·히트스톱 시간을 시작한다. 시뮬레이션이 바뀌면 기준값을 다시 잡는다.</summary>
+        /// <summary>
+        /// 적에게 준 직접 피해가 늘거나 플레이어 체력이 줄었으면 화면 흔들림·히트스톱 시간을 시작한다. 시뮬레이션이 바뀌면 기준값을 다시 잡는다.
+        /// 적의 상태 이상 피해(화염)만으로는 시작하지 않으며, 플레이어 자기 화상은 체력 감소로 보아 시작한다.
+        /// </summary>
         private void DetectImpact(RuneSimulation sim)
         {
             if (_observedSimulation != sim)
             {
                 _observedSimulation = sim;
                 _lastDamage = sim.TotalDamage;
+                _lastStatusDamage = sim.StatusDamage;
                 _lastHp = sim.Player.Hp;
             }
-            if (sim.TotalDamage > _lastDamage || sim.Player.Hp < _lastHp)
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
+            if (directDelta > DAMAGE_EPSILON || sim.Player.Hp < _lastHp)
             {
                 _shakeUntil = Time.unscaledTime + SHAKE_SECONDS;
                 _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
             }
             _lastDamage = sim.TotalDamage;
+            _lastStatusDamage = sim.StatusDamage;
             _lastHp = sim.Player.Hp;
         }
 
