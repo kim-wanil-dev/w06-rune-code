@@ -1155,6 +1155,10 @@
     {
       "_key": "magicType.cone",
       "_value": "부채꼴"
+    },
+    {
+      "_key": "ui.resetSaveMessage",
+      "_value": "모든 진행(조각, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
     }
   ]
 }

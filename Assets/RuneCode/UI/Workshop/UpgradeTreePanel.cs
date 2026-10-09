@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -7,10 +8,16 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
+    /// <summary>
+    /// 강화 트리 탭 View다. 트리 자산의 위치·선행 조건대로 노드 아이콘과 연결선을 만들고, 노드 클릭·포인터 진입을 알리며
+    /// 요약·노드 상태·연결선 상태·정보 패널을 표시한다. 상태 계산과 구매는 UpgradeTreePresenter가 한다.
+    /// </summary>
     public sealed class UpgradeTreePanel : MonoBehaviour
     {
         private const float NODE_SIZE = 76;
         private const float INITIAL_ZOOM = 0.88f;
+        private const float CONTENT_MARGIN = 42;
+        private const float LINE_WIDTH = 2.5f;
 
         [Header("트리 데이터")]
         [SerializeField] private UpgradeTreeDefinition _definition;
@@ -26,57 +33,27 @@ namespace RuneCode
 
         private readonly Dictionary<string, UpgradeTreeNodeView> _nodeViews = new Dictionary<string, UpgradeTreeNodeView>();
         private readonly List<TreeConnection> _connections = new List<TreeConnection>();
-        private RuneCodeSession _session;
-        private WorkshopScreen _screen;
-        private string _hoveredNodeId;
 
-        /// <summary>세션과 트리 자산을 연결하고 교차 연결·아이콘 노드·포인터 설명을 구성한다.</summary>
-        public void Initialize(RuneCodeSession session, WorkshopScreen screen)
-        {
-            _session = session;
-            _screen = screen;
-            _hoverPanel.gameObject.SetActive(false);
-            BuildTree();
-            Refresh();
-        }
+        /// <summary>표시 중인 트리 자산이다.</summary>
+        public UpgradeTreeDefinition Definition => _definition;
 
-        /// <summary>보유 재화, 스테이지 잠금, 노드 레벨과 연결 상태를 최신 세이브 기준으로 갱신한다.</summary>
-        public void Refresh()
-        {
-            if (_session == null) return;
-            int nextStage = Mathf.Min(_session.HighestClearedStage + 1, 10);
-            _summary.text = GameData.L("ui.tree.summary") + "  ·  " + _session.Save.Currency + " " + GameData.L("ui.fragments") +
-                "  ·  " + GameData.L("ui.tree.availableStage") + " " + nextStage + "  ·  " + GameData.L("ui.tree.controls");
-            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes) RefreshNode(node);
-            RefreshConnections();
-            if (!string.IsNullOrEmpty(_hoveredNodeId)) RefreshTooltip(_hoveredNodeId);
-        }
+        /// <summary>노드를 눌렀을 때 노드 ID와 함께 알린다.</summary>
+        public event Action<string> NodeClicked;
 
-        /// <summary>자산의 노드 위치와 선행 조건을 따라 연결선을 그리고 공용 사각형 아이콘 Prefab을 배치한다.</summary>
-        private void BuildTree()
+        /// <summary>포인터가 노드에 들어오거나(true) 나갈 때(false) 노드 ID와 함께 알린다.</summary>
+        public event Action<string, bool> NodeHovered;
+
+        /// <summary>트리 자산으로 연결선과 노드 아이콘을 배치하고 정보 패널을 닫아 둔다. Presenter가 한 번만 호출한다.</summary>
+        public void Build()
         {
             UiFactory.ClearChildren(_content);
-            _content.anchorMin = _content.anchorMax = new Vector2(0, 1);
-            _content.pivot = new Vector2(0, 1);
-            _content.anchoredPosition = Vector2.zero;
-            _content.localScale = Vector3.one * INITIAL_ZOOM;
             _nodeViews.Clear();
             _connections.Clear();
-
-            float rightEdge = 0;
-            float bottomEdge = 0;
+            _hoverPanel.gameObject.SetActive(false);
+            ResetContent();
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
             {
-                if (node == null) continue;
-                rightEdge = Mathf.Max(rightEdge, node.Position.x + NODE_SIZE);
-                bottomEdge = Mathf.Max(bottomEdge, node.Position.y + NODE_SIZE);
-            }
-            _content.sizeDelta = new Vector2(Mathf.Max(_viewport.rect.width, rightEdge + 42),
-                Mathf.Max(_viewport.rect.height, bottomEdge + 42));
-
-            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
-            {
-                if (node == null || node.Prerequisites == null) continue;
+                if (node?.Prerequisites == null) continue;
                 foreach (UpgradeTreePrerequisite prerequisite in node.Prerequisites)
                 {
                     UpgradeTreeNodeDefinition source = _definition.FindNode(prerequisite.NodeId);
@@ -85,22 +62,73 @@ namespace RuneCode
             }
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
             {
-                if (node == null || string.IsNullOrWhiteSpace(node.Id)) continue;
-                UpgradeTreeNodeView view = Instantiate(_nodePrefab, _content, false);
-                view.name = node.Id;
-                RectTransform rect = (RectTransform)view.transform;
-                rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
-                rect.pivot = new Vector2(0, 1);
-                rect.anchoredPosition = new Vector2(node.Position.x, -node.Position.y);
-                rect.sizeDelta = new Vector2(NODE_SIZE, NODE_SIZE);
-                string nodeId = node.Id;
-                view.SetPurchaseAction(() => Purchase(nodeId));
-                view.SetHoverAction(isHovered => ShowTooltip(nodeId, isHovered));
-                _nodeViews.Add(node.Id, view);
+                if (node != null && !string.IsNullOrWhiteSpace(node.Id)) CreateNode(node);
             }
         }
 
-        /// <summary>두 사각형 노드 중심을 직선으로 연결하고 선행 노드 상태를 저장한다.</summary>
+        /// <summary>상단 요약 문구를 표시한다.</summary>
+        public void SetSummary(string text) => _summary.text = text;
+
+        /// <summary>노드 아이콘의 효과 종류·룬 분류와 열림·완료·구매 가능 상태를 표시한다.</summary>
+        public void SetNodeState(string nodeId, UpgradeEffectType effectType, string runeCategory, bool isAvailable, bool isComplete, bool canPurchase)
+        {
+            if (_nodeViews.TryGetValue(nodeId, out UpgradeTreeNodeView view)) view.SetContent(effectType, runeCategory, isAvailable, isComplete, canPurchase);
+        }
+
+        /// <summary>각 연결선을 선행 노드 조건 충족 여부(노드 ID, 요구 레벨 → 충족)에 따라 완료 색 또는 잠금 색으로 표시한다.</summary>
+        public void SetConnectionStates(Func<string, int, bool> isSatisfied)
+        {
+            foreach (TreeConnection connection in _connections)
+                connection.Image.color = isSatisfied(connection.NodeId, connection.RequiredLevel) ? UiTheme.Cyan : UiTheme.Muted;
+        }
+
+        /// <summary>정보 패널에 제목·설명을 표시한다.</summary>
+        public void ShowTooltip(string title, string description)
+        {
+            _hoverPanel.gameObject.SetActive(true);
+            _hoverTitle.text = title;
+            _hoverDescription.text = description;
+        }
+
+        /// <summary>정보 패널을 닫는다.</summary>
+        public void HideTooltip() => _hoverPanel.gameObject.SetActive(false);
+
+        /// <summary>콘텐츠를 좌상단 기준·초기 배율로 되돌리고 모든 노드가 들어가는 크기로 맞춘다.</summary>
+        private void ResetContent()
+        {
+            _content.anchorMin = _content.anchorMax = new Vector2(0, 1);
+            _content.pivot = new Vector2(0, 1);
+            _content.anchoredPosition = Vector2.zero;
+            _content.localScale = Vector3.one * INITIAL_ZOOM;
+            float rightEdge = 0;
+            float bottomEdge = 0;
+            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
+            {
+                if (node == null) continue;
+                rightEdge = Mathf.Max(rightEdge, node.Position.x + NODE_SIZE);
+                bottomEdge = Mathf.Max(bottomEdge, node.Position.y + NODE_SIZE);
+            }
+            _content.sizeDelta = new Vector2(Mathf.Max(_viewport.rect.width, rightEdge + CONTENT_MARGIN),
+                Mathf.Max(_viewport.rect.height, bottomEdge + CONTENT_MARGIN));
+        }
+
+        /// <summary>노드 아이콘 Prefab을 자산 위치에 배치하고 클릭·포인터 진입을 이벤트로 연결한다.</summary>
+        private void CreateNode(UpgradeTreeNodeDefinition node)
+        {
+            UpgradeTreeNodeView view = Instantiate(_nodePrefab, _content, false);
+            view.name = node.Id;
+            RectTransform rect = (RectTransform)view.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(node.Position.x, -node.Position.y);
+            rect.sizeDelta = new Vector2(NODE_SIZE, NODE_SIZE);
+            string nodeId = node.Id;
+            view.SetPurchaseAction(() => NodeClicked?.Invoke(nodeId));
+            view.SetHoverAction(isHovered => NodeHovered?.Invoke(nodeId, isHovered));
+            _nodeViews.Add(node.Id, view);
+        }
+
+        /// <summary>두 노드 중심을 잇는 직선을 노드 뒤에 만들고 선행 노드 조건과 함께 저장한다.</summary>
         private void CreateConnection(UpgradeTreeNodeDefinition source, UpgradeTreeNodeDefinition target, UpgradeTreePrerequisite prerequisite)
         {
             Vector2 start = new Vector2(source.Position.x + NODE_SIZE * 0.5f, -source.Position.y - NODE_SIZE * 0.5f);
@@ -112,98 +140,12 @@ namespace RuneCode
             lineRect.anchorMin = lineRect.anchorMax = new Vector2(0, 1);
             lineRect.pivot = new Vector2(0.5f, 0.5f);
             lineRect.anchoredPosition = (start + end) * 0.5f;
-            lineRect.sizeDelta = new Vector2(delta.magnitude, 2.5f);
+            lineRect.sizeDelta = new Vector2(delta.magnitude, LINE_WIDTH);
             lineRect.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
             Image image = lineObject.GetComponent<Image>();
             image.raycastTarget = false;
             _connections.Add(new TreeConnection(image, prerequisite.NodeId, prerequisite.RequiredLevel));
             lineObject.transform.SetAsFirstSibling();
-        }
-
-        /// <summary>저장 레벨과 스테이지·선행 조건을 바탕으로 노드 아이콘과 열림·구매 상태를 표시한다.</summary>
-        private void RefreshNode(UpgradeTreeNodeDefinition node)
-        {
-            if (node == null || !_nodeViews.TryGetValue(node.Id, out UpgradeTreeNodeView view)) return;
-            int level = _session.GetUpgradeNodeLevel(node.Id);
-            bool isComplete = level >= node.MaxLevel;
-            bool canPurchase = _session.CanPurchaseUpgradeNode(node.Id, out string reasonKey);
-            bool isAvailable = isComplete || (reasonKey != "tree.stageLocked" && reasonKey != "tree.prerequisiteLocked" &&
-                reasonKey != "tree.invalidNode" && reasonKey != "tree.invalidRune");
-            string runeCategory = null;
-            if (node.EffectType == UpgradeEffectType.RuneUnlock && GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune))
-                runeCategory = rune.Category;
-            view.SetContent(node.EffectType, runeCategory, isAvailable, isComplete, canPurchase);
-        }
-
-        /// <summary>선행 노드 레벨에 따라 교차 연결선을 완료 색상 또는 잠금 색상으로 갱신한다.</summary>
-        private void RefreshConnections()
-        {
-            foreach (TreeConnection connection in _connections)
-            {
-                bool isComplete = _session.GetUpgradeNodeLevel(connection.NodeId) >= connection.RequiredLevel;
-                connection.Image.color = isComplete ? UiTheme.Cyan : UiTheme.Muted;
-            }
-        }
-
-        /// <summary>포인터가 진입한 노드의 이름과 설명을 고정 정보 패널에 표시하거나 닫는다.</summary>
-        private void ShowTooltip(string nodeId, bool isHovered)
-        {
-            if (!isHovered)
-            {
-                if (_hoveredNodeId != nodeId) return;
-                _hoveredNodeId = null;
-                _hoverPanel.gameObject.SetActive(false);
-                return;
-            }
-            _hoveredNodeId = nodeId;
-            _hoverPanel.gameObject.SetActive(true);
-            RefreshTooltip(nodeId);
-        }
-
-        /// <summary>노드 설명, 효과 미리보기, 레벨, 구매 비용 또는 잠금 사유를 정보 패널에 채운다.</summary>
-        private void RefreshTooltip(string nodeId)
-        {
-            UpgradeTreeNodeDefinition node = _definition.FindNode(nodeId);
-            if (node == null) return;
-            int level = _session.GetUpgradeNodeLevel(nodeId);
-            int cost = _session.GetUpgradeNodeCost(nodeId);
-            bool isComplete = level >= node.MaxLevel;
-            _session.CanPurchaseUpgradeNode(nodeId, out string reasonKey);
-
-            string title = GameData.L(node.TitleKey);
-            string description = GameData.L(node.DescriptionKey);
-            if (node.EffectType == UpgradeEffectType.RuneUnlock && GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune))
-            {
-                title += " · " + rune.Name;
-                description += "  ·  " + GameData.L("category." + rune.Category) + "  ·  " + rune.Ram + " RAM";
-            }
-            else if (!isComplete && level < node.Levels.Count)
-            {
-                UpgradeTreeLevel nextLevel = node.Levels[level];
-                string unit = node.EffectType == UpgradeEffectType.EnergyRegen ? "/s" :
-                    node.EffectType == UpgradeEffectType.MaxEnergy ? " EN" : " RAM";
-                description += "  ·  +" + nextLevel.Amount.ToString("0.##") + unit;
-            }
-
-            string levelText = GameData.L("ui.tree.stage") + " " + node.RequiredStage + "  ·  " + level + "/" + node.MaxLevel;
-            if (isComplete) levelText += "  ·  " + GameData.L("ui.complete");
-            else if (reasonKey == "tree.stageLocked") levelText += "  ·  " + GameData.L(reasonKey);
-            else if (reasonKey == "tree.prerequisiteLocked") levelText += "  ·  " + GameData.L(reasonKey);
-            else if (cost >= 0) levelText += "  ·  " + cost + " " + GameData.L("ui.fragments");
-            _hoverTitle.text = title + "   |   " + levelText;
-            _hoverDescription.text = description;
-        }
-
-        /// <summary>노드 구매를 요청하고 성공하면 도크·기반 강화·헤더의 진행 정보를 갱신한다.</summary>
-        private void Purchase(string nodeId)
-        {
-            if (!_session.BuyUpgradeNode(nodeId))
-            {
-                Refresh();
-                return;
-            }
-            Refresh();
-            _screen.RefreshProgression();
         }
 
         private sealed class TreeConnection

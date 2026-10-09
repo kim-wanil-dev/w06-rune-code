@@ -51,7 +51,6 @@ namespace RuneCode
             treeRoot.gameObject.SetActive(false);
             deployRoot.gameObject.SetActive(false);
             settingsRoot.gameObject.SetActive(false);
-            LayoutUtility.SetReference(dockPanel, "_spellEditor", spellEditor);
 
             WorkshopScreen screen = root.gameObject.AddComponent<WorkshopScreen>();
             LayoutUtility.SetReference(screen, "_editorRoot", editorRoot);
@@ -258,7 +257,7 @@ namespace RuneCode
             return deployPanel;
         }
 
-        /// <summary>피드백 설정, 초기화 확인 모달과 디버그 도구를 만들고 SettingsPanel 참조를 연결한다.</summary>
+        /// <summary>피드백 설정, 저장 초기화 버튼과 디버그 도구를 만들고 SettingsPanel 참조를 연결한다. 초기화 확인은 공용 확인 팝업을 쓴다.</summary>
         private static SettingsPanel BuildSettings(UiFactory ui, RectTransform parent)
         {
             ui.Text(parent, 42, 112, 800, 42, GameData.L("ui.settings"), 30, Color.white, FontStyles.Bold, "SettingsTitle");
@@ -271,15 +270,6 @@ namespace RuneCode
             ui.Button(debugGroup, 0, 130, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "DebugInvulnerableButton");
             ui.Button(debugGroup, 0, 195, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "DebugSpawnButton");
 
-            GameObject modal = UiFactory.Rect(parent, "ResetModal", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT).gameObject;
-            RectTransform shade = ui.Panel(modal.transform, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "Shade");
-            shade.GetComponent<Image>().raycastTarget = true;
-            RectTransform card = ui.Panel(modal.transform, (UiTheme.SCREEN_WIDTH - 540) / 2, (UiTheme.SCREEN_HEIGHT - 240) / 2, 540, 240, UiTheme.Panel, "Card");
-            ui.Text(card, 24, 21, 540 - 90, 35, GameData.L("ui.resetSave"), 24, Color.white, FontStyles.Bold, "ModalTitle");
-            Button modalClose = ui.Button(card, 540 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseModalButton");
-            Button modalConfirm = ui.Button(card, 28, 105, 232, 60, GameData.L("ui.resetSave"), null, RESET_COLOR, 14, "ConfirmResetButton");
-            Button modalCancel = ui.Button(card, 280, 105, 232, 60, GameData.L("ui.close"), null, UiTheme.Muted, 14, "CancelResetButton");
-            modal.SetActive(false);
 
             SettingsPanel settingsPanel = parent.gameObject.AddComponent<SettingsPanel>();
             LayoutUtility.SetReference(settingsPanel, "_screenShakeButton", shakeButton);
@@ -287,10 +277,6 @@ namespace RuneCode
             LayoutUtility.SetReference(settingsPanel, "_hitStopButton", hitStopButton);
             LayoutUtility.SetReference(settingsPanel, "_hitStopLabel", hitStopButton.GetComponentInChildren<TextMeshProUGUI>());
             LayoutUtility.SetReference(settingsPanel, "_resetSaveButton", resetButton);
-            LayoutUtility.SetReference(settingsPanel, "_resetModal", modal);
-            LayoutUtility.SetReference(settingsPanel, "_modalCloseButton", modalClose);
-            LayoutUtility.SetReference(settingsPanel, "_modalConfirmButton", modalConfirm);
-            LayoutUtility.SetReference(settingsPanel, "_modalCancelButton", modalCancel);
             LayoutUtility.SetReference(settingsPanel, "_debugGroup", debugGroup.gameObject);
             LayoutUtility.SetReference(settingsPanel, "_debugGrantButton", grantButton);
             LayoutUtility.SetReference(settingsPanel, "_debugUnlockButton", unlockButton);
