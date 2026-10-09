@@ -211,7 +211,7 @@ namespace RuneCode
         private int GetGraphRam(SpellGraph graph)
         {
             if (graph == null) return 0;
-            return graph.Nodes.Sum(node => GameData.Runes.TryGet(node.RuneId, out var rune) ? rune.Ram : 0);
+            return graph.Nodes.Sum(node => GameData.Runes.NodeRam(node));
         }
 
         /// <summary>편집 사본을 반영한 장착 마법 전체의 RAM 사용량을 반환한다.</summary>

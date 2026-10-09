@@ -19,8 +19,8 @@ namespace RuneCode
         /// <summary>룬 배치 후 튜토리얼 등 진행 반응을 처리한다.</summary>
         void OnRunePlaced(string runeId);
 
-        /// <summary>연결 성공 후 출발 노드 룬 ID로 진행 반응을 처리한다.</summary>
-        void OnConnected(string sourceRuneId);
+        /// <summary>Shape·Apply 노드에서 속성(element)을 고른 뒤 속성 식별자로 진행 반응을 처리한다.</summary>
+        void OnElementSelected(string elementId);
 
         /// <summary>문자열 키에 해당하는 상태 메시지를 표시한다.</summary>
         void ReportStatus(string key);

@@ -192,14 +192,14 @@ namespace RuneCode
             _player.Aim(input.AimDirection);
             _player.Advance(STEP_SECONDS, Time, _energyRegen);
             bool startedDash = MovePlayer(input);
-            if (startedDash) TryCastTrigger("dashInput");
-            else if (wasDashing && _player.DashRemaining <= 0.000001) TryCastTrigger("dashComplete");
-            if (input.Movement.LengthSquared > 0.000001) TryCastTrigger("move");
+            if (startedDash) TryCastTrigger(SpellGrammar.TRIGGER_ON_DASH_START);
+            else if (wasDashing && _player.DashRemaining <= 0.000001) TryCastTrigger(SpellGrammar.TRIGGER_ON_DASH_END);
+            if (input.Movement.LengthSquared > 0.000001) TryCastTrigger(SpellGrammar.TRIGGER_ON_MOVE);
             if (_isMission) AdvanceEnemyStreaming();
             RunScheduled();
-            if (input.CastA) TryCastTriggered(_loadout[0], "attack", 0);
-            if (input.CastB) TryCastTriggered(_loadout[1], "attack", 1);
-            if (input.CastC) TryCastTriggered(_loadout[2], "attack", 2);
+            if (input.CastA) TryCastTriggered(_loadout[0], SpellGrammar.TRIGGER_ON_ATTACK, 0);
+            if (input.CastB) TryCastTriggered(_loadout[1], SpellGrammar.TRIGGER_ON_ATTACK, 1);
+            if (input.CastC) TryCastTriggered(_loadout[2], SpellGrammar.TRIGGER_ON_ATTACK, 2);
             AdvanceStatuses();
             AdvanceEnemies();
             RunEnemyShots();
@@ -797,7 +797,7 @@ namespace RuneCode
             double shieldBefore = _player.Shield;
             double actual = _player.Hurt(damage, Time, _balance.Player.HurtInvulnerability);
             if (actual > 0) _damageNumbers.Add(new DamageNumber(_player.Position, actual, "player", _tick));
-            if (actual > 0 || _player.Shield < shieldBefore) TryCastTrigger("hit");
+            if (actual > 0 || _player.Shield < shieldBefore) TryCastTrigger(SpellGrammar.TRIGGER_ON_HIT_TAKEN);
         }
 
         /// <summary>적 공격 설정의 탄환을 부채꼴로 발사한다.</summary>

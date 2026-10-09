@@ -138,7 +138,9 @@ namespace RuneCode
     {
         private string _id;
         private string _name;
-        private int _version = 2;
+        public const int CURRENT_VERSION = 3;
+
+        private int _version = CURRENT_VERSION;
         private readonly List<GraphNode> _nodes = new List<GraphNode>();
         private readonly List<GraphEdge> _edges = new List<GraphEdge>();
         public string Id => _id;
@@ -182,6 +184,9 @@ namespace RuneCode
 
         /// <summary>다른 보관함 항목으로 식별할 새 마법 ID를 지정한다.</summary>
         public void SetIdentity(string id) => _id = id;
+
+        /// <summary>마이그레이션이 그래프 스키마 버전을 갱신할 때 사용한다.</summary>
+        internal void SetVersion(int version) => _version = version;
 
         /// <summary>마법의 표시 이름을 변경한다.</summary>
         public void Rename(string name) => _name = name;
@@ -234,6 +239,18 @@ namespace RuneCode
 
         /// <summary>ID에 해당하는 엣지를 제거하고 제거 여부를 반환한다.</summary>
         public bool RemoveEdge(string id) => _edges.RemoveAll(edge => edge.Id == id) > 0;
+
+        /// <summary>같은 ID의 엣지를 목록 위치를 유지한 채 교체하고 성공 여부를 반환한다. 마이그레이션에서 실행 순서를 보존하려고 사용한다.</summary>
+        internal bool ReplaceEdge(string id, GraphEdge replacement)
+        {
+            for (int i = 0; i < _edges.Count; i++)
+            {
+                if (_edges[i].Id != id) continue;
+                _edges[i] = replacement;
+                return true;
+            }
+            return false;
+        }
 
         /// <summary>같은 ID의 노드를 연결 엣지는 유지한 채 전달된 노드로 교체하고 성공 여부를 반환한다.</summary>
         public bool ReplaceNode(GraphNode replacement)

@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RuneCode
 {
     /// <summary>
-    /// 이전 룬(단독 형태·속성, 직접 마법, 방벽, 점멸, 노이즈, 사거리)으로 만든 그래프를
-    /// 마법 비주얼 스크립팅 문법 블록 체인으로 변환한다. 여러 번 호출해도 결과가 같다.
+    /// 이전 저장 그래프를 현재 문법(그래프 버전 3: Trigger → Shape(Element) → Behavior, Apply(Element))으로 변환한다.
+    /// 1단계는 이전 룬(단독 형태·속성, 직접 마법, 방벽, 점멸, 노이즈, 사거리)을 버전 2 체인으로, 2단계는 버전 2 체인을 버전 3으로 바꾼다.
+    /// 버전 2→3은 이름·표현만 바뀌고 의미가 같은 변환이며, 구조가 깨진 체인은 바꾸지 않아 기존과 같은 컴파일 오류를 낸다.
+    /// 여러 번 호출해도 결과가 같다.
     /// </summary>
     public static class SpellGraphMigration
     {
@@ -26,26 +29,89 @@ namespace RuneCode
             { "elem.fire", "fire" }, { "elem.ice", "ice" }, { "elem.arc", "electric" }
         };
 
+        private const string V2_TYPE_PREFIX = "type.";
+        private const string V2_ELEMENT_PREFIX = "element.";
+        private const string V2_SHAPE_PREFIX = "shape.";
+        private const string V2_BUFF_TYPE = "type.buff";
+        private const string V2_REMAIN_SHAPE = "shape.remain";
+
+        private static readonly Dictionary<string, string> V2_SHAPES = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "type.sphere", "shape.sphere" }, { "type.box", "shape.box" }
+        };
+
+        private static readonly Dictionary<string, string> V2_BEHAVIORS = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "shape.launch", "behavior.launch" }, { "shape.explosion", "behavior.burst" },
+            { "shape.orbit", "behavior.orbit" }, { "shape.remain", "behavior.persist" }
+        };
+
+        private static readonly Dictionary<string, string> V2_ELEMENTS = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "element.normal", "neutral" }, { "element.fire", "fire" }, { "element.electric", "lightning" },
+            { "element.ice", "ice" }, { "element.heal", "healing" }, { "element.protection", "protection" }
+        };
+
+        private static readonly Dictionary<string, string> V2_TRIGGERS = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "attack", SpellGrammar.TRIGGER_ON_ATTACK }, { "move", SpellGrammar.TRIGGER_ON_MOVE },
+            { "dashInput", SpellGrammar.TRIGGER_ON_DASH_START }, { "dashComplete", SpellGrammar.TRIGGER_ON_DASH_END },
+            { "hit", SpellGrammar.TRIGGER_ON_HIT_TAKEN }
+        };
+
         /// <summary>
-        /// 이전 해금 룬 ID를 문법 블록 해금 ID로 바꾼 목록을 반환한다.
-        /// 대응 블록이 없는 ID(점멸, 노이즈)는 그대로 두며 호출부가 카탈로그 기준으로 정리한다.
+        /// 이전 해금 룬 ID를 현재 문법의 해금 ID 목록으로 바꿔 반환한다. 이전 룬 → 버전 2 블록 → 버전 3 블록 순으로 변환한다.
+        /// 대응 블록이 없는 ID(점멸, 노이즈, 버프 타입)는 그대로 두며 호출부가 카탈로그 기준으로 정리한다.
         /// </summary>
         public static IEnumerable<string> MapUnlockedRune(string runeId)
         {
-            if (LEGACY_SHAPES.TryGetValue(runeId, out string shape)) return new[] { SpellGrammar.ShapeRune(shape) };
-            if (LEGACY_ELEMENTS.TryGetValue(runeId, out string element)) return new[] { SpellGrammar.ElementRune(element) };
-            if (runeId == "mod.range") return new[] { "mod.duration" };
-            if (runeId == "act.shield")
-                return new[] { SpellGrammar.TypeRune("buff"), SpellGrammar.ElementRune("protection"), SpellGrammar.ShapeRune("remain") };
-            return new[] { runeId };
+            return MapLegacyUnlock(runeId).SelectMany(MapV2Unlock).Distinct();
         }
 
-        /// <summary>그래프의 이전 룬 노드를 문법 블록으로 바꾸고 변경 여부를 반환한다.</summary>
+        /// <summary>그래프의 이전 룬과 버전 2 체인을 현재 문법으로 바꾸고 변경 여부를 반환한다.</summary>
         public static bool Migrate(SpellGraph graph)
         {
             if (graph?.Nodes == null || graph.Edges == null) return false;
-            bool isPortRenamed = RenameLegacyPorts(graph);
-            if (!HasLegacyNode(graph)) return isPortRenamed;
+            bool isChanged = RenameLegacyPorts(graph);
+            if (HasLegacyNode(graph))
+            {
+                ConvertLegacyRunes(graph);
+                isChanged = true;
+            }
+            if (graph.Version < SpellGraph.CURRENT_VERSION)
+            {
+                ConvertToVersion3(graph);
+                isChanged = true;
+            }
+            return isChanged;
+        }
+
+        /// <summary>이전 룬 해금 ID를 버전 2 블록 해금 ID로 바꾼다.</summary>
+        private static IEnumerable<string> MapLegacyUnlock(string runeId)
+        {
+            if (LEGACY_SHAPES.TryGetValue(runeId, out string shape)) return new[] { V2_SHAPE_PREFIX + shape };
+            if (LEGACY_ELEMENTS.TryGetValue(runeId, out string element)) return new[] { V2_ELEMENT_PREFIX + element };
+            if (runeId == "mod.range") return new[] { "mod.duration" };
+            if (runeId == "act.shield") return new[] { V2_BUFF_TYPE, V2_ELEMENT_PREFIX + "protection", V2_REMAIN_SHAPE };
+            return new[] { runeId };
+        }
+
+        /// <summary>
+        /// 버전 2 블록 해금 ID를 버전 3 해금 ID로 바꾼다. 잔류(shape.remain) 해금은 버전 2에서 버프에도 필요했으므로
+        /// Persist와 Apply를 함께 해금한다. 버전 3 ID는 그대로 반환한다.
+        /// </summary>
+        private static IEnumerable<string> MapV2Unlock(string runeId)
+        {
+            if (V2_SHAPES.TryGetValue(runeId, out string shape)) return new[] { shape };
+            if (V2_ELEMENTS.TryGetValue(runeId, out string element)) return new[] { SpellGrammar.ElementRune(element) };
+            if (runeId == V2_REMAIN_SHAPE) return new[] { V2_BEHAVIORS[runeId], SpellGrammar.APPLY_RUNE };
+            if (V2_BEHAVIORS.TryGetValue(runeId, out string behavior)) return new[] { behavior };
+            return new[] { runeId };
+        }
+
+        /// <summary>이전 룬 노드를 버전 2 체인 블록으로 바꾼다.</summary>
+        private static void ConvertLegacyRunes(SpellGraph graph)
+        {
             foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
             {
                 if (node == null) continue;
@@ -61,7 +127,118 @@ namespace RuneCode
             }
             foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
                 if (node != null && LEGACY_ELEMENTS.ContainsKey(node.RuneId)) graph.RemoveNode(node.Id);
-            return true;
+        }
+
+        /// <summary>
+        /// 버전 2 체인을 버전 3 블록으로 바꾸고 그래프 버전을 3으로 올린다(버전 1은 ID만 바꾼다).
+        /// 버프 체인은 Apply로, 속성 블록은 Shape의 element 값으로 접고, Behavior·Trigger 이름을 바꾼다.
+        /// </summary>
+        private static void ConvertToVersion3(SpellGraph graph)
+        {
+            foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
+            {
+                if (node != null && node.RuneId == V2_BUFF_TYPE) ConvertBuffChain(graph, node);
+            }
+            foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
+            {
+                if (node != null && V2_SHAPES.ContainsKey(node.RuneId)) FoldElement(graph, node);
+            }
+            foreach (GraphNode node in new List<GraphNode>(graph.Nodes))
+            {
+                if (node == null) continue;
+                if (V2_BEHAVIORS.TryGetValue(node.RuneId, out string behavior))
+                    graph.ReplaceNode(new GraphNode(node.Id, behavior, node.X, node.Y, node.Params));
+                else if (V2_ELEMENTS.TryGetValue(node.RuneId, out string element))
+                    graph.ReplaceNode(new GraphNode(node.Id, SpellGrammar.ElementRune(element), node.X, node.Y, node.Params));
+                else if (node.RuneId == SpellGrammar.CORE_RUNE && V2_TRIGGERS.TryGetValue(node.GetText(SpellGrammar.TRIGGER_PARAM), out string trigger))
+                    node.SetText(SpellGrammar.TRIGGER_PARAM, trigger);
+            }
+            // 버전 1은 실행 순서 규칙(대상 ID 정렬)이 달라 ID만 바꾸고 버전 번호는 유지한다.
+            if (graph.Version >= 2) graph.SetVersion(SpellGraph.CURRENT_VERSION);
+        }
+
+        /// <summary>
+        /// [버프 타입] → [회복·보호 속성] → [잔류] 체인을 잔류 노드 ID의 Apply 노드 하나로 바꾼다.
+        /// 타입으로 들어오던 실행 연결은 Apply로 옮기고, 속성의 효과량 파라미터를 Apply로 옮긴다. 형식이 다르면 바꾸지 않는다.
+        /// </summary>
+        private static void ConvertBuffChain(SpellGraph graph, GraphNode type)
+        {
+            if (!TrySingleChainTarget(graph, type.Id, out GraphEdge typeOut)) return;
+            GraphNode element = graph.FindNode(typeOut.ToNode);
+            if (element == null || (element.RuneId != "element.heal" && element.RuneId != "element.protection")) return;
+            if (CountChainSources(graph, element.Id) != 1 || !TrySingleChainTarget(graph, element.Id, out GraphEdge elementOut)) return;
+            GraphNode remain = graph.FindNode(elementOut.ToNode);
+            if (remain == null || remain.RuneId != V2_REMAIN_SHAPE || CountChainSources(graph, remain.Id) != 1) return;
+
+            var parameters = new List<NodeParameter> { new NodeParameter(SpellGrammar.ELEMENT_PARAM, 0f, V2_ELEMENTS[element.RuneId]) };
+            parameters.AddRange(EffectParameters(element));
+            parameters.AddRange(remain.Params);
+            graph.ReplaceNode(new GraphNode(remain.Id, SpellGrammar.APPLY_RUNE, remain.X, remain.Y, parameters));
+            foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
+            {
+                if (edge.ToNode == type.Id && edge.ToPort == SpellGrammar.EXEC_PORT)
+                    graph.ReplaceEdge(edge.Id, new GraphEdge(edge.Id, edge.FromNode, edge.FromPort, remain.Id, SpellGrammar.EXEC_PORT, edge.Order));
+            }
+            graph.RemoveNode(type.Id);
+            graph.RemoveNode(element.Id);
+        }
+
+        /// <summary>
+        /// 타입 블록을 같은 ID의 Shape 블록으로 바꾸고, 바로 뒤의 속성 블록이 하나의 입력·출력만 가지면 element 값과 효과량으로 접어 넣는다.
+        /// 접은 속성 블록의 다음 연결은 Shape에서 출발하도록 바꾼다.
+        /// </summary>
+        private static void FoldElement(SpellGraph graph, GraphNode type)
+        {
+            var parameters = new List<NodeParameter>(type.Params);
+            if (TrySingleChainTarget(graph, type.Id, out GraphEdge typeOut))
+            {
+                GraphNode element = graph.FindNode(typeOut.ToNode);
+                if (element != null && V2_ELEMENTS.TryGetValue(element.RuneId, out string elementId)
+                    && CountChainSources(graph, element.Id) == 1 && TrySingleChainTarget(graph, element.Id, out GraphEdge elementOut))
+                {
+                    parameters.Add(new NodeParameter(SpellGrammar.ELEMENT_PARAM, 0f, elementId));
+                    parameters.AddRange(EffectParameters(element));
+                    graph.ReplaceEdge(elementOut.Id, new GraphEdge(elementOut.Id, type.Id, SpellGrammar.CHAIN_OUT,
+                        elementOut.ToNode, elementOut.ToPort, elementOut.Order));
+                    graph.RemoveEdge(typeOut.Id);
+                    graph.RemoveNode(element.Id);
+                }
+            }
+            graph.ReplaceNode(new GraphNode(type.Id, V2_SHAPES[type.RuneId], type.X, type.Y, parameters));
+        }
+
+        /// <summary>노드의 효과량(power)·보호막 지속시간(buffDuration) 파라미터만 저장 순서대로 반환한다.</summary>
+        private static IEnumerable<NodeParameter> EffectParameters(GraphNode node)
+        {
+            return node.Params.Where(param => param.Key == SpellGrammar.POWER_PARAM || param.Key == SpellGrammar.BUFF_DURATION_PARAM);
+        }
+
+        /// <summary>노드의 체인 출력(next) 연결이 정확히 하나면 그 엣지를 반환한다.</summary>
+        private static bool TrySingleChainTarget(SpellGraph graph, string nodeId, out GraphEdge target)
+        {
+            target = null;
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                if (edge.FromNode != nodeId || edge.FromPort != SpellGrammar.CHAIN_OUT) continue;
+                if (target != null)
+                {
+                    target = null;
+                    return false;
+                }
+                target = edge;
+            }
+            return target != null;
+        }
+
+        /// <summary>노드로 들어오는 체인 입력(in) 연결 수를 반환한다.</summary>
+        private static int CountChainSources(SpellGraph graph, string nodeId)
+        {
+            int count = 0;
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                if (edge.ToNode == nodeId && edge.ToPort == SpellGrammar.CHAIN_IN && edge.FromPort == SpellGrammar.CHAIN_OUT) count++;
+            }
+            return count;
         }
 
         /// <summary>그래프에 변환 대상 이전 룬이 있는지 반환한다.</summary>
@@ -96,12 +273,12 @@ namespace RuneCode
         private static void ConvertToChain(SpellGraph graph, GraphNode node, string magicType, string element, string shape, GraphNode buffSource)
         {
             string typeId = UniqueNodeId(graph, node.Id + "-type");
-            graph.AddNode(new GraphNode(typeId, SpellGrammar.TypeRune(magicType), node.X - BLOCK_SPACING * 2, node.Y + BLOCK_DROP));
+            graph.AddNode(new GraphNode(typeId, V2_TYPE_PREFIX + magicType, node.X - BLOCK_SPACING * 2, node.Y + BLOCK_DROP));
             string chainTail = typeId;
             if (element != "normal")
             {
                 string elementId = UniqueNodeId(graph, node.Id + "-attr");
-                GraphNode elementNode = new GraphNode(elementId, SpellGrammar.ElementRune(element), node.X - BLOCK_SPACING, node.Y + BLOCK_DROP);
+                GraphNode elementNode = new GraphNode(elementId, V2_ELEMENT_PREFIX + element, node.X - BLOCK_SPACING, node.Y + BLOCK_DROP);
                 if (buffSource != null)
                 {
                     foreach (NodeParameter param in buffSource.Params)
@@ -111,7 +288,7 @@ namespace RuneCode
                 graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, node.Id + "-chain"), typeId, SpellGrammar.CHAIN_OUT, elementId, SpellGrammar.CHAIN_IN));
                 chainTail = elementId;
             }
-            graph.ReplaceNode(new GraphNode(node.Id, SpellGrammar.ShapeRune(shape), node.X, node.Y));
+            graph.ReplaceNode(new GraphNode(node.Id, V2_SHAPE_PREFIX + shape, node.X, node.Y));
             foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
             {
                 if (edge.ToNode != node.Id) continue;

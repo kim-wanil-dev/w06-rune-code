@@ -1,0 +1,8 @@
+﻿id,runeId,category,internalValue,runtimeTag
+#속성 식별자(Shape·Apply 드롭다운 값),RAM·해금을 가진 속성 룬 ID,분류(elemental/functional),컴파일 내부 값(magic.inline element),시뮬레이션 피해 태그(functional은 빈칸)
+neutral,element.neutral,elemental,normal,raw
+fire,element.fire,elemental,fire,fire
+lightning,element.lightning,elemental,electric,arc
+ice,element.ice,elemental,ice,ice
+healing,element.healing,functional,heal,
+protection,element.protection,functional,protection,

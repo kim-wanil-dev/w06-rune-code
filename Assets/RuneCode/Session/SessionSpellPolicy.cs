@@ -42,16 +42,16 @@ namespace RuneCode
             return GetGraphRam(candidate) <= _session.Capacity;
         }
 
-        /// <summary>첫 발사 형태 블록 배치에서 튜토리얼 배치 단계를 기록한다.</summary>
+        /// <summary>첫 발사 Behavior 블록 배치에서 튜토리얼 배치 단계를 기록한다.</summary>
         public void OnRunePlaced(string runeId)
         {
-            if (runeId == "shape.launch") _session.Save.SetTutorialStep(1);
+            if (runeId == "behavior.launch") _session.Save.SetTutorialStep(1);
         }
 
-        /// <summary>화염 속성 블록에서 출발하는 연결에서 튜토리얼 연결 단계를 기록한다.</summary>
-        public void OnConnected(string sourceRuneId)
+        /// <summary>Shape·Apply의 속성을 화염으로 고르면 튜토리얼 속성 단계를 기록한다.</summary>
+        public void OnElementSelected(string elementId)
         {
-            if (sourceRuneId == "element.fire") _session.Save.SetTutorialStep(2);
+            if (elementId == "fire") _session.Save.SetTutorialStep(2);
         }
 
         /// <summary>문자열 키를 세션 상태 문구로 전달한다.</summary>
@@ -72,7 +72,7 @@ namespace RuneCode
             if (graph == null) return 0;
             var ram = 0;
             foreach (var node in graph.Nodes)
-                if (GameData.Runes.TryGet(node.RuneId, out var rune)) ram += rune.Ram;
+                ram += GameData.Runes.NodeRam(node);
             return ram;
         }
 

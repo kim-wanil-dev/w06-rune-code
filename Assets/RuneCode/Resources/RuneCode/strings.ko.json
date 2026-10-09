@@ -298,7 +298,7 @@
     },
     {
       "_key": "ui.tutorial2",
-      "_value": "2 / 3 · 마법 타입과 형태 사이에 [화염] 속성 블록을 넣으세요"
+      "_value": "2 / 3 · [구형] 블록을 선택하고 속성을 [화염]으로 바꾸세요"
     },
     {
       "_key": "ui.tutorial3",
@@ -382,7 +382,7 @@
     },
     {
       "_key": "category.element",
-      "_value": "속성 부여"
+      "_value": "속성"
     },
     {
       "_key": "category.modifier",
@@ -558,7 +558,7 @@
     },
     {
       "_key": "issue.E14",
-      "_value": "마법 타입·속성·형태 조합이 유효하지 않습니다"
+      "_value": "형상·속성·행동 조합이 유효하지 않습니다"
     },
     {
       "_key": "issue.E15",
@@ -1010,7 +1010,7 @@
     },
     {
       "_key": "category.shape",
-      "_value": "형태"
+      "_value": "형상"
     },
     {
       "_key": "category.method",
@@ -1018,7 +1018,43 @@
     },
     {
       "_key": "issue.E18",
-      "_value": "마법 블록은 [마법 타입] → [속성 부여] → [형태] 순서로 하나씩 연결해야 합니다"
+      "_value": "마법 블록은 [형상] → [행동] 순서로 하나씩 연결해야 합니다"
+    },
+    {
+      "_key": "category.behavior",
+      "_value": "행동"
+    },
+    {
+      "_key": "element.neutral",
+      "_value": "일반"
+    },
+    {
+      "_key": "element.lightning",
+      "_value": "전격"
+    },
+    {
+      "_key": "element.healing",
+      "_value": "회복"
+    },
+    {
+      "_key": "trigger.onAttack",
+      "_value": "공격"
+    },
+    {
+      "_key": "trigger.onMove",
+      "_value": "이동"
+    },
+    {
+      "_key": "trigger.onDashStart",
+      "_value": "대시 시작"
+    },
+    {
+      "_key": "trigger.onDashEnd",
+      "_value": "대시 종료"
+    },
+    {
+      "_key": "trigger.onHitTaken",
+      "_value": "피격"
     }
   ]
 }

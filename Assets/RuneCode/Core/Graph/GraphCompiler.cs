@@ -50,7 +50,7 @@ namespace RuneCode
         private static CompileResult CompileGraphBody(SpellGraph graph, RuneCatalog runes, GrammarLimits limits, CompileContext context,
             List<CompileIssue> errors, List<CompileIssue> warnings, int chainRam)
         {
-            if ((graph.Version != 1 && graph.Version != 2) || graph.Nodes == null || graph.Edges == null
+            if (graph.Version < 1 || graph.Version > SpellGraph.CURRENT_VERSION || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count > limits.MaxGraphNodes || graph.Edges.Count > limits.MaxGraphEdges)
             {
                 errors.Add(new CompileIssue("E9"));
@@ -109,7 +109,7 @@ namespace RuneCode
             if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
-            string trigger = cores[0].GetText("trigger", "attack");
+            string trigger = cores[0].GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
             CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, energy,
                 limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
             return new CompileResult(errors, warnings, compiled);
@@ -140,7 +140,7 @@ namespace RuneCode
             else if (fromRune.Id == "magic.inline" && from.GetText("magicType", "sphere") == "buff"
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT))
                 issue = new CompileIssue("E16", edge.FromNode);
-            else if (graph.Version == 2 && output.Kind == "exec" && graph.Edges.Any(current => current.FromNode == edge.FromNode
+            else if (graph.Version >= 2 && output.Kind == "exec" && graph.Edges.Any(current => current.FromNode == edge.FromNode
                 && current.FromPort == edge.FromPort && current.Order == edge.Order))
                 issue = new CompileIssue("E9", edge.ToNode);
             else if (graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort
@@ -165,10 +165,10 @@ namespace RuneCode
         public static bool ValidateConnection(SpellGraph graph, GraphEdge edge, RuneCatalog runes, out CompileIssue issue)
             => CanConnect(graph, edge, runes, out issue);
 
-        /// <summary>효과 입력에는 형태 블록·마법 메소드(및 내부 Inline Magic)에 효과 룬만 연결할 수 있는지 반환한다.</summary>
+        /// <summary>효과 입력에는 Behavior 블록·프리셋 호출(및 내부 Inline Magic)에 효과 룬만 연결할 수 있는지 반환한다.</summary>
         internal static bool CanAttachModifier(RuneDefinition source, RuneDefinition target)
         {
-            if (target.Category == SpellGrammar.CATEGORY_SHAPE || target.Id == SpellGrammar.CALL_RUNE || target.Id == SpellGrammar.INLINE_RUNE)
+            if (target.Category == SpellGrammar.CATEGORY_BEHAVIOR || target.Id == SpellGrammar.CALL_RUNE || target.Id == SpellGrammar.INLINE_RUNE)
                 return source.Category == "modifier";
             return target.Category == "form" && (source.Category == "modifier" || source.Category == "element");
         }
@@ -318,7 +318,7 @@ namespace RuneCode
                     errors.Add(new CompileIssue("E13", edge.ToNode));
                     continue;
                 }
-                if (graph.Version == 2 && output.Kind == "exec")
+                if (graph.Version >= 2 && output.Kind == "exec")
                 {
                     if (!execOrders.TryGetValue(edge.FromNode, out Dictionary<string, HashSet<int>> ports))
                     {

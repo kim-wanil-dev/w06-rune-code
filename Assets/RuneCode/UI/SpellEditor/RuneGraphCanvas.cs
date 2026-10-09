@@ -209,7 +209,7 @@ namespace RuneCode
             return rectTransform.rect.Contains(point);
         }
 
-        /// <summary>현재 보이는 캔버스 안에서 새 룬을 놓을 좌표를 반환한다. 효과는 형태 아래, 속성·형태는 열린 체인 끝 오른쪽을 우선한다.</summary>
+        /// <summary>현재 보이는 캔버스 안에서 새 룬을 놓을 좌표를 반환한다. 효과는 Behavior 아래, Behavior는 Shape의 열린 체인 끝 오른쪽을 우선한다.</summary>
         public Vector2 SuggestPlacement(string runeId)
         {
             RuneDefinition rune = GameData.Runes.Get(runeId);
@@ -236,8 +236,8 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 지정 좌표에 룬을 배치한다. 효과는 가까운 형태·마법 메소드의 효과 입력에,
-        /// 속성 부여·형태 블록은 가까운 열린 체인 끝(마법 타입·속성 부여)에 자동으로 연결한다.
+        /// 지정 좌표에 룬을 배치한다. 효과는 가까운 Behavior·프리셋 호출의 효과 입력에,
+        /// Behavior 블록(Apply 제외)은 가까운 Shape의 열린 체인 끝에 자동으로 연결한다.
         /// </summary>
         public void PlaceRune(string runeId, Vector2 position)
         {
@@ -501,7 +501,7 @@ namespace RuneCode
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             _labelBuilder.Clear();
-            _labelBuilder.Append("<b>").Append(rune.Name).Append("</b>  <color=#8EACC6>").Append(rune.Ram).Append(" RAM</color>\n");
+            _labelBuilder.Append("<b>").Append(rune.Name).Append("</b>  <color=#8EACC6>").Append(GameData.Runes.NodeRam(node)).Append(" RAM</color>\n");
 
             string summary = NodeSummary(node);
             if (!string.IsNullOrEmpty(summary))
@@ -582,23 +582,21 @@ namespace RuneCode
             SetVerticesDirty();
         }
 
-        /// <summary>Trigger·Inline Magic·Spell Call의 핵심 값을 노드 라벨용 문자열로 반환하며 해당 없으면 null을 반환한다.</summary>
+        /// <summary>Trigger·Shape·Apply·Spell Call의 핵심 값(시작 조건, 속성, 호출 대상)을 노드 라벨용 문자열로 반환하며 해당 없으면 null을 반환한다.</summary>
         private string NodeSummary(GraphNode node)
         {
             if (node.RuneId == SpellGrammar.CORE_RUNE)
             {
-                string trigger = node.GetText("trigger", "attack");
+                string trigger = node.GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
                 return LocalizedValue("trigger." + trigger, trigger);
             }
 
-            if (node.RuneId == SpellGrammar.INLINE_RUNE)
+            RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+            if (rune.Category == SpellGrammar.CATEGORY_SHAPE || rune.Id == SpellGrammar.APPLY_RUNE)
             {
-                string type = node.GetText("magicType", "sphere");
-                string element = node.GetText("element", "normal");
-                string form = node.GetText("form", "launch");
-                return LocalizedValue("magicType." + type, type) + " / "
-                    + LocalizedValue("element." + element, element) + " / "
-                    + LocalizedValue("magicForm." + form, form);
+                string fallback = rune.Id == SpellGrammar.APPLY_RUNE ? "healing" : SpellGrammar.ELEMENT_NEUTRAL;
+                string element = node.GetText(SpellGrammar.ELEMENT_PARAM, fallback);
+                return LocalizedValue("element." + element, element);
             }
 
             if (node.RuneId == SpellGrammar.CALL_RUNE)
@@ -749,9 +747,9 @@ namespace RuneCode
         {
             return category switch
             {
-                SpellGrammar.CATEGORY_SHAPE => 4,
+                SpellGrammar.CATEGORY_BEHAVIOR => 4,
                 SpellGrammar.CATEGORY_ELEMENT => 3,
-                SpellGrammar.CATEGORY_MAGIC_TYPE => 5,
+                SpellGrammar.CATEGORY_SHAPE => 5,
                 SpellGrammar.CATEGORY_MODIFIER => 6,
                 _ => 20,
             };

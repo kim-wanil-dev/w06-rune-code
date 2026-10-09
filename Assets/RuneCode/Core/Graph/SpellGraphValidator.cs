@@ -18,7 +18,7 @@ namespace RuneCode
         /// <summary>그래프가 구조 규칙을 모두 지키면 true를 반환한다.</summary>
         public static bool IsValid(SpellGraph graph)
         {
-            if (graph == null || (graph.Version != 1 && graph.Version != 2) || !IsIdentifier(graph.Id)
+            if (graph == null || graph.Version < 1 || graph.Version > SpellGraph.CURRENT_VERSION || !IsIdentifier(graph.Id)
                 || string.IsNullOrWhiteSpace(graph.Name) || graph.Name.Length > MAX_TEXT_LENGTH
                 || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count == 0 || graph.Nodes.Count > MAX_NODE_COUNT || graph.Edges.Count > MAX_EDGE_COUNT)

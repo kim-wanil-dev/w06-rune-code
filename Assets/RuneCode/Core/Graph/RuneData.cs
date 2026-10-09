@@ -201,8 +201,38 @@ namespace RuneCode
     }
 
     /// <summary>
-    /// 룬 정의 레지스트리다. 정규화된 룬 테이블 6종(runes, rune_stats, rune_ports, rune_params, rune_param_options, rune_tags)을
-    /// 룬 ID로 합쳐 만들며, 테이블 기반 데이터 로딩의 참조 구현이다. 규칙은 docs/DATA_TABLES.md를 따른다.
+    /// 속성(Element) 정의다. 속성은 그래프 노드가 아니라 Shape·Apply 노드의 드롭다운 값이며,
+    /// RAM·해금은 같은 ID의 속성 룬(runes 테이블의 element 카테고리 행)이 가진다.
+    /// </summary>
+    public sealed class ElementDefinition
+    {
+        private readonly string _id;
+        private readonly string _runeId;
+        private readonly string _category;
+        private readonly string _internalValue;
+        private readonly string _runtimeTag;
+
+        public string Id => _id;
+        public string RuneId => _runeId;
+        public string Category => _category;
+        public bool IsFunctional => _category == SpellGrammar.ELEMENT_CATEGORY_FUNCTIONAL;
+        public string InternalValue => _internalValue;
+        public string RuntimeTag => _runtimeTag;
+
+        /// <summary>elements 테이블 행의 식별자·속성 룬 ID·Elemental/Functional 분류·컴파일 내부 값·런타임 태그로 속성을 만든다.</summary>
+        internal ElementDefinition(TableRow row)
+        {
+            _id = row.GetString("id");
+            _runeId = row.GetString("runeId");
+            _category = row.GetString("category");
+            _internalValue = row.GetString("internalValue");
+            _runtimeTag = row.GetOptionalString("runtimeTag", "");
+        }
+    }
+
+    /// <summary>
+    /// 룬 정의 레지스트리다. 정규화된 룬 테이블 6종(runes, rune_stats, rune_ports, rune_params, rune_param_options, rune_tags)과
+    /// 속성 정의 테이블(elements)을 룬 ID로 합쳐 만들며, 테이블 기반 데이터 로딩의 참조 구현이다. 규칙은 docs/DATA_TABLES.md를 따른다.
     /// </summary>
     public sealed class RuneCatalog
     {
@@ -212,24 +242,37 @@ namespace RuneCode
         public const string PARAMS_TABLE = "rune_params";
         public const string OPTIONS_TABLE = "rune_param_options";
         public const string TAGS_TABLE = "rune_tags";
+        public const string ELEMENTS_TABLE = "elements";
 
         private static readonly HashSet<string> CATEGORIES = new HashSet<string>(StringComparer.Ordinal)
         {
-            "core", "form", "element", "modifier", "flow", "action", "magic", "magicType", "shape", "method", "internal"
+            "core", "form", "element", "modifier", "flow", "action", "magic", "shape", "behavior", "method", "internal"
+        };
+        private static readonly HashSet<string> ELEMENT_CATEGORIES = new HashSet<string>(StringComparer.Ordinal)
+        {
+            SpellGrammar.ELEMENT_CATEGORY_ELEMENTAL, SpellGrammar.ELEMENT_CATEGORY_FUNCTIONAL
         };
         private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "bench", "reward" };
 
         private readonly IReadOnlyList<RuneDefinition> _runes;
         private readonly Dictionary<string, RuneDefinition> _byId = new Dictionary<string, RuneDefinition>(StringComparer.Ordinal);
         private readonly List<string> _startRunes = new List<string>();
+        private readonly IReadOnlyList<ElementDefinition> _elements;
+        private readonly Dictionary<string, ElementDefinition> _elementsById = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
 
         public IReadOnlyList<RuneDefinition> All => _runes;
         public IReadOnlyList<string> StartRunes => _startRunes;
+        public IReadOnlyList<ElementDefinition> Elements => _elements;
 
-        /// <summary>검증된 룬 목록으로 ID 조회표와 시작 해금 목록을 만든다.</summary>
-        private RuneCatalog(IReadOnlyList<RuneDefinition> runes)
+        /// <summary>검증된 룬·속성 목록으로 ID 조회표와 시작 해금 목록을 만든다.</summary>
+        private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements)
         {
             _runes = runes;
+            _elements = elements;
+            foreach (ElementDefinition element in elements)
+            {
+                _elementsById.Add(element.Id, element);
+            }
             foreach (RuneDefinition rune in runes)
             {
                 _byId.Add(rune.Id, rune);
@@ -250,12 +293,14 @@ namespace RuneCode
             DataTable parameters = DataTable.Load(source, PARAMS_TABLE, log);
             DataTable options = DataTable.Load(source, OPTIONS_TABLE, log);
             DataTable tags = DataTable.Load(source, TAGS_TABLE, log);
+            DataTable elements = DataTable.Load(source, ELEMENTS_TABLE, log);
             bool hasColumns = runes.RequireColumns("id", "name", "category", "ram", "energy", "energyMult", "unlockType", "unlockCost")
                 & stats.RequireColumns("runeId")
                 & ports.RequireColumns("runeId", "order", "portId", "kind", "direction", "max")
                 & parameters.RequireColumns("runeId", "order", "paramId", "kind", "min", "max", "step", "defaultNumber", "defaultText")
                 & options.RequireColumns("runeId", "paramId", "order", "option")
-                & tags.RequireColumns("runeId", "order", "tag");
+                & tags.RequireColumns("runeId", "order", "tag")
+                & elements.RequireColumns("id", "runeId", "category", "internalValue", "runtimeTag");
             if (!hasColumns)
             {
                 log.ThrowIfAny();
@@ -275,6 +320,9 @@ namespace RuneCode
             parameters.RequireReferences(runeIds, RUNES_TABLE, "runeId");
             options.RequireReferences(paramKeys, PARAMS_TABLE, "runeId", "paramId");
             tags.RequireReferences(runeIds, RUNES_TABLE, "runeId");
+            elements.RequireUniqueKeys("id");
+            elements.RequireUniqueKeys("runeId");
+            elements.RequireReferences(runeIds, RUNES_TABLE, "runeId");
 
             Dictionary<string, List<TableRow>> statRows = stats.GroupBy(null, "runeId");
             Dictionary<string, List<TableRow>> portRows = ports.GroupBy("order", "runeId");
@@ -311,8 +359,9 @@ namespace RuneCode
             {
                 log.Add(RUNES_TABLE, 0, null, "룬 정의가 비어 있습니다.");
             }
+            List<ElementDefinition> elementDefinitions = BuildElements(elements, definitions);
             log.ThrowIfAny();
-            return new RuneCatalog(definitions);
+            return new RuneCatalog(definitions, elementDefinitions);
         }
 
         /// <summary>룬 ID로 정의를 반환하며 알 수 없는 ID이면 예외를 발생시킨다.</summary>
@@ -323,6 +372,61 @@ namespace RuneCode
         {
             rune = null;
             return !string.IsNullOrEmpty(id) && _byId.TryGetValue(id, out rune);
+        }
+
+        /// <summary>
+        /// 그래프 노드 하나가 차지하는 RAM을 반환한다. 룬 자체 RAM에, 속성 드롭다운을 가진 노드(Shape·Apply)는 선택한 속성 룬의 RAM을 더한다.
+        /// 알 수 없는 룬이면 0을 반환한다.
+        /// </summary>
+        public int NodeRam(GraphNode node)
+        {
+            if (!TryGet(node.RuneId, out RuneDefinition rune)) return 0;
+            int ram = rune.Ram;
+            if (TryGetNodeElement(node, out ElementDefinition element) && TryGet(element.RuneId, out RuneDefinition elementRune)) ram += elementRune.Ram;
+            return ram;
+        }
+
+        /// <summary>노드의 element 파라미터(없으면 룬 기본값)에 해당하는 속성을 반환한다. 속성 드롭다운이 없는 노드이거나 값이 없으면 false를 반환한다.</summary>
+        public bool TryGetNodeElement(GraphNode node, out ElementDefinition element)
+        {
+            element = null;
+            if (!TryGet(node.RuneId, out RuneDefinition rune)) return false;
+            foreach (ParameterDefinition param in rune.Params)
+            {
+                if (param.Id == SpellGrammar.ELEMENT_PARAM) return TryGetElement(node.GetText(SpellGrammar.ELEMENT_PARAM, param.DefaultText), out element);
+            }
+            return false;
+        }
+
+        /// <summary>속성 식별자(neutral, fire 등)의 존재 여부와 정의를 반환한다.</summary>
+        public bool TryGetElement(string id, out ElementDefinition element)
+        {
+            element = null;
+            return !string.IsNullOrEmpty(id) && _elementsById.TryGetValue(id, out element);
+        }
+
+        /// <summary>
+        /// elements 테이블 행으로 속성 정의를 만들고 분류값과, 참조한 룬이 element 카테고리인지 검증한다.
+        /// 위반은 해당 행 위치로 오류 로그에 기록한다.
+        /// </summary>
+        private static List<ElementDefinition> BuildElements(DataTable elements, List<RuneDefinition> runes)
+        {
+            var result = new List<ElementDefinition>();
+            foreach (TableRow row in elements.Rows)
+            {
+                var element = new ElementDefinition(row);
+                if (!ELEMENT_CATEGORIES.Contains(element.Category))
+                {
+                    row.ReportError("category", "elemental 또는 functional이어야 합니다: " + element.Category);
+                }
+                RuneDefinition rune = runes.Find(candidate => candidate.Id == element.RuneId);
+                if (rune != null && rune.Category != SpellGrammar.CATEGORY_ELEMENT)
+                {
+                    row.ReportError("runeId", "element 카테고리 룬이어야 합니다: " + element.RuneId);
+                }
+                result.Add(element);
+            }
+            return result;
         }
 
         /// <summary>룬의 포트 행을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수 규칙을 검증한다.</summary>

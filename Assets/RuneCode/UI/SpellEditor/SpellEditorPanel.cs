@@ -17,7 +17,7 @@ namespace RuneCode
     /// </summary>
     public sealed class SpellEditorPanel : MonoBehaviour
     {
-        public static readonly string[] CATEGORY_IDS = { "all", SpellGrammar.CATEGORY_MAGIC_TYPE, SpellGrammar.CATEGORY_ELEMENT, SpellGrammar.CATEGORY_SHAPE, SpellGrammar.CATEGORY_MODIFIER, SpellGrammar.CATEGORY_FLOW, SpellGrammar.CATEGORY_METHOD };
+        public static readonly string[] CATEGORY_IDS = { "all", SpellGrammar.CATEGORY_SHAPE, SpellGrammar.CATEGORY_BEHAVIOR, SpellGrammar.CATEGORY_MODIFIER, SpellGrammar.CATEGORY_FLOW, SpellGrammar.CATEGORY_METHOD };
         private static readonly Color LOCKED_TINT = new Color(0.35f, 0.42f, 0.50f);
         private static readonly Color ISSUE_ERROR_TINT = new Color(1f, 0.41f, 0.44f);
         private static readonly Color ISSUE_WARNING_TINT = new Color(1f, 0.76f, 0.38f);
@@ -261,7 +261,8 @@ namespace RuneCode
         /// <summary>시작 조건(항상 존재)과 컴파일 내부 정의를 제외한, 팔레트에 배치 가능한 룬인지 반환한다.</summary>
         private static bool IsPaletteRune(RuneDefinition rune)
         {
-            return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL;
+            return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL
+                && rune.Category != SpellGrammar.CATEGORY_ELEMENT;
         }
 
         /// <summary>빈 편집 영역의 빠른 검색 입력과 검색된 룬의 현재 위치 배치를 제공한다.</summary>
@@ -303,10 +304,11 @@ namespace RuneCode
             else
             {
                 RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-                _ui.Text(_inspectorPanel, 14, top, 222, 28, rune.Name + " / " + rune.Ram + " RAM", 17, RuneMesh.CategoryColor(rune.Category));
+                _ui.Text(_inspectorPanel, 14, top, 222, 28, rune.Name + " / " + GameData.Runes.NodeRam(node) + " RAM", 17, RuneMesh.CategoryColor(rune.Category));
                 top += 37;
                 foreach (ParameterDefinition param in rune.Params)
                 {
+                    if (!IsParameterVisible(node, param)) continue;
                     ParameterDefinition definition = param;
                     string nodeId = node.Id;
                     SpellParameterRow row = Instantiate(_parameterRowPrefab, _inspectorPanel);
@@ -342,12 +344,7 @@ namespace RuneCode
                     {
                         string current = node.GetText(param.Id, param.DefaultText);
                         row.ConfigureEnum(L("param." + param.Id), OptionLabel(param.Id, current));
-                        row.OptionButton.onClick.AddListener(() =>
-                        {
-                            int index = 0;
-                            for (int i = 0; i < definition.Options.Count; i++) if (definition.Options[i] == current) index = i;
-                            _editor.SetNodeText(nodeId, definition.Id, definition.Options[(index + 1) % definition.Options.Count]);
-                        });
+                        row.OptionButton.onClick.AddListener(() => _editor.SetNodeText(nodeId, definition.Id, NextOption(definition, current)));
                     }
                     top += param.Kind == "text" && rune.Id == "spell.call" && param.Id == "spellId" ? 76 : 64;
                 }
@@ -364,7 +361,7 @@ namespace RuneCode
                     _ui.Text(_inspectorPanel, 14, top, 222, 34, L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + L("ui.damage") + " " + rune.Stats.Damage.ToString("0.#"), 12, UiTheme.Muted);
                     top += 42;
                 }
-                if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
+                if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR)
                 {
                     SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
                     if (action != null && action.Stats != null)
@@ -424,6 +421,35 @@ namespace RuneCode
             }
         }
 
+        /// <summary>
+        /// 인스펙터에 파라미터를 표시할지 반환한다. 효과량·보호막 지속시간은 속성이 Functional(회복·보호)인 Shape·Apply에서만 표시한다.
+        /// </summary>
+        private static bool IsParameterVisible(GraphNode node, ParameterDefinition param)
+        {
+            if (param.Id != SpellGrammar.POWER_PARAM && param.Id != SpellGrammar.BUFF_DURATION_PARAM) return true;
+            return GameData.Runes.TryGetNodeElement(node, out ElementDefinition element) && element.IsFunctional;
+        }
+
+        /// <summary>
+        /// enum 파라미터의 다음 선택지를 반환한다. 속성(element)은 해금하지 않은 속성을 건너뛰며, 선택 가능한 값이 없으면 현재 값을 유지한다.
+        /// </summary>
+        private string NextOption(ParameterDefinition definition, string current)
+        {
+            int index = 0;
+            for (int i = 0; i < definition.Options.Count; i++)
+            {
+                if (definition.Options[i] == current) index = i;
+            }
+            for (int step = 1; step <= definition.Options.Count; step++)
+            {
+                string candidate = definition.Options[(index + step) % definition.Options.Count];
+                bool isLockedElement = definition.Id == SpellGrammar.ELEMENT_PARAM && GameData.Runes.TryGetElement(candidate, out ElementDefinition element)
+                    && !_editor.IsRuneUnlocked(element.RuneId);
+                if (!isLockedElement) return candidate;
+            }
+            return current;
+        }
+
         /// <summary>Trigger·Magic enum 값을 한국어 라벨로 반환하고 번역이 없으면 원문 값을 표시한다.</summary>
         private static string OptionLabel(string parameter, string value)
         {
@@ -455,7 +481,7 @@ namespace RuneCode
         {
             CompiledSpell spell = _editor.CompileResult.Spell;
             int ram = 0;
-            foreach (GraphNode node in _editor.Graph.Nodes) ram += GameData.Runes.Get(node.RuneId).Ram;
+            foreach (GraphNode node in _editor.Graph.Nodes) ram += GameData.Runes.NodeRam(node);
             _metricsText.text = L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM" +
                 (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + L("ui.energy") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
         }
@@ -470,7 +496,7 @@ namespace RuneCode
                 "  ·  " + L("ui.energy") + " " + (action?.OwnEnergy ?? rune.Energy).ToString("0.#");
         }
 
-        /// <summary>타입→발사 체인 연결, 화염 속성 삽입, 실제 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시한다.</summary>
+        /// <summary>Shape→발사 체인 연결, Shape의 화염 속성 선택, 실제 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시한다.</summary>
         private void UpdateTutorial()
         {
             bool hasCastType = false;
@@ -478,12 +504,12 @@ namespace RuneCode
             bool hasFire = false;
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
-                bool isType = SpellGrammar.MagicTypeOf(node.RuneId) != null;
+                bool isShape = SpellGrammar.MagicTypeOf(node.RuneId) != null;
+                if (isShape && node.GetText(SpellGrammar.ELEMENT_PARAM) == "fire") hasFire = true;
                 foreach (GraphEdge edge in _editor.Graph.Edges)
                 {
-                    if (isType && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.EXEC_PORT) hasCastType = true;
-                    if (node.RuneId == "shape.launch" && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.CHAIN_IN) hasLaunch = true;
-                    if (node.RuneId == "element.fire" && edge.FromNode == node.Id) hasFire = true;
+                    if (isShape && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.EXEC_PORT) hasCastType = true;
+                    if (node.RuneId == "behavior.launch" && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.CHAIN_IN) hasLaunch = true;
                 }
             }
             bool hasChain = hasCastType && hasLaunch;

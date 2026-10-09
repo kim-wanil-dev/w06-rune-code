@@ -526,7 +526,7 @@ namespace RuneCode
         /// <summary>검증된 그래프의 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
         public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, float energyCost,
             float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
-            string id = "", string trigger = "attack")
+            string id = "", string trigger = SpellGrammar.TRIGGER_ON_ATTACK)
         {
             _id = id;
             _name = name;

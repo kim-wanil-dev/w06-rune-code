@@ -20,16 +20,16 @@ flow.if,조건,flow,1,0,1,bench,60
 magic.inline,직접 마법,internal,0,0,1,start,0
 spell.call,마법 메소드,method,1,0,1,start,0
 mod.duration,지속시간,modifier,1,0,1,start,0
-type.sphere,구형,magicType,0,0,1,start,0
-type.box,사각,magicType,0,0,1,start,0
-type.buff,버프,magicType,0,0,1,start,0
-element.normal,일반,element,0,0,1,start,0
+shape.sphere,구형,shape,0,0,1,start,0
+shape.box,사각,shape,0,0,1,start,0
+element.neutral,일반,element,0,0,1,start,0
 element.fire,화염,element,1,0,1,start,0
-element.electric,전격,element,1,0,1,bench,40
+element.lightning,전격,element,1,0,1,bench,40
 element.ice,얼음,element,1,0,1,bench,25
-element.heal,회복,element,1,0,1,start,0
+element.healing,회복,element,1,0,1,start,0
 element.protection,보호,element,1,0,1,start,0
-shape.launch,발사,shape,1,0,1,start,0
-shape.explosion,폭발,shape,1,0,1,start,0
-shape.orbit,공전,shape,2,0,1,start,0
-shape.remain,잔류,shape,2,0,1,bench,35
+behavior.launch,발사,behavior,1,0,1,start,0
+behavior.burst,폭발,behavior,1,0,1,start,0
+behavior.orbit,공전,behavior,2,0,1,start,0
+behavior.persist,잔류,behavior,2,0,1,bench,35
+behavior.apply,적용,behavior,2,0,1,bench,35

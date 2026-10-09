@@ -220,8 +220,6 @@ namespace RuneCode
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             _editingGraph.AddEdge(edge);
-            var source = _editingGraph.Nodes.FirstOrDefault(node => node.Id == fromNode);
-            if (source != null) _policy.OnConnected(source.RuneId);
             MarkChanged(); RaiseGraphChanged();
             return true;
         }
@@ -268,6 +266,7 @@ namespace RuneCode
             var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == nodeId);
             if (node == null) return;
             node.SetText(key, value);
+            if (key == SpellGrammar.ELEMENT_PARAM) _policy.OnElementSelected(value);
             MarkChanged();
         }
 
