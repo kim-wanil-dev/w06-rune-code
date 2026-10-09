@@ -283,11 +283,17 @@ namespace RuneCode
         public double Radius => _stats.Radius;
         public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
 
-        /// <summary>부채꼴 범위인지 나타낸다. 판정·그리기는 위치(꼭짓점)에서 진행 방향으로 펼친 부채꼴이다.</summary>
+        /// <summary>부채꼴인지 나타낸다. 판정·그리기는 꼭짓점(ConeApex)에서 진행 방향으로 펼친 부채꼴이다.</summary>
         public bool IsCone => _action.MagicType == SpellGrammar.MAGIC_TYPE_CONE;
 
         /// <summary>부채꼴의 전체 각도(도)다.</summary>
         public double ConeAngle => _action.ConeAngle;
+
+        /// <summary>부채꼴의 꼭짓점이다. 발사(부채꼴 파동)는 발사 위치, 범위는 개체 위치다.</summary>
+        public SimVector ConeApex => _action.Form == SpellGrammar.FORM_BOLT ? _anchor : _position;
+
+        /// <summary>부채꼴의 현재 반경이다. 발사(부채꼴 파동)는 이동 거리 + 개체 반경, 범위는 개체 반경이다.</summary>
+        public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? (_position - _anchor).Length + _stats.Radius : _stats.Radius;
         public double Age => _age;
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;

@@ -994,7 +994,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 화면 안에서 연속 시전 · Space 대시 · Esc 일시정지 · 모든 적을 처치하면 클리어"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · Esc 일시정지 · 모든 적을 처치하면 클리어"
     },
     {
       "_key": "ui.kills",

@@ -2,6 +2,9 @@ using System;
 
 using UnityEngine;
 
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+
 namespace RuneCode
 {
     /// <summary>
@@ -57,7 +60,7 @@ namespace RuneCode
 
         /// <summary>
         /// 프레임마다 미션을 진행하고 HUD를 갱신한다. 정산이 끝나면 결과를 한 번 표시한다.
-        /// 팝업이 열려 있거나 문자 입력 중이면 조준 입력을 넘기지 않는다.
+        /// 팝업이 열려 있거나 문자 입력 중이면 조준 입력을 넘기지 않는다. 시전은 좌클릭을 누르는 동안이며 HUD 버튼 위에서는 하지 않는다.
         /// </summary>
         public void Tick(float unscaledDeltaTime)
         {
@@ -70,7 +73,9 @@ namespace RuneCode
             bool isTyping = UiFactory.IsTyping();
             SimVector pointer = SimVector.Zero;
             bool hasPointer = !isTyping && !_ui.IsPopupOpen && _screen.TryGetPointer(out pointer);
-            _run.Step(isTyping, hasPointer, pointer, unscaledDeltaTime);
+            Mouse mouse = Mouse.current;
+            bool isCasting = hasPointer && mouse != null && mouse.leftButton.isPressed && !IsPointerOverUi();
+            _run.Step(isTyping, hasPointer, pointer, isCasting, unscaledDeltaTime);
             RenderHud();
         }
 
@@ -191,6 +196,9 @@ namespace RuneCode
             RenderHud();
             return true;
         }
+
+        /// <summary>포인터가 버튼 등 UI 입력 대상 위에 있는지 반환한다.</summary>
+        private static bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
         /// <summary>현재 시뮬레이션 값으로 HUD 막대·전투 정보·마법 줄과 조각 토스트를 표시한다.</summary>
         private void RenderHud()

@@ -58,8 +58,11 @@ namespace RuneCode
         /// <summary>미션의 고정 시뮬레이션 갱신을 일시정지하거나 재개한다.</summary>
         public void TogglePause() { _isPaused = !_isPaused; }
 
-        /// <summary>이동·대시 키와 포인터 조준을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고, 노드 텔레메트리 기록과 종료 조건을 확인한다.</summary>
-        public void Step(bool isTyping, bool hasPointer, SimVector pointer, float unscaledDeltaTime)
+        /// <summary>
+        /// 이동·대시 키, 포인터 조준과 시전 입력(isCasting, 좌클릭 유지)을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고,
+        /// 노드 텔레메트리 기록과 종료 조건을 확인한다.
+        /// </summary>
+        public void Step(bool isTyping, bool hasPointer, SimVector pointer, bool isCasting, float unscaledDeltaTime)
         {
             if (_settled) return;
             if (_isPaused) { _accumulator = 0; _hasPendingDash = false; return; }
@@ -77,7 +80,7 @@ namespace RuneCode
             while (_accumulator >= FIXED_STEP && steps++ < maxSteps)
             {
                 var aim = hasPointer ? pointer - _simulation.Player.Position : _simulation.Player.AimDirection;
-                _simulation.Step(new SimulationInput(movement, aim, hasPointer, false, false, _hasPendingDash));
+                _simulation.Step(new SimulationInput(movement, aim, isCasting, false, false, _hasPendingDash));
                 _hasPendingDash = false;
                 _accumulator -= FIXED_STEP;
             }

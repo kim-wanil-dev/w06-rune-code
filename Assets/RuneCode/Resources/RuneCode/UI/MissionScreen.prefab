@@ -1666,9 +1666,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "WASD \uC774\uB3D9 \xB7 \uB9C8\uC6B0\uC2A4 \uC870\uC900 \xB7 \uC804\uD22C
-    \uC601\uC5ED\uC5D0\uC11C \uC5F0\uC18D \uC2DC\uC804 \xB7 Space \uB300\uC2DC \xB7
-    Esc \uC77C\uC2DC\uC815\uC9C0"
+  m_text: "WASD \uC774\uB3D9 \xB7 \uB9C8\uC6B0\uC2A4 \uC870\uC900 \xB7 \uC88C\uD074\uB9AD\uC744 \uB204\uB974\uB294 \uB3D9\uC548 \uC2DC\uC804 \xB7 Space \uB300\uC2DC \xB7 Esc \uC77C\uC2DC\uC815\uC9C0 \xB7 \uBAA8\uB4E0 \uC801\uC744 \uCC98\uCE58\uD558\uBA74 \uD074\uB9AC\uC5B4"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}
   m_sharedMaterial: {fileID: -4499354403446525325, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}

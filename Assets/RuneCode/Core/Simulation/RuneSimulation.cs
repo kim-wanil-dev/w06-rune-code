@@ -586,7 +586,10 @@ namespace RuneCode
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
             {
-                bool isInside = entity.IsBox
+                bool isInside = entity.IsCone
+                    ? IntersectsConeFront(entity.Anchor, direction, (previous - entity.Anchor).Length, (next - entity.Anchor).Length + entity.Radius,
+                        entity.ConeAngle, enemy.Position, enemy.Radius)
+                    : entity.IsBox
                     ? IntersectsBoxSweep(previous, next, direction, entity.Radius, enemy.Position, enemy.Radius)
                     : SegmentDistance(previous, next, enemy.Position) <= entity.Radius + enemy.Radius;
                 if (enemy.IsAlive && !entity.HitTimes.ContainsKey(enemy.Id) && isInside) targets.Add(enemy);
@@ -604,6 +607,22 @@ namespace RuneCode
                 RaiseHitEvent(entity, enemy.Position, enemy);
                 if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); entity.HasExpired = true; break; }
             }
+        }
+
+        /// <summary>
+        /// 부채꼴 파동의 이번 틱 앞쪽 띠(꼭짓점에서 inner~outer 거리, 진행 방향 기준 전체 각도)와 대상 원의 겹침 여부를 반환한다.
+        /// 대상 반경만큼 거리와 각도에 여유를 준다.
+        /// </summary>
+        private static bool IntersectsConeFront(SimVector apex, SimVector direction, double inner, double outer, double coneAngle,
+            SimVector target, double targetRadius)
+        {
+            SimVector relative = target - apex;
+            double distance = relative.Length;
+            if (distance > outer + targetRadius || distance < inner - targetRadius) return false;
+            if (distance <= targetRadius) return true;
+            double cosine = Math.Max(-1, Math.Min(1, SimVector.Dot(relative / distance, direction.Normalized())));
+            double tolerance = Math.Asin(Math.Min(1, targetRadius / distance));
+            return Math.Acos(cosine) <= coneAngle * 0.5 * DEGREES_TO_RADIANS + tolerance;
         }
 
         /// <summary>방향을 따라 이동하는 정사각형 투사체와 대상 원의 겹침 여부를 반환한다.</summary>
