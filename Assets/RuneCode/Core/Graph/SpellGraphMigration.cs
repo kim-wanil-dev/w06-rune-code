@@ -8,6 +8,7 @@ namespace RuneCode
     /// 이전 저장 그래프를 현재 문법(그래프 버전 3: Trigger → Shape(Element) → Behavior, Apply(Element))으로 변환한다.
     /// 1단계는 이전 룬(단독 형태·속성, 직접 마법, 방벽, 점멸, 노이즈, 사거리)을 버전 2 체인으로, 2단계는 버전 2 체인을 버전 3으로 바꾼다.
     /// 버전 2→3은 이름·표현만 바뀌고 의미가 같은 변환이며, 구조가 깨진 체인은 바꾸지 않아 기존과 같은 컴파일 오류를 낸다.
+    /// 의미가 바뀐 연결(이전 onComplete 등)은 다른 포트로 옮기지 않고 그대로 둔다. 컴파일러가 지원 중단·의미 변경 경고를 낸다.
     /// 여러 번 호출해도 결과가 같다.
     /// </summary>
     public static class SpellGraphMigration
@@ -16,8 +17,6 @@ namespace RuneCode
         private const float SHIELD_SECONDS = 3f;
         private const float BLOCK_SPACING = 150f;
         private const float BLOCK_DROP = 110f;
-        private const string LEGACY_FIRST_EVENT_PORT = "onComplete";
-        private const string FIRST_EVENT_PORT = SpellGrammar.ON_FIRST_HIT_OR_EXPIRE_PORT;
 
         private static readonly Dictionary<string, string> LEGACY_SHAPES = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -72,7 +71,7 @@ namespace RuneCode
         public static bool Migrate(SpellGraph graph)
         {
             if (graph?.Nodes == null || graph.Edges == null) return false;
-            bool isChanged = RenameLegacyPorts(graph);
+            bool isChanged = false;
             if (HasLegacyNode(graph))
             {
                 ConvertLegacyRunes(graph);
@@ -81,9 +80,23 @@ namespace RuneCode
             if (graph.Version < SpellGraph.CURRENT_VERSION)
             {
                 ConvertToVersion3(graph);
+                MarkLegacyEvents(graph);
                 isChanged = true;
             }
             return isChanged;
+        }
+
+        /// <summary>
+        /// 이벤트 출력(onHit·onExpire·onFirstHitOrExpire·onComplete)에서 나가는 연결을 이전 이벤트 의미로 만든 연결로 표시한다.
+        /// 버전 3 이전 그래프에만 호출하며, 사용자가 연결을 다시 만들면 표시가 사라진다.
+        /// </summary>
+        private static void MarkLegacyEvents(SpellGraph graph)
+        {
+            foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
+            {
+                if (edge == null || edge.IsLegacyEvent || !SpellGrammar.IsEventPort(edge.FromPort)) continue;
+                graph.ReplaceEdge(edge.Id, new GraphEdge(edge.Id, edge.FromNode, edge.FromPort, edge.ToNode, edge.ToPort, edge.Order, true));
+            }
         }
 
         /// <summary>이전 룬 해금 ID를 버전 2 블록 해금 ID로 바꾼다.</summary>
@@ -302,28 +315,7 @@ namespace RuneCode
             graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, node.Id + "-chain"), chainTail, SpellGrammar.CHAIN_OUT, node.Id, SpellGrammar.CHAIN_IN));
         }
 
-        /// <summary>
-        /// 이전 포트 ID onComplete로 저장된 연결을 onFirstHitOrExpire로 바꾸고 변경 여부를 반환한다.
-        /// 엣지 ID·순번·대상은 유지하며 같은 포트 엣지들의 상대 순서도 보존한다.
-        /// </summary>
-        private static bool RenameLegacyPorts(SpellGraph graph)
-        {
-            bool isChanged = false;
-            foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
-            {
-                if (edge == null || edge.FromPort != LEGACY_FIRST_EVENT_PORT)
-                {
-                    continue;
-                }
-
-                graph.RemoveEdge(edge.Id);
-                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, FIRST_EVENT_PORT, edge.ToNode, edge.ToPort, edge.Order));
-                isChanged = true;
-            }
-            return isChanged;
-        }
-
-        /// <summary>방벽 행동을 버프·보호·잔류 체인으로 바꾸고 기존 다음 실행 분기를 완료 분기로 옮긴다.</summary>
+        /// <summary>방벽 행동을 버프·보호·잔류 체인으로 바꾸고 기존 다음 실행 분기를 이전 완료 포트(onComplete)로 옮긴다.</summary>
         private static void ConvertShield(SpellGraph graph, GraphNode node)
         {
             GraphNode source = new GraphNode(node.Id, node.RuneId, node.X, node.Y);
@@ -334,7 +326,7 @@ namespace RuneCode
             {
                 if (edge.FromNode != node.Id || edge.FromPort != "next") continue;
                 graph.RemoveEdge(edge.Id);
-                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, FIRST_EVENT_PORT, edge.ToNode, edge.ToPort, edge.Order));
+                graph.AddEdge(new GraphEdge(edge.Id, edge.FromNode, SpellGrammar.LEGACY_COMPLETE_PORT, edge.ToNode, edge.ToPort, edge.Order));
             }
         }
 

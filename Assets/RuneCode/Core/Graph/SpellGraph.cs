@@ -115,6 +115,7 @@ namespace RuneCode
         private readonly string _toNode;
         private readonly string _toPort;
         private readonly int _order;
+        private readonly bool _isLegacyEvent;
         public string Id => _id;
         public string FromNode => _fromNode;
         public string FromPort => _fromPort;
@@ -122,8 +123,11 @@ namespace RuneCode
         public string ToPort => _toPort;
         public int Order => _order;
 
-        /// <summary>출력과 입력 노드의 포트 ID로 그래프 연결을 생성한다.</summary>
-        public GraphEdge(string id, string fromNode, string fromPort, string toNode, string toPort, int order = 0)
+        /// <summary>이벤트 의미가 바뀌기 전(그래프 버전 2 이하)에 만든 이벤트 출력 연결인지 반환한다. 컴파일러가 의미 변경 경고를 붙인다.</summary>
+        public bool IsLegacyEvent => _isLegacyEvent;
+
+        /// <summary>출력과 입력 노드의 포트 ID로 그래프 연결을 생성한다. isLegacyEvent는 이전 이벤트 의미로 만든 연결 표시다.</summary>
+        public GraphEdge(string id, string fromNode, string fromPort, string toNode, string toPort, int order = 0, bool isLegacyEvent = false)
         {
             _id = id;
             _fromNode = fromNode;
@@ -131,6 +135,7 @@ namespace RuneCode
             _toNode = toNode;
             _toPort = toPort;
             _order = order;
+            _isLegacyEvent = isLegacyEvent;
         }
     }
 

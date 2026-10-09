@@ -127,21 +127,22 @@ namespace RuneCode
         [SerializeField] private string _toNode;
         [SerializeField] private string _toPort;
         [SerializeField] private int _order;
+        [SerializeField] private bool _isLegacyEvent;
 
-        /// <summary>엣지의 ID·양 끝 노드와 포트·순번을 직렬화 형식으로 옮긴다.</summary>
+        /// <summary>엣지의 ID·양 끝 노드와 포트·순번·이전 이벤트 의미 표시를 직렬화 형식으로 옮긴다.</summary>
         public static GraphEdgeData From(GraphEdge edge)
         {
             return new GraphEdgeData
             {
                 _id = edge.Id, _fromNode = edge.FromNode, _fromPort = edge.FromPort,
-                _toNode = edge.ToNode, _toPort = edge.ToPort, _order = edge.Order
+                _toNode = edge.ToNode, _toPort = edge.ToPort, _order = edge.Order, _isLegacyEvent = edge.IsLegacyEvent
             };
         }
 
-        /// <summary>직렬화 형식을 엣지로 되돌린다.</summary>
+        /// <summary>직렬화 형식을 엣지로 되돌린다. 키가 없는 이전 데이터는 이전 이벤트 표시가 false다.</summary>
         public GraphEdge ToEdge()
         {
-            return new GraphEdge(_id, _fromNode, _fromPort, _toNode, _toPort, _order);
+            return new GraphEdge(_id, _fromNode, _fromPort, _toNode, _toPort, _order, _isLegacyEvent);
         }
     }
 }

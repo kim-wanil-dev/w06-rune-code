@@ -11,19 +11,25 @@ namespace RuneCode
         private readonly string _kind;
         private readonly string _direction;
         private readonly int _max;
+        private readonly string _status;
 
         public string Id => _id;
         public string Kind => _kind;
         public string Direction => _direction;
         public int Max => _max;
+        public string Status => _status;
 
-        /// <summary>rune_ports 테이블 행의 포트 ID·종류·방향·최대 연결 수로 포트를 만든다.</summary>
+        /// <summary>지원 중단 포트인지 반환한다. 새로 연결할 수 없고 기존 연결은 보존하되 실행하지 않는다.</summary>
+        public bool IsDeprecated => _status == SpellGrammar.PORT_DEPRECATED;
+
+        /// <summary>rune_ports 테이블 행의 포트 ID·종류·방향·최대 연결 수·상태(빈 칸이면 active)로 포트를 만든다.</summary>
         internal PortDefinition(TableRow row)
         {
             _id = row.GetString("portId");
             _kind = row.GetString("kind");
             _direction = row.GetString("direction");
             _max = row.GetInt("max");
+            _status = row.GetOptionalString("status", SpellGrammar.PORT_ACTIVE);
         }
     }
 
@@ -296,7 +302,7 @@ namespace RuneCode
             DataTable elements = DataTable.Load(source, ELEMENTS_TABLE, log);
             bool hasColumns = runes.RequireColumns("id", "name", "category", "ram", "energy", "energyMult", "unlockType", "unlockCost")
                 & stats.RequireColumns("runeId")
-                & ports.RequireColumns("runeId", "order", "portId", "kind", "direction", "max")
+                & ports.RequireColumns("runeId", "order", "portId", "kind", "direction", "max", "status")
                 & parameters.RequireColumns("runeId", "order", "paramId", "kind", "min", "max", "step", "defaultNumber", "defaultText")
                 & options.RequireColumns("runeId", "paramId", "order", "option")
                 & tags.RequireColumns("runeId", "order", "tag")
@@ -429,7 +435,7 @@ namespace RuneCode
             return result;
         }
 
-        /// <summary>룬의 포트 행을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수 규칙을 검증한다.</summary>
+        /// <summary>룬의 포트 행을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수·상태 규칙을 검증한다. 지원 중단은 실행 출력에만 허용한다.</summary>
         private static List<PortDefinition> BuildPorts(Dictionary<string, List<TableRow>> portRows, string runeId)
         {
             var result = new List<PortDefinition>();
@@ -446,6 +452,11 @@ namespace RuneCode
                     || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1))
                 {
                     row.ReportError(null, "유효하지 않은 룬 포트입니다 (종류 exec/mod/chain, 방향 in/out, chain과 exec 입력은 최대 1).");
+                }
+                if ((port.Status != SpellGrammar.PORT_ACTIVE && !port.IsDeprecated)
+                    || (port.IsDeprecated && (port.Kind != "exec" || port.Direction != "out")))
+                {
+                    row.ReportError("status", "active(빈 칸) 또는 deprecated여야 하며, deprecated는 exec 출력 포트에만 쓸 수 있습니다.");
                 }
                 result.Add(port);
             }

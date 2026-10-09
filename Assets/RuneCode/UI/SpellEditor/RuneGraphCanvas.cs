@@ -75,6 +75,7 @@ namespace RuneCode
         private static readonly Color EXEC_PORT_COLOR = new Color(0.32f, 0.88f, 0.98f);
         private static readonly Color CONNECTABLE_PORT_COLOR = new Color(0.28f, 1f, 0.57f);
         private static readonly Color BLOCKED_PORT_COLOR = new Color(1f, 0.26f, 0.29f);
+        private static readonly Color DEPRECATED_COLOR = new Color(0.45f, 0.47f, 0.50f);
         private static readonly Color SELECTION_FILL_COLOR = new Color(0.24f, 0.80f, 1f, 0.12f);
 
         private ISpellEditor _editor;
@@ -452,7 +453,7 @@ namespace RuneCode
             float maximumY = float.MinValue;
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
-                float height = NodeHeight(GameData.Runes.Get(node.RuneId));
+                float height = NodeHeight(node, GameData.Runes.Get(node.RuneId));
                 minimumX = Mathf.Min(minimumX, node.X);
                 minimumY = Mathf.Min(minimumY, node.Y);
                 maximumX = Mathf.Max(maximumX, node.X + NODE_WIDTH);
@@ -509,19 +510,21 @@ namespace RuneCode
                 _labelBuilder.Append("<size=10><color=#A8C9D8>").Append(summary).Append("</color></size>\n");
             }
 
-            int rows = PortRowCount(rune);
+            int rows = PortRowCount(node, rune);
             float labelWidth = NODE_WIDTH - LABEL_PADDING_X * 2;
             for (int row = 0; row < rows; row++)
             {
-                PortDefinition input = PortAt(rune, SpellGrammar.DIRECTION_IN, row);
-                PortDefinition output = PortAt(rune, SpellGrammar.DIRECTION_OUT, row);
+                PortDefinition input = PortAt(node, rune, SpellGrammar.DIRECTION_IN, row);
+                PortDefinition output = PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
                 _labelBuilder.Append("<size=10>").Append(input?.Id);
                 if (output != null)
                 {
                     // 출력 포트 이름이 길어도 노드 밖으로 넘치지 않도록 오른쪽 끝 기준으로 시작 위치를 정한다.
-                    float outputWidth = label.GetPreferredValues("<size=10>" + output.Id).x;
+                    // 지원 중단 포트는 회색 취소선으로 표시해 실행되지 않는 연결임을 알린다.
+                    string outputText = output.IsDeprecated ? "<s><color=#737880>" + output.Id + "</color></s>" : output.Id;
+                    float outputWidth = label.GetPreferredValues("<size=10>" + outputText).x;
                     float outputStart = Mathf.Max(0, labelWidth - outputWidth);
-                    _labelBuilder.Append("<pos=").Append(outputStart.ToString("0.#", CultureInfo.InvariantCulture)).Append('>').Append(output.Id);
+                    _labelBuilder.Append("<pos=").Append(outputStart.ToString("0.#", CultureInfo.InvariantCulture)).Append('>').Append(outputText);
                 }
                 _labelBuilder.Append("</size>\n");
             }
@@ -571,7 +574,7 @@ namespace RuneCode
 
                 RuneDefinition rune = GameData.Runes.Get(node.RuneId);
                 Rect rect = NodeRect(node, rune);
-                float labelHeight = NodeHeight(rune) - LABEL_PADDING_TOP - LABEL_PADDING_BOTTOM;
+                float labelHeight = NodeHeight(node, rune) - LABEL_PADDING_TOP - LABEL_PADDING_BOTTOM;
 
                 RectTransform textRect = label.rectTransform;
                 textRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * _zoom,
@@ -645,7 +648,7 @@ namespace RuneCode
             {
                 Vector2 from = LookupPortPosition(edge.FromNode, edge.FromPort);
                 Vector2 to = LookupPortPosition(edge.ToNode, edge.ToPort);
-                RuneMesh.Line(mesh, from, to, EDGE_WIDTH, EdgeColor(edge));
+                RuneMesh.Line(mesh, from, to, EDGE_WIDTH, IsDeprecatedEdge(edge) ? DEPRECATED_COLOR : EdgeColor(edge));
 
                 Vector2 direction = (to - from).normalized;
                 float angle = Mathf.Atan2(direction.y, direction.x);
@@ -674,21 +677,29 @@ namespace RuneCode
             DrawPorts(mesh, node, rune, rect);
         }
 
-        /// <summary>노드의 포트를 종류별 모양으로 그리며 연결 드래그 중에는 연결 가능 여부 색으로 표시한다.</summary>
+        /// <summary>
+        /// 노드의 표시 포트를 종류별 모양으로 그리며 연결 드래그 중에는 연결 가능 여부 색으로 표시한다.
+        /// 지원 중단 포트는 회색으로 그린다.
+        /// </summary>
         private void DrawPorts(VertexHelper mesh, GraphNode node, RuneDefinition rune, Rect rect)
         {
             _connectablePorts.TryGetValue(node.Id, out bool[] connectable);
             for (int i = 0; i < rune.Ports.Count; i++)
             {
                 PortDefinition port = rune.Ports[i];
-                Color color = PortBaseColor(port.Kind);
+                if (!IsPortShown(node, port))
+                {
+                    continue;
+                }
+
+                Color color = port.IsDeprecated ? DEPRECATED_COLOR : PortBaseColor(port.Kind);
                 if (_sourceNode != null)
                 {
                     bool canConnect = connectable != null && connectable[i];
                     color = canConnect ? CONNECTABLE_PORT_COLOR : BLOCKED_PORT_COLOR;
                 }
 
-                Vector2 point = PortPosition(rect, rune, port.Id);
+                Vector2 point = PortPosition(rect, node, rune, port.Id);
                 RuneMesh.Polygon(mesh, point, PORT_RADIUS * _zoom, color, PortSides(port.Kind));
             }
         }
@@ -1038,7 +1049,7 @@ namespace RuneCode
                 Rect rect = NodeRect(node, rune);
                 foreach (PortDefinition port in rune.Ports)
                 {
-                    if (Vector2.Distance(point, PortPosition(rect, rune, port.Id)) < radius)
+                    if (IsPortShown(node, port) && Vector2.Distance(point, PortPosition(rect, node, rune, port.Id)) < radius)
                     {
                         foundNode = node;
                         foundPort = port;
@@ -1071,31 +1082,56 @@ namespace RuneCode
             }
 
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            return PortPosition(NodeRect(node, rune), rune, portId);
+            return PortPosition(NodeRect(node, rune), node, rune, portId);
         }
 
-        /// <summary>룬 포트 수로 계산한 배율 적용 전 노드 높이를 반환한다.</summary>
-        private static float NodeHeight(RuneDefinition rune)
+        /// <summary>노드에 표시할 포트인지 반환한다. 지원 중단 포트는 기존 연결이 남아 있을 때만 표시한다.</summary>
+        private bool IsPortShown(GraphNode node, PortDefinition port)
         {
-            return NODE_BASE_HEIGHT + PortRowCount(rune) * PORT_SPACING;
+            if (!port.IsDeprecated)
+            {
+                return true;
+            }
+
+            foreach (GraphEdge edge in _editor.Graph.Edges)
+            {
+                if (edge.FromNode == node.Id && edge.FromPort == port.Id)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        /// <summary>입력·출력 포트 중 많은 쪽의 개수를 노드의 포트 행 수로 반환한다.</summary>
-        private static int PortRowCount(RuneDefinition rune)
+        /// <summary>연결의 출발 포트가 지원 중단 포트(실행되지 않는 기존 연결)인지 반환한다. RebuildNodeLookup 이후 호출한다.</summary>
+        private bool IsDeprecatedEdge(GraphEdge edge)
         {
-            return Math.Max(CountPorts(rune, SpellGrammar.DIRECTION_IN), CountPorts(rune, SpellGrammar.DIRECTION_OUT));
+            return _nodeLookup.TryGetValue(edge.FromNode, out GraphNode node)
+                && GameData.Runes.Get(node.RuneId).FindPort(edge.FromPort, SpellGrammar.DIRECTION_OUT)?.IsDeprecated == true;
         }
 
-        /// <summary>룬 포트 수와 배율을 반영한 화면상의 노드 사각형을 반환한다.</summary>
+        /// <summary>노드의 표시 포트 수로 계산한 배율 적용 전 노드 높이를 반환한다.</summary>
+        private float NodeHeight(GraphNode node, RuneDefinition rune)
+        {
+            return NODE_BASE_HEIGHT + PortRowCount(node, rune) * PORT_SPACING;
+        }
+
+        /// <summary>입력·출력 표시 포트 중 많은 쪽의 개수를 노드의 포트 행 수로 반환한다.</summary>
+        private int PortRowCount(GraphNode node, RuneDefinition rune)
+        {
+            return Math.Max(CountPorts(node, rune, SpellGrammar.DIRECTION_IN), CountPorts(node, rune, SpellGrammar.DIRECTION_OUT));
+        }
+
+        /// <summary>표시 포트 수와 배율을 반영한 화면상의 노드 사각형을 반환한다.</summary>
         private Rect NodeRect(GraphNode node, RuneDefinition rune)
         {
-            float height = NodeHeight(rune) * _zoom;
+            float height = NodeHeight(node, rune) * _zoom;
             Vector2 topLeft = ToLocal(new Vector2(node.X, node.Y));
             return new Rect(topLeft.x, topLeft.y - height, NODE_WIDTH * _zoom, height);
         }
 
         /// <summary>노드 화면 사각형에서 포트 ID에 대응하는 포트 중심의 화면 좌표를 반환하며 포트가 없으면 노드 중심을 반환한다.</summary>
-        private Vector2 PortPosition(Rect rect, RuneDefinition rune, string portId)
+        private Vector2 PortPosition(Rect rect, GraphNode node, RuneDefinition rune, string portId)
         {
             int index = IndexOfPort(rune, portId);
             if (index < 0)
@@ -1103,12 +1139,12 @@ namespace RuneCode
                 return rect.center;
             }
 
-            // 같은 방향 포트 중 몇 번째인지가 세로 행 위치가 된다.
+            // 같은 방향의 표시 포트 중 몇 번째인지가 세로 행 위치가 된다.
             PortDefinition port = rune.Ports[index];
             int row = 0;
             for (int i = 0; i < index; i++)
             {
-                if (rune.Ports[i].Direction == port.Direction)
+                if (rune.Ports[i].Direction == port.Direction && IsPortShown(node, rune.Ports[i]))
                 {
                     row++;
                 }
@@ -1132,13 +1168,13 @@ namespace RuneCode
             return -1;
         }
 
-        /// <summary>지정 방향에 속한 룬 포트 개수를 반환한다.</summary>
-        private static int CountPorts(RuneDefinition rune, string direction)
+        /// <summary>지정 방향에 속한 노드의 표시 포트 개수를 반환한다.</summary>
+        private int CountPorts(GraphNode node, RuneDefinition rune, string direction)
         {
             int count = 0;
             foreach (PortDefinition port in rune.Ports)
             {
-                if (port.Direction == direction)
+                if (port.Direction == direction && IsPortShown(node, port))
                 {
                     count++;
                 }
@@ -1146,13 +1182,13 @@ namespace RuneCode
             return count;
         }
 
-        /// <summary>지정 방향의 순번에 해당하는 포트를 반환하며 없으면 null을 반환한다.</summary>
-        private static PortDefinition PortAt(RuneDefinition rune, string direction, int row)
+        /// <summary>지정 방향의 표시 포트 중 순번에 해당하는 포트를 반환하며 없으면 null을 반환한다.</summary>
+        private PortDefinition PortAt(GraphNode node, RuneDefinition rune, string direction, int row)
         {
             int current = 0;
             foreach (PortDefinition port in rune.Ports)
             {
-                if (port.Direction != direction)
+                if (port.Direction != direction || !IsPortShown(node, port))
                 {
                     continue;
                 }

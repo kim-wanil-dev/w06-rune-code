@@ -34,13 +34,38 @@ namespace RuneCode
             if (!string.IsNullOrEmpty(graph.Id)) context.ActiveSpellIds.Add(graph.Id);
             List<CompileIssue> chainErrors = new List<CompileIssue>();
             List<CompileIssue> chainWarnings = new List<CompileIssue>();
-            SpellGraph normalized = SpellChainNormalizer.Normalize(graph, runes, context.UnlockedIds, chainErrors, chainWarnings, out int chainRam);
+            SpellGraph active = RemoveDeprecatedEdges(graph, runes, chainWarnings);
+            SpellGraph normalized = SpellChainNormalizer.Normalize(active, runes, context.UnlockedIds, chainErrors, chainWarnings, out int chainRam);
             CompileResult result = chainErrors.Any(issue => issue.Code != "E10")
                 ? new CompileResult(chainErrors, chainWarnings, null)
                 : CompileGraphBody(normalized, runes, limits, context, chainErrors, chainWarnings, chainRam);
             if (!string.IsNullOrEmpty(graph.Id)) context.ActiveSpellIds.Remove(graph.Id);
             if (result.Ok && !string.IsNullOrEmpty(graph.Id)) context.Compiled[graph.Id] = result.Spell;
             return result;
+        }
+
+        /// <summary>
+        /// 지원 중단 포트에서 나가는 연결을 W5 경고와 함께 뺀 컴파일용 그래프를 반환한다. 원본 그래프의 연결은 그대로 보존된다.
+        /// 남는 연결 중 이전 이벤트 의미로 만든 연결(IsLegacyEvent)에는 W6 경고를 추가한다. 뺄 연결이 없으면 원본을 반환한다.
+        /// </summary>
+        private static SpellGraph RemoveDeprecatedEdges(SpellGraph graph, RuneCatalog runes, List<CompileIssue> warnings)
+        {
+            if (graph.Nodes == null || graph.Edges == null) return graph;
+            var kept = new List<GraphEdge>(graph.Edges.Count);
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                GraphNode from = edge == null ? null : graph.FindNode(edge.FromNode);
+                PortDefinition port = from != null && runes.TryGet(from.RuneId, out RuneDefinition rune)
+                    ? rune.FindPort(edge.FromPort, SpellGrammar.DIRECTION_OUT) : null;
+                if (port != null && port.IsDeprecated)
+                {
+                    warnings.Add(new CompileIssue("W5", edge.FromNode, edge.FromPort));
+                    continue;
+                }
+                if (port != null && edge.IsLegacyEvent) warnings.Add(new CompileIssue("W6", edge.FromNode, edge.FromPort));
+                kept.Add(edge);
+            }
+            return kept.Count == graph.Edges.Count ? graph : graph.CopyWith(graph.Nodes, kept);
         }
 
         /// <summary>
@@ -115,7 +140,7 @@ namespace RuneCode
             return new CompileResult(errors, warnings, compiled);
         }
 
-        /// <summary>연결 후보가 입력 수·포트 종류·순환·수식 슬롯 규칙을 지키는지 반환한다.</summary>
+        /// <summary>연결 후보가 입력 수·포트 종류·지원 중단 포트·순환·수식 슬롯 규칙을 지키는지 반환한다.</summary>
         public static bool CanConnect(SpellGraph graph, GraphEdge edge, RuneCatalog runes, out CompileIssue issue)
         {
             issue = null;
@@ -131,6 +156,8 @@ namespace RuneCode
             PortDefinition input = toRune.FindPort(edge.ToPort, "in");
             if (output == null || input == null || output.Kind != input.Kind)
                 issue = new CompileIssue("E3", edge.ToNode);
+            else if (output.IsDeprecated)
+                issue = new CompileIssue("E19", edge.FromNode, edge.FromPort);
             else if (output.Kind == SpellGrammar.CHAIN_KIND && (!SpellGrammar.IsValidChainLink(fromRune, toRune)
                 || graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort)
                 || graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort)))
