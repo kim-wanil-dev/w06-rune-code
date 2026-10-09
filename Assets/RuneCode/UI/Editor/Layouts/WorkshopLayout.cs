@@ -20,6 +20,7 @@ namespace RuneCode
         /// <summary>작업실 헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 WorkshopScreen Prefab으로 저장한다.</summary>
         public static void Build()
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen))) return;
             UiFactory ui = LayoutUtility.CreateFactory();
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(WorkshopScreen));
             RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
@@ -162,10 +163,11 @@ namespace RuneCode
             return panel;
         }
 
-        /// <summary>기존 노드 Prefab을 아이콘 전용 정사각형 버튼으로 바꾸고 뷰 참조를 다시 연결한다.</summary>
+        /// <summary>노드 Prefab이 있으면 그대로 반환하고, 없으면 아이콘 전용 정사각형 버튼으로 만들어 뷰 참조를 연결한다.</summary>
         private static UpgradeTreeNodeView EnsureUpgradeTreeNodePrefab()
         {
             UpgradeTreeNodeView existing = AssetDatabase.LoadAssetAtPath<UpgradeTreeNodeView>(UPGRADE_TREE_NODE_PREFAB_PATH);
+            if (existing != null) return existing;
             bool isExistingPrefab = existing != null;
             GameObject source = isExistingPrefab
                 ? PrefabUtility.LoadPrefabContents(UPGRADE_TREE_NODE_PREFAB_PATH)

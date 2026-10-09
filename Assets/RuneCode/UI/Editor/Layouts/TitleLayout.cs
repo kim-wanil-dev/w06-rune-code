@@ -11,6 +11,7 @@ namespace RuneCode
         /// <summary>타이틀 화면과 시작 버튼을 만들고 화면 컴포넌트 참조를 연결해 TitleScreen Prefab으로 저장한다.</summary>
         public static void Build()
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(TitleScreen))) return;
             UiFactory ui = LayoutUtility.CreateFactory();
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(TitleScreen));
             RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");

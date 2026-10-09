@@ -13,7 +13,8 @@ namespace RuneCode
     {
         private static readonly string[] REQUIRED_VIEWS =
         {
-            nameof(ConfirmPopup), nameof(TitleScreen), nameof(WorkshopScreen), nameof(MissionScreen), nameof(PausePopup), nameof(MissionDebugPopup)
+            nameof(ConfirmPopup), nameof(TitleScreen), nameof(WorkshopScreen), nameof(MissionScreen), nameof(PausePopup), nameof(MissionDebugPopup),
+            nameof(QuickPalettePopup), nameof(SpellListPopup), nameof(TutorialPopup), nameof(RenamePopup), nameof(SharePopup)
         };
 
         static UiPrefabGuard()

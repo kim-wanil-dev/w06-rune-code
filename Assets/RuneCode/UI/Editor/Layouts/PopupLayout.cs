@@ -11,7 +11,7 @@ namespace RuneCode
         private const float CONFIRM_WIDTH = 540;
         private const float CONFIRM_HEIGHT = 260;
 
-        /// <summary>공용 팝업 Prefab을 모두 다시 만든다.</summary>
+        /// <summary>공용 팝업 Prefab 중 없는 것만 만든다.</summary>
         public static void Build()
         {
             UiFactory ui = LayoutUtility.CreateFactory();
@@ -21,6 +21,7 @@ namespace RuneCode
         /// <summary>제목·내용, 확인·취소 버튼의 공용 확인 팝업을 만들고 ConfirmPopup Prefab으로 저장한다.</summary>
         private static void BuildConfirmPopup(UiFactory ui)
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(ConfirmPopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(ConfirmPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, "", CONFIRM_WIDTH, CONFIRM_HEIGHT, out Button closeButton);
             TextMeshProUGUI title = card.Find("Title").GetComponent<TextMeshProUGUI>();

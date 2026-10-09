@@ -166,6 +166,15 @@ namespace RuneCode
         }
 
         /// <summary>
+        /// Resources/RuneCode/UI에 같은 이름의 View Prefab이 이미 있는지 반환한다. 생성된 Prefab은 Unity에서 직접 편집하는 원본이므로
+        /// 빌더는 이미 있는 Prefab을 덮어쓰지 않는다.
+        /// </summary>
+        public static bool ViewPrefabExists(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<GameObject>(VIEW_FOLDER + name + ".prefab") != null;
+        }
+
+        /// <summary>
         /// UIManager 층의 논리 화면(1280×720)을 채우는 View Prefab 루트를 미리보기 씬에 만든다.
         /// 열린 씬을 건드리지 않으며, 다 만든 뒤 SaveViewPrefab으로 저장한다.
         /// </summary>

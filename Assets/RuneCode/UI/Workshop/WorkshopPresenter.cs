@@ -34,7 +34,7 @@ namespace RuneCode
             _view = view;
             _dockRun = new DockRun(session);
             _dock = new DockPresenter(session, _dockRun, view.Dock, IsEditorInputBlocked);
-            view.SpellEditor.Initialize(session.Spells, this);
+            view.SpellEditor.Initialize(session.Spells, this, ui);
             _bench = new BenchPresenter(session, view.Bench, RefreshProgression);
             _upgradeTree = new UpgradeTreePresenter(session, view.UpgradeTree, RefreshProgression);
             _deploy = new DeployPresenter(session, view.Deploy);
@@ -127,10 +127,10 @@ namespace RuneCode
                 + _session.EquippedRam + "/" + _session.Capacity);
         }
 
-        /// <summary>팝업이나 편집 모달이 열려 있어 도크 클릭 시전을 막아야 하는지 반환한다.</summary>
+        /// <summary>팝업이 열려 있어 도크 클릭 시전을 막아야 하는지 반환한다.</summary>
         private bool IsEditorInputBlocked()
         {
-            return _ui.IsPopupOpen || _view.SpellEditor.IsModalOpen;
+            return _ui.IsPopupOpen;
         }
 
         /// <summary>최근 도크 노드 실행 중 하이라이트 유지 틱 이내의 것을 편집 그래프 하이라이트로 전달한다.</summary>

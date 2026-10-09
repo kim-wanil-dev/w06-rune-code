@@ -17,7 +17,7 @@ namespace RuneCode
         private const float DEBUG_WIDTH = 510f;
         private const float DEBUG_HEIGHT = 420f;
 
-        /// <summary>미션 화면과 미션 팝업 Prefab을 만든다.</summary>
+        /// <summary>미션 화면과 미션 팝업 Prefab 중 없는 것만 만든다.</summary>
         public static void Build()
         {
             UiFactory ui = LayoutUtility.CreateFactory();
@@ -29,6 +29,7 @@ namespace RuneCode
         /// <summary>경기장·HUD·결과 패널로 미션 화면을 만들고 MissionScreen Prefab으로 저장한다.</summary>
         private static void BuildScreen(UiFactory ui)
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(MissionScreen))) return;
             RectTransform page = LayoutUtility.CreateViewRoot(nameof(MissionScreen));
             MissionScreen screen = page.gameObject.AddComponent<MissionScreen>();
             MissionHud hud = page.gameObject.AddComponent<MissionHud>();
@@ -106,6 +107,7 @@ namespace RuneCode
         /// <summary>계속하기·피드백 설정·후퇴 버튼의 일시정지 팝업을 만들고 PausePopup Prefab으로 저장한다.</summary>
         private static void BuildPausePopup(UiFactory ui)
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(PausePopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(PausePopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.pause"), PAUSE_WIDTH, PAUSE_HEIGHT, out Button closeButton);
             Button resumeButton = ui.Button(card, 28, 90, 444, 48, GameData.L("ui.resume"), null, UiTheme.Cyan, 19, "ResumeButton");
@@ -127,6 +129,7 @@ namespace RuneCode
         /// <summary>조각 지급·전체 해금·무적·소환 버튼의 디버그 팝업을 만들고 MissionDebugPopup Prefab으로 저장한다.</summary>
         private static void BuildDebugPopup(UiFactory ui)
         {
+            if (LayoutUtility.ViewPrefabExists(nameof(MissionDebugPopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(MissionDebugPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.debug"), DEBUG_WIDTH, DEBUG_HEIGHT, out Button closeButton);
             Button grantButton = ui.Button(card, 24, 82, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "GrantButton");
