@@ -146,7 +146,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.MissionWorldView
   _camera: {fileID: 8858112966221082796}
   _playerPrefab: {fileID: 4046964771560173090, guid: f5a55b2a624158e4ebd8dbfd9361f563, type: 3}
-  _enemyPrefab: {fileID: 8900382848209233686, guid: f13f34a0530753e48b64435633b8552b, type: 3}
+  _enemyPrefab: {fileID: 3219308475997894913, guid: f13f34a0530753e48b64435633b8552b, type: 3}
   _spellPrefab: {fileID: 332327403904991973, guid: 22271510d19e9044fa504ee12a3ec1b0, type: 3}
   _projectilePrefab: {fileID: 3406863396406486643, guid: a39e6cd97203f2f41bc6628c1e249ffb, type: 3}
   _orbPrefab: {fileID: 8419963189922079988, guid: a2f1fcd356951124fb9f6358308071b7, type: 3}
