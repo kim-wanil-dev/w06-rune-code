@@ -71,6 +71,7 @@ namespace RuneCode
         private int _droppedExecutions;
         private int _collectedFragments;
         private double _totalDamage;
+        private double _statusDamage;
         private double _rollingDamage;
         private double _energySpent;
         private int _peakSpellEntities;
@@ -121,6 +122,9 @@ namespace RuneCode
         public int ClearReward => Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
         public int SettlementFragments => IsFailed ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments + ClearReward;
         public double TotalDamage => _totalDamage;
+
+        /// <summary>상태 이상(화염) 틱으로 입힌 실제 피해의 누적값이며 TotalDamage에 포함된다.</summary>
+        public double StatusDamage => _statusDamage;
         public double RollingDps => _rollingDamage / Math.Min(5, Math.Max(STEP_SECONDS, Time));
         public double EnergySpent => _energySpent;
         public int PeakSpellEntities => _peakSpellEntities;
@@ -258,7 +262,7 @@ namespace RuneCode
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
-            _totalDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
+            _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
             _map = new MissionMap(_sector.Rooms[0].Tiles, _sector.TileSize); _player = new SimulationPlayer(_maxHp, _maxEnergy, new SimVector(bench.BenchPlayerX, bench.BenchPlayerY));
             Adaptation.Clear(); Adaptation.SetEnabled(scenario == "adapt_loop");
@@ -850,7 +854,7 @@ namespace RuneCode
                 EnemyStatusEffect burn = FindStatus(enemy.Id, EnemyStatusType.Burn);
                 if (burn == null) continue;
                 while (enemy.IsAlive && burn.NextTickTime <= burn.Until + 0.000001 && Time + 0.000001 >= burn.NextTickTime)
-                { ApplyDamage(enemy, _balance.Combat.BurnDps * _balance.Combat.BurnInterval, "fire", burn.SourceForm, burn.IsNoise, true, SimVector.Zero, false); burn.NextTickTime += _balance.Combat.BurnInterval; }
+                { _statusDamage += ApplyDamage(enemy, _balance.Combat.BurnDps * _balance.Combat.BurnInterval, "fire", burn.SourceForm, burn.IsNoise, true, SimVector.Zero, false); burn.NextTickTime += _balance.Combat.BurnInterval; }
             }
             for (int i = _enemyStatuses.Count - 1; i >= 0; i--)
                 if (IsStatusExpired(_enemyStatuses[i])) { RemoveStatusIndex(_enemyStatuses[i]); _enemyStatuses.RemoveAt(i); }
