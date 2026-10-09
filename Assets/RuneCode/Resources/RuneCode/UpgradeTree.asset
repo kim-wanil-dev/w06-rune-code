@@ -327,13 +327,13 @@ MonoBehaviour:
       _amount: 1
     - _cost: 20
       _amount: 1
-  - _id: stage_05.rune.shape.remain
+  - _id: stage_05.rune.behavior.persist
     _requiredStage: 5
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
     _position: {x: 782, y: 412}
     _effectType: 3
-    _runeId: shape.remain
+    _runeId: behavior.persist
     _prerequisites:
     - _nodeId: stage_04.max_energy
       _requiredLevel: 1
@@ -354,7 +354,7 @@ MonoBehaviour:
     _prerequisites:
     - _nodeId: stage_05.max_energy
       _requiredLevel: 1
-    - _nodeId: stage_05.rune.shape.remain
+    - _nodeId: stage_05.rune.behavior.persist
       _requiredLevel: 1
     _levels:
     - _cost: 9
@@ -388,7 +388,7 @@ MonoBehaviour:
     _prerequisites:
     - _nodeId: stage_05.regen
       _requiredLevel: 1
-    - _nodeId: stage_05.rune.shape.remain
+    - _nodeId: stage_05.rune.behavior.persist
       _requiredLevel: 1
     _levels:
     - _cost: 14
@@ -407,7 +407,7 @@ MonoBehaviour:
       _requiredLevel: 1
     - _nodeId: stage_05.ram_capacity
       _requiredLevel: 1
-    - _nodeId: stage_05.rune.shape.remain
+    - _nodeId: stage_05.rune.behavior.persist
       _requiredLevel: 1
     _levels:
     - _cost: 40
@@ -463,13 +463,13 @@ MonoBehaviour:
       _amount: 1
     - _cost: 25
       _amount: 1
-  - _id: stage_07.rune.element.electric
+  - _id: stage_07.rune.element.lightning
     _requiredStage: 7
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
     _position: {x: 1150, y: 412}
     _effectType: 3
-    _runeId: element.electric
+    _runeId: element.lightning
     _prerequisites:
     - _nodeId: stage_06.max_energy
       _requiredLevel: 1
@@ -490,7 +490,7 @@ MonoBehaviour:
     _prerequisites:
     - _nodeId: stage_07.max_energy
       _requiredLevel: 1
-    - _nodeId: stage_07.rune.element.electric
+    - _nodeId: stage_07.rune.element.lightning
       _requiredLevel: 1
     _levels:
     - _cost: 11
@@ -524,7 +524,7 @@ MonoBehaviour:
     _prerequisites:
     - _nodeId: stage_07.regen
       _requiredLevel: 1
-    - _nodeId: stage_07.rune.element.electric
+    - _nodeId: stage_07.rune.element.lightning
       _requiredLevel: 1
     _levels:
     - _cost: 18
@@ -543,7 +543,7 @@ MonoBehaviour:
       _requiredLevel: 1
     - _nodeId: stage_07.ram_capacity
       _requiredLevel: 1
-    - _nodeId: stage_07.rune.element.electric
+    - _nodeId: stage_07.rune.element.lightning
       _requiredLevel: 1
     _levels:
     - _cost: 50

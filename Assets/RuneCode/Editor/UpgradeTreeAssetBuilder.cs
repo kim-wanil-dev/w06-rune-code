@@ -17,8 +17,8 @@ namespace RuneCode
 
         private static readonly string[] _runeOrder =
         {
-            "mod.speed", "element.ice", "mod.pierce", "mod.expand", "shape.remain",
-            "flow.repeat", "element.electric", "mod.homing", "flow.if"
+            "mod.speed", "element.ice", "mod.pierce", "mod.expand", "behavior.persist",
+            "flow.repeat", "element.lightning", "mod.homing", "flow.if"
         };
 
         /// <summary>트리 자산이 없으면 기본 데이터를 만들고 구형 배치라면 노드 위치·선행 연결만 교차형으로 갱신한다.</summary>
