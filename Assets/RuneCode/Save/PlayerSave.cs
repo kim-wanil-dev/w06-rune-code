@@ -29,6 +29,7 @@ namespace RuneCode
         [SerializeField] private List<SpellGraphData> _library = new List<SpellGraphData>();
         [SerializeField] private List<string> _loadout = new List<string>();
         [SerializeField] private List<KillRecord> _killCounts = new List<KillRecord>();
+        [SerializeField] private List<UpgradeNodeProgress> _upgradeNodeProgress = new List<UpgradeNodeProgress>();
 
         [Header("피드백 설정")]
         [SerializeField] private bool _screenShake = true;
@@ -56,6 +57,15 @@ namespace RuneCode
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
 
+        /// <summary>저장된 업그레이드 트리 노드의 레벨을 반환하고 구매 기록이 없으면 0을 반환한다.</summary>
+        public int GetUpgradeNodeLevel(string nodeId)
+        {
+            if (_upgradeNodeProgress == null) return 0;
+            foreach (UpgradeNodeProgress progress in _upgradeNodeProgress)
+                if (progress != null && progress.NodeId == nodeId) return progress.Level;
+            return 0;
+        }
+
         /// <summary>JSON 저장 직전에 실행 중 보관함 그래프를 직렬화 형식(_library)으로 옮긴다. JSON 키는 기존과 같다.</summary>
         public void OnBeforeSerialize()
         {
@@ -69,6 +79,7 @@ namespace RuneCode
         /// <summary>JSON을 읽은 직후 직렬화 형식(_library)을 실행 중 보관함 그래프로 되돌린다. 검증은 Validate가 수행한다.</summary>
         public void OnAfterDeserialize()
         {
+            if (_upgradeNodeProgress == null) _upgradeNodeProgress = new List<UpgradeNodeProgress>();
             _graphs = new List<SpellGraph>();
             if (_library == null)
             {
@@ -142,7 +153,7 @@ namespace RuneCode
                 return false;
             }
             if (_graphs == null || _graphs.Count == 0 || _graphs.Count > economy.MaxLibrary ||
-                _loadout == null || _loadout.Count != 3 || _unlockedRunes == null || _killCounts == null)
+                _loadout == null || _loadout.Count != 3 || _unlockedRunes == null || _killCounts == null || _upgradeNodeProgress == null)
             {
                 error = "save.invalidStructure";
                 return false;
@@ -171,6 +182,11 @@ namespace RuneCode
                     error = "save.invalidStructure";
                     return false;
                 }
+            var upgradeNodeIds = new HashSet<string>();
+            foreach (UpgradeNodeProgress progress in _upgradeNodeProgress)
+                if (progress == null || string.IsNullOrWhiteSpace(progress.NodeId) || progress.NodeId.Length > 80 ||
+                    progress.Level < 1 || progress.Level > 1000 || !upgradeNodeIds.Add(progress.NodeId))
+                { error = "save.invalidStructure"; return false; }
             var killIds = new HashSet<string>();
             foreach (var record in _killCounts)
                 if (record == null || string.IsNullOrWhiteSpace(record.Id) || record.Id.Length > 80 || record.Count < 0 || !killIds.Add(record.Id))
@@ -269,6 +285,21 @@ namespace RuneCode
             return true;
         }
 
+        /// <summary>유효한 노드 ID의 구매 단계를 저장하고 0단계가 되면 저장 항목을 제거한다.</summary>
+        public void SetUpgradeNodeLevel(string nodeId, int level)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId) || nodeId.Length > 80 || level < 0) return;
+            if (_upgradeNodeProgress == null) _upgradeNodeProgress = new List<UpgradeNodeProgress>();
+            UpgradeNodeProgress progress = _upgradeNodeProgress.Find(item => item != null && item.NodeId == nodeId);
+            if (level == 0)
+            {
+                if (progress != null) _upgradeNodeProgress.Remove(progress);
+                return;
+            }
+            if (progress == null) _upgradeNodeProgress.Add(new UpgradeNodeProgress(nodeId, level));
+            else progress.SetLevel(level);
+        }
+
         /// <summary>양수 RAM 보상을 누적하고 시간제 전투 완주 기록을 남긴다.</summary>
         public void Settle(int fragments, bool cleared)
         {
@@ -304,6 +335,34 @@ namespace RuneCode
         {
             if (GameData.Runes.TryGet(runeId, out _) && !_unlockedRunes.Contains(runeId))
                 _unlockedRunes.Add(runeId);
+        }
+
+        [Serializable]
+        private sealed class UpgradeNodeProgress
+        {
+            [SerializeField] private string _nodeId;
+            [SerializeField] private int _level;
+
+            public string NodeId => _nodeId;
+            public int Level => _level;
+
+            /// <summary>저장 직렬화에서 노드 진행 목록을 복원하기 위한 기본 생성자다.</summary>
+            private UpgradeNodeProgress()
+            {
+            }
+
+            /// <summary>새 업그레이드 노드 ID와 구매 레벨을 저장한다.</summary>
+            public UpgradeNodeProgress(string nodeId, int level)
+            {
+                _nodeId = nodeId;
+                _level = level;
+            }
+
+            /// <summary>저장된 노드 레벨을 새 구매 단계로 갱신한다.</summary>
+            public void SetLevel(int level)
+            {
+                _level = level;
+            }
         }
 
         /// <summary>진행한 튜토리얼 단계를 완료 범위 안에서 저장한다.</summary>

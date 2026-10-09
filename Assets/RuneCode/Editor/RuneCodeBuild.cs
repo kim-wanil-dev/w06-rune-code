@@ -31,6 +31,7 @@ namespace RuneCode
         {
             EnsureTmpResources();
             GameData.Load();
+            UpgradeTreeAssetBuilder.EnsureAsset();
             PrepareFont();
             PrepareBootScene();
             TitleLayout.BuildScene();

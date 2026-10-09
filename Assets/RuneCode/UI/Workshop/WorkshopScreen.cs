@@ -13,11 +13,12 @@ namespace RuneCode
     /// </summary>
     public sealed class WorkshopScreen : MonoBehaviour, ISpellEditorHost
     {
-        private static readonly string[] TABS = { "editor", "bench", "deploy", "settings" };
+        private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "settings" };
 
         [Header("탭 구성")]
         [SerializeField] private RectTransform _editorRoot;
         [SerializeField] private RectTransform _benchRoot;
+        [SerializeField] private RectTransform _treeRoot;
         [SerializeField] private RectTransform _deployRoot;
         [SerializeField] private RectTransform _settingsRoot;
         [SerializeField] private Button[] _tabButtons;
@@ -27,6 +28,7 @@ namespace RuneCode
         [SerializeField] private SpellEditorPanel _spellEditor;
         [SerializeField] private DockPanel _dockPanel;
         [SerializeField] private BenchPanel _benchPanel;
+        [SerializeField] private UpgradeTreePanel _upgradeTreePanel;
         [SerializeField] private DeployPanel _deployPanel;
         [SerializeField] private SettingsPanel _settingsPanel;
 
@@ -53,6 +55,7 @@ namespace RuneCode
             _dockPanel.Initialize(session, _dockRun, _spellEditor);
             _spellEditor.Initialize(session.Spells, this);
             _benchPanel.Initialize(session, _dockRun, this);
+            _upgradeTreePanel.Initialize(session, this);
             _deployPanel.Initialize(session);
             _settingsPanel.Initialize(session, this);
             _session.Spells.Compiled += OnSpellCompiled;
@@ -65,6 +68,7 @@ namespace RuneCode
             _selectedTab = tab;
             _editorRoot.gameObject.SetActive(tab == "editor");
             _benchRoot.gameObject.SetActive(tab == "bench");
+            _treeRoot.gameObject.SetActive(tab == "tree");
             _deployRoot.gameObject.SetActive(tab == "deploy");
             _settingsRoot.gameObject.SetActive(tab == "settings");
             if (tab == "editor") _spellEditor.Show();
@@ -76,6 +80,7 @@ namespace RuneCode
                 _tabButtons[i].image.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
             }
             if (tab == "bench") _benchPanel.Refresh();
+            if (tab == "tree") _upgradeTreePanel.Refresh();
             if (tab == "deploy") _deployPanel.Refresh();
             if (tab == "settings") _settingsPanel.Refresh();
             RefreshHeader();
@@ -95,6 +100,15 @@ namespace RuneCode
         public void RefreshHeader()
         {
             _headerStats.text = HeaderStatsText();
+        }
+
+        /// <summary>트리 구매 이후 도크, 기반 강화, 출격 설정과 상단 재화·RAM 표시를 다시 계산한다.</summary>
+        public void RefreshProgression()
+        {
+            _dockRun.ResetDock();
+            _benchPanel.Refresh();
+            _deployPanel.Refresh();
+            RefreshHeader();
         }
 
         void Update()
