@@ -2,27 +2,23 @@ using UnityEngine;
 
 using TMPro;
 using UnityEditor;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 씬 레이아웃을 원본 미션 화면 좌표 그대로 베이크하는 에디터 빌더다.
+    /// 미션 화면 Prefab을 원본 미션 화면 좌표 그대로 베이크하는 에디터 빌더다.
     /// 경기장, HUD, 일시정지·디버그 모달, 결과 패널을 만들고 화면 컴포넌트의 모든 직렬화 참조를 연결한다.
     /// </summary>
     public static class MissionLayout
     {
-        /// <summary>빈 씬에 미션 화면을 만들고 Assets/Scenes/Mission.unity로 저장한다.</summary>
-        public static void BuildScene()
+        /// <summary>미션 화면을 만들고 MissionScreen Prefab으로 저장한다.</summary>
+        public static void Build()
         {
-            Scene scene = LayoutUtility.CreateEmptyScene();
             UiFactory ui = LayoutUtility.CreateFactory();
-
-            RectTransform page = UiFactory.CreateCanvas(null, "MissionCanvas");
-            GameObject canvasObject = page.parent.gameObject;
-            MissionScreen screen = canvasObject.AddComponent<MissionScreen>();
-            MissionHud hud = canvasObject.AddComponent<MissionHud>();
+            RectTransform page = LayoutUtility.CreateViewRoot(nameof(MissionScreen));
+            MissionScreen screen = page.gameObject.AddComponent<MissionScreen>();
+            MissionHud hud = page.gameObject.AddComponent<MissionHud>();
 
             ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Background");
 
@@ -124,7 +120,7 @@ namespace RuneCode
             debugRoot.gameObject.SetActive(false);
             resultRoot.gameObject.SetActive(false);
 
-            LayoutUtility.SaveScene(scene, "Mission");
+            LayoutUtility.SaveViewPrefab(page);
         }
     }
 }

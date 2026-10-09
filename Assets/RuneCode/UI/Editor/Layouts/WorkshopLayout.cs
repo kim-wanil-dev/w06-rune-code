@@ -4,12 +4,11 @@ using UnityEngine;
 
 using TMPro;
 using UnityEditor;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>Workshop 씬의 헤더, 5개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
+    /// <summary>작업실 화면 Prefab의 헤더, 5개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
         private const string UPGRADE_CARD_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeCard.prefab";
@@ -18,14 +17,12 @@ namespace RuneCode
         private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
         private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "settings" };
 
-        /// <summary>작업실 캔버스·헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 Workshop 씬으로 저장한다.</summary>
-        public static void BuildScene()
+        /// <summary>작업실 헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 WorkshopScreen Prefab으로 저장한다.</summary>
+        public static void Build()
         {
             UiFactory ui = LayoutUtility.CreateFactory();
-            Scene scene = LayoutUtility.CreateEmptyScene();
-            GameObject root = new GameObject("Workshop");
-            RectTransform canvas = UiFactory.CreateCanvas(root.transform, "WorkshopCanvas");
-            RectTransform page = ui.Panel(canvas, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
+            RectTransform root = LayoutUtility.CreateViewRoot(nameof(WorkshopScreen));
+            RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
 
             ui.Panel(page, 0, 0, 1280, 70, UiTheme.Panel, "Header");
             ui.Text(page, 18, 18, 200, 36, GameData.L("ui.title"), 27, Color.white, FontStyles.Bold, "HeaderTitle");
@@ -56,7 +53,7 @@ namespace RuneCode
             settingsRoot.gameObject.SetActive(false);
             LayoutUtility.SetReference(dockPanel, "_spellEditor", spellEditor);
 
-            WorkshopScreen screen = root.AddComponent<WorkshopScreen>();
+            WorkshopScreen screen = root.gameObject.AddComponent<WorkshopScreen>();
             LayoutUtility.SetReference(screen, "_editorRoot", editorRoot);
             LayoutUtility.SetReference(screen, "_benchRoot", benchRoot);
             LayoutUtility.SetReference(screen, "_treeRoot", treeRoot);
@@ -72,7 +69,7 @@ namespace RuneCode
             LayoutUtility.SetReference(screen, "_settingsPanel", settingsPanel);
             LayoutUtility.SetReference(screen, "_headerStats", headerStats);
             LayoutUtility.SetReference(screen, "_status", status);
-            LayoutUtility.SaveScene(scene, "Workshop");
+            LayoutUtility.SaveViewPrefab(root);
         }
 
         /// <summary>시험 도크의 경기장, 시나리오·시험·리셋·자동 발사·적응·배속 조작과 지표 문구를 만들고 DockPanel 참조를 연결한다.</summary>

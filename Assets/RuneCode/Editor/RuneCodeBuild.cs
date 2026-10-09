@@ -23,21 +23,24 @@ namespace RuneCode
         private const string BUILD_PATH = "Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe";
         private const string SAMPLE_SCENE_PATH = "Assets/Scenes/SampleScene.unity";
 
-        private static readonly string[] FEATURE_SCENE_PATHS = { "Assets/Scenes/Title.unity", "Assets/Scenes/Workshop.unity", "Assets/Scenes/Mission.unity" };
-
-        /// <summary>글꼴과 Boot 씬을 준비하고 3개 기능 씬을 베이크한 뒤 빌드 설정 씬 목록을 갱신하고 Boot 씬을 연다.</summary>
-        [MenuItem("Rune Code/Build Scenes")]
-        public static void BuildScenes()
+        /// <summary>
+        /// 글꼴과 Boot 씬을 준비하고 화면·팝업 View Prefab(Resources/RuneCode/UI)을 베이크한 뒤 빌드 설정 씬 목록을 갱신하고 Boot 씬을 연다.
+        /// 화면은 씬이 아니라 UIManager가 띄우는 Prefab이므로 빌드에는 Boot 씬만 들어간다.
+        /// </summary>
+        [MenuItem("Rune Code/Build UI")]
+        public static void BuildUi()
         {
             EnsureTmpResources();
             GameData.Load();
             UpgradeTreeAssetBuilder.EnsureAsset();
             PrepareFont();
             PrepareBootScene();
-            TitleLayout.BuildScene();
-            WorkshopLayout.BuildScene();
-            MissionLayout.BuildScene();
+            PopupLayout.Build();
+            TitleLayout.Build();
+            WorkshopLayout.Build();
+            MissionLayout.Build();
             UpdateBuildSceneList();
+            AssetDatabase.SaveAssets();
             EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
         }
 
@@ -131,26 +134,24 @@ namespace RuneCode
             return null;
         }
 
-        /// <summary>빌드 설정 씬 목록을 Boot·Title·Workshop·Mission(전부 enabled)과 기존처럼 disabled인 SampleScene 순으로 쓴다.</summary>
+        /// <summary>빌드 설정 씬 목록을 Boot(enabled)와 기존처럼 disabled인 SampleScene 순으로 쓴다.</summary>
         private static void UpdateBuildSceneList()
         {
-            var paths = new List<string> { BOOT_SCENE_PATH };
-            paths.AddRange(FEATURE_SCENE_PATHS);
-            var scenes = paths.Select(path => new EditorBuildSettingsScene(path, true)).ToList();
+            var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(BOOT_SCENE_PATH, true) };
             if (EditorBuildSettings.scenes.Any(scene => scene.path == SAMPLE_SCENE_PATH))
                 scenes.Add(new EditorBuildSettingsScene(SAMPLE_SCENE_PATH, false));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 
-        /// <summary>모든 씬을 다시 베이크한 뒤 4개 씬을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
+        /// <summary>UI Prefab을 다시 베이크한 뒤 Boot 씬을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
         [MenuItem("Rune Code/Build Windows PoC")]
         public static void BuildWindows()
         {
-            BuildScenes();
+            BuildUi();
             Directory.CreateDirectory(Path.GetDirectoryName(BUILD_PATH));
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { BOOT_SCENE_PATH }.Concat(FEATURE_SCENE_PATHS).ToArray(),
+                scenes = new[] { BOOT_SCENE_PATH },
                 locationPathName = BUILD_PATH,
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.DetailedBuildReport

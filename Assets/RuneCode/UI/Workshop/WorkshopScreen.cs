@@ -8,10 +8,10 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 작업실 화면의 헤더·탭·상태줄을 운영하고 편집 패널의 ISpellEditorHost 역할을 맡는다.
-    /// 에디터 탭에서는 SpellEditorPanel과 도크를 함께 표시한다.
+    /// 작업실 화면 View다. 헤더·탭·상태줄을 운영하고 편집 패널의 ISpellEditorHost 역할을 맡는다.
+    /// 에디터 탭에서는 SpellEditorPanel과 도크를 함께 표시한다. UIManager가 재사용하므로 초기화는 한 번, 진입 갱신은 표시할 때마다 한다.
     /// </summary>
-    public sealed class WorkshopScreen : MonoBehaviour, ISpellEditorHost
+    public sealed class WorkshopScreen : UiView, ISpellEditorHost
     {
         private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "settings" };
 
@@ -37,15 +37,18 @@ namespace RuneCode
         [SerializeField] private TextMeshProUGUI _status;
 
         private RuneCodeSession _session;
+        private UIManager _ui;
         private DockRun _dockRun;
         private string _selectedTab = "editor";
         private RuneSimulation _observedDock;
         private int _lastDockEventCount;
 
-        /// <summary>세션과 도크 구동을 연결하고 패널 초기화와 탭 리스너 등록 후 에디터 탭으로 진입한다.</summary>
-        public void Initialize(RuneCodeSession session)
+        /// <summary>세션·UI 관리자와 도크 구동을 연결하고 패널 초기화와 탭 리스너를 등록한다. 이미 초기화했으면 무시한다.</summary>
+        public void Initialize(RuneCodeSession session, UIManager ui)
         {
+            if (_session != null) return;
             _session = session;
+            _ui = ui;
             _dockRun = new DockRun(session);
             for (int i = 0; i < TABS.Length; i++)
             {
@@ -59,7 +62,19 @@ namespace RuneCode
             _deployPanel.Initialize(session);
             _settingsPanel.Initialize(session, this);
             _session.Spells.Compiled += OnSpellCompiled;
-            SetTab("editor");
+        }
+
+        /// <summary>작업실에 들어올 때마다 도크를 다시 시작하고 에디터 탭으로 전체를 갱신한다.</summary>
+        protected override void OnShown()
+        {
+            ShowEditorTab();
+        }
+
+        /// <summary>작업실을 떠날 때 편집 패널을 닫고 도크 누적 시간을 버린다.</summary>
+        protected override void OnHidden()
+        {
+            _spellEditor.Hide();
+            _dockRun.Suspend();
         }
 
         /// <summary>탭 패널의 활성 상태와 버튼 색을 바꾸고 진입 패널과 헤더를 갱신한다.</summary>

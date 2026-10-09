@@ -6,10 +6,10 @@ using UnityEngine.InputSystem;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 씬의 진입 컴포넌트다. 세션에서 시전 마법을 받아 MissionRun을 만들고,
-    /// Esc 일시정지, 포인터 조준 수집, HUD 갱신과 결과 패널 표시를 진행한다.
+    /// 미션 화면 View다. 세션에서 시전 마법을 받아 MissionRun을 만들고,
+    /// Esc 일시정지, 포인터 조준 수집, HUD 갱신과 결과 패널 표시를 진행한다. 표시할 때마다 새 미션을 시작한다.
     /// </summary>
-    public sealed class MissionScreen : MonoBehaviour
+    public sealed class MissionScreen : UiView
     {
         [Header("연결")]
         [SerializeField] private RuneArenaGraphic _arena;
@@ -19,21 +19,43 @@ namespace RuneCode
         [SerializeField] private TMP_FontAsset _font;
 
         private RuneCodeSession _session;
+        private UIManager _ui;
         private MissionRun _run;
         private bool _isResultShown;
 
-        /// <summary>모달이 하나라도 열려 포인터 조준을 막아야 하는지 반환한다.</summary>
-        private bool IsModalOpen => (_pausePanel != null && _pausePanel.IsOpen) || (_hud != null && _hud.IsDebugModalOpen);
+        /// <summary>모달·팝업이 하나라도 열려 포인터 조준을 막아야 하는지 반환한다.</summary>
+        private bool IsModalOpen => _ui.IsPopupOpen || (_pausePanel != null && _pausePanel.IsOpen) || (_hud != null && _hud.IsDebugModalOpen);
 
-        /// <summary>세션을 받아 경기장과 하위 패널을 초기화하고 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
-        public void Initialize(RuneCodeSession session)
+        /// <summary>세션·UI 관리자를 받아 경기장과 하위 패널을 초기화한다. 이미 초기화했으면 무시한다.</summary>
+        public void Initialize(RuneCodeSession session, UIManager ui)
         {
+            if (_session != null) return;
             _session = session;
+            _ui = ui;
             _arena.Initialize(GetRunSimulation, _font, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
             _hud.Initialize(_session, this);
             _pausePanel.Initialize(_session, this);
             _resultPanel.Initialize(_session, this);
+        }
+
+        /// <summary>미션 화면에 들어올 때마다 새 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
+        protected override void OnShown()
+        {
             if (!StartRun()) _session.RequestScreen(AppScreen.Workshop);
+        }
+
+        /// <summary>미션 화면을 떠날 때 진행 중인 미션을 놓는다.</summary>
+        protected override void OnHidden()
+        {
+            _run = null;
+        }
+
+        /// <summary>Esc 입력으로 일시정지를 토글하고 입력을 소비한다. 결과 표시 중에는 처리하지 않는다.</summary>
+        public override bool HandleEscape()
+        {
+            if (_run == null || _run.IsFinished) return false;
+            TogglePause();
+            return true;
         }
 
         /// <summary>일시정지 상태를 바꾸고 일시정지 패널을 열거나 닫는다. 결과 표시 중에는 무시한다.</summary>
@@ -69,7 +91,6 @@ namespace RuneCode
                 if (!_isResultShown) ShowResult();
                 return;
             }
-            HandleEscape();
             var isTyping = UiFactory.IsTyping();
             var hasPointer = CollectPointer(isTyping, out var pointer);
             _run.Step(isTyping, hasPointer, pointer, Time.unscaledDeltaTime);
@@ -96,14 +117,6 @@ namespace RuneCode
             _hud.BeginRun(_run);
             _resultPanel.Hide();
             return true;
-        }
-
-        /// <summary>Esc 입력으로 일시정지를 토글한다. 문자 입력 중에는 무시한다.</summary>
-        private void HandleEscape()
-        {
-            var keyboard = Keyboard.current;
-            if (keyboard == null || UiFactory.IsTyping()) return;
-            if (keyboard.escapeKey.wasPressedThisFrame) TogglePause();
         }
 
         /// <summary>마우스 위치가 경기장 안이고 모달·문자 입력이 없으면 시뮬레이션 좌표의 조준점을 반환한다.</summary>

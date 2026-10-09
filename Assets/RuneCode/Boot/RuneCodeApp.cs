@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Linq;
 
 using UnityEngine;
@@ -10,8 +9,8 @@ using UnityEngine.InputSystem;
 namespace RuneCode
 {
     /// <summary>
-    /// Boot 씬의 진입 컴포넌트다. 데이터·세이브·세션을 초기화하고 화면 전환 요청에 따라
-    /// 기능 씬을 Additive로 교체한 뒤 로드된 씬 루트의 화면 컴포넌트에 세션을 전달한다.
+    /// Boot 씬의 진입 컴포넌트다. 데이터·세이브·세션과 UIManager를 초기화하고, 화면 전환 요청에 따라
+    /// UIManager로 화면 Prefab(타이틀·작업실·미션)을 표시한다. 화면은 처음 표시할 때 한 번만 초기화하고 재사용한다.
     /// </summary>
     public sealed class RuneCodeApp : MonoBehaviour
     {
@@ -22,7 +21,9 @@ namespace RuneCode
         [SerializeField] private bool _isAreaBoxUpright = true;
 
         private RuneCodeSession _session;
+        private UIManager _ui;
         private bool _isSwitching;
+        private AppScreen? _pendingScreen;
 
 #if UNITY_EDITOR
         /// <summary>에디터에서 기능 씬을 직접 실행할 때 Boot 씬이 없으면 단독으로 로드해 부팅 흐름을 보장한다.</summary>
@@ -47,8 +48,9 @@ namespace RuneCode
             bool isDebug = Environment.GetCommandLineArgs().Contains("-debug") || Application.absoluteURL.Contains("debug=1");
             _session = new RuneCodeSession(save, incremental, upgradeTree, isDebug, SaveStore.LastWarning, _isAreaBoxUpright);
             _session.ScreenRequested += OnScreenRequested;
+            _ui = UIManager.Create(transform);
             LocalTelemetry.Record(0, "session", "start");
-            StartCoroutine(LoadScreenRoutine(AppScreen.Title));
+            OnScreenRequested(AppScreen.Title);
         }
 
         void OnDestroy()
@@ -68,46 +70,35 @@ namespace RuneCode
             if (_session != null) _session.SaveAll();
         }
 
-        /// <summary>전환 중이 아니면 화면 전환 코루틴을 시작한다. 전환 중에 온 요청은 무시한다.</summary>
+        /// <summary>
+        /// 요청한 화면을 표시한다. 화면 표시 도중(진입 처리 안)에 온 요청은 현재 전환이 끝난 뒤 이어서 처리한다.
+        /// </summary>
         private void OnScreenRequested(AppScreen screen)
         {
-            if (_isSwitching) return;
-            StartCoroutine(LoadScreenRoutine(screen));
-        }
-
-        /// <summary>열려 있는 기능 씬을 언로드하고 대상 씬을 Additive로 로드한 뒤 루트의 화면 컴포넌트를 한 번 찾아 세션을 전달한다.</summary>
-        private IEnumerator LoadScreenRoutine(AppScreen screen)
-        {
-            _isSwitching = true;
-            for (var index = SceneManager.sceneCount - 1; index >= 0; index--)
+            if (_isSwitching)
             {
-                Scene loaded = SceneManager.GetSceneAt(index);
-                if (!loaded.isLoaded || loaded.name == BOOT_SCENE) continue;
-                yield return SceneManager.UnloadSceneAsync(loaded);
+                _pendingScreen = screen;
+                return;
             }
-            yield return SceneManager.LoadSceneAsync(SceneName(screen), LoadSceneMode.Additive);
-            Scene target = SceneManager.GetSceneByName(SceneName(screen));
-            if (target.IsValid() && target.isLoaded)
+            _isSwitching = true;
+            ShowScreen(screen);
+            while (_pendingScreen.HasValue)
             {
-                foreach (GameObject root in target.GetRootGameObjects())
-                {
-                    if (root.TryGetComponent(out TitleScreen title)) title.Initialize(_session);
-                    else if (root.TryGetComponent(out WorkshopScreen workshop)) workshop.Initialize(_session);
-                    else if (root.TryGetComponent(out MissionScreen mission)) mission.Initialize(_session);
-                }
+                AppScreen next = _pendingScreen.Value;
+                _pendingScreen = null;
+                ShowScreen(next);
             }
             _isSwitching = false;
         }
 
-        /// <summary>화면 종류에 대응하는 기능 씬 이름을 반환한다.</summary>
-        private static string SceneName(AppScreen screen)
+        /// <summary>화면 종류에 맞는 화면 View를 UIManager로 표시하고, 처음 표시라면 세션과 UIManager로 초기화한다.</summary>
+        private void ShowScreen(AppScreen screen)
         {
             switch (screen)
             {
-                case AppScreen.Title: return "Title";
-                case AppScreen.Workshop: return "Workshop";
-                case AppScreen.Mission: return "Mission";
-                default: return screen.ToString();
+                case AppScreen.Title: _ui.ShowScreen<TitleScreen>(view => view.Initialize(_session)); break;
+                case AppScreen.Workshop: _ui.ShowScreen<WorkshopScreen>(view => view.Initialize(_session, _ui)); break;
+                case AppScreen.Mission: _ui.ShowScreen<MissionScreen>(view => view.Initialize(_session, _ui)); break;
             }
         }
     }
