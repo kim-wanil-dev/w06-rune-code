@@ -93,6 +93,7 @@ namespace RuneCode
         private readonly float _spreadAngle;
         private readonly float _shieldAmount;
         private readonly float _shieldSeconds;
+        private readonly float _coneAngle;
 
         public float Damage => _damage;
         public float Speed => _speed;
@@ -118,6 +119,9 @@ namespace RuneCode
         public float SpreadAngle => _spreadAngle;
         public float ShieldAmount => _shieldAmount;
         public float ShieldSeconds => _shieldSeconds;
+
+        /// <summary>부채꼴(Cone) Shape의 전체 각도(도)다. Cone이 아닌 룬은 0이다.</summary>
+        public float ConeAngle => _coneAngle;
 
         /// <summary>rune_stats 테이블 행으로 효과 수치를 만든다. 빈 칸은 배율 열이면 1, 그 외는 0이다.</summary>
         internal RuneStats(TableRow row)
@@ -146,6 +150,7 @@ namespace RuneCode
             _spreadAngle = row.GetOptionalFloat("spreadAngle", 0f);
             _shieldAmount = row.GetOptionalFloat("shieldAmount", 0f);
             _shieldSeconds = row.GetOptionalFloat("shieldSeconds", 0f);
+            _coneAngle = row.GetOptionalFloat("coneAngle", 0f);
         }
     }
 
@@ -565,7 +570,7 @@ namespace RuneCode
             float[] numbers = { stats.Damage, stats.Speed, stats.Radius, stats.Lifetime, stats.Offset, stats.OrbitRadius,
                 stats.AngularSpeed, stats.HitInterval, stats.TickInterval, stats.DamageMultiplier, stats.RadiusMultiplier,
                 stats.PierceLoss, stats.HomingTurn, stats.HomingRange, stats.ArcRange, stats.ArcMultiplier,
-                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds };
+                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle };
             foreach (float value in numbers)
             {
                 if (value < 0f)
@@ -577,6 +582,8 @@ namespace RuneCode
             if (stats.Count < 0 || stats.Pierce < 0 || stats.ArcTargets < 0 || stats.OrbitCount < 0
                 || (rune.Category == "form" && (stats.Count <= 0 || stats.Damage <= 0f || stats.Radius <= 0f)))
                 row.ReportError(null, "유효하지 않은 형태 룬 수치입니다 (form은 count·damage·radius가 0보다 커야 함).");
+            if (rune.Id == SpellGrammar.CONE_RUNE && (stats.ConeAngle <= 0f || stats.ConeAngle > 360f))
+                row.ReportError("coneAngle", "부채꼴 각도는 0보다 크고 360 이하여야 합니다.");
         }
     }
 }

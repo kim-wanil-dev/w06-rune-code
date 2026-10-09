@@ -114,6 +114,12 @@ namespace RuneCode
                     {
                         DrawAreaBox(mesh, point, radius, boxRotation, fill, tint);
                     }
+                    else if (spell.IsCone)
+                    {
+                        float coneAngle = (float)spell.ConeAngle * Mathf.Deg2Rad;
+                        RuneMesh.Sector(mesh, point, radius, angle, coneAngle, fill);
+                        RuneMesh.SectorOutline(mesh, point, radius, angle, coneAngle, 1.8f * _scale, tint);
+                    }
                     else
                     {
                         RuneMesh.Polygon(mesh, point, radius, fill, spell.Element == "ice" ? 6 : 24);

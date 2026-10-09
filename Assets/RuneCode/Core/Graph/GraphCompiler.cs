@@ -220,6 +220,8 @@ namespace RuneCode
             else if (element == "heal") isValid = form == "explosion" || form == "remain";
             else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit;
             else isValid = true;
+            // 부채꼴은 실행 위치에서 방향으로 펼친 범위라 Burst·Persist에만 정의되어 있다.
+            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain") isValid = false;
             if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
@@ -510,7 +512,10 @@ namespace RuneCode
                         else errors.Add(new CompileIssue("E15", node.Id, target.Name, targetResult.Errors[0]));
                     }
                 }
-                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell);
+                float coneAngle = rune.Id == SpellGrammar.INLINE_RUNE
+                    && runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out RuneDefinition shape)
+                    ? shape.Stats.ConeAngle : 0f;
+                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell, coneAngle);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {

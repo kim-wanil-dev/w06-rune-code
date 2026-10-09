@@ -22,6 +22,7 @@ spell.call,마법 메소드,method,1,0,1,start,0
 mod.duration,지속시간,modifier,1,0,1,start,0
 shape.sphere,구형,shape,0,0,1,start,0
 shape.box,사각,shape,0,0,1,start,0
+shape.cone,부채꼴,shape,0,0,1,start,0
 element.neutral,일반,element,0,0,1,start,0
 element.fire,화염,element,1,0,1,start,0
 element.lightning,전격,element,1,0,1,bench,40

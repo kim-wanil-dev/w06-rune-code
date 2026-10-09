@@ -7,6 +7,9 @@ shape.sphere,2,buffDuration,number,1,30,0.5,5,
 shape.box,0,element,enum,0,0,0,0,neutral
 shape.box,1,power,number,1,100,1,20,
 shape.box,2,buffDuration,number,1,30,0.5,5,
+shape.cone,0,element,enum,0,0,0,0,neutral
+shape.cone,1,power,number,1,100,1,20,
+shape.cone,2,buffDuration,number,1,30,0.5,5,
 behavior.apply,0,element,enum,0,0,0,0,healing
 behavior.apply,1,power,number,1,100,1,20,
 behavior.apply,2,buffDuration,number,1,30,0.5,5,

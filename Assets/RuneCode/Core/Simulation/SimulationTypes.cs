@@ -262,6 +262,7 @@ namespace RuneCode
         private readonly SpellEventScope _callEvents;
         private readonly SpellModifierValues _modifiers;
         private readonly double _costMultiplier;
+        private readonly SimulationPlayer _caster;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
         private HashSet<int> _contacts = new HashSet<int>();
         private HashSet<int> _nextContacts = new HashSet<int>();
@@ -281,6 +282,12 @@ namespace RuneCode
         public SimVector Direction => _direction;
         public double Radius => _stats.Radius;
         public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
+
+        /// <summary>부채꼴 범위인지 나타낸다. 판정·그리기는 위치(꼭짓점)에서 진행 방향으로 펼친 부채꼴이다.</summary>
+        public bool IsCone => _action.MagicType == SpellGrammar.MAGIC_TYPE_CONE;
+
+        /// <summary>부채꼴의 전체 각도(도)다.</summary>
+        public double ConeAngle => _action.ConeAngle;
         public double Age => _age;
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;
@@ -293,6 +300,9 @@ namespace RuneCode
 
         /// <summary>이 개체의 이벤트 분기 노드 비용에 곱하는 배율(개체를 만든 문맥의 배율)이다.</summary>
         internal double CostMultiplier => _costMultiplier;
+
+        /// <summary>이 개체를 만든 시전자다. 개체 이벤트로 시작한 후속 실행에 전달한다.</summary>
+        internal SimulationPlayer Caster => _caster;
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
@@ -306,9 +316,10 @@ namespace RuneCode
         /// <summary>컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.</summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier)
+            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
         {
             _costMultiplier = costMultiplier;
+            _caster = caster;
             _id = id;
             _action = action;
             _stats = stats;

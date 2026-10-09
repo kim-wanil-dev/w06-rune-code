@@ -346,6 +346,7 @@ namespace RuneCode
         private readonly float _ownEnergy;
         private readonly float _nodeEnergy;
         private readonly float _energyMultiplier;
+        private readonly float _coneAngle;
         private readonly SpellModifierValues _modifierValues;
         private readonly CompiledSpell _calledSpell;
 
@@ -386,6 +387,9 @@ namespace RuneCode
 
         /// <summary>부착된 유효 효과들의 비용 배율 곱이다. 프리셋 호출에서는 호출된 노드의 비용에 곱한다.</summary>
         public float EnergyMultiplier => _energyMultiplier;
+
+        /// <summary>부채꼴 Shape의 전체 각도(도)다. 부채꼴이 아니면 0이다.</summary>
+        public float ConeAngle => _coneAngle;
         public SpellModifierValues ModifierValues => _modifierValues;
         public CompiledSpell CalledSpell => _calledSpell;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
@@ -416,11 +420,13 @@ namespace RuneCode
         }
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
-        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상 및 연결 수식으로 실행 명령을 초기화한다.</summary>
+        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상·연결 수식, 부채꼴 각도(도)로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
-            IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null)
+            IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null,
+            float coneAngle = 0f)
         {
             _nodeId = node.Id;
+            _coneAngle = coneAngle;
             _magicType = rune.Id == "magic.inline" ? node.GetText("magicType", "sphere") : rune.Category == "form" ? "sphere" : "";
             _form = rune.Id == "magic.inline" ? MapForm(node.GetText("form", "launch")) : rune.Category == "form" ? rune.Id.Substring(5) : "";
             _sourceElement = rune.Id == "magic.inline" ? node.GetText("element", "normal") : element == null ? "normal" : SourceElementFromRune(element.Id);

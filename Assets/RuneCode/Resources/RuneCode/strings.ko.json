@@ -1075,6 +1075,10 @@
     {
       "_key": "issue.W8",
       "_value": "최대 마나 비용을 산정할 수 없습니다"
+    },
+    {
+      "_key": "magicType.cone",
+      "_value": "부채꼴"
     }
   ]
 }

@@ -17,6 +17,12 @@ shape.box,element,2,lightning
 shape.box,element,3,ice
 shape.box,element,4,healing
 shape.box,element,5,protection
+shape.cone,element,0,neutral
+shape.cone,element,1,fire
+shape.cone,element,2,lightning
+shape.cone,element,3,ice
+shape.cone,element,4,healing
+shape.cone,element,5,protection
 behavior.apply,element,0,healing
 behavior.apply,element,1,protection
 behavior.apply,element,2,fire
@@ -31,6 +37,7 @@ flow.if,status,3,emp
 magic.inline,magicType,0,sphere
 magic.inline,magicType,1,box
 magic.inline,magicType,2,buff
+magic.inline,magicType,3,cone
 magic.inline,element,0,normal
 magic.inline,element,1,fire
 magic.inline,element,2,electric

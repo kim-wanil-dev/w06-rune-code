@@ -45,6 +45,8 @@ namespace RuneCode
         public const string MAGIC_TYPE_SPHERE = "sphere";
         public const string MAGIC_TYPE_BOX = "box";
         public const string MAGIC_TYPE_BUFF = "buff";
+        public const string MAGIC_TYPE_CONE = "cone";
+        public const string CONE_RUNE = "shape.cone";
 
         public const string INLINE_RUNE = "magic.inline";
         public const string CALL_RUNE = "spell.call";
@@ -69,6 +71,9 @@ namespace RuneCode
         private const string SHAPE_PREFIX = "shape.";
         private const string BEHAVIOR_PREFIX = "behavior.";
         private const string ELEMENT_PREFIX = "element.";
+
+        /// <summary>Inline Magic의 magicType 값(sphere 등)에 해당하는 Shape 룬 ID(shape.sphere 등)를 반환한다.</summary>
+        public static string ShapeRune(string magicType) => SHAPE_PREFIX + magicType;
 
         /// <summary>Shape 블록(shape.sphere 등)이면 Inline Magic의 magicType 값(sphere 등)을, 아니면 null을 반환한다.</summary>
         public static string MagicTypeOf(string runeId) => ValueOf(runeId, SHAPE_PREFIX);

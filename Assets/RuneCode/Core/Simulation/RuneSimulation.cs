@@ -172,7 +172,8 @@ namespace RuneCode
             if (!_player.TryStartCooldown(spell, slot)) return false;
             RecordNode(spell.CoreNodeId);
             string noiseElement = ContainsNoise(spell.Root) ? _unlockedElements[(int)(NextRandom() * _unlockedElements.Count)] : null;
-            var context = new SpellContext(_player.Position + _player.AimDirection * (_sector.PlayerRadius + _balance.Sim.WandOffset), _player.AimDirection, null, false, noiseElement);
+            var context = new SpellContext(_player.Position + _player.AimDirection * (_sector.PlayerRadius + _balance.Sim.WandOffset), _player.AimDirection, null, false, noiseElement,
+                caster: _player);
             Execute(spell.Root, context);
             return true;
         }
@@ -271,6 +272,7 @@ namespace RuneCode
                 state.Append(pending.Context.Target?.Id ?? 0).Append('|').Append(pending.Context.FromEvent).Append('|').Append(pending.Context.NoiseElement);
                 state.Append('|').Append(pending.IsIteration);
                 AppendNumber(state, pending.Context.CostMultiplier);
+                state.Append(pending.Context.SourceEntityId).Append('|');
                 pending.Context.Repeat?.AppendState(state);
                 pending.Context.Modifiers.AppendState(state);
                 pending.Context.CallEvents?.AppendState(state);
@@ -382,7 +384,7 @@ namespace RuneCode
                     case "if": Execute(Evaluate(action.Condition, context) ? action.Then : action.Else, context); break;
                     case "blink":
                         SimVector destination = context.FromEvent ? _map.NearestFree(context.Origin, _sector.PlayerRadius) : _map.Move(_player.Position, context.Direction * action.Distance, _sector.PlayerRadius);
-                        _player.Move(destination); Execute(action.Next, new SpellContext(destination, context.Direction, context.Target, context.FromEvent, context.NoiseElement, context.Modifiers, context.CallEvents, context.Repeat, context.CostMultiplier)); break;
+                        _player.Move(destination); Execute(action.Next, context.WithOrigin(destination)); break;
                     case "shield": _player.GiveShield(action.ShieldAmount, action.ShieldSeconds, Time); Execute(action.Next, context); break;
                 }
             }
@@ -411,7 +413,8 @@ namespace RuneCode
                 context.CostMultiplier);
             // 호출 노드에 붙은 효과의 비용 배율은 호출된 마법의 각 노드 비용에 곱한다.
             SpellContext callContext = new SpellContext(context.Origin, context.Direction, context.Target,
-                context.FromEvent, context.NoiseElement, modifiers, events, context.Repeat, context.CostMultiplier * action.EnergyMultiplier);
+                context.FromEvent, context.NoiseElement, modifiers, events, context.Repeat, context.CostMultiplier * action.EnergyMultiplier,
+                context.Caster, context.SourceEntityId);
             for (int instance = 0; instance < action.Count; instance++)
             {
                 double spread = action.Count > 1
@@ -419,7 +422,7 @@ namespace RuneCode
                     : 0;
                 SpellContext instanceContext = new SpellContext(callContext.Origin, callContext.Direction.Rotated(spread),
                     callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents, callContext.Repeat,
-                    callContext.CostMultiplier);
+                    callContext.CostMultiplier, callContext.Caster, callContext.SourceEntityId);
                 Execute(action.CalledSpell.Root, instanceContext);
             }
         }
@@ -431,12 +434,14 @@ namespace RuneCode
         private void ApplyBuff(SpellAction action, SpellContext context)
         {
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
+            // Apply는 전달된 명중 대상이 아니라 문맥의 시전자에게 적용한다(백서 6장).
+            SimulationPlayer caster = context.Caster;
             double amount = action.Power * action.Count * action.ModifierValues.DamageMultiplier * context.Modifiers.DamageMultiplier;
-            if (action.SourceElement == "heal") _player.Heal(amount);
+            if (action.SourceElement == "heal") caster.Heal(amount);
             else if (action.SourceElement == "protection")
-                _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier
+                caster.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier
                     * context.Modifiers.DurationMultiplier, Time);
-            else if (action.SourceElement == "fire") _player.ApplyBurn(Time, _balance.Combat.BurnInterval, _balance.Combat.BurnSeconds);
+            else if (action.SourceElement == "fire") caster.ApplyBurn(Time, _balance.Combat.BurnInterval, _balance.Combat.BurnSeconds);
             for (int instance = 0; instance < action.Count; instance++) Execute(action.OnFirstHitOrExpire, context);
         }
 
@@ -481,15 +486,17 @@ namespace RuneCode
                 if (action.Form == "burst" || action.Form == "zone")
                 {
                     // 회복·보호 범위는 시전자에게 적용되므로 생성 거리 없이 현재 실행 위치에 만든다.
+                    // 부채꼴은 실행 위치를 꼭짓점으로 진행 방향에 펼친다(결정 Q17).
                     bool isFunctional = action.SourceElement == "heal" || action.SourceElement == "protection";
-                    if (!context.FromEvent && !isFunctional) position += context.Direction * stats.Offset;
+                    bool isCone = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE;
+                    if (!context.FromEvent && !isFunctional && !isCone) position += context.Direction * stats.Offset;
                     if (action.Count > 1) position += new SimVector(Math.Cos(i * 2 * Math.PI / action.Count), Math.Sin(i * 2 * Math.PI / action.Count)) * _balance.Sim.MultiOffset;
                 }
                 double angle = i * 2 * Math.PI / action.Count;
                 if (action.Form == "orbit") position = (context.FromEvent ? context.Origin : _player.Position) + new SimVector(Math.Cos(angle), Math.Sin(angle)) * stats.OrbitRadius;
                 var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, position, direction,
                     context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds,
-                    context.CallEvents, context.Modifiers, context.CostMultiplier);
+                    context.CallEvents, context.Modifiers, context.CostMultiplier, context.Caster);
                 _spellEntities.Add(entity); _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
                 // 보호 Orbit(방벽)은 생성 시 보호막을 준다. 보호 Burst는 범위 안의 시전자에게만 HitArea에서 준다.
                 if (action.SourceElement == "protection" && action.Form == SpellGrammar.FORM_ORBIT)
@@ -604,6 +611,30 @@ namespace RuneCode
             return Math.Abs(SimVector.Dot(relative, forward)) <= extent && Math.Abs(SimVector.Dot(relative, side)) <= extent;
         }
 
+        /// <summary>범위 마법(원·사각형·부채꼴)이 대상 원과 겹치는지 반환한다.</summary>
+        private bool IsInsideArea(SimulationSpellEntity entity, SimVector target, double targetRadius)
+        {
+            if (entity.IsBox) return IntersectsAreaBox(entity, target, targetRadius);
+            if (entity.IsCone) return IntersectsCone(entity, target, targetRadius);
+            return SimVector.Distance(entity.Position, target) <= entity.Radius + targetRadius;
+        }
+
+        /// <summary>
+        /// 꼭짓점(개체 위치)에서 진행 방향으로 반경·전체 각도만큼 펼친 부채꼴과 대상 원의 겹침 여부를 반환한다.
+        /// 대상 반경만큼 거리와 각도에 여유를 준다.
+        /// </summary>
+        private static bool IntersectsCone(SimulationSpellEntity entity, SimVector target, double targetRadius)
+        {
+            SimVector relative = target - entity.Position;
+            double distance = relative.Length;
+            if (distance > entity.Radius + targetRadius) return false;
+            if (distance <= targetRadius) return true;
+            SimVector forward = entity.Direction.Normalized();
+            double cosine = Math.Max(-1, Math.Min(1, SimVector.Dot(relative / distance, forward)));
+            double tolerance = Math.Asin(Math.Min(1, targetRadius / distance));
+            return Math.Acos(cosine) <= entity.ConeAngle * 0.5 * DEGREES_TO_RADIANS + tolerance;
+        }
+
         /// <summary>
         /// 범위 마법의 가까운 적부터 대상별 주기에 맞춰 피해를 적용한다. 범위 적중은 OnHit을 만들지 않는다.
         /// 공전만 대상과의 접촉이 시작될 때(떨어졌다 다시 닿을 때 포함) OnHit을 낸다.
@@ -620,10 +651,7 @@ namespace RuneCode
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
             {
-                bool isInside = entity.IsBox
-                    ? IntersectsAreaBox(entity, enemy.Position, enemy.Radius)
-                    : SimVector.Distance(entity.Position, enemy.Position) <= entity.Radius + enemy.Radius;
-                if (enemy.IsAlive && isInside) targets.Add(enemy);
+                if (enemy.IsAlive && IsInsideArea(entity, enemy.Position, enemy.Radius)) targets.Add(enemy);
             }
             targets.Sort((a, b) =>
             {
@@ -653,10 +681,7 @@ namespace RuneCode
         /// </summary>
         private void ApplyFunctionalArea(SimulationSpellEntity entity, bool isBurst)
         {
-            bool isInside = entity.IsBox
-                ? IntersectsAreaBox(entity, _player.Position, _sector.PlayerRadius)
-                : SimVector.Distance(entity.Position, _player.Position) <= entity.Radius + _sector.PlayerRadius;
-            if (!isInside) return;
+            if (!IsInsideArea(entity, _player.Position, _sector.PlayerRadius)) return;
             bool hasApplied = entity.HitTimes.TryGetValue(PLAYER_TARGET_ID, out double lastTime);
             if (hasApplied && (isBurst || Time - lastTime + 0.000001 < entity.Stats.TickInterval)) return;
             entity.HitTimes[PLAYER_TARGET_ID] = Time;
@@ -696,25 +721,24 @@ namespace RuneCode
             if (entity.TriggerCount >= _balance.Limits.HitTriggerCap) return;
             entity.TriggerCount++;
             SpellContext context = new SpellContext(position, entity.Direction, target, true,
-                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier);
+                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = isBolt && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnHit, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
-            ExecuteCallEvent(entity.CallEvents, true, isFirstEvent, position, entity.Direction, target, entity.CastNoiseElement);
+            ExecuteCallEvent(entity, true, isFirstEvent, position, target);
         }
 
         /// <summary>
-        /// 호출 객체의 이벤트 분기를 안쪽에서 바깥쪽으로 각각 한 번 실행한다.
+        /// 개체를 만든 호출 객체들의 이벤트 분기를 안쪽에서 바깥쪽으로 각각 한 번 실행한다. 이벤트 원본은 그 개체다.
         /// 개체의 첫 적중·소멸 이벤트이면 적중·소멸 분기 다음에 onFirstHitOrExpire 분기도 실행한다.
         /// </summary>
-        private void ExecuteCallEvent(SpellEventScope scope, bool isHit, bool isFirstEvent, SimVector origin, SimVector direction,
-            SimulationEnemy target, string noiseElement)
+        private void ExecuteCallEvent(SimulationSpellEntity entity, bool isHit, bool isFirstEvent, SimVector origin, SimulationEnemy target)
         {
-            for (SpellEventScope current = scope; current != null; current = current.Parent)
+            for (SpellEventScope current = entity.CallEvents; current != null; current = current.Parent)
             {
                 IReadOnlyList<SpellAction> actions = isHit ? current.OnHit : current.OnExpire;
-                SpellContext context = new SpellContext(origin, direction, target, true, noiseElement,
-                    current.ParentModifiers, current.Parent, null, current.ParentCostMultiplier);
+                SpellContext context = new SpellContext(origin, entity.Direction, target, true, entity.CastNoiseElement,
+                    current.ParentModifiers, current.Parent, null, current.ParentCostMultiplier, entity.Caster, entity.Id);
                 Execute(actions, context);
                 if (isFirstEvent) Execute(current.OnFirstHitOrExpire, context);
             }
@@ -1043,11 +1067,11 @@ namespace RuneCode
             entity.HasExpired = true;
             if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
-                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier);
+                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnExpire, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
-            ExecuteCallEvent(entity.CallEvents, false, isFirstEvent, entity.Position, entity.Direction, null, entity.CastNoiseElement);
+            ExecuteCallEvent(entity, false, isFirstEvent, entity.Position, null);
         }
 
         /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
@@ -1186,6 +1210,8 @@ namespace RuneCode
             private readonly SpellEventScope _callEvents;
             private readonly RepeatScope _repeat;
             private readonly double _costMultiplier;
+            private readonly SimulationPlayer _caster;
+            private readonly int _sourceEntityId;
             public SimVector Origin => _origin;
             public SimVector Direction => _direction;
             public SimulationEnemy Target => _target;
@@ -1200,15 +1226,31 @@ namespace RuneCode
             /// <summary>이 경로의 노드 비용에 곱하는 배율이다. 프리셋 호출 안에서는 호출 노드 효과의 비용 배율이 곱해진다.</summary>
             public double CostMultiplier => _costMultiplier;
 
-            /// <summary>발생 위치, 방향, 선택 대상, 이벤트 유래 여부, 소속 Repeat와 비용 배율을 예약 가능한 스냅샷으로 보관한다.</summary>
+            /// <summary>마법을 시전한 주체다. Apply 등 자기 적용 효과의 대상이다.</summary>
+            public SimulationPlayer Caster => _caster;
+
+            /// <summary>이 경로를 시작한 이벤트의 원본 개체 ID다. 시전·흐름 제어로 시작한 경로는 0이다.</summary>
+            public int SourceEntityId => _sourceEntityId;
+
+            /// <summary>
+            /// 발생 위치, 방향, 선택 대상, 이벤트 유래 여부, 소속 Repeat, 비용 배율, 시전자와 이벤트 원본을 예약 가능한 스냅샷으로 보관한다.
+            /// </summary>
             public SpellContext(SimVector origin, SimVector direction, SimulationEnemy target, bool fromEvent,
                 string noiseElement, SpellModifierValues modifiers = null, SpellEventScope callEvents = null, RepeatScope repeat = null,
-                double costMultiplier = 1d)
-            { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; _repeat = repeat; _costMultiplier = costMultiplier; }
+                double costMultiplier = 1d, SimulationPlayer caster = null, int sourceEntityId = 0)
+            {
+                _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement;
+                _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; _repeat = repeat; _costMultiplier = costMultiplier;
+                _caster = caster; _sourceEntityId = sourceEntityId;
+            }
 
             /// <summary>소속 Repeat만 바꾼 문맥을 반환한다.</summary>
             public SpellContext WithRepeat(RepeatScope repeat)
-                => new SpellContext(_origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, repeat, _costMultiplier);
+                => new SpellContext(_origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, repeat, _costMultiplier, _caster, _sourceEntityId);
+
+            /// <summary>실행 위치만 바꾼 문맥을 반환한다.</summary>
+            public SpellContext WithOrigin(SimVector origin)
+                => new SpellContext(origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, _repeat, _costMultiplier, _caster, _sourceEntityId);
         }
 
         /// <summary>
