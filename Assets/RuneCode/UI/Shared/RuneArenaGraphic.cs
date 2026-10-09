@@ -12,6 +12,7 @@ namespace RuneCode
     {
         private const float WORLD_WIDTH = 1280;
         private const float WORLD_HEIGHT = 704;
+        private const double DAMAGE_EPSILON = 0.000001;
 
         private readonly List<TextMeshProUGUI> _damageLabels = new List<TextMeshProUGUI>();
         private Func<RuneSimulation> _simulation;
@@ -22,6 +23,7 @@ namespace RuneCode
         private Vector2 _origin;
         private RuneSimulation _observedSimulation;
         private double _lastDamage;
+        private double _lastStatusDamage;
         private double _lastHp;
         private float _shakeUntil;
         private float _hitStopUntil;
@@ -218,13 +220,12 @@ namespace RuneCode
             RuneSimulation sim = _simulation?.Invoke();
             if (sim == null) return;
             if (_observedSimulation != sim)
-            { _observedSimulation = sim; _lastDamage = sim.TotalDamage; _lastHp = sim.Player.Hp; }
-            if (sim.TotalDamage > _lastDamage || sim.Player.Hp < _lastHp)
-            {
-                _shakeUntil = Time.unscaledTime + 0.08f;
-                _hitStopUntil = Time.unscaledTime + 0.025f;
-            }
-            _lastDamage = sim.TotalDamage; _lastHp = sim.Player.Hp;
+            { _observedSimulation = sim; _lastDamage = sim.TotalDamage; _lastStatusDamage = sim.StatusDamage; _lastHp = sim.Player.Hp; }
+            bool isHpLost = sim.Player.Hp < _lastHp;
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
+            if (directDelta > DAMAGE_EPSILON || isHpLost) _shakeUntil = Time.unscaledTime + 0.08f;
+            if (directDelta > DAMAGE_EPSILON || isHpLost) _hitStopUntil = Time.unscaledTime + 0.025f;
+            _lastDamage = sim.TotalDamage; _lastStatusDamage = sim.StatusDamage; _lastHp = sim.Player.Hp;
             if (_hitStopUntil > Time.unscaledTime && (_hitStop?.Invoke() ?? false)) return;
             SetVerticesDirty();
             CalculateScale();
