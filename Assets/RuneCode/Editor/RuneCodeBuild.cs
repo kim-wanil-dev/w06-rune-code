@@ -35,13 +35,21 @@ namespace RuneCode
             UpgradeTreeAssetBuilder.EnsureAsset();
             PrepareFont();
             PrepareBootScene();
+            BuildViewPrefabs();
+            UpdateBuildSceneList();
+            EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
+        }
+
+        /// <summary>화면·팝업 View Prefab만 다시 만든다. 씬은 열거나 바꾸지 않는다.</summary>
+        public static void BuildViewPrefabs()
+        {
+            GameData.Load();
+            UpgradeTreeAssetBuilder.EnsureAsset();
             PopupLayout.Build();
             TitleLayout.Build();
             WorkshopLayout.Build();
             MissionLayout.Build();
-            UpdateBuildSceneList();
             AssetDatabase.SaveAssets();
-            EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
         }
 
         /// <summary>TMP 필수 리소스가 없으면 패키지 기본 리소스를 가져온다.</summary>
