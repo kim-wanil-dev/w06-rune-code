@@ -6,129 +6,49 @@ using UnityEngine.InputSystem;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 화면 View다. 세션에서 시전 마법을 받아 MissionRun을 만들고,
-    /// Esc 일시정지, 포인터 조준 수집, HUD 갱신과 결과 패널 표시를 진행한다. 표시할 때마다 새 미션을 시작한다.
+    /// 미션 화면 View다. 경기장·HUD·결과 View를 묶고 진행은 MissionPresenter에 맡긴다.
+    /// 표시할 때마다 새 미션을 시작하며, Esc는 UIManager가 열린 팝업이 없을 때 전달한다.
     /// </summary>
     public sealed class MissionScreen : UiView
     {
         [Header("연결")]
         [SerializeField] private RuneArenaGraphic _arena;
         [SerializeField] private MissionHud _hud;
-        [SerializeField] private PausePanel _pausePanel;
         [SerializeField] private ResultPanel _resultPanel;
         [SerializeField] private TMP_FontAsset _font;
 
         private RuneCodeSession _session;
-        private UIManager _ui;
-        private MissionRun _run;
-        private bool _isResultShown;
+        private MissionPresenter _presenter;
 
-        /// <summary>모달·팝업이 하나라도 열려 포인터 조준을 막아야 하는지 반환한다.</summary>
-        private bool IsModalOpen => _ui.IsPopupOpen || (_pausePanel != null && _pausePanel.IsOpen) || (_hud != null && _hud.IsDebugModalOpen);
-
-        /// <summary>세션·UI 관리자를 받아 경기장과 하위 패널을 초기화한다. 이미 초기화했으면 무시한다.</summary>
+        /// <summary>세션·UI 관리자로 Presenter를 만들고 경기장 그래픽을 연결한다. 이미 초기화했으면 무시한다.</summary>
         public void Initialize(RuneCodeSession session, UIManager ui)
         {
-            if (_session != null) return;
+            if (_presenter != null) return;
             _session = session;
-            _ui = ui;
-            _arena.Initialize(GetRunSimulation, _font, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
-            _hud.Initialize(_session, this);
-            _pausePanel.Initialize(_session, this);
-            _resultPanel.Initialize(_session, this);
+            _presenter = new MissionPresenter(session, ui, this, _hud, _resultPanel);
+            _arena.Initialize(() => _presenter.Simulation, _font, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
         }
 
-        /// <summary>미션 화면에 들어올 때마다 새 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
-        protected override void OnShown()
+        /// <summary>마우스가 경기장 안에 있으면 시뮬레이션 좌표의 조준점을 반환한다.</summary>
+        public bool TryGetPointer(out SimVector pointer)
         {
-            if (!StartRun()) _session.RequestScreen(AppScreen.Workshop);
+            pointer = SimVector.Zero;
+            Mouse mouse = Mouse.current;
+            return mouse != null && _arena.TryGetPointer(mouse.position.ReadValue(), out pointer);
         }
+
+        /// <summary>Esc 입력을 Presenter에 전달해 일시정지를 연다.</summary>
+        public override bool HandleEscape() => _presenter != null && _presenter.HandleEscape();
+
+        /// <summary>미션 화면에 들어올 때마다 새 미션을 시작한다.</summary>
+        protected override void OnShown() => _presenter.Begin();
 
         /// <summary>미션 화면을 떠날 때 진행 중인 미션을 놓는다.</summary>
-        protected override void OnHidden()
-        {
-            _run = null;
-        }
-
-        /// <summary>Esc 입력으로 일시정지를 토글하고 입력을 소비한다. 결과 표시 중에는 처리하지 않는다.</summary>
-        public override bool HandleEscape()
-        {
-            if (_run == null || _run.IsFinished) return false;
-            TogglePause();
-            return true;
-        }
-
-        /// <summary>일시정지 상태를 바꾸고 일시정지 패널을 열거나 닫는다. 결과 표시 중에는 무시한다.</summary>
-        public void TogglePause()
-        {
-            if (_run == null || _run.IsFinished) return;
-            _hud.CloseDebugModal();
-            _run.TogglePause();
-            if (_run.IsPaused) _pausePanel.Open();
-            else _pausePanel.Close();
-        }
-
-        /// <summary>현재 전투를 중단하여 획득 조각을 보존 비율로 정산한다. 결과 패널은 다음 갱신에서 표시된다.</summary>
-        public void AbandonMission()
-        {
-            if (_run == null || _run.IsFinished) return;
-            _run.AbandonMission();
-        }
-
-        /// <summary>정산된 결과의 스테이지를 다시 선택하여 같은 씬에서 새 미션을 시작한다. 준비에 실패하면 결과 패널을 유지한다.</summary>
-        public void RetryStage()
-        {
-            if (_run == null || !_run.IsFinished) return;
-            _session.SelectStage(_run.Simulation.StageNumber);
-            StartRun();
-        }
+        protected override void OnHidden() => _presenter.End();
 
         void Update()
         {
-            if (_session == null || _run == null) return;
-            if (_run.IsFinished)
-            {
-                if (!_isResultShown) ShowResult();
-                return;
-            }
-            var isTyping = UiFactory.IsTyping();
-            var hasPointer = CollectPointer(isTyping, out var pointer);
-            _run.Step(isTyping, hasPointer, pointer, Time.unscaledDeltaTime);
-            _hud.UpdateHud();
+            _presenter?.Tick(Time.unscaledDeltaTime);
         }
-
-        /// <summary>정산이 끝난 미션의 결과를 한 번만 표시하고 열린 모달을 닫는다.</summary>
-        private void ShowResult()
-        {
-            _isResultShown = true;
-            _pausePanel.Close();
-            _hud.CloseDebugModal();
-            _resultPanel.Show(_run);
-        }
-
-        /// <summary>세션에서 시전 마법을 준비받아 새 미션을 만들고 HUD와 패널을 시작 상태로 되돌린다.</summary>
-        private bool StartRun()
-        {
-            if (!_session.TryPrepareMission(out CompiledSpell spell)) return false;
-            _run = new MissionRun(_session, spell, _session.Spells.SpellName);
-            _isResultShown = false;
-            _pausePanel.Close();
-            _hud.CloseDebugModal();
-            _hud.BeginRun(_run);
-            _resultPanel.Hide();
-            return true;
-        }
-
-        /// <summary>마우스 위치가 경기장 안이고 모달·문자 입력이 없으면 시뮬레이션 좌표의 조준점을 반환한다.</summary>
-        private bool CollectPointer(bool isTyping, out SimVector pointer)
-        {
-            pointer = SimVector.Zero;
-            var mouse = Mouse.current;
-            if (isTyping || IsModalOpen || mouse == null || _arena == null) return false;
-            return _arena.TryGetPointer(mouse.position.ReadValue(), out pointer);
-        }
-
-        /// <summary>경기장 그래픽이 그릴 현재 시뮬레이션을 반환한다.</summary>
-        private RuneSimulation GetRunSimulation() => _run != null ? _run.Simulation : null;
     }
 }

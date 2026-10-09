@@ -7,15 +7,28 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 화면 Prefab을 원본 미션 화면 좌표 그대로 베이크하는 에디터 빌더다.
-    /// 경기장, HUD, 일시정지·디버그 모달, 결과 패널을 만들고 화면 컴포넌트의 모든 직렬화 참조를 연결한다.
+    /// 미션 화면 Prefab과 미션 팝업(일시정지·디버그) Prefab을 원본 미션 화면 좌표 그대로 베이크하는 에디터 빌더다.
+    /// 경기장, HUD, 결과 패널을 만들고 View의 모든 직렬화 참조를 연결한다.
     /// </summary>
     public static class MissionLayout
     {
-        /// <summary>미션 화면을 만들고 MissionScreen Prefab으로 저장한다.</summary>
+        private const float PAUSE_WIDTH = 500f;
+        private const float PAUSE_HEIGHT = 384f;
+        private const float DEBUG_WIDTH = 510f;
+        private const float DEBUG_HEIGHT = 420f;
+
+        /// <summary>미션 화면과 미션 팝업 Prefab을 만든다.</summary>
         public static void Build()
         {
             UiFactory ui = LayoutUtility.CreateFactory();
+            BuildScreen(ui);
+            BuildPausePopup(ui);
+            BuildDebugPopup(ui);
+        }
+
+        /// <summary>경기장·HUD·결과 패널로 미션 화면을 만들고 MissionScreen Prefab으로 저장한다.</summary>
+        private static void BuildScreen(UiFactory ui)
+        {
             RectTransform page = LayoutUtility.CreateViewRoot(nameof(MissionScreen));
             MissionScreen screen = page.gameObject.AddComponent<MissionScreen>();
             MissionHud hud = page.gameObject.AddComponent<MissionHud>();
@@ -44,45 +57,12 @@ namespace RuneCode
             TextMeshProUGUI fragmentToast = ui.Text(page, 46, 98, 300, 35, "", 18, new Color(0.4f, 0.97f, 0.77f), FontStyles.Normal, "FragmentToast");
             Button debugButton = ui.Button(page, 20, 654, 116, 36, GameData.L("ui.debug"), null, UiTheme.Muted, 11, "DebugButton");
 
-            RectTransform pauseRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "PauseModal");
-            pauseRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform pauseCard = ui.Panel(pauseRoot, (UiTheme.SCREEN_WIDTH - 500f) / 2f, (UiTheme.SCREEN_HEIGHT - 384f) / 2f, 500, 384, UiTheme.Panel, "Card");
-            ui.Text(pauseCard, 24, 21, 500 - 90, 35, GameData.L("ui.pause"), 24, Color.white, FontStyles.Bold, "Title");
-            Button pauseCloseButton = ui.Button(pauseCard, 500 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
-            Button resumeButton = ui.Button(pauseCard, 28, 90, 444, 48, GameData.L("ui.resume"), null, UiTheme.Cyan, 19, "ResumeButton");
-            Button shakeButton = ui.Button(pauseCard, 28, 155, 444, 42, "", null, UiTheme.Muted, 16, "ShakeButton");
-            Button hitStopButton = ui.Button(pauseCard, 28, 214, 444, 42, "", null, UiTheme.Muted, 16, "HitStopButton");
-            Button retreatButton = ui.Button(pauseCard, 28, 292, 444, 48, GameData.L("ui.retreat"), null, UiTheme.Muted, 18, "RetreatButton");
-            PausePanel pausePanel = pauseRoot.gameObject.AddComponent<PausePanel>();
-
-            RectTransform debugRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.ModalShade, "DebugModal");
-            debugRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform debugCard = ui.Panel(debugRoot, (UiTheme.SCREEN_WIDTH - 510f) / 2f, (UiTheme.SCREEN_HEIGHT - 420f) / 2f, 510, 420, UiTheme.Panel, "Card");
-            ui.Text(debugCard, 24, 21, 510 - 90, 35, GameData.L("ui.debug"), 24, Color.white, FontStyles.Bold, "Title");
-            Button debugCloseButton = ui.Button(debugCard, 510 - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
-            Button debugGrantButton = ui.Button(debugCard, 24, 82, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "GrantButton");
-            Button debugUnlockButton = ui.Button(debugCard, 24, 147, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "UnlockButton");
-            Button debugInvulnerableButton = ui.Button(debugCard, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
-            Button debugSpawnButton = ui.Button(debugCard, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
-
-            RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
-            resultRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform resultCard = ui.Panel(resultRoot, 92, 72, 1096, 570, UiTheme.Panel, "Card");
-            ui.Text(resultCard, 40, 32, 1016, 48, GameData.L("ui.result"), 34, Color.white, FontStyles.Bold, "Title");
-            TextMeshProUGUI resultSummary = ui.Text(resultCard, 40, 108, 1016, 108, "", 26, UiTheme.Cyan, FontStyles.Normal, "Summary");
-            TextMeshProUGUI resultStage = ui.Text(resultCard, 40, 250, 1016, 35, "", 23, Color.white, FontStyles.Normal, "Stage");
-            TextMeshProUGUI resultProgress = ui.Text(resultCard, 40, 308, 1016, 35, "", 22, UiTheme.Muted, FontStyles.Normal, "Progress");
-            ui.Text(resultCard, 40, 366, 1016, 64, GameData.L("ui.improveHint"), 20, UiTheme.Muted, FontStyles.Normal, "Hint");
-            Button improveButton = ui.Button(resultCard, 40, 464, 344, 58, GameData.L("ui.improveSpell"), null, UiTheme.Cyan, 20, "ImproveButton");
-            Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, UiTheme.Muted, 20, "RetryButton");
-            ResultPanel resultPanel = resultRoot.gameObject.AddComponent<ResultPanel>();
+            ResultPanel resultPanel = BuildResultPanel(ui, page);
 
             LayoutUtility.SetReference(screen, "_arena", arena);
             LayoutUtility.SetReference(screen, "_hud", hud);
-            LayoutUtility.SetReference(screen, "_pausePanel", pausePanel);
             LayoutUtility.SetReference(screen, "_resultPanel", resultPanel);
-            TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LayoutUtility.FONT_PATH);
-            LayoutUtility.SetReference(screen, "_font", font);
+            LayoutUtility.SetReference(screen, "_font", AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LayoutUtility.FONT_PATH));
 
             LayoutUtility.SetReference(hud, "_hpCaption", hpCaption);
             LayoutUtility.SetReference(hud, "_energyCaption", energyCaption);
@@ -95,32 +75,72 @@ namespace RuneCode
             LayoutUtility.SetReference(hud, "_fragmentToast", fragmentToast);
             LayoutUtility.SetReference(hud, "_pauseButton", pauseButton);
             LayoutUtility.SetReference(hud, "_debugButton", debugButton);
-            LayoutUtility.SetReference(hud, "_debugModal", debugRoot.gameObject);
-            LayoutUtility.SetReference(hud, "_debugCloseButton", debugCloseButton);
-            LayoutUtility.SetReference(hud, "_debugGrantButton", debugGrantButton);
-            LayoutUtility.SetReference(hud, "_debugUnlockButton", debugUnlockButton);
-            LayoutUtility.SetReference(hud, "_debugInvulnerableButton", debugInvulnerableButton);
-            LayoutUtility.SetReference(hud, "_debugSpawnButton", debugSpawnButton);
-
-            LayoutUtility.SetReference(pausePanel, "_resumeButton", resumeButton);
-            LayoutUtility.SetReference(pausePanel, "_shakeButton", shakeButton);
-            LayoutUtility.SetReference(pausePanel, "_shakeLabel", shakeButton.GetComponentInChildren<TextMeshProUGUI>());
-            LayoutUtility.SetReference(pausePanel, "_hitStopButton", hitStopButton);
-            LayoutUtility.SetReference(pausePanel, "_hitStopLabel", hitStopButton.GetComponentInChildren<TextMeshProUGUI>());
-            LayoutUtility.SetReference(pausePanel, "_retreatButton", retreatButton);
-            LayoutUtility.SetReference(pausePanel, "_closeButton", pauseCloseButton);
-
-            LayoutUtility.SetReference(resultPanel, "_summaryLabel", resultSummary);
-            LayoutUtility.SetReference(resultPanel, "_stageLabel", resultStage);
-            LayoutUtility.SetReference(resultPanel, "_progressLabel", resultProgress);
-            LayoutUtility.SetReference(resultPanel, "_improveButton", improveButton);
-            LayoutUtility.SetReference(resultPanel, "_retryButton", retryButton);
-
-            pauseRoot.gameObject.SetActive(false);
-            debugRoot.gameObject.SetActive(false);
-            resultRoot.gameObject.SetActive(false);
 
             LayoutUtility.SaveViewPrefab(page);
+        }
+
+        /// <summary>정산 문구와 개선·재도전 버튼의 전체 화면 결과 패널을 만들고 참조를 연결해 반환한다. 처음에는 숨겨 둔다.</summary>
+        private static ResultPanel BuildResultPanel(UiFactory ui, RectTransform page)
+        {
+            RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
+            resultRoot.GetComponent<Image>().raycastTarget = true;
+            RectTransform resultCard = ui.Panel(resultRoot, 92, 72, 1096, 570, UiTheme.Panel, "Card");
+            ui.Text(resultCard, 40, 32, 1016, 48, GameData.L("ui.result"), 34, Color.white, FontStyles.Bold, "Title");
+            TextMeshProUGUI summary = ui.Text(resultCard, 40, 108, 1016, 108, "", 26, UiTheme.Cyan, FontStyles.Normal, "Summary");
+            TextMeshProUGUI stage = ui.Text(resultCard, 40, 250, 1016, 35, "", 23, Color.white, FontStyles.Normal, "Stage");
+            TextMeshProUGUI progress = ui.Text(resultCard, 40, 308, 1016, 35, "", 22, UiTheme.Muted, FontStyles.Normal, "Progress");
+            ui.Text(resultCard, 40, 366, 1016, 64, GameData.L("ui.improveHint"), 20, UiTheme.Muted, FontStyles.Normal, "Hint");
+            Button improveButton = ui.Button(resultCard, 40, 464, 344, 58, GameData.L("ui.improveSpell"), null, UiTheme.Cyan, 20, "ImproveButton");
+            Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, UiTheme.Muted, 20, "RetryButton");
+
+            ResultPanel resultPanel = resultRoot.gameObject.AddComponent<ResultPanel>();
+            LayoutUtility.SetReference(resultPanel, "_summaryLabel", summary);
+            LayoutUtility.SetReference(resultPanel, "_stageLabel", stage);
+            LayoutUtility.SetReference(resultPanel, "_progressLabel", progress);
+            LayoutUtility.SetReference(resultPanel, "_improveButton", improveButton);
+            LayoutUtility.SetReference(resultPanel, "_retryButton", retryButton);
+            resultRoot.gameObject.SetActive(false);
+            return resultPanel;
+        }
+
+        /// <summary>계속하기·피드백 설정·후퇴 버튼의 일시정지 팝업을 만들고 PausePopup Prefab으로 저장한다.</summary>
+        private static void BuildPausePopup(UiFactory ui)
+        {
+            RectTransform root = LayoutUtility.CreateViewRoot(nameof(PausePopup));
+            RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.pause"), PAUSE_WIDTH, PAUSE_HEIGHT, out Button closeButton);
+            Button resumeButton = ui.Button(card, 28, 90, 444, 48, GameData.L("ui.resume"), null, UiTheme.Cyan, 19, "ResumeButton");
+            Button shakeButton = ui.Button(card, 28, 155, 444, 42, "", null, UiTheme.Muted, 16, "ShakeButton");
+            Button hitStopButton = ui.Button(card, 28, 214, 444, 42, "", null, UiTheme.Muted, 16, "HitStopButton");
+            Button retreatButton = ui.Button(card, 28, 292, 444, 48, GameData.L("ui.retreat"), null, UiTheme.Muted, 18, "RetreatButton");
+
+            PausePopup popup = root.gameObject.AddComponent<PausePopup>();
+            LayoutUtility.SetReference(popup, "_closeButton", closeButton);
+            LayoutUtility.SetReference(popup, "_resumeButton", resumeButton);
+            LayoutUtility.SetReference(popup, "_shakeButton", shakeButton);
+            LayoutUtility.SetReference(popup, "_shakeLabel", shakeButton.GetComponentInChildren<TextMeshProUGUI>());
+            LayoutUtility.SetReference(popup, "_hitStopButton", hitStopButton);
+            LayoutUtility.SetReference(popup, "_hitStopLabel", hitStopButton.GetComponentInChildren<TextMeshProUGUI>());
+            LayoutUtility.SetReference(popup, "_retreatButton", retreatButton);
+            LayoutUtility.SaveViewPrefab(root);
+        }
+
+        /// <summary>조각 지급·전체 해금·무적·소환 버튼의 디버그 팝업을 만들고 MissionDebugPopup Prefab으로 저장한다.</summary>
+        private static void BuildDebugPopup(UiFactory ui)
+        {
+            RectTransform root = LayoutUtility.CreateViewRoot(nameof(MissionDebugPopup));
+            RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.debug"), DEBUG_WIDTH, DEBUG_HEIGHT, out Button closeButton);
+            Button grantButton = ui.Button(card, 24, 82, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "GrantButton");
+            Button unlockButton = ui.Button(card, 24, 147, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "UnlockButton");
+            Button invulnerableButton = ui.Button(card, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
+            Button spawnButton = ui.Button(card, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
+
+            MissionDebugPopup popup = root.gameObject.AddComponent<MissionDebugPopup>();
+            LayoutUtility.SetReference(popup, "_closeButton", closeButton);
+            LayoutUtility.SetReference(popup, "_grantButton", grantButton);
+            LayoutUtility.SetReference(popup, "_unlockButton", unlockButton);
+            LayoutUtility.SetReference(popup, "_invulnerableButton", invulnerableButton);
+            LayoutUtility.SetReference(popup, "_spawnButton", spawnButton);
+            LayoutUtility.SaveViewPrefab(root);
         }
     }
 }
