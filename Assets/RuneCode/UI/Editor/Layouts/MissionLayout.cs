@@ -1,7 +1,6 @@
 using UnityEngine;
 
 using TMPro;
-using UnityEditor;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -9,10 +8,19 @@ namespace RuneCode
 {
     /// <summary>
     /// 미션 씬 레이아웃을 원본 미션 화면 좌표 그대로 베이크하는 에디터 빌더다.
-    /// 경기장, HUD, 일시정지·디버그 모달, 결과 패널을 만들고 화면 컴포넌트의 모든 직렬화 참조를 연결한다.
+    /// 미션 카메라·월드 표시 루트, HUD, 일시정지·디버그 모달, 결과 패널을 만들고 화면 컴포넌트의 모든 직렬화 참조를 연결한다.
     /// </summary>
     public static class MissionLayout
     {
+        private const float CAMERA_DEPTH = -10f;
+        private const float CAMERA_PRIORITY = 1f;
+        private const float CAMERA_FAR_CLIP = 100f;
+        private const float TIMER_MIN_FONT_SIZE = 16f;
+        private const float TOP_BAR_HEIGHT = 74f;
+        private const float BOTTOM_BAR_HEIGHT = 70f;
+
+        private static readonly Color ArenaBackground = new Color(0.02f, 0.04f, 0.075f);
+
         /// <summary>빈 씬에 미션 화면을 만들고 Assets/Scenes/Mission.unity로 저장한다.</summary>
         public static void BuildScene()
         {
@@ -24,12 +32,11 @@ namespace RuneCode
             MissionScreen screen = canvasObject.AddComponent<MissionScreen>();
             MissionHud hud = canvasObject.AddComponent<MissionHud>();
 
-            ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Background");
+            MissionWorldAssets.Result worldAssets = MissionWorldAssets.Ensure();
+            MissionCamera missionCamera = CreateCamera();
+            MissionWorldView worldView = new GameObject("MissionWorld", typeof(MissionWorldView)).GetComponent<MissionWorldView>();
 
-            RectTransform arenaRect = UiFactory.Rect(page, "MissionArena", 12, 74, 1256, 572);
-            RuneArenaGraphic arena = arenaRect.gameObject.AddComponent<RuneArenaGraphic>();
-
-            ui.Panel(page, 0, 0, 1280, 74, UiTheme.Panel, "TopBar");
+            ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, TOP_BAR_HEIGHT, UiTheme.Panel, "TopBar");
             TextMeshProUGUI hpCaption = ui.Text(page, 18, 11, 238, 24, GameData.L("ui.hp"), 12, UiTheme.Muted, FontStyles.Normal, "HpCaption");
             ui.Panel(page, 18, 40, 238, 9, new Color(0.20f, 0.15f, 0.20f), "HpTrack");
             Image hpFill = ui.Panel(page, 18, 40, 238, 9, new Color(1f, 0.38f, 0.4f), "HpFill").GetComponent<Image>();
@@ -39,12 +46,14 @@ namespace RuneCode
             TextMeshProUGUI stageLabel = ui.Text(page, 542, 10, 280, 23, "", 16, Color.white, FontStyles.Bold, "StageLabel");
             TextMeshProUGUI statsLabel = ui.Text(page, 542, 37, 280, 26, "", 15, UiTheme.Cyan, FontStyles.Normal, "StatsLabel");
             TextMeshProUGUI timerLabel = ui.Text(page, 836, 14, 274, 50, "", 29, new Color(0.98f, 0.82f, 0.45f), FontStyles.Bold, "TimerLabel");
+            timerLabel.enableAutoSizing = true;
+            timerLabel.fontSizeMin = TIMER_MIN_FONT_SIZE;
+            timerLabel.fontSizeMax = 29;
             Button pauseButton = ui.Button(page, 1142, 18, 114, 34, GameData.L("ui.pause"), null, UiTheme.Muted, 14, "PauseButton");
 
-            ui.Panel(page, 0, 650, 1280, 70, UiTheme.Panel, "BottomBar");
+            ui.Panel(page, 0, UiTheme.SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT, UiTheme.SCREEN_WIDTH, BOTTOM_BAR_HEIGHT, UiTheme.Panel, "BottomBar");
             TextMeshProUGUI spellLabel = ui.Text(page, 270, 661, 968, 30, "", 17, UiTheme.Cyan, FontStyles.Normal, "SpellLabel");
             ui.Text(page, 20, 698, 1220, 19, GameData.L("ui.manualBattleControls"), 11, UiTheme.Muted, FontStyles.Normal, "ControlsHint");
-            ui.Text(page, 1036, 96, 214, 32, GameData.L("ui.incoming"), 14, new Color(0.97f, 0.57f, 0.45f), FontStyles.Normal, "IncomingLabel");
             TextMeshProUGUI fragmentToast = ui.Text(page, 46, 98, 300, 35, "", 18, new Color(0.4f, 0.97f, 0.77f), FontStyles.Normal, "FragmentToast");
             Button debugButton = ui.Button(page, 20, 654, 116, 36, GameData.L("ui.debug"), null, UiTheme.Muted, 11, "DebugButton");
 
@@ -81,12 +90,21 @@ namespace RuneCode
             Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, UiTheme.Muted, 20, "RetryButton");
             ResultPanel resultPanel = resultRoot.gameObject.AddComponent<ResultPanel>();
 
-            LayoutUtility.SetReference(screen, "_arena", arena);
+            LayoutUtility.SetReference(screen, "_missionCamera", missionCamera);
+            LayoutUtility.SetReference(screen, "_worldView", worldView);
             LayoutUtility.SetReference(screen, "_hud", hud);
             LayoutUtility.SetReference(screen, "_pausePanel", pausePanel);
             LayoutUtility.SetReference(screen, "_resultPanel", resultPanel);
-            TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(LayoutUtility.FONT_PATH);
-            LayoutUtility.SetReference(screen, "_font", font);
+
+            LayoutUtility.SetReference(worldView, "_camera", missionCamera);
+            LayoutUtility.SetReference(worldView, "_playerPrefab", worldAssets.Player);
+            LayoutUtility.SetReference(worldView, "_enemyPrefab", worldAssets.Enemy);
+            LayoutUtility.SetReference(worldView, "_spellPrefab", worldAssets.Spell);
+            LayoutUtility.SetReference(worldView, "_projectilePrefab", worldAssets.Projectile);
+            LayoutUtility.SetReference(worldView, "_orbPrefab", worldAssets.Orb);
+            LayoutUtility.SetReference(worldView, "_damageNumberPrefab", worldAssets.DamageNumber);
+            LayoutUtility.SetReference(worldView, "_squareSprite", worldAssets.Square);
+            LayoutUtility.SetReference(worldView, "_spriteMaterial", worldAssets.Material);
 
             LayoutUtility.SetReference(hud, "_hpCaption", hpCaption);
             LayoutUtility.SetReference(hud, "_energyCaption", energyCaption);
@@ -125,6 +143,30 @@ namespace RuneCode
             resultRoot.gameObject.SetActive(false);
 
             LayoutUtility.SaveScene(scene, "Mission");
+        }
+
+        /// <summary>
+        /// 미션 전용 정사영 카메라를 만든다. Boot 씬 카메라보다 늦게 그리도록 우선순위를 높이고 경기장 배경색으로 화면을 지우며,
+        /// HUD와 같은 기준 해상도·상하단 바 높이를 카메라 경계 계산에 넘긴다.
+        /// HUD는 Overlay 캔버스라 이 카메라 위에 그려진다.
+        /// </summary>
+        private static MissionCamera CreateCamera()
+        {
+            var cameraObject = new GameObject("MissionCamera", typeof(Camera), typeof(MissionCamera));
+            cameraObject.transform.position = new Vector3(0, 0, CAMERA_DEPTH);
+            Camera camera = cameraObject.GetComponent<Camera>();
+            camera.orthographic = true;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = ArenaBackground;
+            camera.depth = CAMERA_PRIORITY;
+            camera.farClipPlane = CAMERA_FAR_CLIP;
+            MissionCamera missionCamera = cameraObject.GetComponent<MissionCamera>();
+            var serialized = new UnityEditor.SerializedObject(missionCamera);
+            serialized.FindProperty("_referenceResolution").vector2Value = new Vector2(UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
+            serialized.FindProperty("_topHudHeight").floatValue = TOP_BAR_HEIGHT;
+            serialized.FindProperty("_bottomHudHeight").floatValue = BOTTOM_BAR_HEIGHT;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return missionCamera;
         }
     }
 }

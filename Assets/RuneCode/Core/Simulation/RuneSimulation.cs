@@ -13,14 +13,18 @@ namespace RuneCode
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
         private const int STATUS_TYPE_COUNT = 4;
+        private const double SAME_SPAWN_DISTANCE = 0.5;
+        private const string BOLT_RUNE_ID = "form.bolt";
+        private const string SURROUND_SHAPE = "ringAllSlots";
+        private const string REINFORCEMENT_ENEMY_ID = "enemy.scout";
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
         private readonly GovernorDefinition _governor;
-        private readonly IncrementalDefinition _incremental;
+        private readonly FormationCatalog _formations;
+        private readonly StageCatalog _stages;
         private readonly bool _isMission;
         private readonly int _stageNumber;
-        private readonly double _battleDuration;
         private readonly double _maxHp;
         private readonly double _maxEnergy;
         private readonly double _energyRegen;
@@ -38,6 +42,8 @@ namespace RuneCode
         private readonly Dictionary<string, int> _killCounts = new Dictionary<string, int>();
         private readonly CompiledSpell[] _loadout = new CompiledSpell[3];
         private readonly List<string> _unlockedElements = new List<string> { "fire" };
+        private readonly List<SimVector> _tickSpawnPositions = new List<SimVector>();
+        private readonly SpawnSlots _spawnSlots;
         private readonly int _initialSeed;
         private uint _rngState;
         private SimulationPlayer _player;
@@ -46,7 +52,12 @@ namespace RuneCode
         private int _tick;
         private double _statusTime;
         private int _nextEntityId;
-        private int _nextSpawnTick;
+        private StageDefinition _stageDefinition;
+        private SpawnDirector _director;
+        private double _spawnRadius;
+        private int _tickSpawnPositionsTick = -1;
+        private SimVector _moveDirection;
+        private bool _hasMoveDirection;
         private int _spawnedEnemies;
         private int _killCount;
         private int _actionBudgetTick = -1;
@@ -77,11 +88,17 @@ namespace RuneCode
         public MissionStage Stage => _stage;
         public bool Completed => _stage == MissionStage.Cleared;
         public bool IsDead => _stage == MissionStage.Dead;
+        public bool IsTimedOut => _stage == MissionStage.TimedOut;
+        public bool IsFailed => IsDead || IsTimedOut;
         public bool IsTerminal => _stage == MissionStage.Terminal;
         public bool IsTimedBattle => _isMission;
         public int StageNumber => _stageNumber;
-        public double BattleDuration => _battleDuration;
-        public double RemainingTime => Math.Max(0, _battleDuration - Time);
+        public bool IsBossStage => _stageDefinition != null && _stageDefinition.IsBoss;
+        public double TimeLimit => _stageDefinition?.TimeLimit ?? 0;
+        public double RemainingTime => IsBossStage ? Math.Max(0, TimeLimit - Time) : 0;
+        public int RemainingEnemies => (_director?.PendingCount ?? 0) + CountAliveEnemies();
+        public int TotalEnemies => _spawnedEnemies + (_director?.PendingCount ?? 0);
+        public SimVector MapCenter => new SimVector(_map.Width * 0.5, _map.Height * 0.5);
         public double EnergyRegen => _energyRegen;
         public int SpawnedEnemies => _spawnedEnemies;
         public int KillCount => _killCount;
@@ -95,7 +112,8 @@ namespace RuneCode
         {
             get { int total = _collectedFragments; foreach (FragmentOrb orb in _orbs) total += orb.Amount; return total; }
         }
-        public int SettlementFragments => IsDead ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments;
+        public int ClearReward => Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
+        public int SettlementFragments => IsFailed ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments + ClearReward;
         public double TotalDamage => _totalDamage;
         public double RollingDps => _rollingDamage / Math.Min(5, Math.Max(STEP_SECONDS, Time));
         public double EnergySpent => _energySpent;
@@ -118,30 +136,31 @@ namespace RuneCode
         /// <summary>명시적으로 열린 디버그 기능에서 플레이어 무적 상태를 변경한다.</summary>
         public void SetDebugInvulnerable(bool isInvulnerable) { _debugInvulnerable = isInvulnerable; }
 
-        /// <summary>검증된 데이터, 시드, 시간제 스테이지와 영구 능력치로 독립된 전투 또는 시험 도크를 생성한다.</summary>
-        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double battleDuration = 0, double energyRegen = 0)
+        /// <summary>검증된 데이터, 시드, 스테이지 번호와 영구 능력치로 독립된 전투 또는 시험 도크를 생성한다.</summary>
+        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0)
         {
             GameData.Load();
             _balance = GameData.Balance;
             _enemyCatalog = EnemyCatalog.FromJson(LoadJson("enemies"));
             _sector = SectorDefinition.FromJson(LoadJson("sector1"), _enemyCatalog);
             _governor = GovernorDefinition.FromJson(LoadJson("governor"));
-            _incremental = IncrementalDefinition.FromJson(LoadJson("incremental"), _enemyCatalog, _sector.TileSize);
+            _formations = FormationCatalog.FromJson(LoadJson("formations"));
+            _stages = StageCatalog.FromJson(LoadJson("stages"), _enemyCatalog, _formations);
             _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
-            _stageNumber = Math.Max(1, stageNumber); _battleDuration = isMission ? (battleDuration > 0 ? battleDuration : _incremental.BaseDuration) : 0;
+            _stageNumber = Math.Max(1, stageNumber);
             _energyRegen = energyRegen > 0 ? energyRegen : _balance.Player.EnergyRegen;
+            _spawnSlots = new SpawnSlots(NextRandom);
             Adaptation = new AdaptationNet(_balance);
             if (isMission) BeginTimedBattle();
             else ResetBench("dummy_single");
         }
 
-        /// <summary>시간제 스테이지의 공용 JSON 설정을 읽어 앱의 기본 제한시간과 스테이지 표시에 제공한다.</summary>
-        public static IncrementalDefinition LoadIncrementalDefinition()
+        /// <summary>스테이지·진형 JSON을 읽고 검증한 스테이지 목록을 반환한다. 앱의 출격 정보 표시에 쓴다.</summary>
+        public static StageCatalog LoadStageCatalog()
         {
             GameData.Load();
             EnemyCatalog enemies = EnemyCatalog.FromJson(LoadJson("enemies"));
-            SectorDefinition sector = SectorDefinition.FromJson(LoadJson("sector1"), enemies);
-            return IncrementalDefinition.FromJson(LoadJson("incremental"), enemies, sector.TileSize);
+            return StageCatalog.FromJson(LoadJson("stages"), enemies, FormationCatalog.FromJson(LoadJson("formations")));
         }
 
         /// <summary>Resources에 포함된 JSON 텍스트를 읽고 누락된 필수 데이터 오류를 보고한다.</summary>
@@ -184,10 +203,10 @@ namespace RuneCode
         /// <summary>명시한 방향으로 조준을 갱신한 뒤 슬롯 마법을 시전하고 성공 여부를 반환한다.</summary>
         public bool TryCast(CompiledSpell spell, SimVector aimDirection, int slot = 0) { _player.Aim(aimDirection); return TryCast(spell, slot); }
 
-        /// <summary>입력, 오른쪽 적 유입, 전투, 적응 및 제한시간 종료를 정확히 한 60Hz 틱만큼 갱신한다.</summary>
+        /// <summary>입력, 예약된 적 스폰, 전투, 적응 및 전투 종료(전부 처치·사망·보스 제한시간)를 정확히 한 60Hz 틱만큼 갱신한다.</summary>
         public void Step(SimulationInput input)
         {
-            if (Completed || IsDead) return;
+            if (Completed || IsFailed) return;
             bool wasDashing = _player.DashRemaining > 0.000001;
             _player.Aim(input.AimDirection);
             _player.Advance(STEP_SECONDS, Time, _energyRegen);
@@ -195,7 +214,7 @@ namespace RuneCode
             if (startedDash) TryCastTrigger("dashInput");
             else if (wasDashing && _player.DashRemaining <= 0.000001) TryCastTrigger("dashComplete");
             if (input.Movement.LengthSquared > 0.000001) TryCastTrigger("move");
-            if (_isMission) AdvanceEnemyStreaming();
+            if (_isMission) AdvanceSpawns();
             RunScheduled();
             if (input.CastA) TryCastTriggered(_loadout[0], "attack", 0);
             if (input.CastB) TryCastTriggered(_loadout[1], "attack", 1);
@@ -211,7 +230,7 @@ namespace RuneCode
             else if (!_isMission && _scenario == "adapt_loop" && _enemies.Count == 0) SpawnBenchDummy(new SimVector(_balance.Sim.BenchDummyX, _balance.Sim.BenchDummyY), _balance.Sim.BenchHp);
             Adaptation.Advance(Time, Time + STEP_SECONDS);
             _tick++;
-            if (_isMission && !IsDead && Time + 0.000001 >= _battleDuration) CompleteTimedBattle();
+            if (_isMission && _stage == MissionStage.Combat) CheckBattleEnd();
             TrimFeedback();
         }
 
@@ -243,7 +262,7 @@ namespace RuneCode
         /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다.</summary>
         public SimulationEnemy DebugSpawn(string id) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0);
 
-        /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 제한시간과 다음 적 유입은 유지한다.</summary>
+        /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다.</summary>
         public void DebugDefeatRoom()
         { if (_isMission && _stage != MissionStage.Combat) return; foreach (SimulationEnemy enemy in _enemies) enemy.Hurt(enemy.Hp, Time); CleanupEnemies(); if (_isMission) CollectAllOrbs(); }
 
@@ -251,9 +270,9 @@ namespace RuneCode
         public string StateHash()
         {
             var state = new StringBuilder();
-            state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_nextSpawnTick).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
+            state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_director?.PendingCount ?? 0).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
             state.Append('|').Append(_actionBudgetTick).Append('|').Append(_actionsThisTick).Append('|').Append(_droppedExecutions);
-            AppendNumber(state, _battleDuration); AppendNumber(state, _energyRegen);
+            AppendNumber(state, TimeLimit); AppendNumber(state, _energyRegen);
             _player.WriteState(state);
             foreach (SimulationEnemy enemy in _enemies) enemy.WriteState(state);
             foreach (EnemyStatusEffect status in _enemyStatuses) status.WriteState(state);
@@ -276,6 +295,8 @@ namespace RuneCode
             foreach (string element in _unlockedElements) state.Append('|').Append(element);
             foreach (PendingEnemyShot shot in _pendingEnemyShots) { state.Append(shot.Tick).Append('|').Append(shot.Owner.Id); AppendNumber(state, shot.Direction.X); AppendNumber(state, shot.Direction.Y); AppendNumber(state, shot.SpeedMultiplier); }
             AppendNumber(state, _totalDamage); state.Append(_collectedFragments).Append(_nodeExecutionCount);
+            if (_director != null)
+            { _director.WriteState(state); AppendNumber(state, _moveDirection.X); AppendNumber(state, _moveDirection.Y); state.Append(_hasMoveDirection); }
             uint hash = 2166136261;
             foreach (char value in state.ToString()) { hash ^= value; hash *= 16777619; }
             return hash.ToString("x8", CultureInfo.InvariantCulture);
@@ -288,6 +309,7 @@ namespace RuneCode
         private bool MovePlayer(SimulationInput input)
         {
             SimVector move = input.Movement.Length > 1 ? input.Movement.Normalized() : input.Movement;
+            if (move.LengthSquared > 0.000001) { _moveDirection = move.Normalized(); _hasMoveDirection = true; }
             bool startedDash = input.Dash && _stage != MissionStage.Terminal
                 && _player.StartDash(move.LengthSquared > 0.000001 ? move : _player.AimDirection, _balance.Player.DashSeconds, _balance.Player.DashCooldown, Time);
             SimVector displacement = _player.DashRemaining > 0 ? _player.GetDashDirection() * (_balance.Player.DashDistance / _balance.Player.DashSeconds * Math.Min(STEP_SECONDS, _player.DashRemaining)) : move * (_balance.Player.Speed * STEP_SECONDS);
@@ -740,7 +762,7 @@ namespace RuneCode
                 bool isBoss = enemy.Kind == "boss.governor";
                 if (isBoss) { CheckBossPatch(enemy); if (enemy.IsPatching) continue; }
                 double speedMultiplier = isBoss && enemy.Phase == 3 ? _governor.PhaseThreeMultiplier : 1;
-                var context = new EnemyMoveContext(offset, direction, Time, _isMission, _incremental.StationaryAdvanceSpeed, _governor.PreferredDistance, speedMultiplier);
+                var context = new EnemyMoveContext(offset, direction, Time, _isMission, _stages.StationaryAdvanceSpeed, _governor.PreferredDistance, speedMultiplier);
                 ApplyMove(enemy, EnemyMovements.Decide(enemy, context));
                 if (isBoss) AdvanceBoss(enemy, direction);
                 else AdvanceEnemyAttack(enemy, offset, direction);
@@ -846,11 +868,8 @@ namespace RuneCode
             { _enemyProjectiles.Add(new SimulationProjectile(_player.Position, SimVector.Zero, 0, _governor.HazardDamage * boss.DamageMultiplier, _governor.HazardRadius, _governor.HazardLifetime + _governor.HazardWarning, true, _governor.HazardWarning)); boss.HazardAt = Time + _governor.HazardInterval / multiplier; }
             if (Time >= boss.ReinforcementAt)
             {
-                for (int i = 0; i < _governor.ReinforcementCount; i++)
-                {
-                    SimVector position = _isMission ? new SimVector(_incremental.SpawnX, _incremental.SpawnMinY + NextRandom() * (_incremental.SpawnMaxY - _incremental.SpawnMinY)) : _map.GetPoint((char)('1' + i * 2));
-                    SpawnEnemy("enemy.scout", position, false, 0);
-                }
+                if (_isMission) SpawnReinforcements(boss);
+                else for (int i = 0; i < _governor.ReinforcementCount; i++) SpawnEnemy(REINFORCEMENT_ENEMY_ID, _map.GetPoint((char)('1' + i * 2)), false, 0);
                 boss.ReinforcementAt = Time + _governor.ReinforcementInterval;
             }
             HurtByContact(boss);
@@ -910,53 +929,151 @@ namespace RuneCode
         /// <summary>전투 종료 시 남아 있는 모든 처치 조각 오브를 회수한다.</summary>
         private void CollectAllOrbs() { foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount; _orbs.Clear(); }
 
-        /// <summary>제한시간이 끝나면 생존 적과 무관하게 처치 보상을 회수하고 전투 실행을 종료한다.</summary>
-        private void CompleteTimedBattle()
+        /// <summary>
+        /// 남은 스폰 예약과 살아 있는 적이 모두 없으면 클리어, 보스 스테이지 제한시간이 지나면 시간 초과 실패로 전투를 끝내고 남은 보상을 회수한다.
+        /// 같은 틱에 두 조건이 겹치면 클리어를 우선한다.
+        /// </summary>
+        private void CheckBattleEnd()
         {
-            if (_stage != MissionStage.Combat) return;
-            CollectAllOrbs(); _stage = MissionStage.Cleared; CancelCombat();
+            if (_director.PendingCount == 0 && CountAliveEnemies() == 0) _stage = MissionStage.Cleared;
+            else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
+            else return;
+            CollectAllOrbs(); CancelCombat();
         }
 
-        /// <summary>왼쪽 플레이어와 열린 아레나를 초기화하고 첫 오른쪽 적 유입 및 다음 생성 틱을 설정한다.</summary>
+        /// <summary>살아 있는 적의 수를 반환한다.</summary>
+        private int CountAliveEnemies()
+        { int count = 0; foreach (SimulationEnemy enemy in _enemies) if (enemy.IsAlive) count++; return count; }
+
+        /// <summary>
+        /// 스테이지 편성으로 외곽 벽만 있는 맵, 맵 중앙의 플레이어, 스폰 반경과 스폰 예약을 준비하고 0틱 예약을 바로 스폰한다.
+        /// 스폰 반경 = 기본 발사 사거리 + 가장 큰 적 반경 + 여유이며 막 스폰된 적에게 기본 발사체가 닿지 않게 한다.
+        /// </summary>
         private void BeginTimedBattle()
         {
             _stage = MissionStage.Combat;
-            _map = new MissionMap(_incremental.Tiles, _sector.TileSize);
-            _player = new SimulationPlayer(_maxHp, _maxEnergy, _map.NearestFree(new SimVector(_incremental.PlayerX, _incremental.PlayerY), _sector.PlayerRadius));
-            Adaptation.SetEnabled(_incremental.IsAdaptationEnabled);
-            SpawnIncomingEnemy(); _nextSpawnTick = SpawnIntervalTicks();
+            _stageDefinition = _stages.Get(_stageNumber);
+            _map = MissionMap.CreateOpen(_stages.Map.Columns, _stages.Map.Rows, _sector.TileSize);
+            _player = new SimulationPlayer(_maxHp, _maxEnergy, MapCenter);
+            Adaptation.SetEnabled(false);
+            RuneStats bolt = GameData.Runes.Get(BOLT_RUNE_ID).Stats;
+            double largestRadius = 0;
+            foreach (EnemyDefinition enemy in _enemyCatalog.Enemies) largestRadius = Math.Max(largestRadius, enemy.Radius);
+            _spawnRadius = (double)bolt.Speed * bolt.Lifetime + largestRadius + _stages.Spawn.RingMargin;
+            _director = new SpawnDirector(_stageDefinition, _stageNumber, _formations, TICK_RATE);
+            AdvanceSpawns();
         }
 
-        /// <summary>스테이지 진행과 시간 경과에 따른 유입 주기를 유지하면서 오른쪽에 새 적을 생성한다.</summary>
-        private void AdvanceEnemyStreaming()
+        /// <summary>현재 틱까지 도달한 스폰 예약을 순서대로 처리한다. 적 수가 상한이면 남은 예약을 다음 틱으로 미룬다.</summary>
+        private void AdvanceSpawns()
         {
-            if (_tick < _nextSpawnTick) return;
-            if (_enemies.Count < EnemyLimit) SpawnIncomingEnemy();
-            _nextSpawnTick = _tick + SpawnIntervalTicks();
-        }
-
-        /// <summary>스테이지 번호와 시간 비율로 유입 간격을 줄이되 JSON의 최소 간격을 지킨다.</summary>
-        private int SpawnIntervalTicks()
-        {
-            double progress = Math.Max(0, Math.Min(1, Time / _battleDuration));
-            double seconds = _incremental.BaseSpawnInterval / (1 + (_stageNumber - 1) * _incremental.IntervalStageScale) * (1 - progress * _incremental.IntraStageRamp);
-            return Math.Max(1, (int)Math.Round(Math.Max(_incremental.MinSpawnInterval, seconds) * TICK_RATE));
-        }
-
-        /// <summary>현재 스테이지에서 해금된 적 편성을 가중 난수로 선택하고 오른쪽 가장자리에서 유입시킨다.</summary>
-        private void SpawnIncomingEnemy()
-        {
-            double totalWeight = 0;
-            foreach (IncrementalEnemyEntry entry in _incremental.Enemies) if (entry.FirstStage <= _stageNumber) totalWeight += entry.Weight;
-            double choice = NextRandom() * totalWeight;
-            foreach (IncrementalEnemyEntry entry in _incremental.Enemies)
+            while (_director.TryPeek(_tick, out SpawnOrder order))
             {
-                if (entry.FirstStage > _stageNumber) continue;
-                choice -= entry.Weight;
-                if (choice > 0) continue;
-                SimVector position = new SimVector(_incremental.SpawnX, _incremental.SpawnMinY + NextRandom() * (_incremental.SpawnMaxY - _incremental.SpawnMinY));
-                SpawnEnemy(entry.EnemyId, position); return;
+                if (_enemies.Count >= EnemyLimit) return;
+                _director.Consume();
+                SpawnByFormation(order, order.IsStream ? PickStreamEnemy() : order.EnemyId);
             }
+        }
+
+        /// <summary>
+        /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다.
+        /// 묶음의 첫 스폰에서 슬롯 시작 각도(무작위 또는 진행 방향)와 기준 슬롯을 정하고, 위치는 스폰 순간의 플레이어 위치 기준으로 계산한다.
+        /// </summary>
+        private void SpawnByFormation(SpawnOrder order, string enemyId)
+        {
+            FormationSettings settings = _director.GetSettings(order.Group);
+            SpawnFormation formation = SpawnFormations.Get(settings.Shape);
+            double radius = _enemyCatalog.Get(enemyId).Radius;
+            int slotCount = settings.Slots > 0 ? settings.Slots : _stages.Spawn.RingSlots;
+            if (!_director.IsStarted(order.Group))
+            {
+                double startAngle = settings.Angle == SpawnFormations.ANGLE_AHEAD ? GetAheadAngle() : NextRandom() * 2 * Math.PI / slotCount;
+                _spawnSlots.Refresh(_map, _player.Position, _spawnRadius, slotCount, startAngle, radius);
+                _director.Start(order.Group, startAngle, formation.ChooseAnchor(_spawnSlots, settings));
+            }
+            else _spawnSlots.Refresh(_map, _player.Position, _spawnRadius, slotCount, _director.GetStartAngle(order.Group), radius);
+            SpawnPlacement placement = formation.Place(order.Index, order.Count, _director.GetAnchor(order.Group), _spawnSlots, settings);
+            SpawnEnemy(enemyId, ResolvePlacement(placement, radius));
+        }
+
+        /// <summary>보스 주변 원 위에 같은 간격으로 증원을 생성한다. 시작 각도는 보스가 바라보는 방향이며 맵 밖 위치는 원형 슬롯과 같이 제외한다.</summary>
+        private void SpawnReinforcements(SimulationEnemy boss)
+        {
+            int count = _governor.ReinforcementCount;
+            double radius = _enemyCatalog.Get(REINFORCEMENT_ENEMY_ID).Radius;
+            _spawnSlots.Refresh(_map, boss.Position, boss.Radius + _stages.Spawn.ReinforcementGap, count, Math.Atan2(boss.Facing.Y, boss.Facing.X), radius);
+            SpawnFormation surround = SpawnFormations.Get(SURROUND_SHAPE);
+            for (int i = 0; i < count; i++)
+                SpawnEnemy(REINFORCEMENT_ENEMY_ID, ResolvePlacement(surround.Place(i, count, -1, _spawnSlots, default), radius), false, 0);
+        }
+
+        /// <summary>
+        /// 배치 결과를 마지막으로 Refresh한 슬롯 기준 좌표로 바꾼다. 쓸 슬롯이 없으면 맵 안에서 플레이어로부터 가장 먼 지점을 쓰고,
+        /// 바깥 오프셋 위치가 맵 밖이면 슬롯 위치를 쓰며, 같은 틱에 같은 위치로 나온 적이 있으면 흔들어 겹치지 않게 한다.
+        /// </summary>
+        private SimVector ResolvePlacement(SpawnPlacement placement, double radius)
+        {
+            if (!placement.HasSlot) return GetFarthestPoint(_player.Position, radius);
+            SimVector position = _spawnSlots.GetPosition(placement.Slot);
+            if (placement.Outward > 0)
+            {
+                SimVector pushed = position + _spawnSlots.GetDirection(placement.Slot) * placement.Outward;
+                if (_map.CanOccupy(pushed, radius)) position = pushed;
+            }
+            return SpreadSameTickSpawn(position, radius);
+        }
+
+        /// <summary>이번 틱에 같은 위치로 스폰된 적이 있으면 ±(반경 × 흔들림 배율) 안의 맵 안 위치로 옮겨 반환한다.</summary>
+        private SimVector SpreadSameTickSpawn(SimVector position, double radius)
+        {
+            if (_tickSpawnPositionsTick != _tick) { _tickSpawnPositionsTick = _tick; _tickSpawnPositions.Clear(); }
+            bool isTaken = false;
+            foreach (SimVector taken in _tickSpawnPositions)
+                if ((taken - position).LengthSquared < SAME_SPAWN_DISTANCE * SAME_SPAWN_DISTANCE) { isTaken = true; break; }
+            _tickSpawnPositions.Add(position);
+            if (!isTaken) return position;
+            double range = radius * _stages.Spawn.JitterScale;
+            SimVector spread = position + new SimVector((NextRandom() * 2 - 1) * range, (NextRandom() * 2 - 1) * range);
+            return _map.CanOccupy(spread, radius) ? spread : position;
+        }
+
+        /// <summary>외곽 벽 안쪽으로 반경만큼 들어온 맵 네 모서리 중 기준점에서 가장 먼 곳을 반환한다.</summary>
+        private SimVector GetFarthestPoint(SimVector origin, double radius)
+        {
+            double inset = _map.TileSize + radius;
+            SimVector best = origin; double bestDistance = -1;
+            for (int corner = 0; corner < 4; corner++)
+            {
+                var candidate = new SimVector(corner % 2 == 0 ? inset : _map.Width - inset, corner < 2 ? inset : _map.Height - inset);
+                double distance = (candidate - origin).LengthSquared;
+                if (distance > bestDistance) { best = candidate; bestDistance = distance; }
+            }
+            return best;
+        }
+
+        /// <summary>마지막 이동 입력 방향의 각도를 반환하며 이동한 적이 없으면 조준 방향 각도를 반환한다.</summary>
+        private double GetAheadAngle()
+        {
+            SimVector direction = _hasMoveDirection ? _moveDirection : _player.AimDirection;
+            return Math.Atan2(direction.Y, direction.X);
+        }
+
+        /// <summary>기본 흐름 후보 중 현재 스테이지에서 나올 수 있는 적을 가중 난수로 고른다. 부동소수 오차로 고르지 못하면 마지막 후보를 쓴다.</summary>
+        private string PickStreamEnemy()
+        {
+            IReadOnlyList<StreamCandidate> candidates = _stageDefinition.Stream.Candidates;
+            double totalWeight = 0;
+            foreach (StreamCandidate candidate in candidates) if (candidate.FirstStage <= _stageNumber) totalWeight += candidate.Weight;
+            double choice = NextRandom() * totalWeight;
+            string last = null;
+            foreach (StreamCandidate candidate in candidates)
+            {
+                if (candidate.FirstStage > _stageNumber) continue;
+                last = candidate.EnemyId;
+                choice -= candidate.Weight;
+                if (choice <= 0) return candidate.EnemyId;
+            }
+            return last;
         }
 
         /// <summary>무반격 더미 적을 지정한 위치와 체력으로 생성한다.</summary>
@@ -965,19 +1082,18 @@ namespace RuneCode
         /// <summary>설정 ID와 개별 위치, 더미 여부 및 체력으로 적을 생성하고 상대 시간 공격 일정을 설정한다.</summary>
         public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0)
         {
-            if (Completed || IsDead || _enemies.Count >= EnemyLimit) return null;
+            if (Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
             EnemyDefinition definition = _enemyCatalog.Get(id);
-            double hpMultiplier = _isMission ? 1 + (_stageNumber - 1) * _incremental.HpStageScale : 1;
-            double damageMultiplier = _isMission ? 1 + (_stageNumber - 1) * _incremental.DamageStageScale : 1;
-            int reward = definition.Reward;
-            if (_isMission) foreach (IncrementalEnemyEntry entry in _incremental.Enemies) if (entry.EnemyId == id) { reward = entry.Reward; break; }
+            double hpMultiplier = _isMission ? _stages.Growth.GetHpMultiplier(_stageNumber) : 1;
+            double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
+            int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward);
             enemy.AttackAt = Time + definition.AttackInterval;
             if (id == "boss.governor") { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;
         }
 
-        /// <summary>방 전환, 사망 및 클리어 시 지속 개체와 예약 실행을 취소한다.</summary>
+        /// <summary>사망, 클리어 및 시간 초과 시 지속 개체와 예약 실행을 취소한다.</summary>
         private void CancelCombat() { _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); }
 
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>

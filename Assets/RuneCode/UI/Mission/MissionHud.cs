@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 화면의 HUD다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 시간, 마법 줄과 조각 토스트를 갱신하고
+    /// 미션 화면의 HUD다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 적 수(보스 스테이지는 남은 시간 포함), 마법 줄과 조각 토스트를 갱신하고
     /// 일시정지 버튼과 디버그 전용 버튼·모달을 운영한다.
     /// </summary>
     public sealed class MissionHud : MonoBehaviour
@@ -88,8 +88,9 @@ namespace RuneCode
             _hpCaption.text = GameData.L("ui.hp") + "  " + sim.Player.Hp.ToString("0") + "/" + sim.Player.MaxHp.ToString("0");
             _energyCaption.text = GameData.L("ui.energy") + "  " + sim.Player.Energy.ToString("0") + "/" + sim.Player.MaxEnergy.ToString("0");
             _statsLabel.text = GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments;
-            _timerLabel.text = GameData.L("ui.remaining") + " " + sim.RemainingTime.ToString("0.0") + "s";
-            _timerLabel.color = sim.RemainingTime <= TIMER_WARNING_SECONDS ? TimerWarningColor : TimerColor;
+            string remainingEnemies = GameData.L("ui.remainingEnemies") + " " + sim.RemainingEnemies;
+            _timerLabel.text = sim.IsBossStage ? remainingEnemies + " · " + sim.RemainingTime.ToString("0.0") + "s" : remainingEnemies;
+            _timerLabel.color = sim.IsBossStage && sim.RemainingTime <= TIMER_WARNING_SECONDS ? TimerWarningColor : TimerColor;
             _spellLabel.text = GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") +
                 "s  ·  " + GameData.L("ui.cost") + " " + _run.SpellCost.ToString("0.#") + " EN";
             if (sim.EarnedFragments > _lastFragments)

@@ -1,22 +1,21 @@
 using UnityEngine;
 
-using TMPro;
 using UnityEngine.InputSystem;
 
 namespace RuneCode
 {
     /// <summary>
     /// 미션 씬의 진입 컴포넌트다. 세션에서 시전 마법을 받아 MissionRun을 만들고,
-    /// Esc 일시정지, 포인터 조준 수집, HUD 갱신과 결과 패널 표시를 진행한다.
+    /// Esc 일시정지, 미션 카메라 기준 포인터 조준 수집, 월드 표시·HUD 갱신과 결과 패널 표시를 진행한다.
     /// </summary>
     public sealed class MissionScreen : MonoBehaviour
     {
         [Header("연결")]
-        [SerializeField] private RuneArenaGraphic _arena;
+        [SerializeField] private MissionCamera _missionCamera;
+        [SerializeField] private MissionWorldView _worldView;
         [SerializeField] private MissionHud _hud;
         [SerializeField] private PausePanel _pausePanel;
         [SerializeField] private ResultPanel _resultPanel;
-        [SerializeField] private TMP_FontAsset _font;
 
         private RuneCodeSession _session;
         private MissionRun _run;
@@ -25,11 +24,12 @@ namespace RuneCode
         /// <summary>모달이 하나라도 열려 포인터 조준을 막아야 하는지 반환한다.</summary>
         private bool IsModalOpen => (_pausePanel != null && _pausePanel.IsOpen) || (_hud != null && _hud.IsDebugModalOpen);
 
-        /// <summary>세션을 받아 경기장과 하위 패널을 초기화하고 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
+        /// <summary>세션을 받아 카메라·월드 표시와 하위 패널을 초기화하고 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
         public void Initialize(RuneCodeSession session)
         {
             _session = session;
-            _arena.Initialize(GetRunSimulation, _font, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
+            _missionCamera.Initialize(GetRunSimulation);
+            _worldView.Initialize(GetRunSimulation, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
             _hud.Initialize(_session, this);
             _pausePanel.Initialize(_session, this);
             _resultPanel.Initialize(_session, this);
@@ -106,16 +106,16 @@ namespace RuneCode
             if (keyboard.escapeKey.wasPressedThisFrame) TogglePause();
         }
 
-        /// <summary>마우스 위치가 경기장 안이고 모달·문자 입력이 없으면 시뮬레이션 좌표의 조준점을 반환한다.</summary>
+        /// <summary>마우스가 게임 화면 안이고 모달·문자 입력이 없으면 미션 카메라 기준 시뮬레이션 좌표의 조준점을 반환한다.</summary>
         private bool CollectPointer(bool isTyping, out SimVector pointer)
         {
             pointer = SimVector.Zero;
             var mouse = Mouse.current;
-            if (isTyping || IsModalOpen || mouse == null || _arena == null) return false;
-            return _arena.TryGetPointer(mouse.position.ReadValue(), out pointer);
+            if (isTyping || IsModalOpen || mouse == null) return false;
+            return _missionCamera.TryGetSimPoint(mouse.position.ReadValue(), out pointer);
         }
 
-        /// <summary>경기장 그래픽이 그릴 현재 시뮬레이션을 반환한다.</summary>
+        /// <summary>카메라와 월드 표시가 따라갈 현재 시뮬레이션을 반환한다.</summary>
         private RuneSimulation GetRunSimulation() => _run != null ? _run.Simulation : null;
     }
 }

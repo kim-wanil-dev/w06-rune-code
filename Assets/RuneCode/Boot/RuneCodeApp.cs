@@ -40,9 +40,9 @@ namespace RuneCode
             if (SimulationCli.TryRunCommandLine()) { enabled = false; return; }
             Application.targetFrameRate = GameData.Balance.Sim.TickRate;
             PlayerSave save = SaveStore.Load();
-            IncrementalDefinition incremental = RuneSimulation.LoadIncrementalDefinition();
+            StageCatalog stages = RuneSimulation.LoadStageCatalog();
             bool isDebug = Environment.GetCommandLineArgs().Contains("-debug") || Application.absoluteURL.Contains("debug=1");
-            _session = new RuneCodeSession(save, incremental, isDebug, SaveStore.LastWarning, _isAreaBoxUpright);
+            _session = new RuneCodeSession(save, stages, isDebug, SaveStore.LastWarning, _isAreaBoxUpright);
             _session.ScreenRequested += OnScreenRequested;
             LocalTelemetry.Record(0, "session", "start");
             StartCoroutine(LoadScreenRoutine(AppScreen.Title));

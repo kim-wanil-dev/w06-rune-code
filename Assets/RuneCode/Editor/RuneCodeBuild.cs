@@ -40,6 +40,14 @@ namespace RuneCode
             EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
         }
 
+        /// <summary>데이터를 읽고 미션 씬과 미션 월드 자산만 다시 베이크한다. 다른 씬, 글꼴 자산과 빌드 씬 목록은 바꾸지 않는다.</summary>
+        [MenuItem("Rune Code/Build Mission Scene")]
+        public static void BuildMissionScene()
+        {
+            GameData.Load();
+            MissionLayout.BuildScene();
+        }
+
         /// <summary>TMP 필수 리소스가 없으면 패키지 기본 리소스를 가져온다.</summary>
         private static void EnsureTmpResources()
         {

@@ -89,14 +89,13 @@ namespace RuneCode
                     else
                     {
                         RuneMesh.Rect(mesh, new Rect(corner, Vector2.one * _scale), new Color(0.15f, 0.22f, 0.29f));
-                        if (!sim.IsTimedBattle && (tile == 'D' || tile == 'T'))
+                        if (tile == 'D' || tile == 'T')
                         {
                             Color marker = sim.Stage == MissionStage.Terminal ? new Color(0.26f, 0.91f, 0.66f) : new Color(0.26f, 0.43f, 0.49f);
                             RuneMesh.Ring(mesh, corner + Vector2.one * (16 * _scale), 12 * _scale, 2 * _scale, marker, 4);
                         }
                     }
                 }
-            if (sim.IsTimedBattle) DrawIncomingFlow(mesh, sim);
             foreach (SimulationSpellEntity spell in sim.SpellEntities)
             {
                 Vector2 point = Point(spell.Position);
@@ -173,20 +172,6 @@ namespace RuneCode
             RuneMesh.Line(mesh, playerPoint, playerPoint + aim * Mathf.Max(sim.Stage == MissionStage.Bench ? 8 : 0, 27 * _scale),
                 Mathf.Max(sim.Stage == MissionStage.Bench ? 1 : 0, 3 * _scale), new Color(0.92f, 0.83f, 0.49f));
             if (player.Shield > 0) RuneMesh.Ring(mesh, playerPoint, 23 * _scale, 2 * _scale, new Color(0.65f, 0.53f, 1));
-        }
-
-        /// <summary>시간제 전투에서 오른쪽의 적이 왼쪽 플레이어에게 오는 흐름을 배경 도형으로 표시한다.</summary>
-        private void DrawIncomingFlow(UnityEngine.UI.VertexHelper mesh, RuneSimulation sim)
-        {
-            Color lane = new Color(0.18f, 0.47f, 0.59f, 0.15f);
-            for (int row = 1; row <= 3; row++)
-            {
-                double y = WORLD_HEIGHT * row / 4;
-                RuneMesh.Line(mesh, Point(new SimVector(sim.Player.Position.X + 70, y)), Point(new SimVector(WORLD_WIDTH - 64, y)), _scale, lane);
-                for (double x = sim.Player.Position.X + 160; x < WORLD_WIDTH - 64; x += 150)
-                    RuneMesh.Polygon(mesh, Point(new SimVector(x, y)), 4 * _scale, lane, 3, Mathf.PI);
-            }
-            RuneMesh.Ring(mesh, Point(sim.Player.Position), 33 * _scale, 1.5f * _scale, new Color(0.26f, 0.75f, 0.86f, 0.35f), 12);
         }
 
         /// <summary>적 종류에 따른 도형과 체력, 공격 예고, 상태 및 내성 표시를 그린다.</summary>

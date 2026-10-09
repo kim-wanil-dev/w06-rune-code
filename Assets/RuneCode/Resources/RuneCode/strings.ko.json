@@ -918,11 +918,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 전투 영역에서 연속 시전 · Space 대시 · Esc 일시정지"
-    },
-    {
-      "_key": "ui.incoming",
-      "_value": "적 유입 ← 오른쪽"
+      "_value": "WASD 이동 · 마우스 조준 · 화면 안에서 연속 시전 · Space 대시 · Esc 일시정지 · 모든 적을 처치하면 클리어"
     },
     {
       "_key": "ui.kills",
@@ -931,6 +927,10 @@
     {
       "_key": "ui.remaining",
       "_value": "남은 시간"
+    },
+    {
+      "_key": "ui.remainingEnemies",
+      "_value": "남은 적"
     },
     {
       "_key": "ui.nextStage",
@@ -957,8 +957,16 @@
       "_value": "전투가 끝난 뒤 마법 노드를 편집할 수 있습니다"
     },
     {
-      "_key": "result.timed",
-      "_value": "전투 시간 종료 · 생존 성공"
+      "_key": "result.stageCleared",
+      "_value": "모든 적 처치 · 스테이지 클리어"
+    },
+    {
+      "_key": "result.timeout",
+      "_value": "제한 시간 초과 · 보스 처치 실패"
+    },
+    {
+      "_key": "result.clearReward",
+      "_value": "클리어 보상 포함"
     },
     {
       "_key": "result.stageClear",
