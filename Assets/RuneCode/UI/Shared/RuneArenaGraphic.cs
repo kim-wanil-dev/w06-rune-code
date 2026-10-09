@@ -48,6 +48,8 @@ namespace RuneCode
         private static readonly Color DUMMY_COLOR = new Color(0.52f, 0.69f, 0.74f);
         private static readonly Color ENEMY_CORE_COLOR = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color WARNING_COLOR = new Color(1, 0.78f, 0.23f);
+        private static readonly Color ELITE_HP_COLOR = new Color(1f, 0.76f, 0.24f);
+        private static readonly Color ELITE_SPEED_COLOR = new Color(0.42f, 0.9f, 1f);
         private static readonly Color PATCH_COLOR = new Color(0.83f, 0.57f, 1);
         private static readonly Color RESISTANT_COLOR = new Color(0.77f, 0.69f, 1);
         private static readonly Color HP_TRACK_COLOR = new Color(0.24f, 0.16f, 0.20f);
@@ -309,7 +311,7 @@ namespace RuneCode
             RuneMesh.Ring(mesh, point, 9 * _scale, _scale, ORB_RING_COLOR, 4);
         }
 
-        /// <summary>적 종류에 따른 도형과 공격 예고·종류별 표시·상태 아이콘·체력 막대를 그린다.</summary>
+        /// <summary>적 종류에 따른 도형과 엘리트 링, 공격 예고·종류별 표시·상태 아이콘·체력 막대를 그린다.</summary>
         private void DrawEnemy(UnityEngine.UI.VertexHelper mesh, SimulationEnemy enemy, RuneSimulation sim)
         {
             Vector2 point = Point(enemy.Position);
@@ -319,6 +321,8 @@ namespace RuneCode
             float facing = Mathf.Atan2(-(float)enemy.Facing.Y, (float)enemy.Facing.X);
             RuneMesh.Polygon(mesh, point, radius, tint, sides, facing);
             RuneMesh.Polygon(mesh, point, radius * 0.48f, ENEMY_CORE_COLOR, sides, facing);
+            // 엘리트는 강화형 금색, 신속형 청록색 링으로 구분한다. 두 배율을 모두 가지면 속도 색을 우선한다.
+            if (enemy.IsElite) RuneMesh.Ring(mesh, point, radius + 5 * _scale, 2 * _scale, enemy.SpeedMultiplier > 1 ? ELITE_SPEED_COLOR : ELITE_HP_COLOR);
             if (enemy.IsWarning) RuneMesh.Ring(mesh, point, radius + (6 + Mathf.Sin(Time.unscaledTime * 16) * 3) * _scale, 2 * _scale, WARNING_COLOR);
             if (enemy.Kind == "enemy.relay") RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, RELAY_AURA_COLOR);
             if (enemy.Kind == "enemy.aegis" && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp)) DrawAegisShield(mesh, point, radius, facing);

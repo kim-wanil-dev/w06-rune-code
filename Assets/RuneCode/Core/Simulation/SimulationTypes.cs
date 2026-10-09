@@ -173,6 +173,8 @@ namespace RuneCode
         private readonly EnemyDefinition _definition;
         private readonly EnemyMovementType _movementType;
         private readonly bool _isDummy;
+        private readonly bool _isElite;
+        private readonly double _speedMultiplier;
         private readonly double _hitFlashSeconds;
         private readonly double _damage;
         private readonly double _damageMultiplier;
@@ -203,6 +205,8 @@ namespace RuneCode
         public double Damage => _damage;
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
+        public bool IsElite => _isElite;
+        public double SpeedMultiplier => _speedMultiplier;
         public bool IsAlive => _hp > 0;
         public bool IsFlashing => _observedTime < _flashUntil;
         public bool IsWarning => _observedTime < _warningUntil;
@@ -220,9 +224,9 @@ namespace RuneCode
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
 
-        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해 배율, 보상 및 무반격 여부로 실행 상태를 생성한다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1)
-        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
+        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격 및 엘리트 여부로 실행 상태를 생성한다.</summary>
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1)
+        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _isElite = isElite; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
 
         /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
         internal void Observe(double time) { _observedTime = time; }
@@ -242,7 +246,7 @@ namespace RuneCode
         /// <summary>적의 체력, 이동, 공격 예약, 표시 만료 및 페이즈를 결정성 해시 버퍼에 기록한다. 상태 이상은 시뮬레이션이 따로 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
-            state.Append(_id).Append('|').Append(Kind).Append('|').Append(_isDummy);
+            state.Append(_id).Append('|').Append(Kind).Append('|').Append(_isDummy).Append('|').Append(_isElite).Append('|').Append(_speedMultiplier);
             state.Append(FormattableString.Invariant($"|{_damage:R}|{_damageMultiplier:R}|{_reward}"));
             state.Append('|').Append(_lastDamageElement).Append('|').Append(_lastDamageForm);
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));

@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>미션 디버그 팝업 View다. 조각 지급·전체 해금·무적·적 소환 클릭을 알린다. 디버그 실행에서만 연다.</summary>
+    /// <summary>미션 디버그 팝업 View다. 조각 지급·전체 해금·무적·적 소환·엘리트 소환 클릭을 알린다. 디버그 실행에서만 연다.</summary>
     public sealed class MissionDebugPopup : UiPopup
     {
         [Header("버튼")]
@@ -14,6 +14,7 @@ namespace RuneCode
         [SerializeField] private Button _unlockButton;
         [SerializeField] private Button _invulnerableButton;
         [SerializeField] private Button _spawnButton;
+        [SerializeField] private Button _eliteSpawnButton;
 
         private bool _isBound;
 
@@ -29,6 +30,9 @@ namespace RuneCode
         /// <summary>적 소환을 눌렀을 때 알린다.</summary>
         public event Action SpawnClicked;
 
+        /// <summary>엘리트 소환을 눌렀을 때 알린다.</summary>
+        public event Action EliteSpawnClicked;
+
         /// <summary>버튼 클릭을 이벤트로 처음 한 번만 연결한다.</summary>
         public void Bind()
         {
@@ -37,6 +41,7 @@ namespace RuneCode
             _unlockButton.onClick.AddListener(() => UnlockClicked?.Invoke());
             _invulnerableButton.onClick.AddListener(() => InvulnerableClicked?.Invoke());
             _spawnButton.onClick.AddListener(() => SpawnClicked?.Invoke());
+            _eliteSpawnButton.onClick.AddListener(() => EliteSpawnClicked?.Invoke());
             _isBound = true;
         }
     }

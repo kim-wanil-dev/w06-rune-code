@@ -213,6 +213,30 @@ namespace RuneCode
     }
 
     [Serializable]
+    public sealed class EliteSpawnDefinition
+    {
+        [Header("엘리트 스폰")]
+        [SerializeField] private string _enemyId;
+        [SerializeField] private int _order;
+        [SerializeField] private double _hpMultiplier;
+        [SerializeField] private double _rewardMultiplier;
+        [SerializeField] private double _speedMultiplier;
+        public string EnemyId => _enemyId;
+        public int Order => _order;
+        // 배율 0은 데이터에 기재하지 않은 것으로 보고 1을 쓴다. 이후 강화 특징도 같은 방식으로 필드를 확장한다.
+        public double HpMultiplier => _hpMultiplier > 0 ? _hpMultiplier : 1;
+        public double RewardMultiplier => _rewardMultiplier > 0 ? _rewardMultiplier : 1;
+        public double SpeedMultiplier => _speedMultiplier > 0 ? _speedMultiplier : 1;
+        internal double RawHpMultiplier => _hpMultiplier;
+        internal double RawRewardMultiplier => _rewardMultiplier;
+        internal double RawSpeedMultiplier => _speedMultiplier;
+
+        /// <summary>엘리트 종족, 스폰 순번과 배율로 실행 상태를 만든다. JSON 역직렬화가 아닌 디버그 스폰용이다.</summary>
+        internal EliteSpawnDefinition(string enemyId, int order, double hpMultiplier, double rewardMultiplier, double speedMultiplier)
+        { _enemyId = enemyId; _order = order; _hpMultiplier = hpMultiplier; _rewardMultiplier = rewardMultiplier; _speedMultiplier = speedMultiplier; }
+    }
+
+    [Serializable]
     public sealed class StageDefinition
     {
         [Header("스테이지")]
@@ -223,6 +247,7 @@ namespace RuneCode
         [SerializeField] private int _clearReward;
         [SerializeField] private StreamDefinition _stream;
         [SerializeField] private WaveDefinition[] _waves;
+        [SerializeField] private EliteSpawnDefinition[] _elites;
         public int FromStage => _fromStage;
         public int ToStage => _toStage;
         public string Kind => _kind;
@@ -230,11 +255,22 @@ namespace RuneCode
         public int ClearReward => _clearReward;
         public StreamDefinition Stream => _stream;
         public IReadOnlyList<WaveDefinition> Waves => _waves ?? Array.Empty<WaveDefinition>();
+        public IReadOnlyList<EliteSpawnDefinition> Elites => _elites ?? Array.Empty<EliteSpawnDefinition>();
         public bool IsBoss => _kind == "boss";
         public bool IsSingle => _toStage == _fromStage;
 
         /// <summary>스테이지 번호가 이 항목 범위 안인지 반환한다. toStage가 0이면 상한이 없다.</summary>
         public bool Contains(int stage) => stage >= _fromStage && (_toStage == 0 || stage <= _toStage);
+
+        /// <summary>기본 흐름 스폰 순번에 해당하는 엘리트 정의를 찾아 반환한다. 없으면 false를 반환한다.</summary>
+        public bool TryGetElite(int order, out EliteSpawnDefinition elite)
+        {
+            elite = null;
+            IReadOnlyList<EliteSpawnDefinition> elites = Elites;
+            for (int i = 0; i < elites.Count; i++)
+                if (elites[i].Order == order) { elite = elites[i]; return true; }
+            return false;
+        }
     }
 
     [Serializable]
@@ -365,6 +401,7 @@ namespace RuneCode
             if (stage.IsSingle && !singleStages.Add(stage.FromStage)) throw new FormatException("같은 번호의 단일 스테이지 항목이 중복됩니다: 스테이지 " + stage.FromStage);
             ValidateStream(stage, enemies, formations);
             ValidateWaves(stage, enemies, formations);
+            ValidateElites(stage, enemies);
         }
 
         /// <summary>스트림의 후보 적, 시작 스테이지, 가중치, 간격 공식, 종료 시각, 진형 참조를 확인한다.</summary>
@@ -409,6 +446,21 @@ namespace RuneCode
                     enemies.Get(unit.EnemyId); // 없는 적 ID면 여기서 오류가 난다.
                     if (unit.Count < 1) throw new FormatException("웨이브 유닛 수는 1 이상이어야 합니다: " + unit.EnemyId + " (스테이지 " + stage.FromStage + ")");
                 }
+            }
+        }
+
+        /// <summary>엘리트의 대상 적, 순번, 배율과 보스 종족 제외를 확인한다. elites가 없으면 확인을 생략한다.</summary>
+        private static void ValidateElites(StageDefinition stage, EnemyCatalog enemies)
+        {
+            var orders = new HashSet<int>();
+            foreach (EliteSpawnDefinition elite in stage.Elites)
+            {
+                enemies.Get(elite.EnemyId); // 없는 적 ID면 여기서 오류가 난다.
+                if (elite.EnemyId.StartsWith("boss.")) throw new FormatException("보스는 엘리트 대상이 아닙니다: " + elite.EnemyId + " (스테이지 " + stage.FromStage + ")");
+                if (elite.Order < 1 || !orders.Add(elite.Order)) throw new FormatException("엘리트 순번은 1 이상의 중복 없는 값이어야 합니다: " + elite.Order + " (스테이지 " + stage.FromStage + ")");
+                if (!IsFinite(elite.RawHpMultiplier) || !IsFinite(elite.RawRewardMultiplier) || !IsFinite(elite.RawSpeedMultiplier)
+                    || elite.RawHpMultiplier < 0 || elite.RawRewardMultiplier < 0 || elite.RawSpeedMultiplier < 0)
+                    throw new FormatException("엘리트 배율은 0 이상의 유한값이어야 합니다: " + elite.EnemyId + " (스테이지 " + stage.FromStage + ")");
             }
         }
 

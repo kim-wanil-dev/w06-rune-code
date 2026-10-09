@@ -148,16 +148,19 @@ namespace RuneCode
             Action unlock = () => _session.DebugUnlock();
             Action invulnerable = () => _run?.DebugInvulnerable();
             Action spawn = () => _run?.DebugSpawn();
+            Action eliteSpawn = () => _run?.DebugSpawn(isElite: true);
             popup.GrantClicked += grant;
             popup.UnlockClicked += unlock;
             popup.InvulnerableClicked += invulnerable;
             popup.SpawnClicked += spawn;
+            popup.EliteSpawnClicked += eliteSpawn;
             popup.Closed += () =>
             {
                 popup.GrantClicked -= grant;
                 popup.UnlockClicked -= unlock;
                 popup.InvulnerableClicked -= invulnerable;
                 popup.SpawnClicked -= spawn;
+                popup.EliteSpawnClicked -= eliteSpawn;
             };
         }
 

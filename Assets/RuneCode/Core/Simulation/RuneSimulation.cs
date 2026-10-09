@@ -63,6 +63,7 @@ namespace RuneCode
         private int _tickSpawnPositionsTick = -1;
         private SimVector _moveDirection;
         private bool _hasMoveDirection;
+        private int _streamSpawns;
         private int _spawnedEnemies;
         private int _killCount;
         private int _actionBudgetTick = -1;
@@ -268,8 +269,8 @@ namespace RuneCode
             else SpawnBenchDummy(new SimVector(bench.BenchDummyX, bench.BenchDummyY), bench.BenchHp);
         }
 
-        /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다.</summary>
-        public SimulationEnemy DebugSpawn(string id) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0);
+        /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트 지정 시 스테이지 데이터와 무관하게 현재 기본 배율(체력·보상 2배, 속도 1배)을 적용한다.</summary>
+        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 0, 2, 2, 1) : null);
 
         /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다.</summary>
         public void DebugDefeatRoom()
@@ -1015,7 +1016,7 @@ namespace RuneCode
 
         /// <summary>냉기 감속을 반영하여 적을 벽 충돌 가능한 방향으로 이동시킨다.</summary>
         private void MoveEnemy(SimulationEnemy enemy, SimVector direction, double speed)
-        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * GetChillStacks(enemy)); enemy.Move(_map.Move(enemy.Position, direction * (speed * slow * STEP_SECONDS), enemy.Radius), direction); }
+        { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * GetChillStacks(enemy)); enemy.Move(_map.Move(enemy.Position, direction * (speed * enemy.SpeedMultiplier * slow * STEP_SECONDS), enemy.Radius), direction); }
 
         /// <summary>적과 플레이어가 겹치면 피해를 적용하고 접촉 여부를 반환한다.</summary>
         private bool HurtByContact(SimulationEnemy enemy)
@@ -1188,22 +1189,24 @@ namespace RuneCode
             AdvanceSpawns();
         }
 
-        /// <summary>현재 틱까지 도달한 스폰 예약을 순서대로 처리한다. 적 수가 상한이면 남은 예약을 다음 틱으로 미룬다.</summary>
+        /// <summary>현재 틱까지 도달한 스폰 예약을 순서대로 처리한다. 기본 흐름 순번이 엘리트 정의와 일치하면 그 종족을 엘리트로 생성한다. 적 수가 상한이면 남은 예약을 다음 틱으로 미룬다.</summary>
         private void AdvanceSpawns()
         {
             while (_director.TryPeek(_tick, out SpawnOrder order))
             {
                 if (_enemies.Count >= EnemyLimit) return;
                 _director.Consume();
-                SpawnByFormation(order, order.IsStream ? PickStreamEnemy() : order.EnemyId);
+                EliteSpawnDefinition elite = null;
+                if (order.IsStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
+                SpawnByFormation(order, elite != null ? elite.EnemyId : (order.IsStream ? PickStreamEnemy() : order.EnemyId), elite);
             }
         }
 
         /// <summary>
-        /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다.
+        /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다. elite가 있으면 엘리트 배율로 생성한다.
         /// 묶음의 첫 스폰에서 슬롯 시작 각도(무작위 또는 진행 방향)와 기준 슬롯을 정하고, 위치는 스폰 순간의 플레이어 위치 기준으로 계산한다.
         /// </summary>
-        private void SpawnByFormation(SpawnOrder order, string enemyId)
+        private void SpawnByFormation(SpawnOrder order, string enemyId, EliteSpawnDefinition elite)
         {
             FormationSettings settings = _director.GetSettings(order.Group);
             SpawnFormation formation = SpawnFormations.Get(settings.Shape);
@@ -1217,7 +1220,7 @@ namespace RuneCode
             }
             else _spawnSlots.Refresh(_map, _player.Position, _spawnRadius, slotCount, _director.GetStartAngle(order.Group), radius);
             SpawnPlacement placement = formation.Place(order.Index, order.Count, _director.GetAnchor(order.Group), _spawnSlots, settings);
-            SpawnEnemy(enemyId, ResolvePlacement(placement, radius));
+            SpawnEnemy(enemyId, ResolvePlacement(placement, radius), false, 0, elite);
         }
 
         /// <summary>보스 주변 원 위에 같은 간격으로 증원을 생성한다. 시작 각도는 보스가 바라보는 방향이며 맵 밖 위치는 원형 슬롯과 같이 제외한다.</summary>
@@ -1303,15 +1306,17 @@ namespace RuneCode
         /// <summary>무반격 더미 적을 지정한 위치와 체력으로 생성한다.</summary>
         private SimulationEnemy SpawnBenchDummy(SimVector position, double hp) => SpawnEnemy("enemy.scout", position, true, hp);
 
-        /// <summary>설정 ID와 개별 위치, 더미 여부 및 체력으로 적을 생성하고 상대 시간 공격 일정을 설정한다.</summary>
-        public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0)
+        /// <summary>설정 ID와 개별 위치, 더미 여부, 체력 및 엘리트 정의로 적을 생성하고 상대 시간 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도에 배율을 곱한다.</summary>
+        public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0, EliteSpawnDefinition elite = null)
         {
             if (Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
             EnemyDefinition definition = _enemyCatalog.Get(id);
             double hpMultiplier = _isMission ? _stages.Growth.GetHpMultiplier(_stageNumber) : 1;
+            if (elite != null) hpMultiplier *= elite.HpMultiplier;
             double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward);
+            if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1);
             enemy.AttackAt = Time + definition.AttackInterval;
             if (id == "boss.governor") { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;
