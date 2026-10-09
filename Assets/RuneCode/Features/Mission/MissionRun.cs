@@ -119,11 +119,11 @@ namespace RuneCode
             _simulation.SetDebugInvulnerable(!_simulation.DebugInvulnerable);
         }
 
-        /// <summary>디버그 실행에서만 지정한 종류의 적을 미션에 생성한다.</summary>
-        public void DebugSpawn(string kind = "enemy.scout")
+        /// <summary>디버그 실행에서만 지정한 종류의 적을 미션에 생성한다. 엘리트 지정 시 엘리트 배율로 생성한다.</summary>
+        public void DebugSpawn(string kind = "enemy.scout", bool isElite = false)
         {
             if (!_session.IsDebugEnabled) return;
-            _simulation.DebugSpawn(kind);
+            _simulation.DebugSpawn(kind, isElite);
         }
 
         /// <summary>새로 실행된 노드만 로컬 링 버퍼에 기록하여 동일 tick 실행도 보존한다.</summary>

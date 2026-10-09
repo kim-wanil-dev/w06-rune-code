@@ -41,6 +41,7 @@ namespace RuneCode
         [SerializeField] private Button _debugUnlockButton;
         [SerializeField] private Button _debugInvulnerableButton;
         [SerializeField] private Button _debugSpawnButton;
+        [SerializeField] private Button _debugEliteSpawnButton;
 
         private RuneCodeSession _session;
         private MissionScreen _screen;
@@ -63,6 +64,8 @@ namespace RuneCode
             _debugUnlockButton.onClick.AddListener(() => _session.DebugUnlock());
             _debugInvulnerableButton.onClick.AddListener(() => { if (_run != null) _run.DebugInvulnerable(); });
             _debugSpawnButton.onClick.AddListener(() => { if (_run != null) _run.DebugSpawn(); });
+            // 씬 레이아웃 도구를 다시 실행하기 전에는 버튼이 없을 수 있다.
+            if (_debugEliteSpawnButton != null) _debugEliteSpawnButton.onClick.AddListener(() => { if (_run != null) _run.DebugSpawn(isElite: true); });
             _debugButton.gameObject.SetActive(_session.IsDebugEnabled);
             CloseDebugModal();
         }

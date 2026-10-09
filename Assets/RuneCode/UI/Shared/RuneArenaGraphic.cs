@@ -174,7 +174,7 @@ namespace RuneCode
             if (player.Shield > 0) RuneMesh.Ring(mesh, playerPoint, 23 * _scale, 2 * _scale, new Color(0.65f, 0.53f, 1));
         }
 
-        /// <summary>적 종류에 따른 도형과 체력, 공격 예고, 상태 및 내성 표시를 그린다.</summary>
+        /// <summary>적 종류에 따른 도형과 체력, 엘리트 링, 공격 예고, 상태 및 내성 표시를 그린다.</summary>
         private void DrawEnemy(UnityEngine.UI.VertexHelper mesh, SimulationEnemy enemy, RuneSimulation sim)
         {
             Vector2 point = Point(enemy.Position);
@@ -188,6 +188,7 @@ namespace RuneCode
             float facing = Mathf.Atan2(-(float)enemy.Facing.Y, (float)enemy.Facing.X);
             RuneMesh.Polygon(mesh, point, radius, tint, sides, facing);
             RuneMesh.Polygon(mesh, point, radius * 0.48f, new Color(0.04f, 0.09f, 0.13f), sides, facing);
+            if (enemy.IsElite) RuneMesh.Ring(mesh, point, radius + 5 * _scale, 2 * _scale, enemy.SpeedMultiplier > 1 ? new Color(0.42f, 0.9f, 1f) : new Color(1f, 0.76f, 0.24f));
             if (enemy.IsWarning) RuneMesh.Ring(mesh, point, radius + (6 + Mathf.Sin(Time.unscaledTime * 16) * 3) * _scale, 2 * _scale, new Color(1, 0.78f, 0.23f));
             if (kind == "enemy.relay") RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, new Color(0.65f, 0.37f, 0.95f, 0.22f));
             if (kind == "enemy.aegis" && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp))

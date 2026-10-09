@@ -77,6 +77,7 @@ namespace RuneCode
             Button debugUnlockButton = ui.Button(debugCard, 24, 147, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "UnlockButton");
             Button debugInvulnerableButton = ui.Button(debugCard, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
             Button debugSpawnButton = ui.Button(debugCard, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
+            Button debugEliteSpawnButton = ui.Button(debugCard, 24, 342, 444, 48, GameData.L("ui.spawnElite"), null, UiTheme.Muted, 14, "EliteSpawnButton");
 
             RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
             resultRoot.GetComponent<Image>().raycastTarget = true;
@@ -123,6 +124,7 @@ namespace RuneCode
             LayoutUtility.SetReference(hud, "_debugUnlockButton", debugUnlockButton);
             LayoutUtility.SetReference(hud, "_debugInvulnerableButton", debugInvulnerableButton);
             LayoutUtility.SetReference(hud, "_debugSpawnButton", debugSpawnButton);
+            LayoutUtility.SetReference(hud, "_debugEliteSpawnButton", debugEliteSpawnButton);
 
             LayoutUtility.SetReference(pausePanel, "_resumeButton", resumeButton);
             LayoutUtility.SetReference(pausePanel, "_shakeButton", shakeButton);

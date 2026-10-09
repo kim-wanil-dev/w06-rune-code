@@ -5,12 +5,13 @@ using UnityEngine;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 적 하나의 몸체, 체력 막대, 공격 예고, 릴레이 오라, 이지스 방패, 보스 패치, 상태 이상·내성 표시를 갱신한다.
+    /// 미션 적 하나의 몸체, 체력 막대, 엘리트 링, 공격 예고, 릴레이 오라, 이지스 방패, 보스 패치, 상태 이상·내성 표시를 갱신한다.
     /// 몸체와 방패는 회전 자식에 두어 적이 바라보는 방향으로 돌리고, 나머지 표시는 회전하지 않는다.
     /// </summary>
     public sealed class EnemyView : MonoBehaviour
     {
         private const float CORE_SCALE = 0.48f;
+        private const float ELITE_GAP = 5f;
         private const float WARNING_GAP = 6f;
         private const float WARNING_PULSE = 3f;
         private const float WARNING_PULSE_SPEED = 16f;
@@ -25,6 +26,8 @@ namespace RuneCode
 
         private static readonly Color CoreColor = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color DummyColor = new Color(0.52f, 0.69f, 0.74f);
+        private static readonly Color EliteHpColor = new Color(1f, 0.76f, 0.24f);
+        private static readonly Color EliteSpeedColor = new Color(0.42f, 0.9f, 1f);
         private static readonly Color WarningColor = new Color(1f, 0.78f, 0.23f);
         private static readonly Color AuraColor = new Color(0.65f, 0.37f, 0.95f, 0.22f);
         private static readonly Color ShieldColor = new Color(0.95f, 0.77f, 0.40f);
@@ -45,6 +48,7 @@ namespace RuneCode
         [SerializeField] private SpriteRenderer _warningRing;
         [SerializeField] private SpriteRenderer _auraRing;
         [SerializeField] private SpriteRenderer _patchRing;
+        [SerializeField] private SpriteRenderer _eliteRing;
         [SerializeField] private SpriteRenderer _burnIcon;
         [SerializeField] private SpriteRenderer _chillIcon;
         [SerializeField] private SpriteRenderer _empIcon;
@@ -65,6 +69,10 @@ namespace RuneCode
             _body.sprite = _core.sprite = appearance != null ? appearance.Shape : _defaultShape;
             MissionWorldSpace.Place(_body, Vector2.zero, radius * 2, tint);
             MissionWorldSpace.Place(_core, Vector2.zero, radius * 2 * CORE_SCALE, CoreColor);
+            MissionWorldSpace.SetVisible(_eliteRing, enemy.IsElite);
+            // 강화형은 금색, 신속형은 청록색 링으로 구분한다. 두 배율을 모두 가지면 속도 색을 우선한다.
+            if (enemy.IsElite) MissionWorldSpace.Place(_eliteRing, Vector2.zero, (radius + ELITE_GAP) * 2,
+                enemy.SpeedMultiplier > 1 ? EliteSpeedColor : EliteHpColor);
 
             MissionWorldSpace.SetVisible(_warningRing, enemy.IsWarning);
             if (enemy.IsWarning)

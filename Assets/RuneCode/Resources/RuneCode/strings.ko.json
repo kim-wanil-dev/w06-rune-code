@@ -353,6 +353,10 @@
       "_value": "적 소환"
     },
     {
+      "_key": "ui.spawnElite",
+      "_value": "엘리트 소환"
+    },
+    {
       "_key": "scenario.dummy_single",
       "_value": "단일 더미"
     },

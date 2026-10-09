@@ -74,7 +74,7 @@ namespace RuneCode
             return root;
         }
 
-        /// <summary>종류별 모양 표와 몸체·방패(회전 자식), 예고·오라·패치 링, 상태 아이콘, 체력 막대를 가진 적 뷰를 만든다.</summary>
+        /// <summary>종류별 모양 표와 몸체·방패(회전 자식), 예고·오라·패치·엘리트 링, 상태 아이콘, 체력 막대를 가진 적 뷰를 만든다.</summary>
         private static GameObject BuildEnemy(Shapes shapes, Material material)
         {
             var root = new GameObject("MissionEnemy", typeof(EnemyView));
@@ -83,6 +83,7 @@ namespace RuneCode
             rotator.SetParent(root.transform, false);
             LayoutUtility.SetReference(view, "_rotator", rotator);
             LayoutUtility.SetReference(view, "_auraRing", Child(root.transform, "AuraRing", shapes.RingThin, material, 49));
+            LayoutUtility.SetReference(view, "_eliteRing", Child(root.transform, "EliteRing", shapes.RingThin, material, 50));
             LayoutUtility.SetReference(view, "_body", Child(rotator, "Body", shapes.Hexagon, material, 51));
             LayoutUtility.SetReference(view, "_core", Child(rotator, "Core", shapes.Hexagon, material, 52));
             LayoutUtility.SetReference(view, "_shieldArc", Child(rotator, "ShieldArc", shapes.Arc, material, 53));

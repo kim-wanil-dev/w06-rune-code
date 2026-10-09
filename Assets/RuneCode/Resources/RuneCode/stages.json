@@ -81,7 +81,26 @@
         "_until": 30,
         "_formation": "scatter"
       },
-      "_waves": []
+      "_waves": [],
+      "_elites": [
+        {
+          "_enemyId": "enemy.hunter",
+          "_order": 10,
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_order": 17,
+          "_speedMultiplier": 1.2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_order": 25,
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        }
+      ]
     },
     {
       "_fromStage": 1,

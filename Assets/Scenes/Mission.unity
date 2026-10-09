@@ -2602,6 +2602,7 @@ MonoBehaviour:
   _debugUnlockButton: {fileID: 1535973305}
   _debugInvulnerableButton: {fileID: 1534436254}
   _debugSpawnButton: {fileID: 1834034854}
+  _debugEliteSpawnButton: {fileID: 1547849800}
 --- !u!114 &827515446
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3132,7 +3133,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.MissionWorldView
   _camera: {fileID: 2052601347}
   _playerPrefab: {fileID: 4046964771560173090, guid: f5a55b2a624158e4ebd8dbfd9361f563, type: 3}
-  _enemyPrefab: {fileID: 8900382848209233686, guid: f13f34a0530753e48b64435633b8552b, type: 3}
+  _enemyPrefab: {fileID: 3219308475997894913, guid: f13f34a0530753e48b64435633b8552b, type: 3}
   _spellPrefab: {fileID: 332327403904991973, guid: 22271510d19e9044fa504ee12a3ec1b0, type: 3}
   _projectilePrefab: {fileID: 3406863396406486643, guid: a39e6cd97203f2f41bc6628c1e249ffb, type: 3}
   _orbPrefab: {fileID: 8419963189922079988, guid: a2f1fcd356951124fb9f6358308071b7, type: 3}
@@ -4563,6 +4564,123 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!1001 &1547849799
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1582477944}
+    m_Modifications:
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_Pivot.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 444
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 48
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 24
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -342
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_text
+      value: "\uC5D8\uB9AC\uD2B8 \uC18C\uD658"
+      objectReference: {fileID: 0}
+    - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_Name
+      value: EliteSpawnButton
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 0c38440755903e6479644e3872006499, type: 3}
+--- !u!114 &1547849800 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3388228089131819754, guid: 0c38440755903e6479644e3872006499, type: 3}
+  m_PrefabInstance: {fileID: 1547849799}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+--- !u!224 &1547849801 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 4285001366992154567, guid: 0c38440755903e6479644e3872006499, type: 3}
+  m_PrefabInstance: {fileID: 1547849799}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1582477943
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4676,6 +4794,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7184848222494748046, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1834034855}
+    - targetCorrespondingSourceObject: {fileID: 7184848222494748046, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1547849801}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
 --- !u!224 &1582477944 stripped
