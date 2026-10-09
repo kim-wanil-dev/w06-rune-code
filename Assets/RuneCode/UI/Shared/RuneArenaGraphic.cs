@@ -214,23 +214,23 @@ namespace RuneCode
             }
         }
 
-        /// <summary>발사체·공전체를 꼬리선과 속성별 다각형(사각형 Shape면 회전 사각형)으로, 부채꼴 발사는 발사 위치에서 넓어지는 부채꼴로 그린다.</summary>
+        /// <summary>발사체·공전체를 꼬리선과 속성별 다각형(사각형 Shape면 회전 사각형)으로, 부채꼴 발사체는 꼬리선과 진행 방향 부채꼴로 그린다.</summary>
         private void DrawMovingSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
             Vector2 direction, float angle, float boxRotation, Color tint)
         {
-            if (spell.IsCone)
-            {
-                Color fan = tint;
-                fan.a = 0.18f;
-                float coneAngle = (float)spell.ConeAngle * Mathf.Deg2Rad;
-                float reach = (float)spell.ConeReach * _scale;
-                RuneMesh.Sector(mesh, Point(spell.ConeApex), reach, angle, coneAngle, fan);
-                RuneMesh.SectorOutline(mesh, Point(spell.ConeApex), reach, angle, coneAngle, 1.8f * _scale, tint);
-                return;
-            }
             Color trail = tint;
             trail.a = 0.25f;
             RuneMesh.Line(mesh, point - direction * 24 * _scale, point, Math.Max(2, radius), trail);
+            if (spell.IsCone)
+            {
+                Color fan = tint;
+                fan.a = 0.6f;
+                float coneAngle = (float)spell.ConeAngle * Mathf.Deg2Rad;
+                float reach = (float)spell.ConeReach * _scale;
+                RuneMesh.Sector(mesh, Point(spell.ConeApex), reach, angle, coneAngle, fan);
+                RuneMesh.SectorOutline(mesh, Point(spell.ConeApex), reach, angle, coneAngle, _scale, tint);
+                return;
+            }
             float size = Math.Max(2.5f, radius);
             if (spell.IsBox)
             {

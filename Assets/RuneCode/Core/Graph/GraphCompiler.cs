@@ -220,7 +220,7 @@ namespace RuneCode
             else if (element == "heal") isValid = form == "explosion" || form == "remain";
             else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit;
             else isValid = true;
-            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist)와 넓어지며 나아가는 파동(Launch)에만 정의되어 있다.
+            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
             if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch") isValid = false;
             if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id

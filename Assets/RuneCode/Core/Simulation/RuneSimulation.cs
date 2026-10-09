@@ -587,8 +587,7 @@ namespace RuneCode
             foreach (SimulationEnemy enemy in _enemies)
             {
                 bool isInside = entity.IsCone
-                    ? IntersectsConeFront(entity.Anchor, direction, (previous - entity.Anchor).Length, (next - entity.Anchor).Length + entity.Radius,
-                        entity.ConeAngle, enemy.Position, enemy.Radius)
+                    ? IntersectsConeSweep(previous, next, direction, entity.Radius, entity.ConeAngle, enemy.Position, enemy.Radius)
                     : entity.IsBox
                     ? IntersectsBoxSweep(previous, next, direction, entity.Radius, enemy.Position, enemy.Radius)
                     : SegmentDistance(previous, next, enemy.Position) <= entity.Radius + enemy.Radius;
@@ -610,15 +609,28 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 부채꼴 파동의 이번 틱 앞쪽 띠(꼭짓점에서 inner~outer 거리, 진행 방향 기준 전체 각도)와 대상 원의 겹침 여부를 반환한다.
-        /// 대상 반경만큼 거리와 각도에 여유를 준다.
+        /// 진행 방향으로 펼친 부채꼴 발사체(꼭짓점은 중심에서 반경만큼 뒤, 부채꼴 반경은 지름)가 이번 틱 이동 중 대상 원과 겹치는지 반환한다.
+        /// 이동 거리를 반경 간격으로 나눈 위치마다 판정해 빠른 발사체가 대상을 건너뛰지 않게 한다.
         /// </summary>
-        private static bool IntersectsConeFront(SimVector apex, SimVector direction, double inner, double outer, double coneAngle,
+        private static bool IntersectsConeSweep(SimVector start, SimVector end, SimVector direction, double radius, double coneAngle,
             SimVector target, double targetRadius)
+        {
+            int samples = Math.Max(1, (int)Math.Ceiling((end - start).Length / Math.Max(radius, 0.000001)));
+            for (int i = 1; i <= samples; i++)
+            {
+                SimVector center = start + (end - start) * (i / (double)samples);
+                if (IntersectsSector(SimulationSpellEntity.GetConeApex(center, direction, radius), direction, radius * 2, coneAngle, target, targetRadius))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>꼭짓점에서 방향으로 반경·전체 각도(도)만큼 펼친 부채꼴과 대상 원의 겹침 여부를 반환한다. 대상 반경만큼 거리와 각도에 여유를 준다.</summary>
+        private static bool IntersectsSector(SimVector apex, SimVector direction, double reach, double coneAngle, SimVector target, double targetRadius)
         {
             SimVector relative = target - apex;
             double distance = relative.Length;
-            if (distance > outer + targetRadius || distance < inner - targetRadius) return false;
+            if (distance > reach + targetRadius) return false;
             if (distance <= targetRadius) return true;
             double cosine = Math.Max(-1, Math.Min(1, SimVector.Dot(relative / distance, direction.Normalized())));
             double tolerance = Math.Asin(Math.Min(1, targetRadius / distance));
@@ -665,16 +677,7 @@ namespace RuneCode
         /// 대상 반경만큼 거리와 각도에 여유를 준다.
         /// </summary>
         private static bool IntersectsCone(SimulationSpellEntity entity, SimVector target, double targetRadius)
-        {
-            SimVector relative = target - entity.Position;
-            double distance = relative.Length;
-            if (distance > entity.Radius + targetRadius) return false;
-            if (distance <= targetRadius) return true;
-            SimVector forward = entity.Direction.Normalized();
-            double cosine = Math.Max(-1, Math.Min(1, SimVector.Dot(relative / distance, forward)));
-            double tolerance = Math.Asin(Math.Min(1, targetRadius / distance));
-            return Math.Acos(cosine) <= entity.ConeAngle * 0.5 * DEGREES_TO_RADIANS + tolerance;
-        }
+            => IntersectsSector(entity.Position, entity.Direction, entity.Radius, entity.ConeAngle, target, targetRadius);
 
         /// <summary>
         /// 범위 마법의 가까운 적부터 대상별 주기에 맞춰 피해를 적용한다. 범위 적중은 OnHit을 만들지 않는다.

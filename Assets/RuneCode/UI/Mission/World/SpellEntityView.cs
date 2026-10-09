@@ -7,7 +7,7 @@ namespace RuneCode
     /// <summary>
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
     /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
-    /// 부채꼴(범위·발사 파동)은 실행 중 만드는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
+    /// 부채꼴(범위·발사체)은 실행 중 만드는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
     /// </summary>
     public sealed class SpellEntityView : MonoBehaviour
     {
@@ -18,7 +18,7 @@ namespace RuneCode
         private const float ZONE_FILL_ALPHA = 0.12f;
         private const float BURST_FILL_ALPHA = 0.22f;
         private const float TRAIL_ALPHA = 0.25f;
-        private const float LAUNCH_CONE_FILL_ALPHA = 0.18f;
+        private const float LAUNCH_CONE_FILL_ALPHA = 0.6f;
         private const float CONE_EDGE_WIDTH = 2f;
         private const int CONE_SEGMENTS = 24;
 
@@ -60,12 +60,13 @@ namespace RuneCode
             float boxRotation = spell.Kind != SpellGrammar.FORM_BOLT && isAreaBoxUpright ? 0 : angle;
             bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST;
             bool isCone = spell.IsCone && (isArea || spell.Kind == SpellGrammar.FORM_BOLT);
-            MissionWorldSpace.SetVisible(_trail, !isArea && !isCone);
+            MissionWorldSpace.SetVisible(_trail, !isArea);
             MissionWorldSpace.SetVisible(_shape, !isArea && !isCone);
             MissionWorldSpace.SetVisible(_fill, isArea && !isCone);
             MissionWorldSpace.SetVisible(_outline, isArea && !isCone);
             MissionWorldSpace.SetVisible(_inner, isArea && !isCone);
             if (isCone || _coneRenderer != null) SetConeVisible(isCone);
+            if (!isArea) PlaceTrail(spell, tint, radius);
             if (isCone) ApplyCone(spell, tint, angle, origin);
             else if (isArea) ApplyArea(spell, tint, radius, boxRotation);
             else ApplyProjectile(spell, tint, radius, angle, boxRotation);
@@ -84,20 +85,25 @@ namespace RuneCode
             _fill.transform.localRotation = _outline.transform.localRotation = _inner.transform.localRotation = rotation;
         }
 
-        /// <summary>발사·공전을 진행 방향 잔상과 속성별 도형(사각형 판정이면 사각형)으로 표시한다.</summary>
-        private void ApplyProjectile(SimulationSpellEntity spell, Color tint, float radius, float angle, float boxRotation)
+        /// <summary>발사·공전의 진행 방향 반대쪽에 속성 색 잔상을 둔다.</summary>
+        private void PlaceTrail(SimulationSpellEntity spell, Color tint, float radius)
         {
             Vector2 direction = MissionWorldSpace.ToWorldDirection(spell.Direction);
             Color trail = tint; trail.a = TRAIL_ALPHA;
             MissionWorldSpace.PlaceLine(_trail, -direction * TRAIL_LENGTH, Vector2.zero, Mathf.Max(MIN_TRAIL_WIDTH, radius), trail);
+        }
+
+        /// <summary>발사·공전을 진행 방향의 속성별 도형(사각형 판정이면 사각형)으로 표시한다.</summary>
+        private void ApplyProjectile(SimulationSpellEntity spell, Color tint, float radius, float angle, float boxRotation)
+        {
             _shape.sprite = spell.IsBox ? _squareShape : GetElementShape(spell.Element);
             MissionWorldSpace.Place(_shape, Vector2.zero, Mathf.Max(MIN_SHAPE_RADIUS, radius) * 2, tint);
             _shape.transform.localRotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : angle);
         }
 
         /// <summary>
-        /// 부채꼴을 꼭짓점(ConeApex)에서 진행 방향(월드 각도, 도)으로 현재 반경(ConeReach)만큼 펼친 채움과 앞쪽 호로 표시한다.
-        /// 발사 파동은 발사 위치가 꼭짓점이라 개체 위치 기준 오프셋을 둔다.
+        /// 부채꼴을 꼭짓점(ConeApex)에서 진행 방향(월드 각도, 도)으로 반경(ConeReach)만큼 펼친 채움과 앞쪽 호로 표시한다.
+        /// 발사체는 꼭짓점이 중심보다 뒤에 있어 개체 위치 기준 오프셋을 둔다.
         /// </summary>
         private void ApplyCone(SimulationSpellEntity spell, Color tint, float angle, SimVector origin)
         {

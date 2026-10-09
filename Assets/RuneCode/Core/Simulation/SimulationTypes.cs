@@ -289,11 +289,11 @@ namespace RuneCode
         /// <summary>부채꼴의 전체 각도(도)다.</summary>
         public double ConeAngle => _action.ConeAngle;
 
-        /// <summary>부채꼴의 꼭짓점이다. 발사(부채꼴 파동)는 발사 위치, 범위는 개체 위치다.</summary>
-        public SimVector ConeApex => _action.Form == SpellGrammar.FORM_BOLT ? _anchor : _position;
+        /// <summary>부채꼴의 꼭짓점이다. 발사체는 중심에서 진행 반대쪽으로 반경만큼 뒤, 범위는 개체 위치다.</summary>
+        public SimVector ConeApex => _action.Form == SpellGrammar.FORM_BOLT ? GetConeApex(_position, _direction, _stats.Radius) : _position;
 
-        /// <summary>부채꼴의 현재 반경이다. 발사(부채꼴 파동)는 이동 거리 + 개체 반경, 범위는 개체 반경이다.</summary>
-        public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? (_position - _anchor).Length + _stats.Radius : _stats.Radius;
+        /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
+        public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
         public double Age => _age;
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;
@@ -318,6 +318,9 @@ namespace RuneCode
 
         /// <summary>발사체가 적·벽·지형에 한 번이라도 직접 충돌했는지 나타낸다. 직접 충돌한 발사체는 OnExpire를 내지 않는다.</summary>
         internal bool HasDirectHit { get => _hasDirectHit; set => _hasDirectHit = value; }
+
+        /// <summary>부채꼴 발사체 중심(center)과 진행 방향, 반경으로 꼭짓점(중심에서 반경만큼 뒤)을 반환한다.</summary>
+        internal static SimVector GetConeApex(SimVector center, SimVector direction, double radius) => center - direction.Normalized() * radius;
 
         /// <summary>컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.</summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
