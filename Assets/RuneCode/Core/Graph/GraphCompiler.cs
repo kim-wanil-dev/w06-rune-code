@@ -101,7 +101,7 @@ namespace RuneCode
                 ValidateMagicNode(node, rune, graph.Edges, errors);
             }
             if (cores.Count != 1) errors.Add(new CompileIssue("E1"));
-            ValidateEdges(graph, definitions, errors, warnings);
+            ValidateEdges(graph, definitions, runes, errors, warnings);
             if (!errors.Any(issue => issue.Code == "E3") && HasCycle(graph, nodes)) errors.Add(new CompileIssue("E4"));
             int limit = context.Capacity < 0 ? limits.BaseCapacity : context.Capacity;
             if (ramUsed > limit) errors.Add(new CompileIssue("E7"));
@@ -130,7 +130,10 @@ namespace RuneCode
             float energyLimit = context.MaxEnergy < 0f ? limits.MaxEnergy : context.MaxEnergy;
             long actionCeiling = limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
-            if (energy > energyLimit || expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            // 최대 예상 비용은 시전을 막지 않는 정보다(백서 7.2). 실행 수 상한만 안전 제약으로 오류 처리한다.
+            if (expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            if (float.IsInfinity(energy) || float.IsNaN(energy)) warnings.Add(new CompileIssue("W8"));
+            else if (energy > energyLimit) warnings.Add(new CompileIssue("W7"));
             if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
@@ -216,6 +219,36 @@ namespace RuneCode
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
                 errors.Add(new CompileIssue("E16", node.Id));
+        }
+
+        /// <summary>
+        /// 효과 룬이 대상 노드에 효과를 내는지 modifier_compat 테이블로 판정한다. 효과 룬이 아니거나 대상이 이전 형태 룬이면 true다.
+        /// 효과가 없는 효과 룬은 부착은 유지하되 실행 수치·비용 배율에서 제외한다.
+        /// </summary>
+        private static bool IsModifierEffective(RuneDefinition modifier, GraphNode target, RuneDefinition targetRune, RuneCatalog runes)
+        {
+            if (modifier.Category != SpellGrammar.CATEGORY_MODIFIER) return true;
+            string targetId = ModifierTargetId(target, targetRune);
+            return targetId == null || runes.IsModifierCompatible(modifier.Id, targetId);
+        }
+
+        /// <summary>
+        /// 효과 호환성 판정에 쓸 대상 룬 ID를 반환한다. Inline Magic은 합쳐지기 전 Behavior ID(버프는 Apply)로 되돌린다.
+        /// 판정 대상이 아니면 null을 반환한다.
+        /// </summary>
+        private static string ModifierTargetId(GraphNode node, RuneDefinition rune)
+        {
+            if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR || rune.Id == SpellGrammar.CALL_RUNE) return rune.Id;
+            if (rune.Id != SpellGrammar.INLINE_RUNE) return null;
+            if (node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE) == SpellGrammar.MAGIC_TYPE_BUFF) return SpellGrammar.APPLY_RUNE;
+            switch (node.GetText("form", "launch"))
+            {
+                case "launch": return "behavior.launch";
+                case "explosion": return "behavior.burst";
+                case "orbit": return "behavior.orbit";
+                case "remain": return "behavior.persist";
+                default: return null;
+            }
         }
 
         /// <summary>Inline Magic의 기존 런타임 Form 룬 ID를 반환한다.</summary>
@@ -308,8 +341,8 @@ namespace RuneCode
             }
         }
 
-        /// <summary>연결의 포트 종류·입력 수·실행 순번·속성 수·수식 중복 오류를 추가한다.</summary>
-        private static void ValidateEdges(SpellGraph graph, Dictionary<string, RuneDefinition> definitions,
+        /// <summary>연결의 포트 종류·입력 수·실행 순번·속성 수·수식 중복 오류와, 대상에 효과가 없는 수식 경고(W2)를 추가한다.</summary>
+        private static void ValidateEdges(SpellGraph graph, Dictionary<string, RuneDefinition> definitions, RuneCatalog runes,
             List<CompileIssue> errors, List<CompileIssue> warnings)
         {
             HashSet<string> ids = new HashSet<string>();
@@ -366,10 +399,7 @@ namespace RuneCode
                 if (input.Kind != "mod") continue;
                 if (input.Max > 0 && count > input.Max) errors.Add(new CompileIssue("E5", edge.ToNode));
                 if (!mods.Add(edge.ToNode + ":" + from.Id)) errors.Add(new CompileIssue("E9", edge.ToNode));
-                string effectiveForm = EffectiveFormId(graph.FindNode(edge.ToNode), to);
-                if ((from.Id == "mod.pierce" || from.Id == "mod.homing") && effectiveForm != "form.bolt" && to.Id != "spell.call")
-                    warnings.Add(new CompileIssue("W2", edge.FromNode));
-                if (from.Id == "mod.speed" && effectiveForm != "form.bolt" && effectiveForm != "form.orbit" && to.Id != "spell.call")
+                if (!IsModifierEffective(from, graph.FindNode(edge.ToNode), to, runes))
                     warnings.Add(new CompileIssue("W2", edge.FromNode));
                 if (from.Category != "element") continue;
                 int elementCount = elements.TryGetValue(edge.ToNode, out int priorElements) ? priorElements + 1 : 1;
@@ -451,6 +481,8 @@ namespace RuneCode
                     .OrderBy(item => item.FromNode, StringComparer.Ordinal))
                 {
                     RuneDefinition attached = definitions[attachment.FromNode];
+                    // 효과가 없는 효과 룬은 실행 수치와 비용에서 빼고 편집기 안내(W2)만 남긴다.
+                    if (!IsModifierEffective(attached, node, rune, runes)) continue;
                     attachedNodeIds.Add(attachment.FromNode);
                     if (attached.Category == "element") element = attached;
                     else { mods.Add(attached); modifierNodes.Add(nodes[attachment.FromNode]); }

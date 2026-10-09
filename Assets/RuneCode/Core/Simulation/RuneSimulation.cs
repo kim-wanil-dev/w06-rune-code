@@ -161,13 +161,14 @@ namespace RuneCode
             if (_unlockedElements.Count == 0) _unlockedElements.Add("fire");
         }
 
-        /// <summary>시전 가능 상태, 슬롯 쿨다운 및 에너지를 확인하고 비용과 루트 실행을 기록한다.</summary>
+        /// <summary>
+        /// 시전 가능 상태와 슬롯 쿨다운을 확인하고 루트 실행을 시작한다. 마나는 선지불하지 않고 실행 노드에 도달할 때마다 차감한다(백서 7.1).
+        /// </summary>
         public bool TryCast(CompiledSpell spell, int slot = 0)
         {
             if (spell == null || slot < 0 || slot >= _loadout.Length || (_stage != MissionStage.Bench && _stage != MissionStage.Combat)) return false;
             if (_isMission && slot != 0) return false;
-            if (!_player.Pay(spell, slot)) return false;
-            _energySpent += spell.EnergyCost;
+            if (!_player.TryStartCooldown(spell, slot)) return false;
             RecordNode(spell.CoreNodeId);
             string noiseElement = ContainsNoise(spell.Root) ? _unlockedElements[(int)(NextRandom() * _unlockedElements.Count)] : null;
             var context = new SpellContext(_player.Position + _player.AimDirection * (_sector.PlayerRadius + _balance.Sim.WandOffset), _player.AimDirection, null, false, noiseElement);
@@ -268,6 +269,7 @@ namespace RuneCode
                 AppendNumber(state, pending.Context.Direction.X); AppendNumber(state, pending.Context.Direction.Y);
                 state.Append(pending.Context.Target?.Id ?? 0).Append('|').Append(pending.Context.FromEvent).Append('|').Append(pending.Context.NoiseElement);
                 state.Append('|').Append(pending.IsIteration);
+                AppendNumber(state, pending.Context.CostMultiplier);
                 pending.Context.Repeat?.AppendState(state);
                 pending.Context.Modifiers.AppendState(state);
                 pending.Context.CallEvents?.AppendState(state);
@@ -361,7 +363,14 @@ namespace RuneCode
                     return;
                 }
                 _actionsThisTick++;
-                SpellAction action = actions[i]; RecordNode(action.NodeId);
+                SpellAction action = actions[i];
+                if (!TrySpendFor(action, context))
+                {
+                    // 마나가 부족하면 이 노드와 그 후속 경로만 중단하고 같은 출력의 다음 연결은 계속 시도한다(결정 Q12).
+                    context.Repeat?.Fail();
+                    continue;
+                }
+                RecordNode(action.NodeId);
                 switch (action.Kind)
                 {
                     case "spawn": SpawnForm(action, context); break;
@@ -372,10 +381,24 @@ namespace RuneCode
                     case "if": Execute(Evaluate(action.Condition, context) ? action.Then : action.Else, context); break;
                     case "blink":
                         SimVector destination = context.FromEvent ? _map.NearestFree(context.Origin, _sector.PlayerRadius) : _map.Move(_player.Position, context.Direction * action.Distance, _sector.PlayerRadius);
-                        _player.Move(destination); Execute(action.Next, new SpellContext(destination, context.Direction, context.Target, context.FromEvent, context.NoiseElement, context.Modifiers, context.CallEvents, context.Repeat)); break;
+                        _player.Move(destination); Execute(action.Next, new SpellContext(destination, context.Direction, context.Target, context.FromEvent, context.NoiseElement, context.Modifiers, context.CallEvents, context.Repeat, context.CostMultiplier)); break;
                     case "shield": _player.GiveShield(action.ShieldAmount, action.ShieldSeconds, Time); Execute(action.Next, context); break;
                 }
             }
+        }
+
+        /// <summary>
+        /// 실행 노드에 도달했을 때 노드 비용 × 문맥 비용 배율만큼 마나를 차감하고 성공 여부를 반환한다.
+        /// 흐름 제어(Delay·Repeat·Condition)는 비용이 없고, 비용이 0이면 항상 성공한다.
+        /// </summary>
+        private bool TrySpendFor(SpellAction action, SpellContext context)
+        {
+            if (action.Kind == "delay" || action.Kind == "repeat" || action.Kind == "if") return true;
+            double cost = action.NodeEnergy * context.CostMultiplier;
+            if (cost <= 0) return true;
+            if (!_player.TrySpend(cost)) return false;
+            _energySpent += cost;
+            return true;
         }
 
         /// <summary>SpellCall의 컴파일된 대상과 호출부 수식·이벤트 범위를 적용해 반복 실행한다.</summary>
@@ -383,16 +406,19 @@ namespace RuneCode
         {
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
             SpellModifierValues modifiers = context.Modifiers.Combine(action.ModifierValues);
-            SpellEventScope events = new SpellEventScope(action.OnHit, action.OnExpire, action.OnFirstHitOrExpire, context.CallEvents, context.Modifiers);
+            SpellEventScope events = new SpellEventScope(action.OnHit, action.OnExpire, action.OnFirstHitOrExpire, context.CallEvents, context.Modifiers,
+                context.CostMultiplier);
+            // 호출 노드에 붙은 효과의 비용 배율은 호출된 마법의 각 노드 비용에 곱한다.
             SpellContext callContext = new SpellContext(context.Origin, context.Direction, context.Target,
-                context.FromEvent, context.NoiseElement, modifiers, events, context.Repeat);
+                context.FromEvent, context.NoiseElement, modifiers, events, context.Repeat, context.CostMultiplier * action.EnergyMultiplier);
             for (int instance = 0; instance < action.Count; instance++)
             {
                 double spread = action.Count > 1
                     ? (instance / (double)(action.Count - 1) * 2 - 1) * action.ModifierValues.SpreadAngle * DEGREES_TO_RADIANS
                     : 0;
                 SpellContext instanceContext = new SpellContext(callContext.Origin, callContext.Direction.Rotated(spread),
-                    callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents, callContext.Repeat);
+                    callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents, callContext.Repeat,
+                    callContext.CostMultiplier);
                 Execute(action.CalledSpell.Root, instanceContext);
             }
         }
@@ -453,7 +479,7 @@ namespace RuneCode
                 if (action.Form == "orbit") position = (context.FromEvent ? context.Origin : _player.Position) + new SimVector(Math.Cos(angle), Math.Sin(angle)) * stats.OrbitRadius;
                 var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, position, direction,
                     context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds,
-                    context.CallEvents, context.Modifiers);
+                    context.CallEvents, context.Modifiers, context.CostMultiplier);
                 _spellEntities.Add(entity); _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
                 if (action.SourceElement == "protection")
                     _player.GiveShield(action.Power * action.ModifierValues.DamageMultiplier * context.Modifiers.DamageMultiplier,
@@ -634,7 +660,7 @@ namespace RuneCode
             if (entity.TriggerCount >= _balance.Limits.HitTriggerCap) return;
             entity.TriggerCount++;
             SpellContext context = new SpellContext(position, entity.Direction, target, true,
-                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
+                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier);
             bool isFirstEvent = isBolt && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnHit, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
@@ -652,7 +678,7 @@ namespace RuneCode
             {
                 IReadOnlyList<SpellAction> actions = isHit ? current.OnHit : current.OnExpire;
                 SpellContext context = new SpellContext(origin, direction, target, true, noiseElement,
-                    current.ParentModifiers, current.Parent);
+                    current.ParentModifiers, current.Parent, null, current.ParentCostMultiplier);
                 Execute(actions, context);
                 if (isFirstEvent) Execute(current.OnFirstHitOrExpire, context);
             }
@@ -964,7 +990,7 @@ namespace RuneCode
             entity.HasExpired = true;
             if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
-                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
+                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier);
             bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnExpire, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
@@ -1106,6 +1132,7 @@ namespace RuneCode
             private readonly SpellModifierValues _modifiers;
             private readonly SpellEventScope _callEvents;
             private readonly RepeatScope _repeat;
+            private readonly double _costMultiplier;
             public SimVector Origin => _origin;
             public SimVector Direction => _direction;
             public SimulationEnemy Target => _target;
@@ -1117,14 +1144,18 @@ namespace RuneCode
             /// <summary>이 실행 경로가 속한 가장 안쪽 Repeat다. 개체 이벤트로 시작한 경로는 Repeat에 속하지 않는다.</summary>
             public RepeatScope Repeat => _repeat;
 
-            /// <summary>발생 위치, 방향, 선택 대상, 이벤트 유래 여부와 소속 Repeat를 예약 가능한 스냅샷으로 보관한다.</summary>
+            /// <summary>이 경로의 노드 비용에 곱하는 배율이다. 프리셋 호출 안에서는 호출 노드 효과의 비용 배율이 곱해진다.</summary>
+            public double CostMultiplier => _costMultiplier;
+
+            /// <summary>발생 위치, 방향, 선택 대상, 이벤트 유래 여부, 소속 Repeat와 비용 배율을 예약 가능한 스냅샷으로 보관한다.</summary>
             public SpellContext(SimVector origin, SimVector direction, SimulationEnemy target, bool fromEvent,
-                string noiseElement, SpellModifierValues modifiers = null, SpellEventScope callEvents = null, RepeatScope repeat = null)
-            { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; _repeat = repeat; }
+                string noiseElement, SpellModifierValues modifiers = null, SpellEventScope callEvents = null, RepeatScope repeat = null,
+                double costMultiplier = 1d)
+            { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; _repeat = repeat; _costMultiplier = costMultiplier; }
 
             /// <summary>소속 Repeat만 바꾼 문맥을 반환한다.</summary>
             public SpellContext WithRepeat(RepeatScope repeat)
-                => new SpellContext(_origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, repeat);
+                => new SpellContext(_origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, repeat, _costMultiplier);
         }
 
         /// <summary>

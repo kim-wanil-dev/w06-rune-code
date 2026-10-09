@@ -483,7 +483,7 @@ namespace RuneCode
             int ram = 0;
             foreach (GraphNode node in _editor.Graph.Nodes) ram += GameData.Runes.NodeRam(node);
             _metricsText.text = L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM" +
-                (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + L("ui.energy") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
+                (spell == null ? "  ·  " + L("ui.warning") : "  ·  " + L("ui.cost") + " " + spell.EnergyCost.ToString("0.#") + "  ·  " + L("ui.cooldown") + " " + spell.Cooldown.ToString("0.00") + "s  ·  " + L("ui.peak") + " " + spell.WorstCaseEntities);
         }
 
         /// <summary>마우스가 가리키는 룬 효과 또는 출력 분기의 실행 순서를 표시한다.</summary>

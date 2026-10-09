@@ -101,9 +101,13 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>쿨다운과 에너지를 확인하여 슬롯의 시전 비용을 선지불하고 성공 여부를 반환한다.</summary>
-        internal bool Pay(CompiledSpell spell, int slot)
-        { if (_cooldowns[slot] > 0.000001 || _energy + 0.000001 < spell.EnergyCost) return false; _energy -= spell.EnergyCost; _cooldowns[slot] = spell.Cooldown; return true; }
+        /// <summary>슬롯 쿨다운이 끝났으면 쿨다운을 시작하고 true를 반환한다. 마나는 실행 노드에 도달할 때 TrySpend로 차감한다.</summary>
+        internal bool TryStartCooldown(CompiledSpell spell, int slot)
+        { if (_cooldowns[slot] > 0.000001) return false; _cooldowns[slot] = spell.Cooldown; return true; }
+
+        /// <summary>현재 마나가 비용 이상이면 차감하고 true를, 부족하면 차감하지 않고 false를 반환한다.</summary>
+        internal bool TrySpend(double amount)
+        { if (_energy + 0.000001 < amount) return false; _energy = Math.Max(0, _energy - amount); return true; }
 
         /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
@@ -231,6 +235,7 @@ namespace RuneCode
         private readonly SimVector _anchor;
         private readonly SpellEventScope _callEvents;
         private readonly SpellModifierValues _modifiers;
+        private readonly double _costMultiplier;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
         private HashSet<int> _contacts = new HashSet<int>();
         private HashSet<int> _nextContacts = new HashSet<int>();
@@ -259,6 +264,9 @@ namespace RuneCode
         internal string CastNoiseElement => _castNoiseElement;
         internal SpellEventScope CallEvents => _callEvents;
         internal SpellModifierValues Modifiers => _modifiers;
+
+        /// <summary>이 개체의 이벤트 분기 노드 비용에 곱하는 배율(개체를 만든 문맥의 배율)이다.</summary>
+        internal double CostMultiplier => _costMultiplier;
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
@@ -269,11 +277,12 @@ namespace RuneCode
         /// <summary>발사체가 적·벽·지형에 한 번이라도 직접 충돌했는지 나타낸다. 직접 충돌한 발사체는 OnExpire를 내지 않는다.</summary>
         internal bool HasDirectHit { get => _hasDirectHit; set => _hasDirectHit = value; }
 
-        /// <summary>컴파일된 Form 수치와 호출 이벤트 문맥을 가진 독립 마법 개체를 생성한다.</summary>
+        /// <summary>컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.</summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers)
+            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier)
         {
+            _costMultiplier = costMultiplier;
             _id = id;
             _action = action;
             _stats = stats;
@@ -332,7 +341,7 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);

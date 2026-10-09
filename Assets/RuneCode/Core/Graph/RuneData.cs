@@ -238,7 +238,8 @@ namespace RuneCode
 
     /// <summary>
     /// 룬 정의 레지스트리다. 정규화된 룬 테이블 6종(runes, rune_stats, rune_ports, rune_params, rune_param_options, rune_tags)과
-    /// 속성 정의 테이블(elements)을 룬 ID로 합쳐 만들며, 테이블 기반 데이터 로딩의 참조 구현이다. 규칙은 docs/DATA_TABLES.md를 따른다.
+    /// 속성 정의 테이블(elements), 효과 호환성 테이블(modifier_compat)을 룬 ID로 합쳐 만들며, 테이블 기반 데이터 로딩의 참조 구현이다.
+    /// 규칙은 docs/DATA_TABLES.md를 따른다.
     /// </summary>
     public sealed class RuneCatalog
     {
@@ -249,6 +250,7 @@ namespace RuneCode
         public const string OPTIONS_TABLE = "rune_param_options";
         public const string TAGS_TABLE = "rune_tags";
         public const string ELEMENTS_TABLE = "elements";
+        public const string MODIFIER_COMPAT_TABLE = "modifier_compat";
 
         private static readonly HashSet<string> CATEGORIES = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -265,16 +267,18 @@ namespace RuneCode
         private readonly List<string> _startRunes = new List<string>();
         private readonly IReadOnlyList<ElementDefinition> _elements;
         private readonly Dictionary<string, ElementDefinition> _elementsById = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
+        private readonly HashSet<string> _modifierTargets;
 
         public IReadOnlyList<RuneDefinition> All => _runes;
         public IReadOnlyList<string> StartRunes => _startRunes;
         public IReadOnlyList<ElementDefinition> Elements => _elements;
 
-        /// <summary>검증된 룬·속성 목록으로 ID 조회표와 시작 해금 목록을 만든다.</summary>
-        private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements)
+        /// <summary>검증된 룬·속성 목록과 효과 호환 조합(효과 ID·대상 ID 키)으로 ID 조회표와 시작 해금 목록을 만든다.</summary>
+        private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements, HashSet<string> modifierTargets)
         {
             _runes = runes;
             _elements = elements;
+            _modifierTargets = modifierTargets;
             foreach (ElementDefinition element in elements)
             {
                 _elementsById.Add(element.Id, element);
@@ -300,13 +304,15 @@ namespace RuneCode
             DataTable options = DataTable.Load(source, OPTIONS_TABLE, log);
             DataTable tags = DataTable.Load(source, TAGS_TABLE, log);
             DataTable elements = DataTable.Load(source, ELEMENTS_TABLE, log);
+            DataTable compat = DataTable.Load(source, MODIFIER_COMPAT_TABLE, log);
             bool hasColumns = runes.RequireColumns("id", "name", "category", "ram", "energy", "energyMult", "unlockType", "unlockCost")
                 & stats.RequireColumns("runeId")
                 & ports.RequireColumns("runeId", "order", "portId", "kind", "direction", "max", "status")
                 & parameters.RequireColumns("runeId", "order", "paramId", "kind", "min", "max", "step", "defaultNumber", "defaultText")
                 & options.RequireColumns("runeId", "paramId", "order", "option")
                 & tags.RequireColumns("runeId", "order", "tag")
-                & elements.RequireColumns("id", "runeId", "category", "internalValue", "runtimeTag");
+                & elements.RequireColumns("id", "runeId", "category", "internalValue", "runtimeTag")
+                & compat.RequireColumns("modifierId", "order", "target");
             if (!hasColumns)
             {
                 log.ThrowIfAny();
@@ -329,6 +335,10 @@ namespace RuneCode
             elements.RequireUniqueKeys("id");
             elements.RequireUniqueKeys("runeId");
             elements.RequireReferences(runeIds, RUNES_TABLE, "runeId");
+            HashSet<string> modifierTargets = compat.RequireUniqueKeys("modifierId", "target");
+            compat.RequireUniqueKeys("modifierId", "order");
+            compat.RequireReferences(runeIds, RUNES_TABLE, "modifierId");
+            compat.RequireReferences(runeIds, RUNES_TABLE, "target");
 
             Dictionary<string, List<TableRow>> statRows = stats.GroupBy(null, "runeId");
             Dictionary<string, List<TableRow>> portRows = ports.GroupBy("order", "runeId");
@@ -366,8 +376,9 @@ namespace RuneCode
                 log.Add(RUNES_TABLE, 0, null, "룬 정의가 비어 있습니다.");
             }
             List<ElementDefinition> elementDefinitions = BuildElements(elements, definitions);
+            ValidateModifierTargets(compat, definitions, log);
             log.ThrowIfAny();
-            return new RuneCatalog(definitions, elementDefinitions);
+            return new RuneCatalog(definitions, elementDefinitions, modifierTargets);
         }
 
         /// <summary>룬 ID로 정의를 반환하며 알 수 없는 ID이면 예외를 발생시킨다.</summary>
@@ -404,6 +415,15 @@ namespace RuneCode
             return false;
         }
 
+        /// <summary>
+        /// 효과 룬이 대상 룬(Behavior 또는 프리셋 호출)에 효과를 내는지 반환한다. modifier_compat 테이블에 없는 조합은
+        /// 부착은 허용하되 실행·비용 계산에서 무시한다.
+        /// </summary>
+        public bool IsModifierCompatible(string modifierId, string targetId)
+        {
+            return _modifierTargets.Contains(DataTable.Key(modifierId, targetId));
+        }
+
         /// <summary>속성 식별자(neutral, fire 등)의 존재 여부와 정의를 반환한다.</summary>
         public bool TryGetElement(string id, out ElementDefinition element)
         {
@@ -433,6 +453,37 @@ namespace RuneCode
                 result.Add(element);
             }
             return result;
+        }
+
+        /// <summary>
+        /// 효과 호환성 행의 효과가 modifier 카테고리이고 대상이 Behavior 또는 프리셋 호출인지, 모든 효과 룬에 행이 하나 이상 있는지 검증한다.
+        /// </summary>
+        private static void ValidateModifierTargets(DataTable compat, List<RuneDefinition> runes, TableErrorLog log)
+        {
+            var listed = new HashSet<string>(StringComparer.Ordinal);
+            foreach (TableRow row in compat.Rows)
+            {
+                string modifierId = row.GetString("modifierId");
+                string target = row.GetString("target");
+                listed.Add(modifierId);
+                RuneDefinition modifier = runes.Find(candidate => candidate.Id == modifierId);
+                RuneDefinition targetRune = runes.Find(candidate => candidate.Id == target);
+                if (modifier != null && modifier.Category != SpellGrammar.CATEGORY_MODIFIER)
+                {
+                    row.ReportError("modifierId", "modifier 카테고리 룬이어야 합니다: " + modifierId);
+                }
+                if (targetRune != null && targetRune.Category != SpellGrammar.CATEGORY_BEHAVIOR && targetRune.Id != SpellGrammar.CALL_RUNE)
+                {
+                    row.ReportError("target", "Behavior 또는 프리셋 호출 룬이어야 합니다: " + target);
+                }
+            }
+            foreach (RuneDefinition rune in runes)
+            {
+                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER && !listed.Contains(rune.Id))
+                {
+                    log.Add(MODIFIER_COMPAT_TABLE, 0, null, "효과 룬의 적용 대상 행이 없습니다: " + rune.Id);
+                }
+            }
         }
 
         /// <summary>룬의 포트 행을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수·상태 규칙을 검증한다. 지원 중단은 실행 출력에만 허용한다.</summary>

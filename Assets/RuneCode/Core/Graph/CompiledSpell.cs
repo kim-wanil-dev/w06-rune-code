@@ -136,21 +136,29 @@ namespace RuneCode
         private readonly IReadOnlyList<SpellAction> _onFirstHitOrExpire;
         private readonly SpellEventScope _parent;
         private readonly SpellModifierValues _parentModifiers;
+        private readonly double _parentCostMultiplier;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
         public IReadOnlyList<SpellAction> OnExpire => _onExpire;
         public IReadOnlyList<SpellAction> OnFirstHitOrExpire => _onFirstHitOrExpire;
         public SpellEventScope Parent => _parent;
         public SpellModifierValues ParentModifiers => _parentModifiers;
 
-        /// <summary>호출 노드의 적중·소멸·첫 적중 또는 소멸(onFirstHitOrExpire) 분기와 외부 호출 문맥을 불변 범위로 묶는다.</summary>
+        /// <summary>호출 노드 쪽 이벤트 분기를 실행할 때 노드 비용에 곱하는 배율(호출 노드가 속한 문맥의 배율)이다.</summary>
+        public double ParentCostMultiplier => _parentCostMultiplier;
+
+        /// <summary>
+        /// 호출 노드의 적중·소멸·첫 적중 또는 소멸(onFirstHitOrExpire) 분기와 외부 호출 문맥(효과 값, 비용 배율)을 불변 범위로 묶는다.
+        /// </summary>
         public SpellEventScope(IReadOnlyList<SpellAction> onHit, IReadOnlyList<SpellAction> onExpire,
-            IReadOnlyList<SpellAction> onFirstHitOrExpire, SpellEventScope parent, SpellModifierValues parentModifiers)
+            IReadOnlyList<SpellAction> onFirstHitOrExpire, SpellEventScope parent, SpellModifierValues parentModifiers,
+            double parentCostMultiplier = 1d)
         {
             _onHit = onHit;
             _onExpire = onExpire;
             _onFirstHitOrExpire = onFirstHitOrExpire;
             _parent = parent;
             _parentModifiers = parentModifiers ?? SpellModifierValues.None;
+            _parentCostMultiplier = parentCostMultiplier;
         }
 
         /// <summary>호출 범위 체인의 이벤트 노드 ID를 상태 해시 버퍼에 기록한다.</summary>
@@ -161,7 +169,7 @@ namespace RuneCode
                 foreach (SpellAction action in scope.OnHit) state.Append("|h:").Append(action.NodeId);
                 foreach (SpellAction action in scope.OnExpire) state.Append("|x:").Append(action.NodeId);
                 foreach (SpellAction action in scope.OnFirstHitOrExpire) state.Append("|c:").Append(action.NodeId);
-                state.Append('|');
+                state.Append('|').Append(scope._parentCostMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|');
                 scope.ParentModifiers.AppendState(state);
             }
         }
@@ -336,6 +344,8 @@ namespace RuneCode
         private readonly float _power;
         private readonly float _buffDuration;
         private readonly float _ownEnergy;
+        private readonly float _nodeEnergy;
+        private readonly float _energyMultiplier;
         private readonly SpellModifierValues _modifierValues;
         private readonly CompiledSpell _calledSpell;
 
@@ -368,7 +378,14 @@ namespace RuneCode
         public float ShieldSeconds => _shieldSeconds;
         public float Power => _power;
         public float BuffDuration => _buffDuration;
+        /// <summary>이 명령의 최대 비용 계산용 자체 비용이다. 프리셋 호출은 호출 대상 비용 × 개수 × 효과 배율을 포함한다.</summary>
         public float OwnEnergy => _ownEnergy;
+
+        /// <summary>실행 중 이 노드에 도달했을 때 차감하는 비용이다. 프리셋 호출은 호출 대상 노드가 도달할 때 각자 차감하므로 포함하지 않는다.</summary>
+        public float NodeEnergy => _nodeEnergy;
+
+        /// <summary>부착된 유효 효과들의 비용 배율 곱이다. 프리셋 호출에서는 호출된 노드의 비용에 곱한다.</summary>
+        public float EnergyMultiplier => _energyMultiplier;
         public SpellModifierValues ModifierValues => _modifierValues;
         public CompiledSpell CalledSpell => _calledSpell;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
@@ -423,9 +440,10 @@ namespace RuneCode
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;
-            _ownEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)
-                + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count : 0f)) * energyMultiplier;
-            if (element != null) _ownEnergy += element.Energy;
+            _energyMultiplier = energyMultiplier;
+            _nodeEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)) * energyMultiplier;
+            if (element != null) _nodeEnergy += element.Energy;
+            _ownEnergy = _nodeEnergy + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count * energyMultiplier : 0f);
             _modifierValues = SpellModifierValues.From(mods, modifierNodes);
             if (_kind == "spawn" || _kind == "buff") _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes);
             _seconds = node.GetNumber("seconds", DefaultNumber(rune, "seconds"));
