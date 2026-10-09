@@ -21,6 +21,10 @@
       "_value": "기반 강화"
     },
     {
+      "_key": "ui.tree",
+      "_value": "강화 트리"
+    },
+    {
       "_key": "ui.deploy",
       "_value": "시간제 전투"
     },
@@ -855,6 +859,78 @@
     {
       "_key": "ui.incrementalLoop",
       "_value": "적 처치로 RAM 획득 · 노드 용량 / 에너지 / 전투 시간 강화 · 더 높은 단계 도전"
+    },
+    {
+      "_key": "ui.tree.title",
+      "_value": "성장 트리 · 1~10 스테이지"
+    },
+    {
+      "_key": "ui.tree.summary",
+      "_value": "노드를 구매해 영구 능력과 룬을 해금하세요. 스탯 노드는 2레벨까지 강화할 수 있습니다"
+    },
+    {
+      "_key": "ui.tree.availableStage",
+      "_value": "해금 스테이지"
+    },
+    {
+      "_key": "ui.tree.controls",
+      "_value": "우클릭 드래그 이동 · 휠 확대/축소"
+    },
+    {
+      "_key": "ui.tree.stage",
+      "_value": "STAGE"
+    },
+    {
+      "_key": "ui.tree.regen",
+      "_value": "에너지 회복량"
+    },
+    {
+      "_key": "ui.tree.regenDescription",
+      "_value": "초당 에너지 회복"
+    },
+    {
+      "_key": "ui.tree.maxEnergy",
+      "_value": "최대 에너지"
+    },
+    {
+      "_key": "ui.tree.maxEnergyDescription",
+      "_value": "최대 보유 에너지"
+    },
+    {
+      "_key": "ui.tree.ramCapacity",
+      "_value": "RAM 용량"
+    },
+    {
+      "_key": "ui.tree.ramDescription",
+      "_value": "마법 노드 RAM 용량"
+    },
+    {
+      "_key": "ui.tree.unlockRune",
+      "_value": "룬 해금"
+    },
+    {
+      "_key": "ui.tree.unlockRuneDescription",
+      "_value": "설계에 사용할 룬을 해금"
+    },
+    {
+      "_key": "tree.stageLocked",
+      "_value": "스테이지 해금 필요:"
+    },
+    {
+      "_key": "tree.prerequisiteLocked",
+      "_value": "선행 노드를 먼저 강화하세요"
+    },
+    {
+      "_key": "tree.maxed",
+      "_value": "최대 레벨"
+    },
+    {
+      "_key": "tree.invalidNode",
+      "_value": "노드 데이터를 찾을 수 없습니다"
+    },
+    {
+      "_key": "tree.invalidRune",
+      "_value": "룬 데이터를 찾을 수 없습니다"
     },
     {
       "_key": "ui.importCurrent",

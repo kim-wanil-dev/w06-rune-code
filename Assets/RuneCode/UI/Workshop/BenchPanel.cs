@@ -85,7 +85,8 @@ namespace RuneCode
                 if (rune.UnlockType == "start") continue;
                 RuneDefinition current = rune;
                 bool unlocked = Contains(_session.Save.UnlockedRunes, rune.Id);
-                string cost = rune.UnlockType == "reward" ? GameData.L("ui.reward") : rune.UnlockCost + " " + GameData.L("ui.fragments");
+                int unlockCost = _session.GetUpgradeCost(rune.Id);
+                string cost = rune.UnlockType == "reward" ? GameData.L("ui.reward") : unlockCost + " " + GameData.L("ui.fragments");
                 string label = rune.Name + "  /  " + GameData.L("category." + rune.Category) + "  /  " + rune.Ram + " RAM  ·  " + (unlocked ? GameData.L("ui.complete") : cost);
                 UiRow row = Instantiate(_runeRowPrefab, _unlockList);
                 row.Configure(label, unlocked ? UiTheme.Muted : RuneMesh.CategoryColor(rune.Category), 44,
