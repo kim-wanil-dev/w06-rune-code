@@ -2,8 +2,7 @@
   "name": "RuneCode.Core",
   "rootNamespace": "RuneCode",
   "references": [
-    "RuneCode.Grammar",
-    "RuneCode.Tables"
+    "RuneCode.Grammar"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

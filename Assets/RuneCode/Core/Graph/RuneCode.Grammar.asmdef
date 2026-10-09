@@ -1,9 +1,7 @@
 {
   "name": "RuneCode.Grammar",
   "rootNamespace": "RuneCode",
-  "references": [
-    "RuneCode.Tables"
-  ],
+  "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

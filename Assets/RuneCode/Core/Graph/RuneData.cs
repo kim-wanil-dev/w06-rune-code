@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using RuneCode.Tables;
-
 namespace RuneCode
 {
     public sealed class PortDefinition
@@ -22,14 +20,14 @@ namespace RuneCode
         /// <summary>지원 중단 포트인지 반환한다. 새로 연결할 수 없고 기존 연결은 보존하되 실행하지 않는다.</summary>
         public bool IsDeprecated => _status == SpellGrammar.PORT_DEPRECATED;
 
-        /// <summary>rune_ports 테이블 행의 포트 ID·종류·방향·최대 연결 수·상태(빈 칸이면 active)로 포트를 만든다.</summary>
-        internal PortDefinition(TableRow row)
+        /// <summary>룬 데이터의 포트 항목으로 포트를 만든다. status가 비어 있으면 active다.</summary>
+        internal PortDefinition(RunePortData row)
         {
-            _id = row.GetString("portId");
-            _kind = row.GetString("kind");
-            _direction = row.GetString("direction");
-            _max = row.GetInt("max");
-            _status = row.GetOptionalString("status", SpellGrammar.PORT_ACTIVE);
+            _id = row._portId;
+            _kind = row._kind;
+            _direction = row._direction;
+            _max = row._max;
+            _status = string.IsNullOrEmpty(row._status) ? SpellGrammar.PORT_ACTIVE : row._status;
         }
     }
 
@@ -53,16 +51,16 @@ namespace RuneCode
         public string DefaultText => _defaultText;
         public IReadOnlyList<string> Options => _options;
 
-        /// <summary>rune_params 테이블 행과 rune_param_options의 선택지 목록으로 파라미터를 만든다. 빈 숫자 칸은 0, 빈 문자 칸은 빈 문자열이다.</summary>
-        internal ParameterDefinition(TableRow row, IReadOnlyList<string> options)
+        /// <summary>룬 데이터의 파라미터 항목과 선택지 목록으로 파라미터를 만든다.</summary>
+        internal ParameterDefinition(RuneParamData row, IReadOnlyList<string> options)
         {
-            _id = row.GetString("paramId");
-            _kind = row.GetString("kind");
-            _min = row.GetOptionalFloat("min", 0f);
-            _max = row.GetOptionalFloat("max", 0f);
-            _step = row.GetOptionalFloat("step", 0f);
-            _defaultNumber = row.GetOptionalFloat("defaultNumber", 0f);
-            _defaultText = row.GetOptionalString("defaultText", "");
+            _id = row._paramId;
+            _kind = row._kind;
+            _min = row._min;
+            _max = row._max;
+            _step = row._step;
+            _defaultNumber = row._defaultNumber;
+            _defaultText = row._defaultText ?? "";
             _options = options;
         }
     }
@@ -131,36 +129,36 @@ namespace RuneCode
         /// <summary>Persist 영역이 활성화되기 전 예고 시간(초)이다. Persist가 아닌 룬은 0이다.</summary>
         public float WarnSeconds => _warnSeconds;
 
-        /// <summary>rune_stats 테이블 행으로 효과 수치를 만든다. 빈 칸은 배율 열이면 1, 그 외는 0이다.</summary>
-        internal RuneStats(TableRow row)
+        /// <summary>룬 데이터의 수치 항목으로 효과 수치를 만든다. JSON에 없는 필드는 배율이면 1, 그 외는 0이다.</summary>
+        internal RuneStats(RuneStatsData row)
         {
-            _damage = row.GetOptionalFloat("damage", 0f);
-            _speed = row.GetOptionalFloat("speed", 0f);
-            _radius = row.GetOptionalFloat("radius", 0f);
-            _lifetime = row.GetOptionalFloat("lifetime", 0f);
-            _offset = row.GetOptionalFloat("offset", 0f);
-            _count = row.GetOptionalInt("count", 0);
-            _orbitCount = row.GetOptionalInt("orbitCount", 0);
-            _orbitRadius = row.GetOptionalFloat("orbitRadius", 0f);
-            _angularSpeed = row.GetOptionalFloat("angularSpeed", 0f);
-            _hitInterval = row.GetOptionalFloat("hitInterval", 0f);
-            _tickInterval = row.GetOptionalFloat("tickInterval", 0f);
-            _damageMultiplier = row.GetOptionalFloat("damageMultiplier", 1f);
-            _radiusMultiplier = row.GetOptionalFloat("radiusMultiplier", 1f);
-            _pierce = row.GetOptionalInt("pierce", 0);
-            _pierceLoss = row.GetOptionalFloat("pierceLoss", 0f);
-            _homingTurn = row.GetOptionalFloat("homingTurn", 0f);
-            _homingRange = row.GetOptionalFloat("homingRange", 0f);
-            _arcRange = row.GetOptionalFloat("arcRange", 0f);
-            _arcTargets = row.GetOptionalInt("arcTargets", 0);
-            _arcMultiplier = row.GetOptionalFloat("arcMultiplier", 0f);
-            _learningMultiplier = row.GetOptionalFloat("learningMultiplier", 1f);
-            _spreadAngle = row.GetOptionalFloat("spreadAngle", 0f);
-            _shieldAmount = row.GetOptionalFloat("shieldAmount", 0f);
-            _shieldSeconds = row.GetOptionalFloat("shieldSeconds", 0f);
-            _coneAngle = row.GetOptionalFloat("coneAngle", 0f);
-            _expandSeconds = row.GetOptionalFloat("expandSeconds", 0f);
-            _warnSeconds = row.GetOptionalFloat("warnSeconds", 0f);
+            _damage = row._damage;
+            _speed = row._speed;
+            _radius = row._radius;
+            _lifetime = row._lifetime;
+            _offset = row._offset;
+            _count = row._count;
+            _orbitCount = row._orbitCount;
+            _orbitRadius = row._orbitRadius;
+            _angularSpeed = row._angularSpeed;
+            _hitInterval = row._hitInterval;
+            _tickInterval = row._tickInterval;
+            _damageMultiplier = row._damageMultiplier;
+            _radiusMultiplier = row._radiusMultiplier;
+            _pierce = row._pierce;
+            _pierceLoss = row._pierceLoss;
+            _homingTurn = row._homingTurn;
+            _homingRange = row._homingRange;
+            _arcRange = row._arcRange;
+            _arcTargets = row._arcTargets;
+            _arcMultiplier = row._arcMultiplier;
+            _learningMultiplier = row._learningMultiplier;
+            _spreadAngle = row._spreadAngle;
+            _shieldAmount = row._shieldAmount;
+            _shieldSeconds = row._shieldSeconds;
+            _coneAngle = row._coneAngle;
+            _expandSeconds = row._expandSeconds;
+            _warnSeconds = row._warnSeconds;
         }
     }
 
@@ -192,22 +190,22 @@ namespace RuneCode
         public IReadOnlyList<ParameterDefinition> Params => _params;
         public RuneStats Stats => _stats;
 
-        /// <summary>runes 테이블 행과 자식 테이블에서 모은 태그·포트·파라미터·효과 수치로 룬 정의를 만든다.</summary>
-        internal RuneDefinition(TableRow row, IReadOnlyList<string> tags, IReadOnlyList<PortDefinition> ports,
-            IReadOnlyList<ParameterDefinition> parameters, RuneStats stats)
+        /// <summary>룬 데이터와 자식 목록에서 모은 태그·포트·파라미터로 룬 정의를 만든다. 수치가 없으면 전부 기본값이다.</summary>
+        internal RuneDefinition(RuneRowData row, IReadOnlyList<string> tags, IReadOnlyList<PortDefinition> ports,
+            IReadOnlyList<ParameterDefinition> parameters)
         {
-            _id = row.GetString("id");
-            _name = row.GetString("name");
-            _category = row.GetString("category");
-            _ram = row.GetInt("ram");
-            _energy = row.GetFloat("energy");
-            _energyMult = row.GetFloat("energyMult");
-            _unlockType = row.GetString("unlockType");
-            _unlockCost = row.GetInt("unlockCost");
+            _id = row._id;
+            _name = row._name ?? "";
+            _category = row._category ?? "";
+            _ram = row._ram;
+            _energy = row._energy;
+            _energyMult = row._energyMult;
+            _unlockType = row._unlockType ?? "";
+            _unlockCost = row._unlockCost;
             _tags = tags;
             _ports = ports;
             _params = parameters;
-            _stats = stats;
+            _stats = new RuneStats(row._stats ?? new RuneStatsData());
         }
 
         /// <summary>포트 ID와 방향으로 해당 룬의 포트 정의를 찾거나 null을 반환한다.</summary>
@@ -223,7 +221,7 @@ namespace RuneCode
 
     /// <summary>
     /// 속성(Element) 정의다. 속성은 그래프 노드가 아니라 Shape·Apply 노드의 드롭다운 값이며,
-    /// RAM·해금은 같은 ID의 속성 룬(runes 테이블의 element 카테고리 행)이 가진다.
+    /// RAM·해금은 같은 ID의 속성 룬(runes.json의 element 카테고리 항목)이 가진다.
     /// </summary>
     public sealed class ElementDefinition
     {
@@ -240,33 +238,23 @@ namespace RuneCode
         public string InternalValue => _internalValue;
         public string RuntimeTag => _runtimeTag;
 
-        /// <summary>elements 테이블 행의 식별자·속성 룬 ID·Elemental/Functional 분류·컴파일 내부 값·런타임 태그로 속성을 만든다.</summary>
-        internal ElementDefinition(TableRow row)
+        /// <summary>룬 데이터의 속성 항목과 소속 룬 ID로 속성을 만든다. 런타임 태그가 없으면 빈 문자열이다.</summary>
+        internal ElementDefinition(RuneElementData row, string runeId)
         {
-            _id = row.GetString("id");
-            _runeId = row.GetString("runeId");
-            _category = row.GetString("category");
-            _internalValue = row.GetString("internalValue");
-            _runtimeTag = row.GetOptionalString("runtimeTag", "");
+            _id = row._id;
+            _runeId = runeId;
+            _category = row._category;
+            _internalValue = row._internalValue;
+            _runtimeTag = row._runtimeTag ?? "";
         }
     }
 
     /// <summary>
-    /// 룬 정의 레지스트리다. 정규화된 룬 테이블 6종(runes, rune_stats, rune_ports, rune_params, rune_param_options, rune_tags)과
-    /// 속성 정의 테이블(elements), 효과 호환성 테이블(modifier_compat)을 룬 ID로 합쳐 만들며, 테이블 기반 데이터 로딩의 참조 구현이다.
-    /// 규칙은 docs/DATA_TABLES.md를 따른다.
+    /// 룬 정의 레지스트리다. runes.json의 룬 항목(수치·포트·파라미터·태그·속성·효과 대상 포함)을 룬 ID로 합쳐 만들며,
+    /// 테이블 기반 데이터 로딩의 참조 구현이다. 규칙은 docs/DATA_TABLES.md를 따른다.
     /// </summary>
     public sealed class RuneCatalog
     {
-        public const string RUNES_TABLE = "runes";
-        public const string STATS_TABLE = "rune_stats";
-        public const string PORTS_TABLE = "rune_ports";
-        public const string PARAMS_TABLE = "rune_params";
-        public const string OPTIONS_TABLE = "rune_param_options";
-        public const string TAGS_TABLE = "rune_tags";
-        public const string ELEMENTS_TABLE = "elements";
-        public const string MODIFIER_COMPAT_TABLE = "modifier_compat";
-
         private static readonly HashSet<string> CATEGORIES = new HashSet<string>(StringComparer.Ordinal)
         {
             "core", "form", "element", "modifier", "flow", "action", "magic", "shape", "behavior", "method", "internal"
@@ -282,14 +270,15 @@ namespace RuneCode
         private readonly List<string> _startRunes = new List<string>();
         private readonly IReadOnlyList<ElementDefinition> _elements;
         private readonly Dictionary<string, ElementDefinition> _elementsById = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
-        private readonly HashSet<string> _modifierTargets;
+        private readonly Dictionary<string, HashSet<string>> _modifierTargets;
 
         public IReadOnlyList<RuneDefinition> All => _runes;
         public IReadOnlyList<string> StartRunes => _startRunes;
         public IReadOnlyList<ElementDefinition> Elements => _elements;
 
-        /// <summary>검증된 룬·속성 목록과 효과 호환 조합(효과 ID·대상 ID 키)으로 ID 조회표와 시작 해금 목록을 만든다.</summary>
-        private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements, HashSet<string> modifierTargets)
+        /// <summary>검증된 룬·속성 목록과 효과 대상 조회표(효과 ID가 키, 대상 ID 집합이 값)로 ID 조회표와 시작 해금 목록을 만든다.</summary>
+        private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements,
+            Dictionary<string, HashSet<string>> modifierTargets)
         {
             _runes = runes;
             _elements = elements;
@@ -306,94 +295,49 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 테이블 소스에서 룬 테이블 6종을 읽어 룬 ID로 합치고, 형식·키·참조·문법 규칙을 검증한 레지스트리를 반환한다.
+        /// runes.json 데이터에서 룬 테이블을 읽어 룬·속성·효과 대상 정의를 만들고 형식·값 규칙을 검증한 레지스트리를 반환한다.
         /// 오류는 모두 모은 뒤 TableLoadException(FormatException)으로 한 번에 보고한다.
         /// </summary>
-        public static RuneCatalog FromTables(ITableSource source)
+        public static RuneCatalog FromTable(RuneTableData table)
         {
             var log = new TableErrorLog();
-            DataTable runes = DataTable.Load(source, RUNES_TABLE, log);
-            DataTable stats = DataTable.Load(source, STATS_TABLE, log);
-            DataTable ports = DataTable.Load(source, PORTS_TABLE, log);
-            DataTable parameters = DataTable.Load(source, PARAMS_TABLE, log);
-            DataTable options = DataTable.Load(source, OPTIONS_TABLE, log);
-            DataTable tags = DataTable.Load(source, TAGS_TABLE, log);
-            DataTable elements = DataTable.Load(source, ELEMENTS_TABLE, log);
-            DataTable compat = DataTable.Load(source, MODIFIER_COMPAT_TABLE, log);
-            bool hasColumns = runes.RequireColumns("id", "name", "category", "ram", "energy", "energyMult", "unlockType", "unlockCost")
-                & stats.RequireColumns("runeId")
-                & ports.RequireColumns("runeId", "order", "portId", "kind", "direction", "max", "status")
-                & parameters.RequireColumns("runeId", "order", "paramId", "kind", "min", "max", "step", "defaultNumber", "defaultText")
-                & options.RequireColumns("runeId", "paramId", "order", "option")
-                & tags.RequireColumns("runeId", "order", "tag")
-                & elements.RequireColumns("id", "runeId", "category", "internalValue", "runtimeTag")
-                & compat.RequireColumns("modifierId", "order", "target");
-            if (!hasColumns)
+            if (table == null || table._runes == null || table._runes.Count == 0)
             {
+                log.Add(null, null, "룬 정의가 비어 있습니다.");
                 log.ThrowIfAny();
             }
 
-            // 키 유일성과 부모 참조를 먼저 검증한다. 자식 테이블의 runeId는 반드시 runes에 있어야 한다.
-            HashSet<string> runeIds = runes.RequireUniqueKeys("id");
-            HashSet<string> statRuneIds = stats.RequireUniqueKeys("runeId");
-            ports.RequireUniqueKeys("runeId", "direction", "portId");
-            ports.RequireUniqueKeys("runeId", "order");
-            HashSet<string> paramKeys = parameters.RequireUniqueKeys("runeId", "paramId");
-            parameters.RequireUniqueKeys("runeId", "order");
-            options.RequireUniqueKeys("runeId", "paramId", "order");
-            tags.RequireUniqueKeys("runeId", "order");
-            stats.RequireReferences(runeIds, RUNES_TABLE, "runeId");
-            ports.RequireReferences(runeIds, RUNES_TABLE, "runeId");
-            parameters.RequireReferences(runeIds, RUNES_TABLE, "runeId");
-            options.RequireReferences(paramKeys, PARAMS_TABLE, "runeId", "paramId");
-            tags.RequireReferences(runeIds, RUNES_TABLE, "runeId");
-            elements.RequireUniqueKeys("id");
-            elements.RequireUniqueKeys("runeId");
-            elements.RequireReferences(runeIds, RUNES_TABLE, "runeId");
-            HashSet<string> modifierTargets = compat.RequireUniqueKeys("modifierId", "target");
-            compat.RequireUniqueKeys("modifierId", "order");
-            compat.RequireReferences(runeIds, RUNES_TABLE, "modifierId");
-            compat.RequireReferences(runeIds, RUNES_TABLE, "target");
-
-            Dictionary<string, List<TableRow>> statRows = stats.GroupBy(null, "runeId");
-            Dictionary<string, List<TableRow>> portRows = ports.GroupBy("order", "runeId");
-            Dictionary<string, List<TableRow>> paramRows = parameters.GroupBy("order", "runeId");
-            Dictionary<string, List<TableRow>> optionRows = options.GroupBy("order", "runeId", "paramId");
-            Dictionary<string, List<TableRow>> tagRows = tags.GroupBy("order", "runeId");
-
             var definitions = new List<RuneDefinition>();
-            foreach (TableRow row in runes.Rows)
+            var elements = new List<ElementDefinition>();
+            var elementIds = new HashSet<string>(StringComparer.Ordinal);
+            var runeIds = new HashSet<string>(StringComparer.Ordinal);
+            var modifiers = new List<(RuneDefinition rune, List<string> targets)>();
+            foreach (RuneRowData row in table._runes)
             {
-                string id = row.GetString("id");
-                if (!statRuneIds.Contains(id))
+                if (row == null || string.IsNullOrEmpty(row._id) || !runeIds.Add(row._id))
                 {
-                    row.ReportError("id", STATS_TABLE + "에 이 룬의 행이 없습니다.");
+                    log.Add(row != null ? row._id : null, "id", "룬 ID가 비어 있거나 중복입니다.");
                     continue;
                 }
-
-                RuneStats runeStats = new RuneStats(statRows[id][0]);
-                List<PortDefinition> runePorts = BuildPorts(portRows, id);
-                List<ParameterDefinition> runeParams = BuildParameters(paramRows, optionRows, id);
-                var runeTags = new List<string>();
-                if (tagRows.TryGetValue(id, out List<TableRow> tagGroup))
-                {
-                    foreach (TableRow tagRow in tagGroup) runeTags.Add(tagRow.GetString("tag"));
-                }
-
-                var rune = new RuneDefinition(row, runeTags, runePorts, runeParams, runeStats);
-                ValidateRune(rune, row);
-                ValidateStats(rune, statRows[id][0]);
+                var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log));
+                RequireText(rune, row, log);
+                ValidateRune(rune, log);
+                ValidateStats(rune, log);
                 definitions.Add(rune);
+
+                if (row._element != null)
+                {
+                    AddElement(elements, elementIds, rune, row._element, log);
+                }
+                if (row._modifierTargets != null && row._modifierTargets.Count > 0)
+                {
+                    modifiers.Add((rune, row._modifierTargets));
+                }
             }
 
-            if (runes.Rows.Count == 0)
-            {
-                log.Add(RUNES_TABLE, 0, null, "룬 정의가 비어 있습니다.");
-            }
-            List<ElementDefinition> elementDefinitions = BuildElements(elements, definitions);
-            ValidateModifierTargets(compat, definitions, log);
+            ValidateModifierTargets(modifiers, definitions, log);
             log.ThrowIfAny();
-            return new RuneCatalog(definitions, elementDefinitions, modifierTargets);
+            return new RuneCatalog(definitions, elements, BuildModifierTargets(modifiers));
         }
 
         /// <summary>룬 ID로 정의를 반환하며 알 수 없는 ID이면 예외를 발생시킨다.</summary>
@@ -431,12 +375,12 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 효과 룬이 대상 룬(Behavior 또는 프리셋 호출)에 효과를 내는지 반환한다. modifier_compat 테이블에 없는 조합은
+        /// 효과 룬이 대상 룬(Behavior 또는 프리셋 호출)에 효과를 내는지 반환한다. 효과 대상에 없는 조합은
         /// 부착은 허용하되 실행·비용 계산에서 무시한다.
         /// </summary>
         public bool IsModifierCompatible(string modifierId, string targetId)
         {
-            return _modifierTargets.Contains(DataTable.Key(modifierId, targetId));
+            return _modifierTargets.TryGetValue(modifierId, out HashSet<string> targets) && targets.Contains(targetId);
         }
 
         /// <summary>속성 식별자(neutral, fire 등)의 존재 여부와 정의를 반환한다.</summary>
@@ -446,135 +390,241 @@ namespace RuneCode
             return !string.IsNullOrEmpty(id) && _elementsById.TryGetValue(id, out element);
         }
 
-        /// <summary>
-        /// elements 테이블 행으로 속성 정의를 만들고 분류값과, 참조한 룬이 element 카테고리인지 검증한다.
-        /// 위반은 해당 행 위치로 오류 로그에 기록한다.
-        /// </summary>
-        private static List<ElementDefinition> BuildElements(DataTable elements, List<RuneDefinition> runes)
+        /// <summary>룬 데이터의 태그 목록을 순서대로 만들고 비어 있거나 중복된 순서를 오류로 기록한다.</summary>
+        private static List<string> BuildTags(RuneRowData row, TableErrorLog log)
         {
-            var result = new List<ElementDefinition>();
-            foreach (TableRow row in elements.Rows)
+            var result = new List<string>();
+            if (row._tags == null)
             {
-                var element = new ElementDefinition(row);
-                if (!ELEMENT_CATEGORIES.Contains(element.Category))
+                return result;
+            }
+            var orders = new HashSet<int>();
+            foreach (RuneTagData tagRow in row._tags)
+            {
+                if (tagRow == null || string.IsNullOrEmpty(tagRow._tag))
                 {
-                    row.ReportError("category", "elemental 또는 functional이어야 합니다: " + element.Category);
+                    log.Add(row._id, "tags", "비어 있거나 값이 없는 태그 행이 있습니다.");
+                    continue;
                 }
-                RuneDefinition rune = runes.Find(candidate => candidate.Id == element.RuneId);
-                if (rune != null && rune.Category != SpellGrammar.CATEGORY_ELEMENT)
+                if (!orders.Add(tagRow._order))
                 {
-                    row.ReportError("runeId", "element 카테고리 룬이어야 합니다: " + element.RuneId);
+                    log.Add(row._id, "tags:order", "태그 순서가 중복입니다: " + tagRow._order);
                 }
-                result.Add(element);
+                result.Add(tagRow._tag);
             }
             return result;
         }
 
-        /// <summary>
-        /// 효과 호환성 행의 효과가 modifier 카테고리이고 대상이 Behavior 또는 프리셋 호출인지, 모든 효과 룬에 행이 하나 이상 있는지 검증한다.
-        /// </summary>
-        private static void ValidateModifierTargets(DataTable compat, List<RuneDefinition> runes, TableErrorLog log)
-        {
-            var listed = new HashSet<string>(StringComparer.Ordinal);
-            foreach (TableRow row in compat.Rows)
-            {
-                string modifierId = row.GetString("modifierId");
-                string target = row.GetString("target");
-                listed.Add(modifierId);
-                RuneDefinition modifier = runes.Find(candidate => candidate.Id == modifierId);
-                RuneDefinition targetRune = runes.Find(candidate => candidate.Id == target);
-                if (modifier != null && modifier.Category != SpellGrammar.CATEGORY_MODIFIER)
-                {
-                    row.ReportError("modifierId", "modifier 카테고리 룬이어야 합니다: " + modifierId);
-                }
-                if (targetRune != null && targetRune.Category != SpellGrammar.CATEGORY_BEHAVIOR && targetRune.Id != SpellGrammar.CALL_RUNE)
-                {
-                    row.ReportError("target", "Behavior 또는 프리셋 호출 룬이어야 합니다: " + target);
-                }
-            }
-            foreach (RuneDefinition rune in runes)
-            {
-                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER && !listed.Contains(rune.Id))
-                {
-                    log.Add(MODIFIER_COMPAT_TABLE, 0, null, "효과 룬의 적용 대상 행이 없습니다: " + rune.Id);
-                }
-            }
-        }
-
-        /// <summary>룬의 포트 행을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수·상태 규칙을 검증한다. 지원 중단은 실행 출력에만 허용한다.</summary>
-        private static List<PortDefinition> BuildPorts(Dictionary<string, List<TableRow>> portRows, string runeId)
+        /// <summary>룬 데이터의 포트 목록을 순서대로 포트 정의로 만들고 종류·방향·최대 연결 수·상태·중복 규칙을 검증한다.</summary>
+        private static List<PortDefinition> BuildPorts(RuneRowData row, TableErrorLog log)
         {
             var result = new List<PortDefinition>();
-            if (!portRows.TryGetValue(runeId, out List<TableRow> rows))
+            if (row._ports == null)
             {
                 return result;
             }
-            foreach (TableRow row in rows)
+            var orders = new HashSet<int>();
+            var portKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (RunePortData portRow in row._ports)
             {
-                var port = new PortDefinition(row);
+                if (portRow == null)
+                {
+                    log.Add(row._id, "ports", "비어 있는 포트 항목이 있습니다.");
+                    continue;
+                }
+                var port = new PortDefinition(portRow);
+                if (!orders.Add(portRow._order))
+                {
+                    log.Add(row._id, "ports:order", "포트 표시 순서가 중복입니다: " + portRow._order);
+                }
+                if (!portKeys.Add(port.Direction + " " + port.Id))
+                {
+                    log.Add(row._id, "ports", "중복된 포트입니다: " + port.Direction + " " + port.Id);
+                }
                 if ((port.Kind != "exec" && port.Kind != "mod" && port.Kind != "chain")
                     || (port.Direction != "in" && port.Direction != "out") || port.Max < 0
                     || (port.Kind == "chain" && port.Max != 1)
                     || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1))
                 {
-                    row.ReportError(null, "유효하지 않은 룬 포트입니다 (종류 exec/mod/chain, 방향 in/out, chain과 exec 입력은 최대 1).");
+                    log.Add(row._id, "ports:" + port.Id, "유효하지 않은 룬 포트입니다 (종류 exec/mod/chain, 방향 in/out, chain과 exec 입력은 최대 1).");
                 }
                 if ((port.Status != SpellGrammar.PORT_ACTIVE && !port.IsDeprecated)
                     || (port.IsDeprecated && (port.Kind != "exec" || port.Direction != "out")))
                 {
-                    row.ReportError("status", "active(빈 칸) 또는 deprecated여야 하며, deprecated는 exec 출력 포트에만 쓸 수 있습니다.");
+                    log.Add(row._id, "ports:" + port.Id + ":status", "active(빈 칸) 또는 deprecated여야 하며, deprecated는 exec 출력 포트에만 쓸 수 있습니다.");
                 }
                 result.Add(port);
             }
             return result;
         }
 
-        /// <summary>룬의 파라미터 행과 선택지 행을 순서대로 파라미터 정의로 만들고 종류별 값 규칙을 검증한다.</summary>
-        private static List<ParameterDefinition> BuildParameters(Dictionary<string, List<TableRow>> paramRows,
-            Dictionary<string, List<TableRow>> optionRows, string runeId)
+        /// <summary>룬 데이터의 파라미터 목록과 선택지를 순서대로 파라미터 정의로 만들고 종류별 값 규칙·중복을 검증한다.</summary>
+        private static List<ParameterDefinition> BuildParameters(RuneRowData row, TableErrorLog log)
         {
             var result = new List<ParameterDefinition>();
-            if (!paramRows.TryGetValue(runeId, out List<TableRow> rows))
+            if (row._params == null)
             {
                 return result;
             }
-            foreach (TableRow row in rows)
+            var orders = new HashSet<int>();
+            var paramIds = new HashSet<string>(StringComparer.Ordinal);
+            var optionKeys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (RuneParamData paramRow in row._params)
             {
-                var optionValues = new List<string>();
-                if (optionRows.TryGetValue(DataTable.Key(runeId, row.GetString("paramId")), out List<TableRow> optionGroup))
+                if (paramRow == null)
                 {
-                    foreach (TableRow optionRow in optionGroup) optionValues.Add(optionRow.GetString("option"));
+                    log.Add(row._id, "params", "비어 있는 파라미터 항목이 있습니다.");
+                    continue;
+                }
+                if (!orders.Add(paramRow._order))
+                {
+                    log.Add(row._id, "params:order", "파라미터 표시 순서가 중복입니다: " + paramRow._order);
+                }
+                if (string.IsNullOrEmpty(paramRow._paramId) || !paramIds.Add(paramRow._paramId))
+                {
+                    log.Add(row._id, "params:paramId", "비어 있거나 중복된 파라미터 ID입니다: " + paramRow._paramId);
                 }
 
-                var param = new ParameterDefinition(row, optionValues);
+                var options = new List<string>();
+                if (paramRow._options != null)
+                {
+                    foreach (RuneParamOptionData optionRow in paramRow._options)
+                    {
+                        if (optionRow == null || string.IsNullOrEmpty(optionRow._option))
+                        {
+                            log.Add(row._id, "params:" + paramRow._paramId + ":options", "비어 있거나 값이 없는 선택지 항목이 있습니다.");
+                            continue;
+                        }
+                        if (!optionKeys.Add(paramRow._paramId + " " + optionRow._order))
+                        {
+                            log.Add(row._id, "params:" + paramRow._paramId + ":options:order", "선택지 순서가 중복입니다: " + optionRow._order);
+                        }
+                        options.Add(optionRow._option);
+                    }
+                }
+
+                var param = new ParameterDefinition(paramRow, options);
                 bool isInvalid = (param.Kind != "number" && param.Kind != "enum" && param.Kind != "text")
                     || (param.Kind == "number" && (param.Min > param.Max || param.DefaultNumber < param.Min
                         || param.DefaultNumber > param.Max || param.Step <= 0f))
-                    || (param.Kind == "enum" && !optionValues.Contains(param.DefaultText))
+                    || (param.Kind == "enum" && !options.Contains(param.DefaultText))
                     || (param.Kind == "text" && param.DefaultText.Length > 80);
                 if (isInvalid)
                 {
-                    row.ReportError(null, "유효하지 않은 룬 파라미터입니다 (number는 min≤기본값≤max·step>0, enum은 기본값이 선택지에 있어야 함).");
+                    log.Add(row._id, "params:" + param.Id, "유효하지 않은 룬 파라미터입니다 (number는 min≤기본값≤max·step>0, enum은 기본값이 선택지에 있어야 함).");
                 }
                 result.Add(param);
             }
             return result;
         }
 
-        /// <summary>룬의 카테고리·해금 방식·RAM·에너지 값 규칙을 검증하고 위반을 runes 테이블 행에 기록한다.</summary>
-        private static void ValidateRune(RuneDefinition rune, TableRow row)
+        /// <summary>룬 데이터의 속성 정의를 만들고 분류·카테고리·식별자 중복을 검증한다. 값이 전부 비어 있으면 속성 없음으로 무시한다.</summary>
+        private static void AddElement(List<ElementDefinition> elements, HashSet<string> elementIds,
+            RuneDefinition rune, RuneElementData row, TableErrorLog log)
         {
-            if (!CATEGORIES.Contains(rune.Category)) row.ReportError("category", "알 수 없는 카테고리입니다: " + rune.Category);
-            if (!UNLOCK_TYPES.Contains(rune.UnlockType)) row.ReportError("unlockType", "알 수 없는 해금 방식입니다: " + rune.UnlockType);
-            if (rune.Ram < 0) row.ReportError("ram", "음수일 수 없습니다.");
-            if (rune.Energy < 0f) row.ReportError("energy", "음수일 수 없습니다.");
-            if (rune.EnergyMult <= 0f) row.ReportError("energyMult", "0보다 커야 합니다.");
-            if (rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
-                row.ReportError("unlockCost", "음수일 수 없으며 bench 해금은 비용이 있어야 합니다.");
+            if (!row.HasAnyValue) return; // JsonUtility는 JSON에 없는 클래스 필드를 빈 인스턴스로 만든다.
+            var element = new ElementDefinition(row, rune.Id);
+            if (!ELEMENT_CATEGORIES.Contains(element.Category))
+            {
+                log.Add(rune.Id, "element:category", "elemental 또는 functional이어야 합니다: " + element.Category);
+            }
+            if (rune.Category != SpellGrammar.CATEGORY_ELEMENT)
+            {
+                log.Add(rune.Id, "element", "element 카테고리 룬에만 속성을 정의할 수 있습니다.");
+            }
+            if (string.IsNullOrEmpty(row._internalValue))
+            {
+                log.Add(rune.Id, "element:internalValue", "값이 비어 있습니다.");
+            }
+            if (string.IsNullOrEmpty(element.Id) || !elementIds.Add(element.Id))
+            {
+                log.Add(rune.Id, "element:id", "비어 있거나 중복된 속성 식별자입니다: " + element.Id);
+            }
+            elements.Add(element);
         }
 
-        /// <summary>룬 효과 수치가 음수가 아니고 이전 형태 룬에 필수 수치가 있는지 검증하고 위반을 rune_stats 행에 기록한다.</summary>
-        private static void ValidateStats(RuneDefinition rune, TableRow row)
+        /// <summary>
+        /// 효과 대상이 존재하는 Behavior·프리셋 호출 룬인지, 중복이 없는지, 모든 효과 룬에 대상이 있는지 검증한다.
+        /// </summary>
+        private static void ValidateModifierTargets(List<(RuneDefinition rune, List<string> targets)> modifiers,
+            List<RuneDefinition> definitions, TableErrorLog log)
+        {
+            var withTargets = new HashSet<string>(StringComparer.Ordinal);
+            foreach ((RuneDefinition rune, List<string> targets) in modifiers)
+            {
+                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER)
+                {
+                    log.Add(rune.Id, "modifierTargets", "modifier 카테고리 룬에만 효과 대상을 정의할 수 있습니다.");
+                    continue;
+                }
+                withTargets.Add(rune.Id);
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string target in targets)
+                {
+                    if (string.IsNullOrEmpty(target) || !seen.Add(target))
+                    {
+                        log.Add(rune.Id, "modifierTargets", "비어 있거나 중복된 효과 대상입니다: " + target);
+                        continue;
+                    }
+                    RuneDefinition targetRune = definitions.Find(candidate => candidate.Id == target);
+                    if (targetRune == null)
+                    {
+                        log.Add(rune.Id, "modifierTargets", "없는 룬을 참조합니다: " + target);
+                    }
+                    else if (targetRune.Category != SpellGrammar.CATEGORY_BEHAVIOR && targetRune.Id != SpellGrammar.CALL_RUNE)
+                    {
+                        log.Add(rune.Id, "modifierTargets", "Behavior 또는 프리셋 호출 룬이어야 합니다: " + target);
+                    }
+                }
+            }
+            foreach (RuneDefinition rune in definitions)
+            {
+                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER && !withTargets.Contains(rune.Id))
+                {
+                    log.Add(rune.Id, "modifierTargets", "효과 룬의 적용 대상이 없습니다.");
+                }
+            }
+        }
+
+        /// <summary>효과 룬 ID가 키이고 대상 룬 ID 집합이 값인 조회표를 만든다.</summary>
+        private static Dictionary<string, HashSet<string>> BuildModifierTargets(
+            List<(RuneDefinition rune, List<string> targets)> modifiers)
+        {
+            var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach ((RuneDefinition rune, List<string> targets) in modifiers)
+            {
+                var set = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string target in targets)
+                {
+                    set.Add(target);
+                }
+                result[rune.Id] = set;
+            }
+            return result;
+        }
+
+        /// <summary>룬의 표시 이름·카테고리·해금 방식이 비어 있지 않은지 확인하고 오류를 기록한다.</summary>
+        private static void RequireText(RuneDefinition rune, RuneRowData row, TableErrorLog log)
+        {
+            if (string.IsNullOrEmpty(row._name)) log.Add(rune.Id, "name", "값이 비어 있습니다.");
+            if (string.IsNullOrEmpty(row._category)) log.Add(rune.Id, "category", "값이 비어 있습니다.");
+            if (string.IsNullOrEmpty(row._unlockType)) log.Add(rune.Id, "unlockType", "값이 비어 있습니다.");
+        }
+
+        /// <summary>룬의 카테고리·해금 방식·RAM·에너지 값 규칙을 검증하고 위반을 오류 로그에 기록한다.</summary>
+        private static void ValidateRune(RuneDefinition rune, TableErrorLog log)
+        {
+            if (!CATEGORIES.Contains(rune.Category)) log.Add(rune.Id, "category", "알 수 없는 카테고리입니다: " + rune.Category);
+            if (!UNLOCK_TYPES.Contains(rune.UnlockType)) log.Add(rune.Id, "unlockType", "알 수 없는 해금 방식입니다: " + rune.UnlockType);
+            if (rune.Ram < 0) log.Add(rune.Id, "ram", "음수일 수 없습니다.");
+            if (rune.Energy < 0f) log.Add(rune.Id, "energy", "음수일 수 없습니다.");
+            if (rune.EnergyMult <= 0f) log.Add(rune.Id, "energyMult", "0보다 커야 합니다.");
+            if (rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
+                log.Add(rune.Id, "unlockCost", "음수일 수 없으며 bench 해금은 비용이 있어야 합니다.");
+        }
+
+        /// <summary>룬 효과 수치가 음수가 아니고 형태 룬에 필수 수치가 있는지 검증하고 위반을 오류 로그에 기록한다.</summary>
+        private static void ValidateStats(RuneDefinition rune, TableErrorLog log)
         {
             RuneStats stats = rune.Stats;
             float[] numbers = { stats.Damage, stats.Speed, stats.Radius, stats.Lifetime, stats.Offset, stats.OrbitRadius,
@@ -585,15 +635,15 @@ namespace RuneCode
             {
                 if (value < 0f)
                 {
-                    row.ReportError(null, "효과 수치는 음수일 수 없습니다.");
+                    log.Add(rune.Id, "stats", "효과 수치는 음수일 수 없습니다.");
                     break;
                 }
             }
             if (stats.Count < 0 || stats.Pierce < 0 || stats.ArcTargets < 0 || stats.OrbitCount < 0
                 || (rune.Category == "form" && (stats.Count <= 0 || stats.Damage <= 0f || stats.Radius <= 0f)))
-                row.ReportError(null, "유효하지 않은 형태 룬 수치입니다 (form은 count·damage·radius가 0보다 커야 함).");
+                log.Add(rune.Id, "stats", "유효하지 않은 형태 룬 수치입니다 (form은 count·damage·radius가 0보다 커야 함).");
             if (rune.Id == SpellGrammar.CONE_RUNE && (stats.ConeAngle <= 0f || stats.ConeAngle > 360f))
-                row.ReportError("coneAngle", "부채꼴 각도는 0보다 크고 360 이하여야 합니다.");
+                log.Add(rune.Id, "stats:coneAngle", "부채꼴 각도는 0보다 크고 360 이하여야 합니다.");
         }
     }
 }
