@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace RuneCode
 {
-    /// <summary>화면별 레이아웃 빌더가 공유하는 글꼴 로드, 직렬화 참조 연결, Prefab·씬 저장 도구다.</summary>
+    /// <summary>화면별 레이아웃 빌더가 공유하는 글꼴 로드, 직렬화 참조 연결, Prefab 저장 도구다.</summary>
     public static class LayoutUtility
     {
         public const string FONT_PATH = "Assets/RuneCode/Resources/RuneCode/UIFont.asset";
@@ -15,7 +15,7 @@ namespace RuneCode
         public const string PANEL_PREFAB_PATH = PREFAB_FOLDER + "/UiPanel.prefab";
         public const string BUTTON_PREFAB_PATH = PREFAB_FOLDER + "/UiButton.prefab";
         public const string ROW_PREFAB_PATH = PREFAB_FOLDER + "/UiRow.prefab";
-        public const string SCENE_FOLDER = "Assets/Scenes";
+        public const string VIEW_FOLDER = "Assets/RuneCode/Resources/" + UIManager.VIEW_RESOURCE_FOLDER;
 
         /// <summary>공통 UI Prefab을 준비하고 프로젝트 한글 글꼴·Prefab 인스턴스 생성기를 연결한 UiFactory를 반환한다.</summary>
         public static UiFactory CreateFactory()
@@ -165,19 +165,51 @@ namespace RuneCode
             rect.sizeDelta = new Vector2(width, height);
         }
 
-        /// <summary>빈 씬을 단독으로 새로 만든다. 기존 같은 경로의 씬은 저장 시 덮어쓴다.</summary>
-        public static Scene CreateEmptyScene()
+        /// <summary>
+        /// Resources/RuneCode/UI에 같은 이름의 View Prefab이 이미 있는지 반환한다. 생성된 Prefab은 Unity에서 직접 편집하는 원본이므로
+        /// 빌더는 이미 있는 Prefab을 덮어쓰지 않는다.
+        /// </summary>
+        public static bool ViewPrefabExists(string name)
         {
-            return EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            return AssetDatabase.LoadAssetAtPath<GameObject>(VIEW_FOLDER + name + ".prefab") != null;
         }
 
-        /// <summary>씬을 Assets/Scenes 아래 지정 이름으로 저장하고 경로를 반환한다.</summary>
-        public static string SaveScene(Scene scene, string sceneName)
+        /// <summary>
+        /// UIManager 층의 논리 화면(1280×720)을 채우는 View Prefab 루트를 미리보기 씬에 만든다.
+        /// 열린 씬을 건드리지 않으며, 다 만든 뒤 SaveViewPrefab으로 저장한다.
+        /// </summary>
+        public static RectTransform CreateViewRoot(string name)
         {
-            EnsureFolder(SCENE_FOLDER);
-            string path = SCENE_FOLDER + "/" + sceneName + ".unity";
-            EditorSceneManager.SaveScene(scene, path);
-            return path;
+            Scene preview = EditorSceneManager.NewPreviewScene();
+            RectTransform root = UiFactory.Rect(null, name, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
+            SceneManager.MoveGameObjectToScene(root.gameObject, preview);
+            return root;
+        }
+
+        /// <summary>View 루트를 Resources/RuneCode/UI 아래 루트 이름의 Prefab으로 저장하고 미리보기 씬을 닫는다. UIManager는 이 경로에서 타입 이름으로 불러온다.</summary>
+        public static GameObject SaveViewPrefab(RectTransform root)
+        {
+            EnsureFolder(VIEW_FOLDER.TrimEnd('/'));
+            Scene preview = root.gameObject.scene;
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root.gameObject, VIEW_FOLDER + root.name + ".prefab");
+            EditorSceneManager.ClosePreviewScene(preview);
+            return prefab;
+        }
+
+        /// <summary>
+        /// 팝업 공통 구조(화면 전체 딤 배경, 가운데 카드, 제목, 닫기 버튼)를 만들고 카드를 반환한다.
+        /// 루트의 딤 이미지가 아래 화면 입력을 막는다.
+        /// </summary>
+        public static RectTransform BuildPopupFrame(UiFactory ui, RectTransform root, string title, float width, float height,
+            out UnityEngine.UI.Button closeButton)
+        {
+            UnityEngine.UI.Image shade = root.gameObject.AddComponent<UnityEngine.UI.Image>();
+            shade.color = UiTheme.ModalShade;
+            shade.raycastTarget = true;
+            RectTransform card = ui.Panel(root, (UiTheme.SCREEN_WIDTH - width) / 2, (UiTheme.SCREEN_HEIGHT - height) / 2, width, height, UiTheme.Panel, "Card");
+            ui.Text(card, 24, 21, width - 90, 35, title, 24, Color.white, FontStyles.Bold, "Title");
+            closeButton = ui.Button(card, width - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
+            return card;
         }
     }
 }

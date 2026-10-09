@@ -1,6 +1,6 @@
 # Rune Code 인크리멘탈 PoC
 
-하나의 마법을 룬 노드로 연결하고 확장하는 Unity 게임이다. 스테이지에서 직접 이동·조준하며 오른쪽으로부터 몰려오는 적과 제한시간 동안 전투한 뒤, 처치 보상 RAM으로 설계와 완드를 강화한다. Unity 6000.3.22f1 / Windows x64를 사용한다.
+하나의 마법을 룬 노드로 연결하고 확장하는 Unity 게임이다. 5×5 방 크기의 넓은 맵에서 직접 이동·조준하며 사방에서 나타나는 편성된 적을 모두 처치한 뒤, 처치 보상 RAM으로 설계와 완드를 강화한다. Unity 6000.3.22f1 / Windows x64를 사용한다.
 
 ## 실행
 
@@ -11,9 +11,9 @@ Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Co
 ## 플레이 흐름
 
 1. 작업실에서 시작 마법 파이어 볼트의 노드를 편집하고 시험 도크에서 확인한다.
-2. 출격 탭에서 해금된 스테이지를 선택한다. 기본 전투시간은 30초다.
-3. WASD로 이동하고 마우스로 조준한다. 포인터가 전투 영역에 있으면 조준 방향으로 현재 마법을 연속 시전한다. Space는 대시, Esc는 일시정지다. 점멸 노드에 의한 이동도 유지된다.
-4. 제한시간까지 생존하면 처치 RAM 100%를 정산하고 다음 스테이지를 해금한다. 생존 적을 전부 처치할 필요는 없다. 사망·중단은 처치 RAM의 70%를 반올림해 지급한다.
+2. 출격 탭에서 해금된 스테이지를 선택한다. 5·10스테이지는 제한시간(45·60초)이 있는 보스 스테이지다.
+3. WASD로 이동하고 마우스로 조준한다. 카메라가 플레이어를 따라가며 맵 끝에서 멈춘다. 포인터가 게임 화면 안에 있으면 조준 방향으로 현재 마법을 연속 시전한다. Space는 대시, Esc는 일시정지다. 점멸 노드에 의한 이동도 유지된다.
+4. 편성된 적이 모두 나온 뒤 맵의 적을 전부 처치하면 클리어다. 시간만 지나서는 클리어되지 않으며 화면 위쪽에 남은 적 수(아직 나오지 않은 수 + 살아 있는 수)가 표시된다. 클리어하면 처치 RAM 100%에 클리어 보상(`stages.json`의 스테이지별 `_clearReward` × (1 + (스테이지 - 1) × `_clearRewardStageScale`))을 더해 정산하고 다음 스테이지를 해금한다. 사망·중단·보스 제한시간 초과는 처치 RAM의 70%를 반올림해 지급한다.
 5. 결과의 `마법 강화`로 같은 설계를 계속 확장한다. `같은 스테이지 재도전`으로 반복 수급할 수 있다. 첫 완주 시 노이즈 룬이 해금된다.
 
 마법의 피해·형태·속성·다중 발사·흐름은 노드를 연결하여 바꾼다. 별도의 공격력 구매나 마법 슬롯 구매는 없다. 일반 스테이지에서는 적응 감쇠를 사용하지 않으며, 시험 도크의 적응 옵션은 유지한다.
@@ -26,7 +26,7 @@ Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Co
 |---|---:|---|
 | RAM 용량 | 12 RAM | 용량 +2 (기본 6) |
 | 에너지 | 15 RAM | 최대 EN +10, 초당 회복 +1 (기본 EN100 / 회복15) |
-| 전투시간 | 18 RAM | +5초 (기본30초, 최대120초) |
+| 전투시간 | 18 RAM | +5초 (기본30초, 최대120초). 전투가 전부 처치로 끝나도록 바뀌어 현재 전투에는 효과가 없다 |
 
 다음 가격은 `ceil(시작 비용 × 1.22^현재 단계)`다. 용량과 에너지는 각각 최대100단계, 전투시간은18단계다. 미해금 룬은 벤치에서 RAM으로 해금한다. 용량·에너지 초과, 미해금 룬 또는 잘못된 연결이 있으면 출격할 수 없다. 노드 강화가 성장의 중심이며 별도 강화는 큰 설계를 사용할 자원과 전투 길이를 제공한다.
 
@@ -70,16 +70,16 @@ v2가 없으면 기존 v1을 읽어 A 슬롯 마법을 활성 설계로 이전�
 
 ```powershell
 .\tools\sim.ps1 -Spell firebolt -Scenario incremental -Ticks 6000 -Seed 1 -Stage 1 -Output Builds/incremental-sim.json
-.\tools\sim.ps1 -Spell triplefire -Scenario incremental -Ticks 6000 -Stage 2 -Duration 35 -CapacityLevel 1 -EnergyLevel 1
+.\tools\sim.ps1 -Spell triplefire -Scenario incremental -Ticks 6000 -Stage 2 -CapacityLevel 1 -EnergyLevel 1
 .\tools\sim.ps1 -Spell firebolt -Scenario dummy_line -Ticks 600 -Seed 1
 ```
 
-`incremental`은 비교용 자동 조준 입력과 게임의 기본 능력치를 사용하며 종료·사망 시 멈춘다. `-Duration 0`은 JSON의 기본30초다. 템플릿 `firebolt`, `shockwave`, `triplefire` 또는 마법 JSON 파일을 지정한다. 비교용 도크 시나리오 `dummy_single`, `dummy_line`, `dummy_swarm`, `aegis`, `adapt_loop`는 기존 RAM24 / EN150 조건을 유지한다. CLI의 모든 룬은 해금된 조건으로 컴파일한다.
+`incremental`은 비교용 자동 조준 입력(이동 없음)과 게임의 기본 능력치를 사용하며 클리어·사망·보스 시간 초과 시 멈춘다. `-Duration`은 더 이상 쓰이지 않으며 0이 아니면 경고만 남긴다. 템플릿 `firebolt`, `shockwave`, `triplefire` 또는 마법 JSON 파일을 지정한다. 비교용 도크 시나리오 `dummy_single`, `dummy_line`, `dummy_swarm`, `aegis`, `adapt_loop`는 기존 RAM24 / EN150 조건을 유지한다. CLI의 모든 룬은 해금된 조건으로 컴파일한다.
 
-JSON에는 피해, DPS, 에너지 사용량, 실행 횟수·시간, 상태 해시, 스테이지, 제한시간, 종료 상태, 처치·획득·정산 RAM과 실행 상한으로 생략된 명령 수가 담긴다. CLI는 사용자 저장을 변경하지 않는다.
+JSON에는 피해, DPS, 에너지 사용량, 실행 횟수·시간, 상태 해시, 스테이지, 보스 제한시간·남은 시간, 편성 총수·남은 적 수, 종료 상태, 처치·획득·정산 RAM과 실행 상한으로 생략된 명령 수가 담긴다. CLI는 사용자 저장을 변경하지 않는다.
 
 ## 데이터와 검증
 
-`Assets/RuneCode/Resources/RuneCode/incremental.json`은 제한시간·오른쪽 생성 위치·유입 주기·스테이지 배율·적 편성을, `balance.json`은 성장 가격·증가량·실행 상한을 관리한다. 게임 규칙은 기존 Core, 표시와 플레이어 입력 연결은 Game/UI, 저장은 Save에서 처리한다.
+`Assets/RuneCode/Resources/RuneCode/stages.json`은 맵 크기·스폰 반경 여유·스테이지별 기본 흐름(후보·간격·끝 시각)과 웨이브·보스 제한시간·성장 계수·적 보상을, `formations.json`은 스폰 진형(흩뿌림·포위·일렬)의 기본값을, `balance.json`은 성장 가격·증가량·실행 상한을 관리한다. 게임 규칙은 기존 Core, 표시와 플레이어 입력 연결은 UI(미션 전투는 `UI/Mission/World`의 월드 오브젝트와 미션 카메라), 저장은 Save에서 처리한다. 미션 씬만 다시 만들 때는 `Rune Code > Build Mission Scene`을 쓴다.
 
 실제 검증과 미검증 항목은 `docs/PROGRESS.md`, 변경 결정은 `docs/DECISIONS.md`에 기록한다. AGENTS.md에 따라 Git CLI·커밋·push와 테스트 코드·자산 추가는 수행하지 않는다.

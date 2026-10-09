@@ -92,6 +92,7 @@ namespace RuneCode
         [SerializeField] private float _chillSlow;
         [SerializeField] private float _chillSeconds;
         [SerializeField] private int _chillMaxStacks;
+        [SerializeField] private int _chillImmuneMaxStacks;
         [SerializeField] private float _freezeSeconds;
         [SerializeField] private float _freezeImmunity;
         [SerializeField] private float _empSeconds;
@@ -105,6 +106,9 @@ namespace RuneCode
         public float ChillSlow => _chillSlow;
         public float ChillSeconds => _chillSeconds;
         public int ChillMaxStacks => _chillMaxStacks;
+
+        /// <summary>빙결 면역 중 쌓을 수 있는 냉기 스택 상한이다. 빙결을 일으키는 최대 스택보다 작아야 한다.</summary>
+        public int ChillImmuneMaxStacks => _chillImmuneMaxStacks;
         public float FreezeSeconds => _freezeSeconds;
         public float FreezeImmunity => _freezeImmunity;
         public float EmpSeconds => _empSeconds;
@@ -279,7 +283,9 @@ namespace RuneCode
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
                     throw new FormatException("밸런스 값은 유한한 0 이상이어야 합니다.");
             if (data.Player.MoveSpeed <= 0f || data.Player.DashDuration <= 0f || data.Combat.BurnInterval <= 0f
-                || data.Combat.ChillMaxStacks <= 0 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
+                || data.Combat.ChillMaxStacks <= 0 || data.Combat.ChillImmuneMaxStacks <= 0
+                || data.Combat.ChillImmuneMaxStacks >= data.Combat.ChillMaxStacks
+                || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.CapacityStep <= 0
                 || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.SlotCost <= 0

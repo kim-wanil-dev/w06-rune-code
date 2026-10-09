@@ -66,6 +66,33 @@ namespace RuneCode
             }
         }
 
+        /// <summary>꼭짓점, 반경, 중심 방향(라디안)과 전체 각도(라디안)로 채워진 부채꼴 메시를 추가한다.</summary>
+        internal static void Sector(UnityEngine.UI.VertexHelper mesh, Vector2 apex, float radius, float rotation, float angle, Color color, int segments = 16)
+        {
+            int index = mesh.currentVertCount;
+            mesh.AddVert(apex, color, Vector2.zero);
+            for (int i = 0; i <= segments; i++)
+            {
+                float current = rotation - angle * 0.5f + angle * i / segments;
+                mesh.AddVert(apex + new Vector2(Mathf.Cos(current), Mathf.Sin(current)) * radius, color, Vector2.zero);
+                if (i > 0) mesh.AddTriangle(index, index + i, index + i + 1);
+            }
+        }
+
+        /// <summary>꼭짓점, 반경, 중심 방향(라디안)과 전체 각도(라디안)로 부채꼴 윤곽선(두 변과 호)을 추가한다.</summary>
+        internal static void SectorOutline(UnityEngine.UI.VertexHelper mesh, Vector2 apex, float radius, float rotation, float angle, float width, Color color, int segments = 16)
+        {
+            Vector2 previous = apex;
+            for (int i = 0; i <= segments; i++)
+            {
+                float current = rotation - angle * 0.5f + angle * i / segments;
+                Vector2 point = apex + new Vector2(Mathf.Cos(current), Mathf.Sin(current)) * radius;
+                Line(mesh, previous, point, width, color);
+                previous = point;
+            }
+            Line(mesh, previous, apex, width, color);
+        }
+
         /// <summary>중심과 반경으로 지정 색상의 원형 윤곽선을 추가한다.</summary>
         internal static void Ring(UnityEngine.UI.VertexHelper mesh, Vector2 center, float radius, float width, Color color, int sides = 24)
         {
@@ -85,8 +112,8 @@ namespace RuneCode
             {
                 case SpellGrammar.CATEGORY_CORE: return new Color(0.98f, 0.79f, 0.37f);
                 case SpellGrammar.CATEGORY_LEGACY_FORM:
-                case "shape": return new Color(0.22f, 0.82f, 0.96f);
-                case "magicType": return new Color(0.95f, 0.88f, 0.55f);
+                case SpellGrammar.CATEGORY_BEHAVIOR: return new Color(0.22f, 0.82f, 0.96f);
+                case SpellGrammar.CATEGORY_SHAPE: return new Color(0.95f, 0.88f, 0.55f);
                 case SpellGrammar.CATEGORY_ELEMENT: return new Color(0.99f, 0.43f, 0.34f);
                 case "method": return new Color(0.42f, 0.70f, 1f);
                 case SpellGrammar.CATEGORY_MODIFIER: return new Color(0.64f, 0.46f, 0.97f);

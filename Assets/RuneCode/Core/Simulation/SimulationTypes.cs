@@ -64,7 +64,7 @@ namespace RuneCode
         { _movement = movement; _aimDirection = aimDirection; _castA = castA; _castB = castB; _castC = castC; _dash = dash; _interact = interact; }
     }
 
-    public enum MissionStage { Bench, Combat, Terminal, Cleared, Dead }
+    public enum MissionStage { Bench, Combat, Terminal, Cleared, Dead, TimedOut }
 
     public sealed class SimulationPlayer
     {
@@ -81,6 +81,8 @@ namespace RuneCode
         private double _dashCooldown;
         private double _dashRemaining;
         private double _invulnerableUntil;
+        private double _burnUntil;
+        private double _burnNextTick;
         public SimVector Position => _position;
         public SimVector AimDirection => _aimDirection;
         public double Hp => _hp;
@@ -101,9 +103,13 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>쿨다운과 에너지를 확인하여 슬롯의 시전 비용을 선지불하고 성공 여부를 반환한다.</summary>
-        internal bool Pay(CompiledSpell spell, int slot)
-        { if (_cooldowns[slot] > 0.000001 || _energy + 0.000001 < spell.EnergyCost) return false; _energy -= spell.EnergyCost; _cooldowns[slot] = spell.Cooldown; return true; }
+        /// <summary>슬롯 쿨다운이 끝났으면 쿨다운을 시작하고 true를 반환한다. 마나는 실행 노드에 도달할 때 TrySpend로 차감한다.</summary>
+        internal bool TryStartCooldown(CompiledSpell spell, int slot)
+        { if (_cooldowns[slot] > 0.000001) return false; _cooldowns[slot] = spell.Cooldown; return true; }
+
+        /// <summary>현재 마나가 비용 이상이면 차감하고 true를, 부족하면 차감하지 않고 false를 반환한다.</summary>
+        internal bool TrySpend(double amount)
+        { if (_energy + 0.000001 < amount) return false; _energy = Math.Max(0, _energy - amount); return true; }
 
         /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
@@ -120,6 +126,30 @@ namespace RuneCode
         internal double Hurt(double damage, double time, double invulnerability)
         { if (time < _invulnerableUntil) return 0; double absorbed = Math.Min(_shield, damage); _shield -= absorbed; double actual = Math.Min(_hp, damage - absorbed); _hp -= actual; _invulnerableUntil = time + invulnerability; return actual; }
 
+        /// <summary>
+        /// 상태 이상 피해를 보호막과 체력에 적용하고 실제 체력 피해를 반환한다. 피격 무적을 무시하며 새 무적도 주지 않는다(결정 Q13).
+        /// </summary>
+        internal double HurtByStatus(double damage)
+        { double absorbed = Math.Min(_shield, damage); _shield -= absorbed; double actual = Math.Min(_hp, damage - absorbed); _hp -= actual; return actual; }
+
+        /// <summary>지정 시각에 화상 상태인지 반환한다.</summary>
+        public bool IsBurning(double time) => time < _burnUntil;
+
+        /// <summary>화상을 부여한다. 진행 중이면 지속시간만 갱신하고 피해 틱 일정은 유지하며, 끝난 뒤면 새 일정을 시작한다.</summary>
+        internal void ApplyBurn(double time, double interval, double seconds)
+        {
+            if (time >= _burnUntil) _burnNextTick = time + interval;
+            _burnUntil = time + seconds;
+        }
+
+        /// <summary>현재 시각에 도달한 화상 피해 틱이 있으면 다음 틱으로 넘기고 true를 반환한다. 마지막 틱은 만료 시각까지다.</summary>
+        internal bool TryTakeBurnTick(double time, double interval)
+        {
+            if (_burnUntil <= 0 || _burnNextTick > _burnUntil + 0.000001 || time + 0.000001 < _burnNextTick) return false;
+            _burnNextTick += interval;
+            return true;
+        }
+
         /// <summary>회복량을 최대 체력 범위로 제한하여 플레이어 체력에 적용한다.</summary>
         internal void Heal(double amount) { _hp = Math.Min(_maxHp, _hp + Math.Max(0, amount)); }
 
@@ -132,7 +162,7 @@ namespace RuneCode
         /// <summary>위치, 능력치, 보호막, 대시 및 무적의 현재와 예정 상태를 결정성 해시 버퍼에 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
-            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}"));
+            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}|{_burnUntil:R}|{_burnNextTick:R}"));
             foreach (double cooldown in _cooldowns) state.Append(FormattableString.Invariant($"|{cooldown:R}"));
         }
     }
@@ -143,6 +173,8 @@ namespace RuneCode
         private readonly EnemyDefinition _definition;
         private readonly EnemyMovementType _movementType;
         private readonly bool _isDummy;
+        private readonly bool _isElite;
+        private readonly double _speedMultiplier;
         private readonly double _hitFlashSeconds;
         private readonly double _damage;
         private readonly double _damageMultiplier;
@@ -173,6 +205,8 @@ namespace RuneCode
         public double Damage => _damage;
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
+        public bool IsElite => _isElite;
+        public double SpeedMultiplier => _speedMultiplier;
         public bool IsAlive => _hp > 0;
         public bool IsFlashing => _observedTime < _flashUntil;
         public bool IsWarning => _observedTime < _warningUntil;
@@ -190,9 +224,9 @@ namespace RuneCode
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
 
-        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해 배율, 보상 및 무반격 여부로 실행 상태를 생성한다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1)
-        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
+        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격 및 엘리트 여부로 실행 상태를 생성한다.</summary>
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1)
+        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _isElite = isElite; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
 
         /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
         internal void Observe(double time) { _observedTime = time; }
@@ -212,7 +246,7 @@ namespace RuneCode
         /// <summary>적의 체력, 이동, 공격 예약, 표시 만료 및 페이즈를 결정성 해시 버퍼에 기록한다. 상태 이상은 시뮬레이션이 따로 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
-            state.Append(_id).Append('|').Append(Kind).Append('|').Append(_isDummy);
+            state.Append(_id).Append('|').Append(Kind).Append('|').Append(_isDummy).Append('|').Append(_isElite).Append('|').Append(_speedMultiplier);
             state.Append(FormattableString.Invariant($"|{_damage:R}|{_damageMultiplier:R}|{_reward}"));
             state.Append('|').Append(_lastDamageElement).Append('|').Append(_lastDamageForm);
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));
@@ -228,10 +262,15 @@ namespace RuneCode
         private readonly string _castNoiseElement;
         private readonly bool _fromEvent;
         private readonly double _visualSeconds;
+        private readonly double _warmupSeconds;
         private readonly SimVector _anchor;
         private readonly SpellEventScope _callEvents;
         private readonly SpellModifierValues _modifiers;
+        private readonly double _costMultiplier;
+        private readonly SimulationPlayer _caster;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
+        private HashSet<int> _contacts = new HashSet<int>();
+        private HashSet<int> _nextContacts = new HashSet<int>();
         private SimVector _position;
         private SimVector _direction;
         private double _age;
@@ -240,15 +279,41 @@ namespace RuneCode
         private int _triggerCount;
         private bool _hasExpired;
         private bool _hasFiredFirstEvent;
+        private bool _hasDirectHit;
         public int Id => _id;
         public string Kind => _action.Form;
         public string Element => _element;
         public SimVector Position => _position;
         public SimVector Direction => _direction;
-        public double Radius => _stats.Radius;
+        /// <summary>현재 판정 반경이다. Burst는 확장 시간 동안 0에서 최종 반경까지 커지고, 그 외는 최종 반경이다.</summary>
+        public double Radius => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
+            ? _stats.Radius * Math.Min(1, _age / _warmupSeconds) : _stats.Radius;
+
+        /// <summary>Persist가 활성화 전 예고 중인지 나타낸다. 예고 중에는 효과·적중 판정을 하지 않는다.</summary>
+        public bool IsWarning => _action.Form == SpellGrammar.FORM_ZONE && _age + 0.000001 < _warmupSeconds;
+
+        /// <summary>Persist 예고 진행률(0~1)이다. 예고가 없거나 끝났으면 1이다.</summary>
+        public double WarnProgress => _action.Form == SpellGrammar.FORM_ZONE && _warmupSeconds > 0 ? Math.Min(1, _age / _warmupSeconds) : 1;
+
+        /// <summary>Burst가 아직 확장 중이라 새 대상을 판정하는지 나타낸다.</summary>
+        internal bool IsExpanding => _action.Form == SpellGrammar.FORM_BURST && _age <= _warmupSeconds + 0.000001;
         public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
+
+        /// <summary>부채꼴인지 나타낸다. 판정·그리기는 꼭짓점(ConeApex)에서 진행 방향으로 펼친 부채꼴이다.</summary>
+        public bool IsCone => _action.MagicType == SpellGrammar.MAGIC_TYPE_CONE;
+
+        /// <summary>부채꼴의 전체 각도(도)다.</summary>
+        public double ConeAngle => _action.ConeAngle;
+
+        /// <summary>부채꼴의 꼭짓점이다. 발사체는 중심에서 진행 반대쪽으로 반경만큼 뒤, 범위는 개체 위치다.</summary>
+        public SimVector ConeApex => _action.Form == SpellGrammar.FORM_BOLT ? GetConeApex(_position, _direction, _stats.Radius) : _position;
+
+        /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
+        public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
         public double Age => _age;
-        public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _visualSeconds : _stats.Lifetime;
+        /// <summary>개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간, 그 외는 유지 시간이다.</summary>
+        public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _warmupSeconds + _visualSeconds
+            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -256,6 +321,12 @@ namespace RuneCode
         internal string CastNoiseElement => _castNoiseElement;
         internal SpellEventScope CallEvents => _callEvents;
         internal SpellModifierValues Modifiers => _modifiers;
+
+        /// <summary>이 개체의 이벤트 분기 노드 비용에 곱하는 배율(개체를 만든 문맥의 배율)이다.</summary>
+        internal double CostMultiplier => _costMultiplier;
+
+        /// <summary>이 개체를 만든 시전자다. 개체 이벤트로 시작한 후속 실행에 전달한다.</summary>
+        internal SimulationPlayer Caster => _caster;
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
@@ -263,11 +334,23 @@ namespace RuneCode
         internal double Angle { get => _angle; set => _angle = value; }
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
 
-        /// <summary>컴파일된 Form 수치와 호출 이벤트 문맥을 가진 독립 마법 개체를 생성한다.</summary>
+        /// <summary>발사체가 적·벽·지형에 한 번이라도 직접 충돌했는지 나타낸다. 직접 충돌한 발사체는 OnExpire를 내지 않는다.</summary>
+        internal bool HasDirectHit { get => _hasDirectHit; set => _hasDirectHit = value; }
+
+        /// <summary>부채꼴 발사체 중심(center)과 진행 방향, 반경으로 꼭짓점(중심에서 반경만큼 뒤)을 반환한다.</summary>
+        internal static SimVector GetConeApex(SimVector center, SimVector direction, double radius) => center - direction.Normalized() * radius;
+
+        /// <summary>
+        /// 컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.
+        /// warmupSeconds는 Burst의 확장 시간 또는 Persist의 예고 시간이며 그 외 형태는 0이다.
+        /// </summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, SpellEventScope callEvents, SpellModifierValues modifiers)
+            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
         {
+            _warmupSeconds = warmupSeconds;
+            _costMultiplier = costMultiplier;
+            _caster = caster;
             _id = id;
             _action = action;
             _stats = stats;
@@ -300,6 +383,25 @@ namespace RuneCode
             return true;
         }
 
+        /// <summary>
+        /// 이번 틱의 접촉 대상을 기록하고 직전 틱에 접촉하지 않았던 대상이면 true를 반환한다.
+        /// 공전의 접촉 시작 이벤트 판정에 쓰며, 틱마다 EndContactScan으로 마무리한다.
+        /// </summary>
+        internal bool MarkContact(int enemyId)
+        {
+            _nextContacts.Add(enemyId);
+            return !_contacts.Contains(enemyId);
+        }
+
+        /// <summary>이번 틱에 기록한 접촉 대상을 다음 틱의 비교 기준으로 바꾼다. 떨어진 대상은 다시 닿으면 새 접촉이 된다.</summary>
+        internal void EndContactScan()
+        {
+            HashSet<int> previous = _contacts;
+            _contacts = _nextContacts;
+            _nextContacts = previous;
+            _nextContacts.Clear();
+        }
+
         /// <summary>스펠 개체의 수명 경과를 고정 시간만큼 증가시킨다.</summary>
         internal void Advance(double dt) { _age += dt; }
 
@@ -307,12 +409,14 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);
             var ids = new List<int>(_hitTimes.Keys); ids.Sort();
             foreach (int id in ids) state.Append(FormattableString.Invariant($"|{id}:{_hitTimes[id]:R}"));
+            var contacts = new List<int>(_contacts); contacts.Sort();
+            foreach (int id in contacts) state.Append('|').Append('c').Append(id);
         }
     }
 

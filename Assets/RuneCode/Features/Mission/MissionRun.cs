@@ -42,13 +42,13 @@ namespace RuneCode
         /// <summary>정산 후 표시할 결과 문구를 반환한다.</summary>
         public string LastResult => _lastResult;
 
-        /// <summary>세션의 능력치와 선택 스테이지로 시간제 전투를 만들고 마법과 해금 속성을 연결한 뒤 시작 텔레메트리를 기록한다.</summary>
+        /// <summary>세션의 능력치와 선택 스테이지로 전투를 만들고 마법과 해금 속성을 연결한 뒤 시작 텔레메트리를 기록한다.</summary>
         public MissionRun(RuneCodeSession session, CompiledSpell spell, string spellName)
         {
             _session = session;
             _spell = spell;
             _spellName = spellName;
-            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.BattleDuration, session.EnergyRegen);
+            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);
@@ -58,8 +58,11 @@ namespace RuneCode
         /// <summary>미션의 고정 시뮬레이션 갱신을 일시정지하거나 재개한다.</summary>
         public void TogglePause() { _isPaused = !_isPaused; }
 
-        /// <summary>이동·대시 키와 포인터 조준을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고, 노드 텔레메트리 기록과 종료 조건을 확인한다.</summary>
-        public void Step(bool isTyping, bool hasPointer, SimVector pointer, float unscaledDeltaTime)
+        /// <summary>
+        /// 이동·대시 키, 포인터 조준과 시전 입력(isCasting, 좌클릭 유지)을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고,
+        /// 노드 텔레메트리 기록과 종료 조건을 확인한다.
+        /// </summary>
+        public void Step(bool isTyping, bool hasPointer, SimVector pointer, bool isCasting, float unscaledDeltaTime)
         {
             if (_settled) return;
             if (_isPaused) { _accumulator = 0; _hasPendingDash = false; return; }
@@ -77,25 +80,28 @@ namespace RuneCode
             while (_accumulator >= FIXED_STEP && steps++ < maxSteps)
             {
                 var aim = hasPointer ? pointer - _simulation.Player.Position : _simulation.Player.AimDirection;
-                _simulation.Step(new SimulationInput(movement, aim, hasPointer, false, false, _hasPendingDash));
+                _simulation.Step(new SimulationInput(movement, aim, isCasting, false, false, _hasPendingDash));
                 _hasPendingDash = false;
                 _accumulator -= FIXED_STEP;
             }
             CaptureNodeTelemetry();
-            if (_simulation.Stage == MissionStage.Dead || _simulation.Stage == MissionStage.Cleared) FinishMission();
+            if (_simulation.Completed || _simulation.IsFailed) FinishMission();
         }
 
-        /// <summary>시간 종료 또는 사망 보상을 한 번만 정산하고 결과 문구와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
+        /// <summary>클리어 보상을 포함한 클리어, 사망 또는 보스 제한시간 초과 보상을 한 번만 정산하고 결과 문구와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
         public void FinishMission()
         {
             if (_settled) return;
             _settled = true;
-            var cleared = _simulation.Stage == MissionStage.Cleared;
+            var cleared = _simulation.Completed;
             var fragments = _simulation.SettlementFragments;
             _session.SettleMission(_simulation.StageNumber, fragments, cleared, _simulation.KillCounts);
-            _lastResult = GameData.L(cleared ? "result.timed" : "result.dead") + "\n" + GameData.L("result.fragments") + " " + fragments;
+            var result = cleared ? "clear" : _simulation.IsTimedOut ? "timeout" : "death";
+            var resultKey = cleared ? "result.stageCleared" : _simulation.IsTimedOut ? "result.timeout" : "result.dead";
+            _lastResult = GameData.L(resultKey) + "\n" + GameData.L("result.fragments") + " " + fragments;
+            if (cleared) _lastResult += "  ·  " + GameData.L("result.clearReward") + " " + _simulation.ClearReward;
             _isPaused = false;
-            LocalTelemetry.Record(_simulation.Tick, "mission.result", (cleared ? "clear" : "death") + ":" + fragments);
+            LocalTelemetry.Record(_simulation.Tick, "mission.result", result + ":" + fragments);
         }
 
         /// <summary>전투를 중단하여 사망과 같은 보존 비율로 현재 획득 조각을 한 번만 정산하고 결과 문구를 남긴다.</summary>
@@ -116,11 +122,11 @@ namespace RuneCode
             _simulation.SetDebugInvulnerable(!_simulation.DebugInvulnerable);
         }
 
-        /// <summary>디버그 실행에서만 지정한 종류의 적을 미션에 생성한다.</summary>
-        public void DebugSpawn(string kind = "enemy.scout")
+        /// <summary>디버그 실행에서만 지정한 종류의 적을 미션에 생성한다. 엘리트 지정 시 엘리트 배율로 생성한다.</summary>
+        public void DebugSpawn(string kind = "enemy.scout", bool isElite = false)
         {
             if (!_session.IsDebugEnabled) return;
-            _simulation.DebugSpawn(kind);
+            _simulation.DebugSpawn(kind, isElite);
         }
 
         /// <summary>새로 실행된 노드만 로컬 링 버퍼에 기록하여 동일 tick 실행도 보존한다.</summary>

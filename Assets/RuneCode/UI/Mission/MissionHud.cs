@@ -1,3 +1,5 @@
+using System;
+
 using UnityEngine;
 
 using TMPro;
@@ -6,15 +8,13 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 화면의 HUD다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 시간, 마법 줄과 조각 토스트를 갱신하고
-    /// 일시정지 버튼과 디버그 전용 버튼·모달을 운영한다.
+    /// 미션 화면의 HUD View다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 적 수(보스 스테이지는 남은 시간 포함), 마법 줄과 조각 토스트를 표시하고
+    /// 일시정지·디버그 버튼 클릭을 알린다. 표시 값 계산은 MissionPresenter가 한다.
     /// </summary>
     public sealed class MissionHud : MonoBehaviour
     {
         private const float BAR_WIDTH = 238f;
         private const float BAR_HEIGHT = 9f;
-        private const float TIMER_WARNING_SECONDS = 5f;
-        private const float TOAST_DURATION = 0.9f;
 
         private static readonly Color TimerColor = new Color(0.98f, 0.82f, 0.45f);
         private static readonly Color TimerWarningColor = new Color(1f, 0.43f, 0.36f);
@@ -35,82 +35,53 @@ namespace RuneCode
         [Header("버튼")]
         [SerializeField] private Button _pauseButton;
         [SerializeField] private Button _debugButton;
-        [SerializeField] private GameObject _debugModal;
-        [SerializeField] private Button _debugCloseButton;
-        [SerializeField] private Button _debugGrantButton;
-        [SerializeField] private Button _debugUnlockButton;
-        [SerializeField] private Button _debugInvulnerableButton;
-        [SerializeField] private Button _debugSpawnButton;
 
-        private RuneCodeSession _session;
-        private MissionScreen _screen;
-        private MissionRun _run;
-        private int _lastFragments;
-        private float _fragmentToastUntil;
+        private bool _isBound;
 
-        /// <summary>디버그 모달이 열려 있는지 반환한다. 포인터 조준 차단에 쓰인다.</summary>
-        public bool IsDebugModalOpen => _debugModal != null && _debugModal.activeSelf;
+        /// <summary>일시정지 버튼을 눌렀을 때 알린다.</summary>
+        public event Action PauseClicked;
 
-        /// <summary>세션과 화면을 받아 버튼 리스너를 등록하고 디버그 버튼 표시를 디버그 실행 여부에 맞춘다.</summary>
-        public void Initialize(RuneCodeSession session, MissionScreen screen)
+        /// <summary>디버그 버튼을 눌렀을 때 알린다.</summary>
+        public event Action DebugClicked;
+
+        /// <summary>버튼 클릭을 이벤트로 처음 한 번만 연결하고 디버그 버튼 표시 여부를 정한다.</summary>
+        public void Bind(bool isDebugVisible)
         {
-            _session = session;
-            _screen = screen;
-            _pauseButton.onClick.AddListener(_screen.TogglePause);
-            _debugButton.onClick.AddListener(OpenDebugModal);
-            _debugCloseButton.onClick.AddListener(CloseDebugModal);
-            _debugGrantButton.onClick.AddListener(() => _session.DebugGrant());
-            _debugUnlockButton.onClick.AddListener(() => _session.DebugUnlock());
-            _debugInvulnerableButton.onClick.AddListener(() => { if (_run != null) _run.DebugInvulnerable(); });
-            _debugSpawnButton.onClick.AddListener(() => { if (_run != null) _run.DebugSpawn(); });
-            _debugButton.gameObject.SetActive(_session.IsDebugEnabled);
-            CloseDebugModal();
-        }
-
-        /// <summary>새 미션을 받아 스테이지 문구와 조각 토스트 상태를 시작 값으로 되돌리고 HUD를 즉시 갱신한다.</summary>
-        public void BeginRun(MissionRun run)
-        {
-            _run = run;
-            _lastFragments = run.Simulation.EarnedFragments;
-            _fragmentToastUntil = 0f;
-            _fragmentToast.text = "";
-            _stageLabel.text = GameData.L("ui.stage") + " " + run.Simulation.StageNumber;
-            UpdateHud();
-        }
-
-        /// <summary>현재 시뮬레이션 값으로 HUD 전체를 갱신한다. 진행 중인 미션이 없으면 무시한다.</summary>
-        public void UpdateHud()
-        {
-            if (_run == null) return;
-            RuneSimulation sim = _run.Simulation;
-            _hpFill.rectTransform.sizeDelta = new Vector2(BAR_WIDTH * (float)(sim.Player.Hp / sim.Player.MaxHp), BAR_HEIGHT);
-            _energyFill.rectTransform.sizeDelta = new Vector2(BAR_WIDTH * (float)(sim.Player.Energy / sim.Player.MaxEnergy), BAR_HEIGHT);
-            _hpCaption.text = GameData.L("ui.hp") + "  " + sim.Player.Hp.ToString("0") + "/" + sim.Player.MaxHp.ToString("0");
-            _energyCaption.text = GameData.L("ui.energy") + "  " + sim.Player.Energy.ToString("0") + "/" + sim.Player.MaxEnergy.ToString("0");
-            _statsLabel.text = GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments;
-            _timerLabel.text = GameData.L("ui.remaining") + " " + sim.RemainingTime.ToString("0.0") + "s";
-            _timerLabel.color = sim.RemainingTime <= TIMER_WARNING_SECONDS ? TimerWarningColor : TimerColor;
-            _spellLabel.text = GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") +
-                "s  ·  " + GameData.L("ui.cost") + " " + _run.SpellCost.ToString("0.#") + " EN";
-            if (sim.EarnedFragments > _lastFragments)
+            if (!_isBound)
             {
-                _fragmentToast.text = "+" + (sim.EarnedFragments - _lastFragments) + " " + GameData.L("ui.fragments");
-                _fragmentToastUntil = Time.unscaledTime + TOAST_DURATION;
+                _pauseButton.onClick.AddListener(() => PauseClicked?.Invoke());
+                _debugButton.onClick.AddListener(() => DebugClicked?.Invoke());
+                _isBound = true;
             }
-            _lastFragments = sim.EarnedFragments;
-            if (Time.unscaledTime >= _fragmentToastUntil) _fragmentToast.text = "";
+            _debugButton.gameObject.SetActive(isDebugVisible);
         }
 
-        /// <summary>디버그 조작 모달을 연다.</summary>
-        public void OpenDebugModal()
+        /// <summary>스테이지 번호 문구를 표시한다.</summary>
+        public void SetStage(string text) => _stageLabel.text = text;
+
+        /// <summary>체력·에너지 막대 길이와 수치 문구를 표시한다.</summary>
+        public void SetBars(double hp, double maxHp, double energy, double maxEnergy)
         {
-            _debugModal.SetActive(true);
+            _hpFill.rectTransform.sizeDelta = new Vector2(BAR_WIDTH * (float)(hp / maxHp), BAR_HEIGHT);
+            _energyFill.rectTransform.sizeDelta = new Vector2(BAR_WIDTH * (float)(energy / maxEnergy), BAR_HEIGHT);
+            _hpCaption.text = GameData.L("ui.hp") + "  " + hp.ToString("0") + "/" + maxHp.ToString("0");
+            _energyCaption.text = GameData.L("ui.energy") + "  " + energy.ToString("0") + "/" + maxEnergy.ToString("0");
         }
 
-        /// <summary>디버그 조작 모달을 닫는다.</summary>
-        public void CloseDebugModal()
+        /// <summary>처치·조각 문구를 표시한다.</summary>
+        public void SetStats(string text) => _statsLabel.text = text;
+
+        /// <summary>남은 적 수(보스 스테이지는 남은 시간 포함) 문구를 표시하고 제한시간이 임박하면 경고 색으로 바꾼다.</summary>
+        public void SetTimer(string text, bool isWarning)
         {
-            if (_debugModal != null) _debugModal.SetActive(false);
+            _timerLabel.text = text;
+            _timerLabel.color = isWarning ? TimerWarningColor : TimerColor;
         }
+
+        /// <summary>하단 마법 정보 줄을 표시한다.</summary>
+        public void SetSpellLine(string text) => _spellLabel.text = text;
+
+        /// <summary>조각 획득 토스트 문구를 표시한다. 빈 문자열이면 숨긴 것과 같다.</summary>
+        public void SetToast(string text) => _fragmentToast.text = text;
     }
 }

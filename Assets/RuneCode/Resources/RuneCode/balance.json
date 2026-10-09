@@ -44,6 +44,7 @@
     "_chillSlow": 0.3,
     "_chillSeconds": 2.5,
     "_chillMaxStacks": 3,
+    "_chillImmuneMaxStacks": 2,
     "_freezeSeconds": 1,
     "_freezeImmunity": 4,
     "_empSeconds": 2,

@@ -159,6 +159,7 @@ namespace RuneCode
                 AddBranch("then", action.Then, circleId, invocations, branches);
                 AddBranch("else", action.Else, circleId, invocations, branches);
                 AddBranch("body", action.Body, circleId, invocations, branches);
+                AddBranch(SpellGrammar.ON_COMPLETE_PORT, action.OnComplete, circleId, invocations, branches);
                 AddBranch("next", action.Next, circleId, invocations, branches);
                 rings.Add(new MagicCircleRing(index, action, branches));
                 if (action.Kind == "call" && action.CalledSpell != null)
@@ -186,6 +187,7 @@ namespace RuneCode
             AppendCalledInBranches(action.Then, circles, invocations, visited);
             AppendCalledInBranches(action.Else, circles, invocations, visited);
             AppendCalledInBranches(action.Body, circles, invocations, visited);
+            AppendCalledInBranches(action.OnComplete, circles, invocations, visited);
             AppendCalledInBranches(action.Next, circles, invocations, visited);
         }
 

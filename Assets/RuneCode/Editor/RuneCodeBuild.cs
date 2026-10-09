@@ -20,24 +20,38 @@ namespace RuneCode
     {
         private const string BOOT_SCENE_PATH = "Assets/Scenes/Boot.unity";
         private const string FONT_PATH = "Assets/RuneCode/Resources/RuneCode/UIFont.asset";
+        private const string TMP_FALLBACK_FONT_PATH = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset";
         private const string BUILD_PATH = "Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe";
         private const string SAMPLE_SCENE_PATH = "Assets/Scenes/SampleScene.unity";
 
-        private static readonly string[] FEATURE_SCENE_PATHS = { "Assets/Scenes/Title.unity", "Assets/Scenes/Workshop.unity", "Assets/Scenes/Mission.unity" };
-
-        /// <summary>글꼴과 Boot 씬을 준비하고 3개 기능 씬을 베이크한 뒤 빌드 설정 씬 목록을 갱신하고 Boot 씬을 연다.</summary>
-        [MenuItem("Rune Code/Build Scenes")]
-        public static void BuildScenes()
+        /// <summary>
+        /// 글꼴과 Boot 씬을 준비하고 화면·팝업 View Prefab(Resources/RuneCode/UI)을 베이크한 뒤 빌드 설정 씬 목록을 갱신하고 Boot 씬을 연다.
+        /// 화면은 씬이 아니라 UIManager가 띄우는 Prefab이므로 빌드에는 Boot 씬만 들어간다.
+        /// </summary>
+        [MenuItem("Rune Code/Build UI")]
+        public static void BuildUi()
         {
             EnsureTmpResources();
             GameData.Load();
+            UpgradeTreeAssetBuilder.EnsureAsset();
             PrepareFont();
             PrepareBootScene();
-            TitleLayout.BuildScene();
-            WorkshopLayout.BuildScene();
-            MissionLayout.BuildScene();
+            BuildViewPrefabs();
             UpdateBuildSceneList();
             EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
+        }
+
+        /// <summary>화면·팝업 View Prefab 중 없는 것만 만든다. 이미 있는 Prefab은 Unity에서 직접 편집하는 원본이라 덮어쓰지 않는다. 씬은 건드리지 않는다.</summary>
+        public static void BuildViewPrefabs()
+        {
+            GameData.Load();
+            UpgradeTreeAssetBuilder.EnsureAsset();
+            PopupLayout.Build();
+            SpellEditorLayout.BuildPopups();
+            TitleLayout.Build();
+            WorkshopLayout.Build();
+            MissionLayout.Build();
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>TMP 필수 리소스가 없으면 패키지 기본 리소스를 가져온다.</summary>
@@ -48,17 +62,62 @@ namespace RuneCode
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
         }
 
-        /// <summary>Windows 시스템 한글 글꼴로 UI 문구를 미리 렌더한 TMP 자산을 생성한다.</summary>
+        /// <summary>
+        /// UI 글꼴과 TMP 기본 대체 글꼴을 정적(Static) 아틀라스로 굽는다. 정적 글꼴은 실행 중 글리프가 추가되지 않아 에셋이 바뀌지 않는다.
+        /// UI 글꼴에는 영문·숫자, 기호, 한글 자모, KS X 1001 한글 2,350자와 게임 문자열의 모든 글자를 넣는다. 새 글자가 필요하면 다시 실행한다.
+        /// </summary>
+        [MenuItem("Rune Code/Bake Static Fonts")]
+        public static void BakeStaticFonts()
+        {
+            TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FONT_PATH);
+            if (font == null) font = PrepareFont();
+            BakeStatic(font, UiCharacters());
+            TMP_FontAsset fallback = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TMP_FALLBACK_FONT_PATH);
+            if (fallback != null) SetStatic(fallback);
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>UI 글꼴에 미리 넣을 글자(영문·숫자, 기호, 한글 자모·완성형, 게임 문자열 글자)를 중복 없이 반환한다.</summary>
+        private static string UiCharacters()
+        {
+            string characters = string.Concat(Enumerable.Range(32, 95).Select(value => (char)value)) + UiFontCharacters.SYMBOLS
+                + UiFontCharacters.HANGUL_JAMO + UiFontCharacters.HANGUL_SYLLABLES
+                + string.Concat(Resources.LoadAll<TextAsset>("RuneCode").Select(asset => asset.text));
+            return new string(characters.Where(character => !char.IsControl(character)).Distinct().ToArray());
+        }
+
+        /// <summary>글꼴을 잠시 동적으로 바꿔 글자를 추가하고 아틀라스 텍스처를 에셋에 포함한 뒤 정적으로 고정한다.</summary>
+        private static void BakeStatic(TMP_FontAsset font, string characters)
+        {
+            font.atlasPopulationMode = AtlasPopulationMode.DynamicOS;
+            font.TryAddCharacters(characters, out string missing);
+            if (!string.IsNullOrEmpty(missing)) Debug.LogWarning("[Font] 원본 글꼴에 없는 글자: " + missing);
+            foreach (Texture2D texture in font.atlasTextures)
+            {
+                if (texture != null && !AssetDatabase.Contains(texture)) AssetDatabase.AddObjectToAsset(texture, font);
+            }
+            SetStatic(font);
+        }
+
+        /// <summary>글꼴을 정적 아틀라스로 고정하고 빌드 시 동적 데이터 정리를 끈다.</summary>
+        private static void SetStatic(TMP_FontAsset font)
+        {
+            font.atlasPopulationMode = AtlasPopulationMode.Static;
+            SerializedObject serialized = new SerializedObject(font);
+            SerializedProperty clearOnBuild = serialized.FindProperty("m_ClearDynamicDataOnBuild");
+            if (clearOnBuild != null) clearOnBuild.boolValue = false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(font);
+        }
+
+        /// <summary>UI 글꼴 자산이 없으면 Windows 시스템 한글 글꼴로 만들고, 있으면 정적 아틀라스로 다시 굽는다.</summary>
         private static TMP_FontAsset PrepareFont()
         {
             var existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FONT_PATH);
             if (existing != null)
             {
-                var additionalCharacters = string.Concat(Resources.LoadAll<TextAsset>("RuneCode").Select(asset => asset.text)) + "−–";
-                existing.TryAddCharacters(new string(additionalCharacters.Distinct().ToArray()), out _);
-                foreach (var texture in existing.atlasTextures)
-                    if (texture != null && !AssetDatabase.Contains(texture)) AssetDatabase.AddObjectToAsset(texture, existing);
-                EditorUtility.SetDirty(existing); AssetDatabase.SaveAssets();
+                BakeStatic(existing, UiCharacters());
+                AssetDatabase.SaveAssets();
                 return existing;
             }
             var font = TMP_FontAsset.CreateFontAsset("Malgun Gothic", "Regular", 36);
@@ -130,26 +189,24 @@ namespace RuneCode
             return null;
         }
 
-        /// <summary>빌드 설정 씬 목록을 Boot·Title·Workshop·Mission(전부 enabled)과 기존처럼 disabled인 SampleScene 순으로 쓴다.</summary>
+        /// <summary>빌드 설정 씬 목록을 Boot(enabled)와 기존처럼 disabled인 SampleScene 순으로 쓴다.</summary>
         private static void UpdateBuildSceneList()
         {
-            var paths = new List<string> { BOOT_SCENE_PATH };
-            paths.AddRange(FEATURE_SCENE_PATHS);
-            var scenes = paths.Select(path => new EditorBuildSettingsScene(path, true)).ToList();
+            var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(BOOT_SCENE_PATH, true) };
             if (EditorBuildSettings.scenes.Any(scene => scene.path == SAMPLE_SCENE_PATH))
                 scenes.Add(new EditorBuildSettingsScene(SAMPLE_SCENE_PATH, false));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 
-        /// <summary>모든 씬을 다시 베이크한 뒤 4개 씬을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
+        /// <summary>UI Prefab을 다시 베이크한 뒤 Boot 씬을 Windows x64 실행 파일로 빌드하고 빌드 리포트를 기록한다.</summary>
         [MenuItem("Rune Code/Build Windows PoC")]
         public static void BuildWindows()
         {
-            BuildScenes();
+            BuildUi();
             Directory.CreateDirectory(Path.GetDirectoryName(BUILD_PATH));
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { BOOT_SCENE_PATH }.Concat(FEATURE_SCENE_PATHS).ToArray(),
+                scenes = new[] { BOOT_SCENE_PATH },
                 locationPathName = BUILD_PATH,
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.DetailedBuildReport

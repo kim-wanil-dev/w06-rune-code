@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using UnityEngine;
+
 namespace RuneCode
 {
     /// <summary>
@@ -11,7 +13,8 @@ namespace RuneCode
     public sealed class RuneCodeSession
     {
         private PlayerSave _save;
-        private readonly IncrementalDefinition _incremental;
+        private readonly StageCatalog _stages;
+        private readonly UpgradeTreeDefinition _upgradeTree;
         private readonly bool _isDebugEnabled;
         private readonly bool _isAreaBoxUpright;
         private readonly SpellEditSession _spells;
@@ -33,11 +36,11 @@ namespace RuneCode
         public bool DockAdaptation => _dockAdaptation;
         public float DockSpeed => _dockSpeed;
 
-        public int Capacity => GameData.Balance.Economy.BaseCapacity + _save.CapacityLevel * GameData.Balance.Economy.CapacityStep;
-        public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep;
+        public int Capacity => GameData.Balance.Economy.BaseCapacity + _save.CapacityLevel * GameData.Balance.Economy.CapacityStep + Mathf.RoundToInt(GetUpgradeTreeEffectTotal(UpgradeEffectType.RamCapacity));
+        public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.MaxEnergy);
         public float MaxHp => GameData.Balance.Player.MaxHp + _save.HpLevel * GameData.Balance.Economy.StatStep;
-        public float EnergyRegen => GameData.Balance.Player.EnergyRegen + _save.EnergyLevel * GameData.Balance.Economy.EnergyRegenStep;
-        public float BattleDuration => (float)_incremental.BaseDuration + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
+        public float EnergyRegen => GameData.Balance.Player.EnergyRegen + _save.EnergyLevel * GameData.Balance.Economy.EnergyRegenStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.EnergyRegen);
+        public float BattleDuration => (float)_stages.Get(1).Stream.Until + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
         public int HighestClearedStage => _save.HighestClearedStage;
@@ -46,13 +49,14 @@ namespace RuneCode
         public event Action<AppScreen> ScreenRequested;
 
         /// <summary>
-        /// 세이브, 시간제 스테이지 정의, 디버그 여부, 시작 경고 문구와
+        /// 세이브, 스테이지 정의(제한시간 성장 표시 기준값), 디버그 여부, 시작 경고 문구와
         /// 범위 사각형 판정의 월드 축 고정 여부로 세션과 마법 편집 세션을 만든다.
         /// </summary>
-        public RuneCodeSession(PlayerSave save, IncrementalDefinition incremental, bool isDebugEnabled, string initialStatus, bool isAreaBoxUpright)
+        public RuneCodeSession(PlayerSave save, StageCatalog stages, UpgradeTreeDefinition upgradeTree, bool isDebugEnabled, string initialStatus, bool isAreaBoxUpright)
         {
             _save = save;
-            _incremental = incremental;
+            _stages = stages;
+            _upgradeTree = upgradeTree;
             _isDebugEnabled = isDebugEnabled;
             _isAreaBoxUpright = isAreaBoxUpright;
             _statusMessage = initialStatus;
@@ -84,6 +88,10 @@ namespace RuneCode
         {
             var elements = new List<string> { "raw" };
             foreach (var id in _save.UnlockedRunes) if (id.StartsWith("elem.", StringComparison.Ordinal)) elements.Add(id.Substring(5));
+            // 문법 v3 속성은 element.* 룬으로 해금하므로 해금된 속성의 시뮬레이션 태그도 넣는다.
+            foreach (ElementDefinition element in GameData.Runes.Elements)
+                if (!string.IsNullOrEmpty(element.RuntimeTag) && _save.UnlockedRunes.Contains(element.RuneId) && !elements.Contains(element.RuntimeTag))
+                    elements.Add(element.RuntimeTag);
             return elements;
         }
 
@@ -97,13 +105,100 @@ namespace RuneCode
                 case "energy": return economy.GetGrowthCost(kind, _save.EnergyLevel);
                 case "duration": return economy.GetGrowthCost(kind, _save.DurationLevel);
                 default:
-                    return GameData.Runes.TryGet(kind, out var rune) && rune.UnlockType == "bench" && !_save.UnlockedRunes.Contains(kind) ? rune.UnlockCost : -1;
+                    if (!GameData.Runes.TryGet(kind, out var rune) || _save.UnlockedRunes.Contains(kind)) return -1;
+                    UpgradeTreeNodeDefinition treeNode = _upgradeTree.FindRuneUnlock(kind);
+                    if (treeNode != null) return treeNode.GetNextCost(_save.GetUpgradeNodeLevel(treeNode.Id));
+                    return rune.UnlockType == "bench" ? rune.UnlockCost : -1;
             }
+        }
+
+        /// <summary>노드의 구매 단계를 반환하고, 기존 해금 화면에서 이미 얻은 룬은 트리에서도 완료로 처리한다.</summary>
+        public int GetUpgradeNodeLevel(string nodeId)
+        {
+            UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
+            if (node == null) return 0;
+            if (node.EffectType == UpgradeEffectType.RuneUnlock && _save.UnlockedRunes.Contains(node.RuneId)) return node.MaxLevel;
+            return Math.Min(_save.GetUpgradeNodeLevel(nodeId), node.MaxLevel);
+        }
+
+        /// <summary>노드의 다음 강화 비용을 반환하고 최대 레벨이거나 등록되지 않은 노드는 -1을 반환한다.</summary>
+        public int GetUpgradeNodeCost(string nodeId)
+        {
+            UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
+            return node == null ? -1 : node.GetNextCost(GetUpgradeNodeLevel(nodeId));
+        }
+
+        /// <summary>스테이지, 선행 노드, 재화를 확인하고 노드를 구매할 수 없으면 이유 키를 반환한다.</summary>
+        public bool CanPurchaseUpgradeNode(string nodeId, out string reasonKey)
+        {
+            reasonKey = null;
+            UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
+            if (node == null || node.MaxLevel == 0)
+            {
+                reasonKey = "tree.invalidNode";
+                return false;
+            }
+            int currentLevel = GetUpgradeNodeLevel(nodeId);
+            if (currentLevel >= node.MaxLevel)
+            {
+                reasonKey = "tree.maxed";
+                return false;
+            }
+            if (node.EffectType == UpgradeEffectType.RuneUnlock && !GameData.Runes.TryGet(node.RuneId, out _))
+            {
+                reasonKey = "tree.invalidRune";
+                return false;
+            }
+            if (node.RequiredStage > _save.HighestClearedStage + 1)
+            {
+                reasonKey = "tree.stageLocked";
+                return false;
+            }
+            foreach (UpgradeTreePrerequisite prerequisite in node.Prerequisites)
+                if (GetUpgradeNodeLevel(prerequisite.NodeId) < prerequisite.RequiredLevel)
+                {
+                    reasonKey = "tree.prerequisiteLocked";
+                    return false;
+                }
+            int cost = node.GetNextCost(currentLevel);
+            if (cost < 0 || _save.Currency < cost)
+            {
+                reasonKey = "bench.insufficient";
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>선행 조건을 만족하는 트리 노드를 구매하고 효과·룬 해금·저장을 반영한다.</summary>
+        public bool BuyUpgradeNode(string nodeId)
+        {
+            if (!CanPurchaseUpgradeNode(nodeId, out string reasonKey))
+            {
+                SetStatus(reasonKey);
+                return false;
+            }
+            UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
+            int currentLevel = GetUpgradeNodeLevel(nodeId);
+            int cost = node.GetNextCost(currentLevel);
+            if (!_save.Spend(cost))
+            {
+                SetStatus("bench.insufficient");
+                return false;
+            }
+            _save.SetUpgradeNodeLevel(nodeId, currentLevel + 1);
+            if (node.EffectType == UpgradeEffectType.RuneUnlock) _save.Unlock(node.RuneId);
+            SaveStore.Write(_save);
+            _spells.Recompile();
+            LocalTelemetry.Record(0, "upgradeTree.purchase", nodeId + ":" + (currentLevel + 1) + ":" + cost);
+            return true;
         }
 
         /// <summary>비용을 지불하고 성장 또는 룬 해금을 적용해 저장한다. 성공하면 true를 반환한다.</summary>
         public bool BuyUpgrade(string kind)
         {
+            UpgradeTreeNodeDefinition treeNode = _upgradeTree.FindRuneUnlock(kind);
+            if (treeNode != null) return BuyUpgradeNode(treeNode.Id);
+
             var cost = GetUpgradeCost(kind);
             if (cost < 0) { SetStatus("bench.maxed"); return false; }
             if (!_save.Spend(cost)) { SetStatus("bench.insufficient"); return false; }
@@ -211,7 +306,17 @@ namespace RuneCode
         private int GetGraphRam(SpellGraph graph)
         {
             if (graph == null) return 0;
-            return graph.Nodes.Sum(node => GameData.Runes.TryGet(node.RuneId, out var rune) ? rune.Ram : 0);
+            return graph.Nodes.Sum(node => GameData.Runes.NodeRam(node));
+        }
+
+        /// <summary>해당 강화 유형에 속한 트리 노드의 저장 레벨까지 효과량을 합산한다.</summary>
+        private float GetUpgradeTreeEffectTotal(UpgradeEffectType effectType)
+        {
+            float total = 0;
+            foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
+                if (node != null && node.EffectType == effectType)
+                    total += node.GetTotalAmount(GetUpgradeNodeLevel(node.Id));
+            return total;
         }
 
         /// <summary>편집 사본을 반영한 장착 마법 전체의 RAM 사용량을 반환한다.</summary>

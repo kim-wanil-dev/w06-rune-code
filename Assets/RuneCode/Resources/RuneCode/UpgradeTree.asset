@@ -1,0 +1,669 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2343644682447498979d1eb6777c66, type: 3}
+  m_Name: UpgradeTree
+  m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeDefinition
+  _layoutVersion: 2
+  _nodes:
+  - _id: stage_01.regen
+    _requiredStage: 1
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 46, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites: []
+    _levels:
+    - _cost: 5
+      _amount: 0.5
+    - _cost: 8
+      _amount: 0.5
+  - _id: stage_01.max_energy
+    _requiredStage: 1
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 46, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_01.regen
+      _requiredLevel: 1
+    _levels:
+    - _cost: 6
+      _amount: 5
+    - _cost: 10
+      _amount: 5
+  - _id: stage_01.ram_capacity
+    _requiredStage: 1
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 46, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_01.regen
+      _requiredLevel: 1
+    _levels:
+    - _cost: 8
+      _amount: 1
+    - _cost: 13
+      _amount: 1
+  - _id: stage_01.rune.mod.speed
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 46, y: 412}
+    _effectType: 3
+    _runeId: mod.speed
+    _prerequisites:
+    - _nodeId: stage_01.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_01.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 20
+      _amount: 0
+  - _id: stage_02.regen
+    _requiredStage: 2
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 230, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_01.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_01.rune.mod.speed
+      _requiredLevel: 1
+    _levels:
+    - _cost: 6
+      _amount: 0.5
+    - _cost: 9
+      _amount: 0.5
+  - _id: stage_02.max_energy
+    _requiredStage: 2
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 264, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_01.regen
+      _requiredLevel: 1
+    - _nodeId: stage_01.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 7
+      _amount: 5
+    - _cost: 11
+      _amount: 5
+  - _id: stage_02.ram_capacity
+    _requiredStage: 2
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 230, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_01.regen
+      _requiredLevel: 1
+    - _nodeId: stage_01.rune.mod.speed
+      _requiredLevel: 1
+    _levels:
+    - _cost: 9
+      _amount: 1
+    - _cost: 14
+      _amount: 1
+  - _id: stage_02.rune.element.ice
+    _requiredStage: 2
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 264, y: 412}
+    _effectType: 3
+    _runeId: element.ice
+    _prerequisites:
+    - _nodeId: stage_01.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_01.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_01.rune.mod.speed
+      _requiredLevel: 1
+    _levels:
+    - _cost: 25
+      _amount: 0
+  - _id: stage_03.regen
+    _requiredStage: 3
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 414, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_02.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_02.rune.element.ice
+      _requiredLevel: 1
+    _levels:
+    - _cost: 6
+      _amount: 0.5
+    - _cost: 10
+      _amount: 0.5
+  - _id: stage_03.max_energy
+    _requiredStage: 3
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 414, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_02.regen
+      _requiredLevel: 1
+    - _nodeId: stage_02.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 8
+      _amount: 5
+    - _cost: 12
+      _amount: 5
+  - _id: stage_03.ram_capacity
+    _requiredStage: 3
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 414, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_02.regen
+      _requiredLevel: 1
+    - _nodeId: stage_02.rune.element.ice
+      _requiredLevel: 1
+    _levels:
+    - _cost: 10
+      _amount: 1
+    - _cost: 16
+      _amount: 1
+  - _id: stage_03.rune.mod.pierce
+    _requiredStage: 3
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 414, y: 412}
+    _effectType: 3
+    _runeId: mod.pierce
+    _prerequisites:
+    - _nodeId: stage_02.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_02.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_02.rune.element.ice
+      _requiredLevel: 1
+    _levels:
+    - _cost: 30
+      _amount: 0
+  - _id: stage_04.regen
+    _requiredStage: 4
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 598, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_03.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_03.rune.mod.pierce
+      _requiredLevel: 1
+    _levels:
+    - _cost: 7
+      _amount: 0.5
+    - _cost: 11
+      _amount: 0.5
+  - _id: stage_04.max_energy
+    _requiredStage: 4
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 632, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_03.regen
+      _requiredLevel: 1
+    - _nodeId: stage_03.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 8
+      _amount: 5
+    - _cost: 13
+      _amount: 5
+  - _id: stage_04.ram_capacity
+    _requiredStage: 4
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 598, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_03.regen
+      _requiredLevel: 1
+    - _nodeId: stage_03.rune.mod.pierce
+      _requiredLevel: 1
+    _levels:
+    - _cost: 11
+      _amount: 1
+    - _cost: 18
+      _amount: 1
+  - _id: stage_04.rune.mod.expand
+    _requiredStage: 4
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 632, y: 412}
+    _effectType: 3
+    _runeId: mod.expand
+    _prerequisites:
+    - _nodeId: stage_03.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_03.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_03.rune.mod.pierce
+      _requiredLevel: 1
+    _levels:
+    - _cost: 30
+      _amount: 0
+  - _id: stage_05.regen
+    _requiredStage: 5
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 782, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_04.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_04.rune.mod.expand
+      _requiredLevel: 1
+    _levels:
+    - _cost: 8
+      _amount: 0.5
+    - _cost: 13
+      _amount: 0.5
+  - _id: stage_05.max_energy
+    _requiredStage: 5
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 782, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_04.regen
+      _requiredLevel: 1
+    - _nodeId: stage_04.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 9
+      _amount: 5
+    - _cost: 15
+      _amount: 5
+  - _id: stage_05.ram_capacity
+    _requiredStage: 5
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 782, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_04.regen
+      _requiredLevel: 1
+    - _nodeId: stage_04.rune.mod.expand
+      _requiredLevel: 1
+    _levels:
+    - _cost: 13
+      _amount: 1
+    - _cost: 20
+      _amount: 1
+  - _id: stage_05.rune.behavior.persist
+    _requiredStage: 5
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 782, y: 412}
+    _effectType: 3
+    _runeId: behavior.persist
+    _prerequisites:
+    - _nodeId: stage_04.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_04.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_04.rune.mod.expand
+      _requiredLevel: 1
+    _levels:
+    - _cost: 35
+      _amount: 0
+  - _id: stage_06.regen
+    _requiredStage: 6
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 966, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_05.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_05.rune.behavior.persist
+      _requiredLevel: 1
+    _levels:
+    - _cost: 9
+      _amount: 0.5
+    - _cost: 14
+      _amount: 0.5
+  - _id: stage_06.max_energy
+    _requiredStage: 6
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1000, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_05.regen
+      _requiredLevel: 1
+    - _nodeId: stage_05.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 11
+      _amount: 5
+    - _cost: 17
+      _amount: 5
+  - _id: stage_06.ram_capacity
+    _requiredStage: 6
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 966, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_05.regen
+      _requiredLevel: 1
+    - _nodeId: stage_05.rune.behavior.persist
+      _requiredLevel: 1
+    _levels:
+    - _cost: 14
+      _amount: 1
+    - _cost: 23
+      _amount: 1
+  - _id: stage_06.rune.flow.repeat
+    _requiredStage: 6
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1000, y: 412}
+    _effectType: 3
+    _runeId: flow.repeat
+    _prerequisites:
+    - _nodeId: stage_05.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_05.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_05.rune.behavior.persist
+      _requiredLevel: 1
+    _levels:
+    - _cost: 40
+      _amount: 0
+  - _id: stage_07.regen
+    _requiredStage: 7
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 1150, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_06.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_06.rune.flow.repeat
+      _requiredLevel: 1
+    _levels:
+    - _cost: 10
+      _amount: 0.5
+    - _cost: 16
+      _amount: 0.5
+  - _id: stage_07.max_energy
+    _requiredStage: 7
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1150, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_06.regen
+      _requiredLevel: 1
+    - _nodeId: stage_06.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 12
+      _amount: 5
+    - _cost: 19
+      _amount: 5
+  - _id: stage_07.ram_capacity
+    _requiredStage: 7
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 1150, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_06.regen
+      _requiredLevel: 1
+    - _nodeId: stage_06.rune.flow.repeat
+      _requiredLevel: 1
+    _levels:
+    - _cost: 16
+      _amount: 1
+    - _cost: 25
+      _amount: 1
+  - _id: stage_07.rune.element.lightning
+    _requiredStage: 7
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1150, y: 412}
+    _effectType: 3
+    _runeId: element.lightning
+    _prerequisites:
+    - _nodeId: stage_06.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_06.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_06.rune.flow.repeat
+      _requiredLevel: 1
+    _levels:
+    - _cost: 40
+      _amount: 0
+  - _id: stage_08.regen
+    _requiredStage: 8
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 1334, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_07.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_07.rune.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 11
+      _amount: 0.5
+    - _cost: 18
+      _amount: 0.5
+  - _id: stage_08.max_energy
+    _requiredStage: 8
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1368, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_07.regen
+      _requiredLevel: 1
+    - _nodeId: stage_07.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 13
+      _amount: 5
+    - _cost: 21
+      _amount: 5
+  - _id: stage_08.ram_capacity
+    _requiredStage: 8
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 1334, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_07.regen
+      _requiredLevel: 1
+    - _nodeId: stage_07.rune.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 18
+      _amount: 1
+    - _cost: 28
+      _amount: 1
+  - _id: stage_08.rune.mod.homing
+    _requiredStage: 8
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1368, y: 412}
+    _effectType: 3
+    _runeId: mod.homing
+    _prerequisites:
+    - _nodeId: stage_07.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_07.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_07.rune.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 50
+      _amount: 0
+  - _id: stage_09.regen
+    _requiredStage: 9
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 1518, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_08.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_08.rune.mod.homing
+      _requiredLevel: 1
+    _levels:
+    - _cost: 12
+      _amount: 0.5
+    - _cost: 20
+      _amount: 0.5
+  - _id: stage_09.max_energy
+    _requiredStage: 9
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1518, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_08.regen
+      _requiredLevel: 1
+    - _nodeId: stage_08.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 15
+      _amount: 5
+    - _cost: 24
+      _amount: 5
+  - _id: stage_09.ram_capacity
+    _requiredStage: 9
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 1518, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_08.regen
+      _requiredLevel: 1
+    - _nodeId: stage_08.rune.mod.homing
+      _requiredLevel: 1
+    _levels:
+    - _cost: 20
+      _amount: 1
+    - _cost: 32
+      _amount: 1
+  - _id: stage_09.rune.flow.if
+    _requiredStage: 9
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1518, y: 412}
+    _effectType: 3
+    _runeId: flow.if
+    _prerequisites:
+    - _nodeId: stage_08.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_08.ram_capacity
+      _requiredLevel: 1
+    - _nodeId: stage_08.rune.mod.homing
+      _requiredLevel: 1
+    _levels:
+    - _cost: 60
+      _amount: 0
+  - _id: stage_10.regen
+    _requiredStage: 10
+    _titleKey: ui.tree.regen
+    _descriptionKey: ui.tree.regenDescription
+    _position: {x: 1702, y: 40}
+    _effectType: 0
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_09.max_energy
+      _requiredLevel: 1
+    - _nodeId: stage_09.rune.flow.if
+      _requiredLevel: 1
+    _levels:
+    - _cost: 14
+      _amount: 0.5
+    - _cost: 22
+      _amount: 0.5
+  - _id: stage_10.max_energy
+    _requiredStage: 10
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1736, y: 164}
+    _effectType: 1
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_09.regen
+      _requiredLevel: 1
+    - _nodeId: stage_09.ram_capacity
+      _requiredLevel: 1
+    _levels:
+    - _cost: 17
+      _amount: 5
+    - _cost: 27
+      _amount: 5
+  - _id: stage_10.ram_capacity
+    _requiredStage: 10
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 1702, y: 288}
+    _effectType: 2
+    _runeId: 
+    _prerequisites:
+    - _nodeId: stage_09.regen
+      _requiredLevel: 1
+    - _nodeId: stage_09.rune.flow.if
+      _requiredLevel: 1
+    _levels:
+    - _cost: 22
+      _amount: 1
+    - _cost: 35
+      _amount: 1

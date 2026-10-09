@@ -136,21 +136,29 @@ namespace RuneCode
         private readonly IReadOnlyList<SpellAction> _onFirstHitOrExpire;
         private readonly SpellEventScope _parent;
         private readonly SpellModifierValues _parentModifiers;
+        private readonly double _parentCostMultiplier;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
         public IReadOnlyList<SpellAction> OnExpire => _onExpire;
         public IReadOnlyList<SpellAction> OnFirstHitOrExpire => _onFirstHitOrExpire;
         public SpellEventScope Parent => _parent;
         public SpellModifierValues ParentModifiers => _parentModifiers;
 
-        /// <summary>호출 노드의 적중·소멸·첫 적중 또는 소멸(onFirstHitOrExpire) 분기와 외부 호출 문맥을 불변 범위로 묶는다.</summary>
+        /// <summary>호출 노드 쪽 이벤트 분기를 실행할 때 노드 비용에 곱하는 배율(호출 노드가 속한 문맥의 배율)이다.</summary>
+        public double ParentCostMultiplier => _parentCostMultiplier;
+
+        /// <summary>
+        /// 호출 노드의 적중·소멸·첫 적중 또는 소멸(onFirstHitOrExpire) 분기와 외부 호출 문맥(효과 값, 비용 배율)을 불변 범위로 묶는다.
+        /// </summary>
         public SpellEventScope(IReadOnlyList<SpellAction> onHit, IReadOnlyList<SpellAction> onExpire,
-            IReadOnlyList<SpellAction> onFirstHitOrExpire, SpellEventScope parent, SpellModifierValues parentModifiers)
+            IReadOnlyList<SpellAction> onFirstHitOrExpire, SpellEventScope parent, SpellModifierValues parentModifiers,
+            double parentCostMultiplier = 1d)
         {
             _onHit = onHit;
             _onExpire = onExpire;
             _onFirstHitOrExpire = onFirstHitOrExpire;
             _parent = parent;
             _parentModifiers = parentModifiers ?? SpellModifierValues.None;
+            _parentCostMultiplier = parentCostMultiplier;
         }
 
         /// <summary>호출 범위 체인의 이벤트 노드 ID를 상태 해시 버퍼에 기록한다.</summary>
@@ -161,7 +169,7 @@ namespace RuneCode
                 foreach (SpellAction action in scope.OnHit) state.Append("|h:").Append(action.NodeId);
                 foreach (SpellAction action in scope.OnExpire) state.Append("|x:").Append(action.NodeId);
                 foreach (SpellAction action in scope.OnFirstHitOrExpire) state.Append("|c:").Append(action.NodeId);
-                state.Append('|');
+                state.Append('|').Append(scope._parentCostMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|');
                 scope.ParentModifiers.AppendState(state);
             }
         }
@@ -336,6 +344,9 @@ namespace RuneCode
         private readonly float _power;
         private readonly float _buffDuration;
         private readonly float _ownEnergy;
+        private readonly float _nodeEnergy;
+        private readonly float _energyMultiplier;
+        private readonly float _coneAngle;
         private readonly SpellModifierValues _modifierValues;
         private readonly CompiledSpell _calledSpell;
 
@@ -345,6 +356,7 @@ namespace RuneCode
         private IReadOnlyList<SpellAction> _then = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _else = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _body = new List<SpellAction>();
+        private IReadOnlyList<SpellAction> _onComplete = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _next = new List<SpellAction>();
         private IReadOnlyList<string> _attachedNodeIds = new List<string>();
         public string Kind => _kind;
@@ -367,7 +379,17 @@ namespace RuneCode
         public float ShieldSeconds => _shieldSeconds;
         public float Power => _power;
         public float BuffDuration => _buffDuration;
+        /// <summary>이 명령의 최대 비용 계산용 자체 비용이다. 프리셋 호출은 호출 대상 비용 × 개수 × 효과 배율을 포함한다.</summary>
         public float OwnEnergy => _ownEnergy;
+
+        /// <summary>실행 중 이 노드에 도달했을 때 차감하는 비용이다. 프리셋 호출은 호출 대상 노드가 도달할 때 각자 차감하므로 포함하지 않는다.</summary>
+        public float NodeEnergy => _nodeEnergy;
+
+        /// <summary>부착된 유효 효과들의 비용 배율 곱이다. 프리셋 호출에서는 호출된 노드의 비용에 곱한다.</summary>
+        public float EnergyMultiplier => _energyMultiplier;
+
+        /// <summary>부채꼴 Shape의 전체 각도(도)다. 부채꼴이 아니면 0이다.</summary>
+        public float ConeAngle => _coneAngle;
         public SpellModifierValues ModifierValues => _modifierValues;
         public CompiledSpell CalledSpell => _calledSpell;
         public IReadOnlyList<SpellAction> OnHit => _onHit;
@@ -376,9 +398,12 @@ namespace RuneCode
         public IReadOnlyList<SpellAction> Then => _then;
         public IReadOnlyList<SpellAction> Else => _else;
         public IReadOnlyList<SpellAction> Body => _body;
+
+        /// <summary>Repeat의 모든 회차(내부 Delay 포함)가 정상 종료된 뒤 한 번 실행하는 분기다.</summary>
+        public IReadOnlyList<SpellAction> OnComplete => _onComplete;
         public IReadOnlyList<SpellAction> Next => _next;
 
-        /// <summary>적중·소멸·첫 이벤트·조건·반복·후속 실행의 모든 하위 분기를 반환한다. 분기를 추가하면 이곳에도 추가한다.</summary>
+        /// <summary>적중·소멸·첫 이벤트·조건·반복·반복 완료·후속 실행의 모든 하위 분기를 반환한다. 분기를 추가하면 이곳에도 추가한다.</summary>
         public IEnumerable<IReadOnlyList<SpellAction>> Branches
         {
             get
@@ -389,16 +414,19 @@ namespace RuneCode
                 yield return _then;
                 yield return _else;
                 yield return _body;
+                yield return _onComplete;
                 yield return _next;
             }
         }
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
-        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상 및 연결 수식으로 실행 명령을 초기화한다.</summary>
+        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상·연결 수식, 부채꼴 각도(도)로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
-            IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null)
+            IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null,
+            float coneAngle = 0f)
         {
             _nodeId = node.Id;
+            _coneAngle = coneAngle;
             _magicType = rune.Id == "magic.inline" ? node.GetText("magicType", "sphere") : rune.Category == "form" ? "sphere" : "";
             _form = rune.Id == "magic.inline" ? MapForm(node.GetText("form", "launch")) : rune.Category == "form" ? rune.Id.Substring(5) : "";
             _sourceElement = rune.Id == "magic.inline" ? node.GetText("element", "normal") : element == null ? "normal" : SourceElementFromRune(element.Id);
@@ -418,9 +446,10 @@ namespace RuneCode
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;
-            _ownEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)
-                + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count : 0f)) * energyMultiplier;
-            if (element != null) _ownEnergy += element.Energy;
+            _energyMultiplier = energyMultiplier;
+            _nodeEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)) * energyMultiplier;
+            if (element != null) _nodeEnergy += element.Energy;
+            _ownEnergy = _nodeEnergy + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count * energyMultiplier : 0f);
             _modifierValues = SpellModifierValues.From(mods, modifierNodes);
             if (_kind == "spawn" || _kind == "buff") _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes);
             _seconds = node.GetNumber("seconds", DefaultNumber(rune, "seconds"));
@@ -490,6 +519,7 @@ namespace RuneCode
                 case "then": _then = actions; break;
                 case "else": _else = actions; break;
                 case "body": _body = actions; break;
+                case SpellGrammar.ON_COMPLETE_PORT: _onComplete = actions; break;
                 case "next": _next = actions; break;
             }
         }
@@ -526,7 +556,7 @@ namespace RuneCode
         /// <summary>검증된 그래프의 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
         public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, float energyCost,
             float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
-            string id = "", string trigger = "attack")
+            string id = "", string trigger = SpellGrammar.TRIGGER_ON_ATTACK)
         {
             _id = id;
             _name = name;

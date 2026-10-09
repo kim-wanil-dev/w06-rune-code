@@ -170,90 +170,10 @@ namespace RuneCode
         { var data = JsonUtility.FromJson<GovernorDefinition>(json); if (data == null || data.PhaseTwoThreshold <= data.PhaseThreeThreshold || data.PatchSeconds <= 0 || data.RadialCount < 1 || data.RadialInterval <= 0 || data.ReinforcementInterval <= 0) throw new FormatException("보스 패턴 설정 오류입니다."); return data; }
     }
 
-    [Serializable]
-    public sealed class IncrementalEnemyEntry
-    {
-        [Header("시간제 스테이지 적")]
-        [SerializeField] private string _enemyId;
-        [SerializeField] private int _firstStage;
-        [SerializeField] private double _weight;
-        [SerializeField] private int _reward;
-        public string EnemyId => _enemyId;
-        public int FirstStage => _firstStage;
-        public double Weight => _weight;
-        public int Reward => _reward;
-    }
-
-    [Serializable]
-    public sealed class IncrementalDefinition
-    {
-        [Header("시간제 스테이지")]
-        [SerializeField] private double _baseDuration;
-        [SerializeField] private double _playerX;
-        [SerializeField] private double _playerY;
-        [SerializeField] private double _spawnX;
-        [SerializeField] private double _spawnMinY;
-        [SerializeField] private double _spawnMaxY;
-        [SerializeField] private double _baseSpawnInterval;
-        [SerializeField] private double _minSpawnInterval;
-        [SerializeField] private double _intervalStageScale;
-        [SerializeField] private double _intraStageRamp;
-        [SerializeField] private double _hpStageScale;
-        [SerializeField] private double _damageStageScale;
-        [SerializeField] private double _stationaryAdvanceSpeed;
-        [SerializeField] private bool _isAdaptationEnabled;
-        [SerializeField] private string[] _tiles;
-        [SerializeField] private IncrementalEnemyEntry[] _enemies;
-        public double BaseDuration => _baseDuration;
-        public double PlayerX => _playerX;
-        public double PlayerY => _playerY;
-        public double SpawnX => _spawnX;
-        public double SpawnMinY => _spawnMinY;
-        public double SpawnMaxY => _spawnMaxY;
-        public double BaseSpawnInterval => _baseSpawnInterval;
-        public double MinSpawnInterval => _minSpawnInterval;
-        public double IntervalStageScale => _intervalStageScale;
-        public double IntraStageRamp => _intraStageRamp;
-        public double HpStageScale => _hpStageScale;
-        public double DamageStageScale => _damageStageScale;
-        public double StationaryAdvanceSpeed => _stationaryAdvanceSpeed;
-        public bool IsAdaptationEnabled => _isAdaptationEnabled;
-        public string[] Tiles => _tiles;
-        public IReadOnlyList<IncrementalEnemyEntry> Enemies => _enemies;
-
-        /// <summary>시간제 스테이지의 제한시간, 오른쪽 유입, 성장 배율 및 적 편성을 JSON에서 읽어 검증한다.</summary>
-        public static IncrementalDefinition FromJson(string json, EnemyCatalog enemies, int tileSize)
-        {
-            var data = JsonUtility.FromJson<IncrementalDefinition>(json);
-            if (data == null || data.BaseDuration <= 0 || data.BaseSpawnInterval <= 0 || data.MinSpawnInterval <= 0 || data.MinSpawnInterval > data.BaseSpawnInterval
-                || data.SpawnMinY > data.SpawnMaxY || data.IntervalStageScale < 0 || data.IntraStageRamp < 0 || data.IntraStageRamp >= 1
-                || data.HpStageScale < 0 || data.DamageStageScale < 0 || data.StationaryAdvanceSpeed < 0 || data.Enemies == null || data.Enemies.Count == 0)
-                throw new FormatException("시간제 스테이지 설정 오류입니다.");
-            var ids = new HashSet<string>();
-            bool hasStartEnemy = false;
-            double[] values = { data.BaseDuration, data.PlayerX, data.PlayerY, data.SpawnX, data.SpawnMinY, data.SpawnMaxY,
-                data.BaseSpawnInterval, data.MinSpawnInterval, data.IntervalStageScale, data.IntraStageRamp,
-                data.HpStageScale, data.DamageStageScale, data.StationaryAdvanceSpeed };
-            foreach (double value in values)
-                if (double.IsNaN(value) || double.IsInfinity(value)) throw new FormatException("시간제 설정은 유한한 값이어야 합니다.");
-            var map = new MissionMap(data.Tiles, tileSize);
-            if (map.IsWall(new SimVector(data.PlayerX, data.PlayerY))) throw new FormatException("시간제 플레이어 시작 좌표가 벽 안에 있습니다.");
-            foreach (IncrementalEnemyEntry entry in data.Enemies)
-            {
-                EnemyDefinition enemy = enemies.Get(entry.EnemyId);
-                if (!ids.Add(entry.EnemyId) || entry.FirstStage < 1 || entry.Weight <= 0 || double.IsNaN(entry.Weight)
-                    || double.IsInfinity(entry.Weight) || entry.Reward < 0) throw new FormatException("시간제 적 편성 오류입니다.");
-                if (entry.FirstStage == 1) hasStartEnemy = true;
-                if (!map.CanOccupy(new SimVector(data.SpawnX, data.SpawnMinY), enemy.Radius)
-                    || !map.CanOccupy(new SimVector(data.SpawnX, data.SpawnMaxY), enemy.Radius)) throw new FormatException("오른쪽 적 생성 좌표가 벽 안에 있습니다.");
-            }
-            if (!hasStartEnemy) throw new FormatException("첫 스테이지의 적 편성이 없습니다.");
-            return data;
-        }
-    }
-
     public sealed class MissionMap
     {
+        private const int MIN_SIZE = 3;
+
         private readonly string[] _tiles;
         private readonly int _tileSize;
         private readonly Dictionary<char, SimVector> _points = new Dictionary<char, SimVector>();
@@ -263,22 +183,34 @@ namespace RuneCode
         public int Height => _tiles.Length * _tileSize;
         public SimVector PlayerStart => _points['P'];
 
-        /// <summary>40×22 ASCII 방의 벽과 명명된 시작, 문, 터미널 및 스폰 좌표를 읽는다.</summary>
+        /// <summary>직사각형 ASCII 맵의 벽과 명명된 시작, 문, 터미널 및 스폰 좌표를 읽는다. 외곽은 모두 벽이어야 한다.</summary>
         public MissionMap(string[] tiles, int tileSize)
         {
-            if (tiles == null || tiles.Length != 22) throw new FormatException("방은 22줄이어야 합니다.");
+            if (tiles == null || tiles.Length < MIN_SIZE || tiles[0] == null || tiles[0].Length < MIN_SIZE) throw new FormatException("맵은 3×3 이상이어야 합니다.");
             _tiles = (string[])tiles.Clone(); _tileSize = tileSize;
+            int width = _tiles[0].Length;
             for (int y = 0; y < _tiles.Length; y++)
             {
-                if (_tiles[y].Length != 40) throw new FormatException("방은 40칸 너비여야 합니다.");
+                if (_tiles[y] == null || _tiles[y].Length != width) throw new FormatException("맵의 모든 줄은 너비가 같아야 합니다.");
                 for (int x = 0; x < _tiles[y].Length; x++)
                 {
                     char cell = _tiles[y][x];
-                    if ((x == 0 || x == 39 || y == 0 || y == 21) && cell != '#') throw new FormatException("방 경계는 벽이어야 합니다.");
+                    if ((x == 0 || x == width - 1 || y == 0 || y == _tiles.Length - 1) && cell != '#') throw new FormatException("맵 경계는 벽이어야 합니다.");
                     if (cell != '#' && cell != '.') _points[cell] = new SimVector((x + 0.5) * tileSize, (y + 0.5) * tileSize);
                 }
             }
             if (!_points.ContainsKey('P')) throw new FormatException("플레이어 시작점이 없습니다.");
+        }
+
+        /// <summary>외곽에만 벽이 있는 빈 맵을 지정 칸 수로 만들고 가운데 칸을 플레이어 시작점으로 둔다.</summary>
+        public static MissionMap CreateOpen(int columns, int rows, int tileSize)
+        {
+            var tiles = new string[rows];
+            var wall = new string('#', columns);
+            var floor = "#" + new string('.', columns - 2) + "#";
+            for (int y = 0; y < rows; y++) tiles[y] = y == 0 || y == rows - 1 ? wall : floor;
+            char[] center = tiles[rows / 2].ToCharArray(); center[columns / 2] = 'P'; tiles[rows / 2] = new string(center);
+            return new MissionMap(tiles, tileSize);
         }
 
         /// <summary>문자 스폰이나 터미널이 방 안에 존재하는지 반환한다.</summary>

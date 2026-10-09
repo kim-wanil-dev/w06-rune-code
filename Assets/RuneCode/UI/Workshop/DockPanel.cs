@@ -9,13 +9,11 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 에디터 탭 하단의 시험 도크 UI다. 경기장 표시, 시나리오·자동 발사·적응·배속 조작,
-    /// 지표와 적응 문구 갱신, 포인터·키보드 입력을 담당하고 도크 구동은 DockRun이 맡는다.
+    /// 에디터 탭 하단의 시험 도크 View다. 경기장을 표시하고 시나리오·시험·리셋·자동 발사·적응·배속 클릭을 알리며
+    /// 지표·상태 문구를 표시한다. 도크 구동과 입력 해석은 DockPresenter가 한다.
     /// </summary>
     public sealed class DockPanel : MonoBehaviour
     {
-        private static readonly string[] SCENARIOS = { "dummy_single", "dummy_line", "dummy_swarm", "aegis", "adapt_loop" };
-
         [Header("경기장")]
         [SerializeField] private RuneArenaGraphic _arena;
         [SerializeField] private TMP_FontAsset _font;
@@ -31,113 +29,55 @@ namespace RuneCode
         [Header("표시")]
         [SerializeField] private TextMeshProUGUI _metrics;
         [SerializeField] private TextMeshProUGUI _adaptationText;
-        [SerializeField] private SpellEditorPanel _spellEditor;
 
-        private RuneCodeSession _session;
-        private DockRun _run;
-        private TextMeshProUGUI _scenarioLabelText;
+        private TextMeshProUGUI _scenarioLabel;
 
-        /// <summary>세션·도크 구동·편집 패널을 받아 경기장과 조작 리스너를 연결하고 세션이 보존 중인 시나리오로 도크를 시작한다.</summary>
-        public void Initialize(RuneCodeSession session, DockRun run, SpellEditorPanel editor)
+        /// <summary>시나리오 버튼을 눌렀을 때 알린다.</summary>
+        public event Action ScenarioClicked;
+
+        /// <summary>시험 버튼을 눌렀을 때 알린다.</summary>
+        public event Action TestClicked;
+
+        /// <summary>리셋 버튼을 눌렀을 때 알린다.</summary>
+        public event Action ResetClicked;
+
+        /// <summary>자동 발사 버튼을 눌렀을 때 알린다.</summary>
+        public event Action AutoFireClicked;
+
+        /// <summary>적응 버튼을 눌렀을 때 알린다.</summary>
+        public event Action AdaptationClicked;
+
+        /// <summary>배속 버튼을 눌렀을 때 알린다.</summary>
+        public event Action SpeedClicked;
+
+        /// <summary>경기장에 그릴 시뮬레이션과 피드백 설정 조회 함수를 연결하고 버튼 클릭을 이벤트로 연결한다. Presenter가 한 번만 호출한다.</summary>
+        public void Bind(Func<RuneSimulation> simulation, Func<bool> screenShake, Func<bool> hitStop)
         {
-            _session = session;
-            _run = run;
-            _spellEditor = editor;
-            _arena.Initialize(() => _run.Dock, _font, () => _session.Save.ScreenShake, () => _session.Save.HitStop);
-            _scenarioLabelText = _scenarioButton.GetComponentInChildren<TextMeshProUGUI>();
-            _scenarioButton.onClick.AddListener(CycleScenario);
-            _scenarioLabelText.text = GameData.L("scenario." + _run.Scenario);
-            _testButton.onClick.AddListener(FireTest);
-            _resetButton.onClick.AddListener(ResetDock);
-            _autoFireButton.onClick.AddListener(ToggleAutoFire);
-            _adaptationButton.onClick.AddListener(ToggleAdaptation);
-            _speedButton.onClick.AddListener(CycleSpeed);
-            _run.StartDock(_run.Scenario);
+            _arena.Initialize(simulation, _font, screenShake, hitStop);
+            _scenarioLabel = _scenarioButton.GetComponentInChildren<TextMeshProUGUI>();
+            _scenarioButton.onClick.AddListener(() => ScenarioClicked?.Invoke());
+            _testButton.onClick.AddListener(() => TestClicked?.Invoke());
+            _resetButton.onClick.AddListener(() => ResetClicked?.Invoke());
+            _autoFireButton.onClick.AddListener(() => AutoFireClicked?.Invoke());
+            _adaptationButton.onClick.AddListener(() => AdaptationClicked?.Invoke());
+            _speedButton.onClick.AddListener(() => SpeedClicked?.Invoke());
         }
 
-        void Update()
-        {
-            if (_run == null || _run.Dock == null) return;
-            RefreshMetrics();
-            RefreshAdaptationText();
-            StepWithInput();
-        }
+        /// <summary>시나리오 버튼 문구를 표시한다.</summary>
+        public void SetScenario(string text) => _scenarioLabel.text = text;
 
-        void OnDisable()
-        {
-            if (_run != null) _run.Suspend();
-        }
+        /// <summary>피해·DPS·에너지·동시 개체 지표 문구를 표시한다.</summary>
+        public void SetMetrics(string text) => _metrics.text = text;
 
-        /// <summary>현재 마법을 시험 도크에 한 번 시전한다.</summary>
-        private void FireTest()
-        {
-            _run.FireDock();
-        }
+        /// <summary>자동 발사·배속·적응 상태와 적응 학습 수치 문구를 표시한다.</summary>
+        public void SetStatus(string text) => _adaptationText.text = text;
 
-        /// <summary>도크를 현재 시나리오의 초기 상태로 되돌린다.</summary>
-        private void ResetDock()
+        /// <summary>마우스가 경기장 안에 있으면 시뮬레이션 좌표의 조준점을 반환한다.</summary>
+        public bool TryGetPointer(out SimVector pointer)
         {
-            _run.ResetDock();
-        }
-
-        /// <summary>자동 시전 상태를 반전시키고 적응·배속을 유지한다.</summary>
-        private void ToggleAutoFire()
-        {
-            _run.SetDockOptions(!_run.AutoFire, _run.AdaptationEnabled, _run.Speed);
-        }
-
-        /// <summary>도크 적응 학습을 켜거나 끊는다.</summary>
-        private void ToggleAdaptation()
-        {
-            _run.SetDockAdaptation(!_run.Dock.Adaptation.Enabled);
-        }
-
-        /// <summary>시간 배속을 0.5 → 1 → 2 순서로 순환한다.</summary>
-        private void CycleSpeed()
-        {
-            _run.SetDockOptions(_run.AutoFire, _run.AdaptationEnabled, _run.Speed == 1 ? 2 : _run.Speed == 2 ? 0.5f : 1);
-        }
-
-        /// <summary>시험 시나리오를 다음 항목으로 전환하고 독립 시뮬레이션을 다시 시작한다. 선택은 세션에 보존된다.</summary>
-        private void CycleScenario()
-        {
-            int index = Array.IndexOf(SCENARIOS, _run.Scenario);
-            string scenario = SCENARIOS[(index + 1) % SCENARIOS.Length];
-            _scenarioLabelText.text = GameData.L("scenario." + scenario);
-            _run.StartDock(scenario);
-        }
-
-        /// <summary>마우스가 도크 경기장 위에 있고 편집 모달이 열려 있지 않은지 반환한다.</summary>
-        private bool IsPointerInDock()
-        {
-            return _arena != null && (_spellEditor == null || !_spellEditor.IsModalOpen)
-                && Mouse.current != null && _arena.TryGetPointer(Mouse.current.position.ReadValue(), out _);
-        }
-
-        /// <summary>포인터 조준, 좌클릭·자동 시전, R 리셋 입력을 도크 고정 스텝으로 전달한다.</summary>
-        private void StepWithInput()
-        {
+            pointer = SimVector.Zero;
             Mouse mouse = Mouse.current;
-            SimVector aim = new SimVector(1, 0);
-            if (mouse != null && _arena.TryGetPointer(mouse.position.ReadValue(), out SimVector point)) aim = point - _run.Dock.Player.Position;
-            bool isTyping = UiFactory.IsTyping();
-            bool fire = _run.AutoFire || (!isTyping && IsPointerInDock() && mouse != null && mouse.leftButton.isPressed);
-            if (!isTyping && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) ResetDock();
-            _run.Step(aim, fire);
-        }
-
-        /// <summary>도크 누적 피해·DPS·에너지·동시 개체 지표를 갱신한다.</summary>
-        private void RefreshMetrics()
-        {
-            _metrics.text = GameData.L("ui.damage") + " " + _run.Dock.TotalDamage.ToString("0") + "   " + GameData.L("ui.dps") + " " + _run.Dock.RollingDps.ToString("0.0") +
-                "   " + GameData.L("ui.energy") + " " + _run.Dock.EnergySpent.ToString("0") + "   " + GameData.L("ui.peak") + " " + _run.Dock.PeakSpellEntities;
-        }
-
-        /// <summary>자동 시전·배속·적응 상태와 적응 학습 수치를 한 문구로 갱신한다.</summary>
-        private void RefreshAdaptationText()
-        {
-            _adaptationText.text = GameData.L("ui.autofire") + " " + GameData.L(_run.AutoFire ? "ui.on" : "ui.off") + "  ·  " + _run.Speed.ToString("0.#") + "×  ·  " +
-                GameData.L("ui.adaptation") + " " + GameData.L(_run.Dock.Adaptation.Enabled ? "ui.on" : "ui.off") + "\n" + AdaptationText.Format(_run.Dock, false);
+            return mouse != null && _arena.TryGetPointer(mouse.position.ReadValue(), out pointer);
         }
     }
 }

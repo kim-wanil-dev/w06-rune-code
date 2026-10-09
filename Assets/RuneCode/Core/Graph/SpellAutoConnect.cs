@@ -20,7 +20,7 @@ namespace RuneCode
 
     /// <summary>
     /// 룬을 배치할 때 문법상 자동 연결할 수 있는 대상과 연결 포트를 판단한다.
-    /// 효과는 효과를 받을 수 있는 노드의 효과 입력에, 속성 부여·형태 블록은 열린 체인 끝에 연결한다.
+    /// 효과는 효과를 받을 수 있는 노드의 효과 입력에, Behavior 블록(Apply 제외)은 Shape의 열린 체인 끝에 연결한다.
     /// 거리·화면 배치 같은 편집기 정책은 호출부가 정한다.
     /// </summary>
     public static class SpellAutoConnect
@@ -31,15 +31,15 @@ namespace RuneCode
             return rune.Category == SpellGrammar.CATEGORY_MODIFIER;
         }
 
-        /// <summary>속성 부여 또는 형태 블록처럼 체인 끝에 이어 붙는 룬인지 반환한다.</summary>
+        /// <summary>Shape의 열린 체인 출력에 이어 붙는 Behavior(Apply 제외)인지 반환한다.</summary>
         public static bool IsChainLink(RuneDefinition rune)
         {
-            return rune.Category == SpellGrammar.CATEGORY_ELEMENT || rune.Category == SpellGrammar.CATEGORY_SHAPE;
+            return rune.Category == SpellGrammar.CATEGORY_BEHAVIOR && rune.Id != SpellGrammar.APPLY_RUNE;
         }
 
         /// <summary>
         /// 배치할 룬 기준으로 그래프의 노드가 자동 연결·배치 기준점인지 반환한다.
-        /// 효과는 효과를 받을 수 있는 노드, 속성 부여·형태는 체인 출력이 비어 있는 노드가 기준점이다.
+        /// 효과는 효과를 받을 수 있는 노드, Behavior는 체인 출력이 비어 있는 Shape 노드가 기준점이다.
         /// </summary>
         public static bool IsAnchor(SpellGraph graph, RuneCatalog runes, RuneDefinition placed, GraphNode node)
         {

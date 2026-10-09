@@ -34,7 +34,8 @@ namespace RuneCode
             if (!string.IsNullOrEmpty(graph.Id)) context.ActiveSpellIds.Add(graph.Id);
             List<CompileIssue> chainErrors = new List<CompileIssue>();
             List<CompileIssue> chainWarnings = new List<CompileIssue>();
-            SpellGraph normalized = SpellChainNormalizer.Normalize(graph, runes, context.UnlockedIds, chainErrors, chainWarnings, out int chainRam);
+            SpellGraph active = RemoveDeprecatedEdges(graph, runes, chainWarnings);
+            SpellGraph normalized = SpellChainNormalizer.Normalize(active, runes, context.UnlockedIds, chainErrors, chainWarnings, out int chainRam);
             CompileResult result = chainErrors.Any(issue => issue.Code != "E10")
                 ? new CompileResult(chainErrors, chainWarnings, null)
                 : CompileGraphBody(normalized, runes, limits, context, chainErrors, chainWarnings, chainRam);
@@ -44,13 +45,65 @@ namespace RuneCode
         }
 
         /// <summary>
+        /// 지원 중단 포트에서 나가는 연결을 W5 경고와 함께 뺀 컴파일용 그래프를 반환한다. 원본 그래프의 연결은 그대로 보존된다.
+        /// 연결 수 상한이 있는 효과 출력(효과 룬은 대상 하나)은 순서상 앞선 연결만 남기고 나머지는 W9 경고와 함께 뺀다.
+        /// 남는 연결 중 이전 이벤트 의미로 만든 연결(IsLegacyEvent)에는 W6 경고를 추가한다. 뺄 연결이 없으면 원본을 반환한다.
+        /// </summary>
+        private static SpellGraph RemoveDeprecatedEdges(SpellGraph graph, RuneCatalog runes, List<CompileIssue> warnings)
+        {
+            if (graph.Nodes == null || graph.Edges == null) return graph;
+            HashSet<GraphEdge> extraModifierEdges = FindExtraModifierEdges(graph, runes);
+            var kept = new List<GraphEdge>(graph.Edges.Count);
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                GraphNode from = edge == null ? null : graph.FindNode(edge.FromNode);
+                PortDefinition port = from != null && runes.TryGet(from.RuneId, out RuneDefinition rune)
+                    ? rune.FindPort(edge.FromPort, SpellGrammar.DIRECTION_OUT) : null;
+                if (port != null && port.IsDeprecated)
+                {
+                    warnings.Add(new CompileIssue("W5", edge.FromNode, edge.FromPort));
+                    continue;
+                }
+                if (edge != null && extraModifierEdges.Contains(edge))
+                {
+                    warnings.Add(new CompileIssue("W9", edge.FromNode));
+                    continue;
+                }
+                if (port != null && edge.IsLegacyEvent) warnings.Add(new CompileIssue("W6", edge.FromNode, edge.FromPort));
+                kept.Add(edge);
+            }
+            return kept.Count == graph.Edges.Count ? graph : graph.CopyWith(graph.Nodes, kept);
+        }
+
+        /// <summary>
+        /// 연결 수 상한이 있는 효과 출력마다 순서(Order, 같으면 저장 순)상 상한을 넘는 연결을 찾아 반환한다.
+        /// 효과 룬은 대상 하나에만 적용하므로(백서 v3) 기존 그래프의 추가 연결은 보존하되 컴파일에서 뺀다.
+        /// </summary>
+        private static HashSet<GraphEdge> FindExtraModifierEdges(SpellGraph graph, RuneCatalog runes)
+        {
+            var extra = new HashSet<GraphEdge>();
+            var uses = new Dictionary<(string node, string port), int>();
+            foreach (GraphEdge edge in graph.Edges.Where(edge => edge != null).OrderBy(edge => edge.Order))
+            {
+                GraphNode from = graph.FindNode(edge.FromNode);
+                PortDefinition port = from != null && runes.TryGet(from.RuneId, out RuneDefinition rune)
+                    ? rune.FindPort(edge.FromPort, SpellGrammar.DIRECTION_OUT) : null;
+                if (port == null || port.Kind != "mod" || port.Max <= 0) continue;
+                uses.TryGetValue((edge.FromNode, edge.FromPort), out int count);
+                uses[(edge.FromNode, edge.FromPort)] = count + 1;
+                if (count >= port.Max) extra.Add(edge);
+            }
+            return extra;
+        }
+
+        /// <summary>
         /// 체인 정규화를 마친 그래프의 해금·RAM·에너지 조건을 검사하고 실행 트리 및 비용 상한을 계산한다.
         /// 정규화 단계의 오류·경고 목록에 이어서 기록하며 chainRam은 합쳐진 문법 블록의 RAM이다.
         /// </summary>
         private static CompileResult CompileGraphBody(SpellGraph graph, RuneCatalog runes, GrammarLimits limits, CompileContext context,
             List<CompileIssue> errors, List<CompileIssue> warnings, int chainRam)
         {
-            if ((graph.Version != 1 && graph.Version != 2) || graph.Nodes == null || graph.Edges == null
+            if (graph.Version < 1 || graph.Version > SpellGraph.CURRENT_VERSION || graph.Nodes == null || graph.Edges == null
                 || graph.Nodes.Count > limits.MaxGraphNodes || graph.Edges.Count > limits.MaxGraphEdges)
             {
                 errors.Add(new CompileIssue("E9"));
@@ -76,7 +129,7 @@ namespace RuneCode
                 ValidateMagicNode(node, rune, graph.Edges, errors);
             }
             if (cores.Count != 1) errors.Add(new CompileIssue("E1"));
-            ValidateEdges(graph, definitions, errors, warnings);
+            ValidateEdges(graph, definitions, runes, errors, warnings);
             if (!errors.Any(issue => issue.Code == "E3") && HasCycle(graph, nodes)) errors.Add(new CompileIssue("E4"));
             int limit = context.Capacity < 0 ? limits.BaseCapacity : context.Capacity;
             if (ramUsed > limit) errors.Add(new CompileIssue("E7"));
@@ -105,17 +158,20 @@ namespace RuneCode
             float energyLimit = context.MaxEnergy < 0f ? limits.MaxEnergy : context.MaxEnergy;
             long actionCeiling = limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
-            if (energy > energyLimit || expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            // 최대 예상 비용은 시전을 막지 않는 정보다(백서 7.2). 실행 수 상한만 안전 제약으로 오류 처리한다.
+            if (expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            if (float.IsInfinity(energy) || float.IsNaN(energy)) warnings.Add(new CompileIssue("W8"));
+            else if (energy > energyLimit) warnings.Add(new CompileIssue("W7"));
             if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
-            string trigger = cores[0].GetText("trigger", "attack");
+            string trigger = cores[0].GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
             CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, energy,
                 limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
             return new CompileResult(errors, warnings, compiled);
         }
 
-        /// <summary>연결 후보가 입력 수·포트 종류·순환·수식 슬롯 규칙을 지키는지 반환한다.</summary>
+        /// <summary>연결 후보가 입력 수·포트 종류·지원 중단 포트·순환·수식 슬롯 규칙을 지키는지 반환한다.</summary>
         public static bool CanConnect(SpellGraph graph, GraphEdge edge, RuneCatalog runes, out CompileIssue issue)
         {
             issue = null;
@@ -131,6 +187,8 @@ namespace RuneCode
             PortDefinition input = toRune.FindPort(edge.ToPort, "in");
             if (output == null || input == null || output.Kind != input.Kind)
                 issue = new CompileIssue("E3", edge.ToNode);
+            else if (output.IsDeprecated)
+                issue = new CompileIssue("E19", edge.FromNode, edge.FromPort);
             else if (output.Kind == SpellGrammar.CHAIN_KIND && (!SpellGrammar.IsValidChainLink(fromRune, toRune)
                 || graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort)
                 || graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort)))
@@ -140,7 +198,7 @@ namespace RuneCode
             else if (fromRune.Id == "magic.inline" && from.GetText("magicType", "sphere") == "buff"
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT))
                 issue = new CompileIssue("E16", edge.FromNode);
-            else if (graph.Version == 2 && output.Kind == "exec" && graph.Edges.Any(current => current.FromNode == edge.FromNode
+            else if (graph.Version >= 2 && output.Kind == "exec" && graph.Edges.Any(current => current.FromNode == edge.FromNode
                 && current.FromPort == edge.FromPort && current.Order == edge.Order))
                 issue = new CompileIssue("E9", edge.ToNode);
             else if (graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort
@@ -150,6 +208,8 @@ namespace RuneCode
                 issue = new CompileIssue("E2", edge.ToNode);
             else if (input.Kind == "mod" && input.Max > 0 && graph.Edges.Count(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort) >= input.Max)
                 issue = new CompileIssue("E5", edge.ToNode);
+            else if (output.Kind == "mod" && output.Max > 0 && graph.Edges.Count(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort) >= output.Max)
+                issue = new CompileIssue("E20", edge.FromNode);
             else if (input.Kind == "mod" && graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort
                 && graph.FindNode(current.FromNode)?.RuneId == from.RuneId))
                 issue = new CompileIssue("E9", edge.ToNode);
@@ -165,30 +225,67 @@ namespace RuneCode
         public static bool ValidateConnection(SpellGraph graph, GraphEdge edge, RuneCatalog runes, out CompileIssue issue)
             => CanConnect(graph, edge, runes, out issue);
 
-        /// <summary>효과 입력에는 형태 블록·마법 메소드(및 내부 Inline Magic)에 효과 룬만 연결할 수 있는지 반환한다.</summary>
+        /// <summary>효과 입력에는 Behavior 블록·프리셋 호출(및 내부 Inline Magic)에 효과 룬만 연결할 수 있는지 반환한다.</summary>
         internal static bool CanAttachModifier(RuneDefinition source, RuneDefinition target)
         {
-            if (target.Category == SpellGrammar.CATEGORY_SHAPE || target.Id == SpellGrammar.CALL_RUNE || target.Id == SpellGrammar.INLINE_RUNE)
+            if (target.Category == SpellGrammar.CATEGORY_BEHAVIOR || target.Id == SpellGrammar.CALL_RUNE || target.Id == SpellGrammar.INLINE_RUNE)
                 return source.Category == "modifier";
             return target.Category == "form" && (source.Category == "modifier" || source.Category == "element");
         }
 
-        /// <summary>Inline Magic의 종류·속성·형태 조합과 버프의 이벤트 출력을 검사한다. 해금은 문법 블록 단계에서 검사한다.</summary>
+        /// <summary>
+        /// Inline Magic의 종류·속성·형태 조합과 버프의 이벤트 출력을 검사한다. 해금은 문법 블록 단계에서 검사한다.
+        /// Apply는 회복·보호·화염, 회복 Shape는 Burst·Persist, 보호 Shape는 Burst와 구형 Orbit(방벽)만 허용한다.
+        /// </summary>
         private static void ValidateMagicNode(GraphNode node, RuneDefinition rune, IReadOnlyList<GraphEdge> edges, List<CompileIssue> errors)
         {
             if (rune.Id != "magic.inline") return;
             string magicType = node.GetText("magicType", "sphere");
             string element = node.GetText("element", "normal");
             string form = node.GetText("form", "launch");
-            bool isBuffElement = element == "heal" || element == "protection";
+            bool isBuffElement = element == "heal" || element == "protection" || element == "fire";
             bool isProtectionOrbit = magicType == "sphere" && element == "protection" && form == "orbit";
-            if ((magicType == "buff" && (!isBuffElement || form != "remain"))
-                || (element == "heal" && magicType != "buff")
-                || (element == "protection" && magicType != "buff" && !isProtectionOrbit))
-                errors.Add(new CompileIssue("E14", node.Id));
+            bool isValid;
+            if (magicType == "buff") isValid = isBuffElement && form == "remain";
+            else if (element == "heal") isValid = form == "explosion" || form == "remain";
+            else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit;
+            else isValid = true;
+            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
+            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch") isValid = false;
+            if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
                 errors.Add(new CompileIssue("E16", node.Id));
+        }
+
+        /// <summary>
+        /// 효과 룬이 대상 노드에 효과를 내는지 modifier_compat 테이블로 판정한다. 효과 룬이 아니거나 대상이 이전 형태 룬이면 true다.
+        /// 효과가 없는 효과 룬은 부착은 유지하되 실행 수치·비용 배율에서 제외한다.
+        /// </summary>
+        private static bool IsModifierEffective(RuneDefinition modifier, GraphNode target, RuneDefinition targetRune, RuneCatalog runes)
+        {
+            if (modifier.Category != SpellGrammar.CATEGORY_MODIFIER) return true;
+            string targetId = ModifierTargetId(target, targetRune);
+            return targetId == null || runes.IsModifierCompatible(modifier.Id, targetId);
+        }
+
+        /// <summary>
+        /// 효과 호환성 판정에 쓸 대상 룬 ID를 반환한다. Inline Magic은 합쳐지기 전 Behavior ID(버프는 Apply)로 되돌린다.
+        /// 판정 대상이 아니면 null을 반환한다.
+        /// </summary>
+        private static string ModifierTargetId(GraphNode node, RuneDefinition rune)
+        {
+            if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR || rune.Id == SpellGrammar.CALL_RUNE) return rune.Id;
+            if (rune.Id != SpellGrammar.INLINE_RUNE) return null;
+            if (node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE) == SpellGrammar.MAGIC_TYPE_BUFF) return SpellGrammar.APPLY_RUNE;
+            switch (node.GetText("form", "launch"))
+            {
+                case "launch": return "behavior.launch";
+                case "explosion": return "behavior.burst";
+                case "orbit": return "behavior.orbit";
+                case "remain": return "behavior.persist";
+                default: return null;
+            }
         }
 
         /// <summary>Inline Magic의 기존 런타임 Form 룬 ID를 반환한다.</summary>
@@ -281,8 +378,8 @@ namespace RuneCode
             }
         }
 
-        /// <summary>연결의 포트 종류·입력 수·실행 순번·속성 수·수식 중복 오류를 추가한다.</summary>
-        private static void ValidateEdges(SpellGraph graph, Dictionary<string, RuneDefinition> definitions,
+        /// <summary>연결의 포트 종류·입력 수·실행 순번·속성 수·수식 중복 오류와, 대상에 효과가 없는 수식 경고(W2)를 추가한다.</summary>
+        private static void ValidateEdges(SpellGraph graph, Dictionary<string, RuneDefinition> definitions, RuneCatalog runes,
             List<CompileIssue> errors, List<CompileIssue> warnings)
         {
             HashSet<string> ids = new HashSet<string>();
@@ -318,7 +415,7 @@ namespace RuneCode
                     errors.Add(new CompileIssue("E13", edge.ToNode));
                     continue;
                 }
-                if (graph.Version == 2 && output.Kind == "exec")
+                if (graph.Version >= 2 && output.Kind == "exec")
                 {
                     if (!execOrders.TryGetValue(edge.FromNode, out Dictionary<string, HashSet<int>> ports))
                     {
@@ -339,10 +436,7 @@ namespace RuneCode
                 if (input.Kind != "mod") continue;
                 if (input.Max > 0 && count > input.Max) errors.Add(new CompileIssue("E5", edge.ToNode));
                 if (!mods.Add(edge.ToNode + ":" + from.Id)) errors.Add(new CompileIssue("E9", edge.ToNode));
-                string effectiveForm = EffectiveFormId(graph.FindNode(edge.ToNode), to);
-                if ((from.Id == "mod.pierce" || from.Id == "mod.homing") && effectiveForm != "form.bolt" && to.Id != "spell.call")
-                    warnings.Add(new CompileIssue("W2", edge.FromNode));
-                if (from.Id == "mod.speed" && effectiveForm != "form.bolt" && effectiveForm != "form.orbit" && to.Id != "spell.call")
+                if (!IsModifierEffective(from, graph.FindNode(edge.ToNode), to, runes))
                     warnings.Add(new CompileIssue("W2", edge.FromNode));
                 if (from.Category != "element") continue;
                 int elementCount = elements.TryGetValue(edge.ToNode, out int priorElements) ? priorElements + 1 : 1;
@@ -424,6 +518,8 @@ namespace RuneCode
                     .OrderBy(item => item.FromNode, StringComparer.Ordinal))
                 {
                     RuneDefinition attached = definitions[attachment.FromNode];
+                    // 효과가 없는 효과 룬은 실행 수치와 비용에서 빼고 편집기 안내(W2)만 남긴다.
+                    if (!IsModifierEffective(attached, node, rune, runes)) continue;
                     attachedNodeIds.Add(attachment.FromNode);
                     if (attached.Category == "element") element = attached;
                     else { mods.Add(attached); modifierNodes.Add(nodes[attachment.FromNode]); }
@@ -446,7 +542,10 @@ namespace RuneCode
                         else errors.Add(new CompileIssue("E15", node.Id, target.Name, targetResult.Errors[0]));
                     }
                 }
-                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell);
+                float coneAngle = rune.Id == SpellGrammar.INLINE_RUNE
+                    && runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out RuneDefinition shape)
+                    ? shape.Stats.ConeAngle : 0f;
+                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell, coneAngle);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {
@@ -470,7 +569,19 @@ namespace RuneCode
             }
         }
 
-        /// <summary>최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다.</summary>
+        /// <summary>
+        /// 개체 하나가 이벤트를 낼 수 있는 최대 OnHit 횟수를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽),
+        /// 공전·Burst는 대상마다 내므로 개체당 이벤트 안전 상한을 쓴다. Burst의 마나 비용은 Cost에서 산정 불가로 따로 다룬다.
+        /// </summary>
+        private static int MaxHitEvents(SpellAction action, int hitCap)
+        {
+            return action.Form == SpellGrammar.FORM_BOLT ? Math.Min(1 + action.Stats.Pierce, hitCap) : hitCap;
+        }
+
+        /// <summary>
+        /// 최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
+        /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다.
+        /// </summary>
         private static float Cost(IReadOnlyList<SpellAction> actions, int hitCap)
         {
             float sum = 0f;
@@ -479,10 +590,14 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        // onFirstHitOrExpire는 개체마다 첫 적중 또는 소멸에서 한 번만 실행되므로 개체당 한 번 더한다.
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        sum += action.OwnEnergy + action.Count * (Math.Min(maxHits, hitCap) * Cost(action.OnHit, hitCap)
-                            + Cost(action.OnExpire, hitCap) + Cost(action.OnFirstHitOrExpire, hitCap));
+                        float hitChainCost = Cost(action.OnHit, hitCap);
+                        // Burst.OnHit은 개체당 상한이 없어(결정) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
+                        float hitCost = action.Form == SpellGrammar.FORM_BURST
+                            ? (hitChainCost > 0f ? float.PositiveInfinity : 0f)
+                            : MaxHitEvents(action, hitCap) * hitChainCost;
+                        float expireCost = Cost(action.OnExpire, hitCap);
+                        float eventCost = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitCost, expireCost) : hitCost + expireCost;
+                        sum += action.OwnEnergy + action.Count * (eventCost + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
                     case "buff": sum += action.OwnEnergy + action.Count * Cost(action.OnFirstHitOrExpire, hitCap); break;
                     case "call":
@@ -492,7 +607,7 @@ namespace RuneCode
                                 + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
                     case "delay": sum += Cost(action.Then, hitCap); break;
-                    case "repeat": sum += action.Times * Cost(action.Body, hitCap); break;
+                    case "repeat": sum += action.Times * Cost(action.Body, hitCap) + Cost(action.OnComplete, hitCap); break;
                     case "if": sum += Math.Max(Cost(action.Then, hitCap), Cost(action.Else, hitCap)); break;
                     default: sum += action.OwnEnergy + Cost(action.Next, hitCap); break;
                 }
@@ -511,10 +626,11 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), EntityCount(action.OnHit, hitCap), limit);
-                        long eventWork = AddBounded(EntityCount(action.OnExpire, hitCap), EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
-                        long perEntityWork = AddBounded(AddBounded(1L, hitWork, limit), eventWork, limit);
+                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), EntityCount(action.OnHit, hitCap), limit);
+                        long expireWork = EntityCount(action.OnExpire, hitCap);
+                        long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, limit);
+                        long eventWork = AddBounded(pathWork, EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
+                        long perEntityWork = AddBounded(1L, eventWork, limit);
                         count = MultiplyBounded(action.Count, perEntityWork, limit);
                         break;
                     case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnFirstHitOrExpire, hitCap), limit); break;
@@ -525,7 +641,10 @@ namespace RuneCode
                         count = AddBounded(callEntities, MultiplyBounded(callEntities, callEvents, limit), limit);
                         break;
                     case "delay": count = EntityCount(action.Then, hitCap); break;
-                    case "repeat": count = MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit); break;
+                    case "repeat":
+                        count = AddBounded(MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit),
+                            EntityCount(action.OnComplete, hitCap), limit);
+                        break;
                     case "if": count = Math.Max(EntityCount(action.Then, hitCap), EntityCount(action.Else, hitCap)); break;
                     default: count = EntityCount(action.Next, hitCap); break;
                 }
@@ -545,11 +664,10 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long expireWork = AddBounded(ActionCount(action.OnExpire, hitCap, saturation),
-                            ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
-                        long eventWork = AddBounded(hitWork, expireWork, saturation);
+                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
+                        long expireWork = ActionCount(action.OnExpire, hitCap, saturation);
+                        long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, saturation);
+                        long eventWork = AddBounded(pathWork, ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
                         count = AddBounded(count, MultiplyBounded(action.Count, eventWork, saturation), saturation);
                         break;
                     case "buff": count = AddBounded(count, MultiplyBounded(action.Count,
@@ -565,7 +683,11 @@ namespace RuneCode
                         count = AddBounded(count, AddBounded(invocationWork, callEvents, saturation), saturation);
                         break;
                     case "delay": count = AddBounded(count, ActionCount(action.Then, hitCap, saturation), saturation); break;
-                    case "repeat": count = AddBounded(count, MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation), saturation); break;
+                    case "repeat":
+                        long repeatWork = AddBounded(MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation),
+                            ActionCount(action.OnComplete, hitCap, saturation), saturation);
+                        count = AddBounded(count, repeatWork, saturation);
+                        break;
                     case "if": count = AddBounded(count, Math.Max(ActionCount(action.Then, hitCap, saturation), ActionCount(action.Else, hitCap, saturation)), saturation); break;
                     default: count = AddBounded(count, ActionCount(action.Next, hitCap, saturation), saturation); break;
                 }
@@ -604,6 +726,7 @@ namespace RuneCode
                 GatherTags(action.Then, tags);
                 GatherTags(action.Else, tags);
                 GatherTags(action.Body, tags);
+                GatherTags(action.OnComplete, tags);
                 GatherTags(action.Next, tags);
             }
         }
@@ -649,6 +772,7 @@ namespace RuneCode
                 AppendCallSignatures(action.Then, canonical);
                 AppendCallSignatures(action.Else, canonical);
                 AppendCallSignatures(action.Body, canonical);
+                AppendCallSignatures(action.OnComplete, canonical);
                 AppendCallSignatures(action.Next, canonical);
             }
         }

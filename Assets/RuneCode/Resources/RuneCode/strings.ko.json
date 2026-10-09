@@ -21,6 +21,10 @@
       "_value": "기반 강화"
     },
     {
+      "_key": "ui.tree",
+      "_value": "강화 트리"
+    },
+    {
       "_key": "ui.deploy",
       "_value": "시간제 전투"
     },
@@ -298,7 +302,7 @@
     },
     {
       "_key": "ui.tutorial2",
-      "_value": "2 / 3 · 마법 타입과 형태 사이에 [화염] 속성 블록을 넣으세요"
+      "_value": "2 / 3 · [구형] 블록을 선택하고 속성을 [화염]으로 바꾸세요"
     },
     {
       "_key": "ui.tutorial3",
@@ -314,7 +318,7 @@
     },
     {
       "_key": "ui.cost",
-      "_value": "비용"
+      "_value": "최대 비용"
     },
     {
       "_key": "ui.unlock",
@@ -353,6 +357,10 @@
       "_value": "적 소환"
     },
     {
+      "_key": "ui.spawnElite",
+      "_value": "엘리트 소환"
+    },
+    {
       "_key": "scenario.dummy_single",
       "_value": "단일 더미"
     },
@@ -382,7 +390,7 @@
     },
     {
       "_key": "category.element",
-      "_value": "속성 부여"
+      "_value": "속성"
     },
     {
       "_key": "category.modifier",
@@ -534,7 +542,7 @@
     },
     {
       "_key": "issue.E8",
-      "_value": "최악 에너지 비용 또는 중첩 실행량이 허용 한도를 초과합니다"
+      "_value": "중첩 실행량이 허용 한도를 초과합니다"
     },
     {
       "_key": "issue.E9",
@@ -558,7 +566,7 @@
     },
     {
       "_key": "issue.E14",
-      "_value": "마법 타입·속성·형태 조합이 유효하지 않습니다"
+      "_value": "형상·속성·행동 조합이 유효하지 않습니다"
     },
     {
       "_key": "issue.E15",
@@ -857,6 +865,78 @@
       "_value": "적 처치로 RAM 획득 · 노드 용량 / 에너지 / 전투 시간 강화 · 더 높은 단계 도전"
     },
     {
+      "_key": "ui.tree.title",
+      "_value": "성장 트리 · 1~10 스테이지"
+    },
+    {
+      "_key": "ui.tree.summary",
+      "_value": "노드를 구매해 영구 능력과 룬을 해금하세요. 스탯 노드는 2레벨까지 강화할 수 있습니다"
+    },
+    {
+      "_key": "ui.tree.availableStage",
+      "_value": "해금 스테이지"
+    },
+    {
+      "_key": "ui.tree.controls",
+      "_value": "우클릭 드래그 이동 · 휠 확대/축소"
+    },
+    {
+      "_key": "ui.tree.stage",
+      "_value": "STAGE"
+    },
+    {
+      "_key": "ui.tree.regen",
+      "_value": "에너지 회복량"
+    },
+    {
+      "_key": "ui.tree.regenDescription",
+      "_value": "초당 에너지 회복"
+    },
+    {
+      "_key": "ui.tree.maxEnergy",
+      "_value": "최대 에너지"
+    },
+    {
+      "_key": "ui.tree.maxEnergyDescription",
+      "_value": "최대 보유 에너지"
+    },
+    {
+      "_key": "ui.tree.ramCapacity",
+      "_value": "RAM 용량"
+    },
+    {
+      "_key": "ui.tree.ramDescription",
+      "_value": "마법 노드 RAM 용량"
+    },
+    {
+      "_key": "ui.tree.unlockRune",
+      "_value": "룬 해금"
+    },
+    {
+      "_key": "ui.tree.unlockRuneDescription",
+      "_value": "설계에 사용할 룬을 해금"
+    },
+    {
+      "_key": "tree.stageLocked",
+      "_value": "스테이지 해금 필요:"
+    },
+    {
+      "_key": "tree.prerequisiteLocked",
+      "_value": "선행 노드를 먼저 강화하세요"
+    },
+    {
+      "_key": "tree.maxed",
+      "_value": "최대 레벨"
+    },
+    {
+      "_key": "tree.invalidNode",
+      "_value": "노드 데이터를 찾을 수 없습니다"
+    },
+    {
+      "_key": "tree.invalidRune",
+      "_value": "룬 데이터를 찾을 수 없습니다"
+    },
+    {
       "_key": "ui.importCurrent",
       "_value": "가져오기는 현재 마법의 노드 설계를 교체합니다. 기존 설계는 실행 취소로 복구할 수 있습니다"
     },
@@ -918,11 +998,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 전투 영역에서 연속 시전 · Space 대시 · Esc 일시정지"
-    },
-    {
-      "_key": "ui.incoming",
-      "_value": "적 유입 ← 오른쪽"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · Esc 일시정지 · 모든 적을 처치하면 클리어"
     },
     {
       "_key": "ui.kills",
@@ -931,6 +1007,10 @@
     {
       "_key": "ui.remaining",
       "_value": "남은 시간"
+    },
+    {
+      "_key": "ui.remainingEnemies",
+      "_value": "남은 적"
     },
     {
       "_key": "ui.nextStage",
@@ -957,8 +1037,16 @@
       "_value": "전투가 끝난 뒤 마법 노드를 편집할 수 있습니다"
     },
     {
-      "_key": "result.timed",
-      "_value": "전투 시간 종료 · 생존 성공"
+      "_key": "result.stageCleared",
+      "_value": "모든 적 처치 · 스테이지 클리어"
+    },
+    {
+      "_key": "result.timeout",
+      "_value": "제한 시간 초과 · 보스 처치 실패"
+    },
+    {
+      "_key": "result.clearReward",
+      "_value": "클리어 보상 포함"
     },
     {
       "_key": "result.stageClear",
@@ -1010,7 +1098,7 @@
     },
     {
       "_key": "category.shape",
-      "_value": "형태"
+      "_value": "형상"
     },
     {
       "_key": "category.method",
@@ -1018,7 +1106,83 @@
     },
     {
       "_key": "issue.E18",
-      "_value": "마법 블록은 [마법 타입] → [속성 부여] → [형태] 순서로 하나씩 연결해야 합니다"
+      "_value": "마법 블록은 [형상] → [행동] 순서로 하나씩 연결해야 합니다"
+    },
+    {
+      "_key": "category.behavior",
+      "_value": "행동"
+    },
+    {
+      "_key": "element.neutral",
+      "_value": "일반"
+    },
+    {
+      "_key": "element.lightning",
+      "_value": "전격"
+    },
+    {
+      "_key": "element.healing",
+      "_value": "회복"
+    },
+    {
+      "_key": "trigger.onAttack",
+      "_value": "공격"
+    },
+    {
+      "_key": "trigger.onMove",
+      "_value": "이동"
+    },
+    {
+      "_key": "trigger.onDashStart",
+      "_value": "대시 시작"
+    },
+    {
+      "_key": "trigger.onDashEnd",
+      "_value": "대시 종료"
+    },
+    {
+      "_key": "trigger.onHitTaken",
+      "_value": "피격"
+    },
+    {
+      "_key": "issue.W5",
+      "_value": "지원 중단된 출력의 연결은 보존되지만 실행되지 않습니다. 연결을 지우거나 다른 출력으로 옮기세요:"
+    },
+    {
+      "_key": "issue.W6",
+      "_value": "이전 버전에서 만든 이벤트 연결입니다. 이벤트 의미가 바뀌었으니 확인 후 다시 연결하세요:"
+    },
+    {
+      "_key": "issue.E19",
+      "_value": "지원 중단된 출력에는 새로 연결할 수 없습니다:"
+    },
+    {
+      "_key": "issue.W7",
+      "_value": "최대 예상 마나 비용이 최대 마나보다 큽니다. 시전은 되지만 마나가 부족한 경로는 중단됩니다"
+    },
+    {
+      "_key": "issue.W8",
+      "_value": "최대 마나 비용을 산정할 수 없습니다"
+    },
+    {
+      "_key": "issue.W9",
+      "_value": "효과 룬은 대상 하나에만 적용됩니다. 첫 연결만 적용되고 나머지 연결은 무시됩니다"
+    },
+    {
+      "_key": "issue.E20",
+      "_value": "효과 룬은 대상 하나에만 연결할 수 있습니다. 여러 대상에는 효과 룬을 하나씩 추가하세요"
+    },
+    {
+      "_key": "ui.costUnbounded",
+      "_value": "산정 불가"
+    },
+    {
+      "_key": "magicType.cone",
+      "_value": "부채꼴"
+    },
+    {
+      "_key": "ui.resetSaveMessage",
+      "_value": "모든 진행(조각, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
     }
   ]
 }

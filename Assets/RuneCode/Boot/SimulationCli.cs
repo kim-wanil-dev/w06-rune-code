@@ -11,6 +11,9 @@ namespace RuneCode
 {
     public static class SimulationCli
     {
+        // 사거리를 계산할 수 없는 마법의 자동 시전 거리. 기존 오른쪽 유입 x좌표와 같은 값이다.
+        private const double FALLBACK_CAST_RANGE = 1180;
+
         /// <summary>명령행의 --sim 모드에서 지정 마법·시나리오를 실행하여 JSON 파일을 기록하고 종료한다.</summary>
         public static bool TryRunCommandLine()
         {
@@ -25,9 +28,10 @@ namespace RuneCode
                 var seed = int.Parse(Argument(arguments, "--seed", "1"), CultureInfo.InvariantCulture);
                 var stage = int.Parse(Argument(arguments, "--stage", "1"), CultureInfo.InvariantCulture);
                 var duration = double.Parse(Argument(arguments, "--duration", "0"), CultureInfo.InvariantCulture);
+                if (duration != 0) UnityEngine.Debug.LogWarning("--duration은 더 이상 쓰이지 않습니다. 일반 스테이지는 전부 처치, 보스 스테이지는 데이터의 제한시간으로 끝납니다.");
                 var capacityLevel = int.Parse(Argument(arguments, "--capacity-level", "0"), CultureInfo.InvariantCulture);
                 var energyLevel = int.Parse(Argument(arguments, "--energy-level", "0"), CultureInfo.InvariantCulture);
-                var report = Run(spell, scenario, ticks, seed, stage, duration, capacityLevel, energyLevel);
+                var report = Run(spell, scenario, ticks, seed, stage, capacityLevel, energyLevel);
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output)));
                 File.WriteAllText(output, report);
                 UnityEngine.Debug.Log(report);
@@ -42,7 +46,7 @@ namespace RuneCode
         }
 
         /// <summary>전달한 마법과 시드로 고정 tick 시뮬레이션을 실행하여 피해·DPS·실행 횟수 JSON을 반환한다.</summary>
-        public static string Run(string spellPath, string scenario, int ticks, int seed, int stage = 1, double duration = 0, int capacityLevel = 0, int energyLevel = 0)
+        public static string Run(string spellPath, string scenario, int ticks, int seed, int stage = 1, int capacityLevel = 0, int energyLevel = 0)
         {
             GameData.Load();
             if (ticks < 1 || ticks > 1000000) throw new ArgumentOutOfRangeException(nameof(ticks));
@@ -55,22 +59,22 @@ namespace RuneCode
                 graph = ShareCodec.Deserialize(resource.text);
             }
             var economy = GameData.Balance.Economy;
-            if (stage < 1 || stage > 1000000 || double.IsNaN(duration) || double.IsInfinity(duration) || duration < 0
+            if (stage < 1 || stage > 1000000
                 || capacityLevel < 0 || capacityLevel > economy.MaxGrowthLevel || energyLevel < 0 || energyLevel > economy.MaxGrowthLevel)
-                throw new ArgumentOutOfRangeException(nameof(stage), "스테이지, 제한시간 또는 성장 단계가 유효하지 않습니다.");
+                throw new ArgumentOutOfRangeException(nameof(stage), "스테이지 또는 성장 단계가 유효하지 않습니다.");
             var isTimedBattle = scenario == "incremental";
             var capacity = economy.BaseCapacity + (isTimedBattle ? capacityLevel : economy.CapacityCosts.Count) * economy.CapacityStep;
             var maxEnergy = GameData.Balance.Player.MaxEnergy + (isTimedBattle ? energyLevel : economy.StatCosts.Count) * economy.StatStep;
             var compiled = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance.Grammar, GameData.Runes.All.Select(rune => rune.Id), capacity, maxEnergy);
             if (!compiled.Ok) throw new ArgumentException(string.Join("\n", compiled.Errors.Select(CompileIssueText.Format)));
-            var simulation = new RuneSimulation(seed, isTimedBattle, GameData.Balance.Player.MaxHp, maxEnergy, stage, duration,
+            var simulation = new RuneSimulation(seed, isTimedBattle, GameData.Balance.Player.MaxHp, maxEnergy, stage,
                 GameData.Balance.Player.EnergyRegen + (isTimedBattle ? energyLevel : 0) * economy.EnergyRegenStep);
             if (!isTimedBattle) { simulation.ResetBench(scenario); simulation.SetAdaptationEnabled(scenario == "adapt_loop"); }
             simulation.SetUnlockedElements(new[] { "raw", "fire", "ice", "arc" });
             simulation.SetLoadout(new[] { compiled.Spell });
             var castRange = GetAutomaticCastRange(compiled.Spell);
             var timer = Stopwatch.StartNew();
-            for (var tick = 0; tick < ticks && !simulation.Completed && !simulation.IsDead; tick++)
+            for (var tick = 0; tick < ticks && !simulation.Completed && !simulation.IsFailed; tick++)
                 simulation.Step(isTimedBattle ? CreateAutomaticInput(simulation, castRange) : new SimulationInput(SimVector.Zero, new SimVector(1, 0), true));
             timer.Stop();
             return JsonUtility.ToJson(new SimulationReport(simulation, simulation.Tick, seed, scenario, compiled.Spell, timer.Elapsed.TotalMilliseconds), true);
@@ -97,7 +101,7 @@ namespace RuneCode
         public static double GetAutomaticCastRange(CompiledSpell spell)
         {
             var range = GetActionRange(spell.Root);
-            return (range > 0 ? range : RuneSimulation.LoadIncrementalDefinition().SpawnX) + GameData.Balance.Sim.WandOffset;
+            return (range > 0 ? range : FALLBACK_CAST_RANGE) + GameData.Balance.Sim.WandOffset;
         }
 
         /// <summary>중첩 분기와 후속 실행에서 볼트·영역·궤도·순간이동의 최대 도달 거리를 계산한다.</summary>
@@ -114,7 +118,7 @@ namespace RuneCode
                         action.Form == "orbit" ? stats.OrbitRadius + stats.Radius : stats.Offset + stats.Radius;
                 }
                 else if (action.Kind == "blink") candidate = action.Distance + GetActionRange(action.Next);
-                else if (action.Kind == "repeat") candidate = GetActionRange(action.Body);
+                else if (action.Kind == "repeat") candidate = Math.Max(GetActionRange(action.Body), GetActionRange(action.OnComplete));
                 else if (action.Kind == "delay") candidate = GetActionRange(action.Then);
                 else if (action.Kind == "if") candidate = Math.Max(GetActionRange(action.Then), GetActionRange(action.Else));
                 else candidate = GetActionRange(action.Next);
@@ -148,12 +152,15 @@ namespace RuneCode
         [SerializeField] private double _elapsedMilliseconds;
         [SerializeField] private string _stateHash;
         [SerializeField] private int _stage;
-        [SerializeField] private double _duration;
+        [SerializeField] private double _timeLimit;
         [SerializeField] private double _remainingTime;
+        [SerializeField] private int _totalEnemies;
+        [SerializeField] private int _remainingEnemies;
         [SerializeField] private string _result;
         [SerializeField] private int _kills;
         [SerializeField] private int _earnedRam;
         [SerializeField] private int _settledRam;
+        [SerializeField] private int _clearReward;
         [SerializeField] private int _spawnedEnemies;
         [SerializeField] private int _droppedExecutions;
         [SerializeField] private double _energyRegen;
@@ -167,9 +174,11 @@ namespace RuneCode
             _energySpent = simulation.EnergySpent; _peakSpellEntities = simulation.PeakSpellEntities;
             _nodeExecutionCount = simulation.NodeExecutionCount; _elapsedMilliseconds = elapsedMilliseconds;
             _stateHash = simulation.StateHash();
-            _stage = simulation.StageNumber; _duration = simulation.BattleDuration; _remainingTime = simulation.RemainingTime;
+            _stage = simulation.StageNumber; _timeLimit = simulation.TimeLimit; _remainingTime = simulation.RemainingTime;
+            _totalEnemies = simulation.TotalEnemies; _remainingEnemies = simulation.RemainingEnemies;
             _result = simulation.Stage.ToString(); _kills = simulation.KillCount; _earnedRam = simulation.EarnedFragments;
-            _settledRam = simulation.Completed || simulation.IsDead ? simulation.SettlementFragments : 0;
+            _settledRam = simulation.Completed || simulation.IsFailed ? simulation.SettlementFragments : 0;
+            _clearReward = simulation.ClearReward;
             _spawnedEnemies = simulation.SpawnedEnemies; _droppedExecutions = simulation.DroppedExecutions; _energyRegen = simulation.EnergyRegen;
         }
     }
