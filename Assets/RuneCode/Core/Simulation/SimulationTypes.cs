@@ -232,6 +232,8 @@ namespace RuneCode
         private readonly SpellEventScope _callEvents;
         private readonly SpellModifierValues _modifiers;
         private readonly Dictionary<int, double> _hitTimes = new Dictionary<int, double>();
+        private HashSet<int> _contacts = new HashSet<int>();
+        private HashSet<int> _nextContacts = new HashSet<int>();
         private SimVector _position;
         private SimVector _direction;
         private double _age;
@@ -240,6 +242,7 @@ namespace RuneCode
         private int _triggerCount;
         private bool _hasExpired;
         private bool _hasFiredFirstEvent;
+        private bool _hasDirectHit;
         public int Id => _id;
         public string Kind => _action.Form;
         public string Element => _element;
@@ -262,6 +265,9 @@ namespace RuneCode
         internal int TriggerCount { get => _triggerCount; set => _triggerCount = value; }
         internal double Angle { get => _angle; set => _angle = value; }
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
+
+        /// <summary>발사체가 적·벽·지형에 한 번이라도 직접 충돌했는지 나타낸다. 직접 충돌한 발사체는 OnExpire를 내지 않는다.</summary>
+        internal bool HasDirectHit { get => _hasDirectHit; set => _hasDirectHit = value; }
 
         /// <summary>컴파일된 Form 수치와 호출 이벤트 문맥을 가진 독립 마법 개체를 생성한다.</summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
@@ -300,6 +306,25 @@ namespace RuneCode
             return true;
         }
 
+        /// <summary>
+        /// 이번 틱의 접촉 대상을 기록하고 직전 틱에 접촉하지 않았던 대상이면 true를 반환한다.
+        /// 공전의 접촉 시작 이벤트 판정에 쓰며, 틱마다 EndContactScan으로 마무리한다.
+        /// </summary>
+        internal bool MarkContact(int enemyId)
+        {
+            _nextContacts.Add(enemyId);
+            return !_contacts.Contains(enemyId);
+        }
+
+        /// <summary>이번 틱에 기록한 접촉 대상을 다음 틱의 비교 기준으로 바꾼다. 떨어진 대상은 다시 닿으면 새 접촉이 된다.</summary>
+        internal void EndContactScan()
+        {
+            HashSet<int> previous = _contacts;
+            _contacts = _nextContacts;
+            _nextContacts = previous;
+            _nextContacts.Clear();
+        }
+
         /// <summary>스펠 개체의 수명 경과를 고정 시간만큼 증가시킨다.</summary>
         internal void Advance(double dt) { _age += dt; }
 
@@ -307,12 +332,14 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);
             var ids = new List<int>(_hitTimes.Keys); ids.Sort();
             foreach (int id in ids) state.Append(FormattableString.Invariant($"|{id}:{_hitTimes[id]:R}"));
+            var contacts = new List<int>(_contacts); contacts.Sort();
+            foreach (int id in contacts) state.Append('|').Append('c').Append(id);
         }
     }
 

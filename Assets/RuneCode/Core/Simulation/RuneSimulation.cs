@@ -456,7 +456,15 @@ namespace RuneCode
             }
             SimVector previous = entity.Position;
             SimVector next = previous + direction * (stats.Speed * STEP_SECONDS);
-            if (!_map.CanOccupy(next, entity.Radius)) { entity.Move(_map.Move(previous, next - previous, entity.Radius), direction); Expire(entity); return; }
+            if (!_map.CanOccupy(next, entity.Radius))
+            {
+                // 벽·지형 충돌은 직접 충돌이므로 접촉점에서 OnHit을 내고 OnExpire 없이 사라진다.
+                SimVector contact = _map.Move(previous, next - previous, entity.Radius);
+                entity.Move(contact, direction);
+                RaiseHitEvent(entity, contact, null);
+                entity.HasExpired = true;
+                return;
+            }
             entity.Move(next, direction);
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
@@ -475,8 +483,9 @@ namespace RuneCode
             {
                 if (!enemy.IsAlive) continue;
                 double multiplier = Math.Max(0, 1 - entity.Hits * stats.PierceLoss);
-                entity.HitTimes[enemy.Id] = Time; Hit(entity, enemy, stats.Damage * multiplier, false, true); entity.Hits++;
-                if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); Expire(entity); break; }
+                entity.HitTimes[enemy.Id] = Time; Hit(entity, enemy, stats.Damage * multiplier, false); entity.Hits++;
+                RaiseHitEvent(entity, enemy.Position, enemy);
+                if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); entity.HasExpired = true; break; }
             }
         }
 
@@ -507,7 +516,10 @@ namespace RuneCode
             return Math.Abs(SimVector.Dot(relative, forward)) <= extent && Math.Abs(SimVector.Dot(relative, side)) <= extent;
         }
 
-        /// <summary>범위 마법의 가까운 적부터 피해를 적용하고 지속 효과는 대상별 주기와 최초 접촉 이벤트를 지킨다.</summary>
+        /// <summary>
+        /// 범위 마법의 가까운 적부터 대상별 주기에 맞춰 피해를 적용한다. 범위 적중은 OnHit을 만들지 않는다.
+        /// 공전만 대상과의 접촉이 시작될 때(떨어졌다 다시 닿을 때 포함) OnHit을 낸다.
+        /// </summary>
         private void HitArea(SimulationSpellEntity entity, bool isBurst)
         {
             if (entity.Action.SourceElement == "protection") return;
@@ -525,19 +537,24 @@ namespace RuneCode
                 return distanceOrder != 0 ? distanceOrder : a.Id.CompareTo(b.Id);
             });
             double interval = entity.Kind == "zone" ? entity.Stats.TickInterval : entity.Stats.HitInterval;
+            bool isOrbit = entity.Kind == SpellGrammar.FORM_ORBIT;
             foreach (SimulationEnemy enemy in targets)
             {
                 if (!enemy.IsAlive) continue;
+                bool isNewContact = isOrbit && entity.MarkContact(enemy.Id);
                 bool hasHit = entity.HitTimes.TryGetValue(enemy.Id, out double lastTime);
-                if (hasHit && (isBurst || Time - lastTime + 0.000001 < interval)) continue;
-                entity.HitTimes[enemy.Id] = Time;
-                bool trigger = entity.Kind != "zone" || !hasHit;
-                Hit(entity, enemy, entity.Stats.Damage, entity.Kind == "zone", trigger);
+                if (!hasHit || (!isBurst && Time - lastTime + 0.000001 >= interval))
+                {
+                    entity.HitTimes[enemy.Id] = Time;
+                    Hit(entity, enemy, entity.Stats.Damage, entity.Kind == "zone");
+                }
+                if (isNewContact) RaiseHitEvent(entity, enemy.Position, enemy);
             }
+            if (isOrbit) entity.EndContactScan();
         }
 
-        /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄 및 제한된 onHit 후속 실행을 처리한다.</summary>
-        private void Hit(SimulationSpellEntity entity, SimulationEnemy enemy, double damage, bool isDot, bool trigger)
+        /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄를 처리한다. 이벤트 실행은 호출부가 RaiseHitEvent로 따로 처리한다.</summary>
+        private void Hit(SimulationSpellEntity entity, SimulationEnemy enemy, double damage, bool isDot)
         {
             ApplyDamage(enemy, damage, entity.Element, entity.Kind, entity.Action.Noise, isDot, entity.Direction, true);
             if (entity.Element == "arc")
@@ -553,16 +570,24 @@ namespace RuneCode
                 });
                 for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++) ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
             }
-            if (trigger && entity.TriggerCount < _balance.Limits.HitTriggerCap)
-            {
-                entity.TriggerCount++;
-                SpellContext context = new SpellContext(enemy.Position, entity.Direction, enemy, true,
-                    entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
-                bool isFirstEvent = entity.TryMarkFirstEvent();
-                Execute(entity.Action.OnHit, context);
-                if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
-                ExecuteCallEvent(entity.CallEvents, true, isFirstEvent, enemy.Position, entity.Direction, enemy, entity.CastNoiseElement);
-            }
+        }
+
+        /// <summary>
+        /// 개체의 OnHit 이벤트를 지정 위치·대상(벽이면 null)으로 실행한다. 발사체는 직접 충돌로 기록하고
+        /// 첫 이벤트이면 OnFirstHitOrExpire도 실행한다. 개체당 이벤트 상한을 넘으면 실행하지 않는다.
+        /// </summary>
+        private void RaiseHitEvent(SimulationSpellEntity entity, SimVector position, SimulationEnemy target)
+        {
+            bool isBolt = entity.Kind == SpellGrammar.FORM_BOLT;
+            if (isBolt) entity.HasDirectHit = true;
+            if (entity.TriggerCount >= _balance.Limits.HitTriggerCap) return;
+            entity.TriggerCount++;
+            SpellContext context = new SpellContext(position, entity.Direction, target, true,
+                entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
+            bool isFirstEvent = isBolt && entity.TryMarkFirstEvent();
+            Execute(entity.Action.OnHit, context);
+            if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
+            ExecuteCallEvent(entity.CallEvents, true, isFirstEvent, position, entity.Direction, target, entity.CastNoiseElement);
         }
 
         /// <summary>
@@ -878,14 +903,18 @@ namespace RuneCode
             }
         }
 
-        /// <summary>스펠 소멸 후속 명령을 이벤트 위치 및 방향으로 단 한 번 실행하고, 앞서 적중이 없었으면 onFirstHitOrExpire 분기도 실행한다.</summary>
+        /// <summary>
+        /// 개체의 자연 소멸(수명·사거리 종료)을 처리하고 OnExpire를 소멸 위치에서 한 번 실행한다.
+        /// Burst는 이벤트 출력이 없고, 직접 충돌한 발사체는 OnExpire를 내지 않는다. 명중 없이 사라지는 발사체만 OnFirstHitOrExpire도 실행한다.
+        /// </summary>
         private void Expire(SimulationSpellEntity entity)
         {
             if (entity.HasExpired) return;
             entity.HasExpired = true;
+            if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents);
-            bool isFirstEvent = entity.TryMarkFirstEvent();
+            bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnExpire, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
             ExecuteCallEvent(entity.CallEvents, false, isFirstEvent, entity.Position, entity.Direction, null, entity.CastNoiseElement);

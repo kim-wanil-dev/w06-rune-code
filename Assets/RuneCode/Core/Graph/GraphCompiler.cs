@@ -497,7 +497,19 @@ namespace RuneCode
             }
         }
 
-        /// <summary>최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다.</summary>
+        /// <summary>
+        /// 개체 하나가 이벤트를 낼 수 있는 최대 OnHit 횟수를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽),
+        /// 공전은 접촉 시작마다 내므로 개체당 이벤트 상한을 쓴다.
+        /// </summary>
+        private static int MaxHitEvents(SpellAction action, int hitCap)
+        {
+            return action.Form == SpellGrammar.FORM_BOLT ? Math.Min(1 + action.Stats.Pierce, hitCap) : hitCap;
+        }
+
+        /// <summary>
+        /// 최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
+        /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다.
+        /// </summary>
         private static float Cost(IReadOnlyList<SpellAction> actions, int hitCap)
         {
             float sum = 0f;
@@ -506,10 +518,10 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        // onFirstHitOrExpire는 개체마다 첫 적중 또는 소멸에서 한 번만 실행되므로 개체당 한 번 더한다.
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        sum += action.OwnEnergy + action.Count * (Math.Min(maxHits, hitCap) * Cost(action.OnHit, hitCap)
-                            + Cost(action.OnExpire, hitCap) + Cost(action.OnFirstHitOrExpire, hitCap));
+                        float hitCost = MaxHitEvents(action, hitCap) * Cost(action.OnHit, hitCap);
+                        float expireCost = Cost(action.OnExpire, hitCap);
+                        float eventCost = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitCost, expireCost) : hitCost + expireCost;
+                        sum += action.OwnEnergy + action.Count * (eventCost + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
                     case "buff": sum += action.OwnEnergy + action.Count * Cost(action.OnFirstHitOrExpire, hitCap); break;
                     case "call":
@@ -538,10 +550,11 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), EntityCount(action.OnHit, hitCap), limit);
-                        long eventWork = AddBounded(EntityCount(action.OnExpire, hitCap), EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
-                        long perEntityWork = AddBounded(AddBounded(1L, hitWork, limit), eventWork, limit);
+                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), EntityCount(action.OnHit, hitCap), limit);
+                        long expireWork = EntityCount(action.OnExpire, hitCap);
+                        long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, limit);
+                        long eventWork = AddBounded(pathWork, EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
+                        long perEntityWork = AddBounded(1L, eventWork, limit);
                         count = MultiplyBounded(action.Count, perEntityWork, limit);
                         break;
                     case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnFirstHitOrExpire, hitCap), limit); break;
@@ -572,11 +585,10 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        int maxHits = action.Form == "bolt" ? 1 + action.Stats.Pierce : hitCap;
-                        long hitWork = MultiplyBounded(Math.Min(maxHits, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long expireWork = AddBounded(ActionCount(action.OnExpire, hitCap, saturation),
-                            ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
-                        long eventWork = AddBounded(hitWork, expireWork, saturation);
+                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
+                        long expireWork = ActionCount(action.OnExpire, hitCap, saturation);
+                        long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, saturation);
+                        long eventWork = AddBounded(pathWork, ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
                         count = AddBounded(count, MultiplyBounded(action.Count, eventWork, saturation), saturation);
                         break;
                     case "buff": count = AddBounded(count, MultiplyBounded(action.Count,
