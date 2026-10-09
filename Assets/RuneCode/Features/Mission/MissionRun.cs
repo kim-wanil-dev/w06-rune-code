@@ -42,13 +42,13 @@ namespace RuneCode
         /// <summary>정산 후 표시할 결과 문구를 반환한다.</summary>
         public string LastResult => _lastResult;
 
-        /// <summary>세션의 능력치와 선택 스테이지로 시간제 전투를 만들고 마법과 해금 속성을 연결한 뒤 시작 텔레메트리를 기록한다.</summary>
+        /// <summary>세션의 능력치와 선택 스테이지로 전투를 만들고 마법과 해금 속성을 연결한 뒤 시작 텔레메트리를 기록한다.</summary>
         public MissionRun(RuneCodeSession session, CompiledSpell spell, string spellName)
         {
             _session = session;
             _spell = spell;
             _spellName = spellName;
-            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.BattleDuration, session.EnergyRegen);
+            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);
@@ -82,20 +82,23 @@ namespace RuneCode
                 _accumulator -= FIXED_STEP;
             }
             CaptureNodeTelemetry();
-            if (_simulation.Stage == MissionStage.Dead || _simulation.Stage == MissionStage.Cleared) FinishMission();
+            if (_simulation.Completed || _simulation.IsFailed) FinishMission();
         }
 
-        /// <summary>시간 종료 또는 사망 보상을 한 번만 정산하고 결과 문구와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
+        /// <summary>클리어 보상을 포함한 클리어, 사망 또는 보스 제한시간 초과 보상을 한 번만 정산하고 결과 문구와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
         public void FinishMission()
         {
             if (_settled) return;
             _settled = true;
-            var cleared = _simulation.Stage == MissionStage.Cleared;
+            var cleared = _simulation.Completed;
             var fragments = _simulation.SettlementFragments;
             _session.SettleMission(_simulation.StageNumber, fragments, cleared, _simulation.KillCounts);
-            _lastResult = GameData.L(cleared ? "result.timed" : "result.dead") + "\n" + GameData.L("result.fragments") + " " + fragments;
+            var result = cleared ? "clear" : _simulation.IsTimedOut ? "timeout" : "death";
+            var resultKey = cleared ? "result.stageCleared" : _simulation.IsTimedOut ? "result.timeout" : "result.dead";
+            _lastResult = GameData.L(resultKey) + "\n" + GameData.L("result.fragments") + " " + fragments;
+            if (cleared) _lastResult += "  ·  " + GameData.L("result.clearReward") + " " + _simulation.ClearReward;
             _isPaused = false;
-            LocalTelemetry.Record(_simulation.Tick, "mission.result", (cleared ? "clear" : "death") + ":" + fragments);
+            LocalTelemetry.Record(_simulation.Tick, "mission.result", result + ":" + fragments);
         }
 
         /// <summary>전투를 중단하여 사망과 같은 보존 비율로 현재 획득 조각을 한 번만 정산하고 결과 문구를 남긴다.</summary>

@@ -64,7 +64,7 @@ namespace RuneCode
         { _movement = movement; _aimDirection = aimDirection; _castA = castA; _castB = castB; _castC = castC; _dash = dash; _interact = interact; }
     }
 
-    public enum MissionStage { Bench, Combat, Terminal, Cleared, Dead }
+    public enum MissionStage { Bench, Combat, Terminal, Cleared, Dead, TimedOut }
 
     public sealed class SimulationPlayer
     {

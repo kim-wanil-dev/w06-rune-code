@@ -13,7 +13,7 @@ namespace RuneCode
     public sealed class RuneCodeSession
     {
         private PlayerSave _save;
-        private readonly IncrementalDefinition _incremental;
+        private readonly StageCatalog _stages;
         private readonly UpgradeTreeDefinition _upgradeTree;
         private readonly bool _isDebugEnabled;
         private readonly bool _isAreaBoxUpright;
@@ -40,7 +40,7 @@ namespace RuneCode
         public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.MaxEnergy);
         public float MaxHp => GameData.Balance.Player.MaxHp + _save.HpLevel * GameData.Balance.Economy.StatStep;
         public float EnergyRegen => GameData.Balance.Player.EnergyRegen + _save.EnergyLevel * GameData.Balance.Economy.EnergyRegenStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.EnergyRegen);
-        public float BattleDuration => (float)_incremental.BaseDuration + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
+        public float BattleDuration => (float)_stages.Get(1).Stream.Until + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
         public int HighestClearedStage => _save.HighestClearedStage;
@@ -49,13 +49,13 @@ namespace RuneCode
         public event Action<AppScreen> ScreenRequested;
 
         /// <summary>
-        /// 세이브, 시간제 스테이지 정의, 디버그 여부, 시작 경고 문구와
+        /// 세이브, 스테이지 정의(제한시간 성장 표시 기준값), 디버그 여부, 시작 경고 문구와
         /// 범위 사각형 판정의 월드 축 고정 여부로 세션과 마법 편집 세션을 만든다.
         /// </summary>
-        public RuneCodeSession(PlayerSave save, IncrementalDefinition incremental, UpgradeTreeDefinition upgradeTree, bool isDebugEnabled, string initialStatus, bool isAreaBoxUpright)
+        public RuneCodeSession(PlayerSave save, StageCatalog stages, UpgradeTreeDefinition upgradeTree, bool isDebugEnabled, string initialStatus, bool isAreaBoxUpright)
         {
             _save = save;
-            _incremental = incremental;
+            _stages = stages;
             _upgradeTree = upgradeTree;
             _isDebugEnabled = isDebugEnabled;
             _isAreaBoxUpright = isAreaBoxUpright;

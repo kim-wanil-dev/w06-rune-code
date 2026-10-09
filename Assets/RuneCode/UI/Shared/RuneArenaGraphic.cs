@@ -28,8 +28,6 @@ namespace RuneCode
         private static readonly Color FLOOR_DOT_COLOR = new Color(0.15f, 0.22f, 0.29f);
         private static readonly Color TERMINAL_ACTIVE_COLOR = new Color(0.26f, 0.91f, 0.66f);
         private static readonly Color TERMINAL_IDLE_COLOR = new Color(0.26f, 0.43f, 0.49f);
-        private static readonly Color LANE_COLOR = new Color(0.18f, 0.47f, 0.59f, 0.15f);
-        private static readonly Color PLAYER_ZONE_COLOR = new Color(0.26f, 0.75f, 0.86f, 0.35f);
         private static readonly Color HOSTILE_COLOR = new Color(1, 0.33f, 0.42f);
         private static readonly Color HOSTILE_TRAIL_COLOR = new Color(1, 0.25f, 0.3f, 0.25f);
         private static readonly Color ORB_COLOR = new Color(0.43f, 1f, 0.82f);
@@ -108,7 +106,6 @@ namespace RuneCode
             RuneSimulation sim = _simulation?.Invoke();
             if (sim == null) return;
             DrawMap(mesh, sim);
-            if (sim.IsTimedBattle) DrawIncomingFlow(mesh, sim);
             foreach (SimulationSpellEntity spell in sim.SpellEntities) DrawSpell(mesh, spell, sim.IsAreaBoxUpright);
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles) DrawHostileProjectile(mesh, projectile);
             foreach (FragmentOrb orb in sim.Orbs) DrawOrb(mesh, orb);
@@ -167,24 +164,11 @@ namespace RuneCode
                         continue;
                     }
                     RuneMesh.Rect(mesh, new Rect(corner, Vector2.one * _scale), FLOOR_DOT_COLOR);
-                    if (sim.IsTimedBattle || (cell != 'D' && cell != 'T')) continue;
+                    if (cell != 'D' && cell != 'T') continue;
                     Color marker = sim.Stage == MissionStage.Terminal ? TERMINAL_ACTIVE_COLOR : TERMINAL_IDLE_COLOR;
                     RuneMesh.Ring(mesh, corner + Vector2.one * (tile / 2), 12 * _scale, 2 * _scale, marker, 4);
                 }
             }
-        }
-
-        /// <summary>시간제 전투에서 오른쪽의 적이 왼쪽 플레이어에게 오는 흐름을 배경 도형으로 표시한다.</summary>
-        private void DrawIncomingFlow(UnityEngine.UI.VertexHelper mesh, RuneSimulation sim)
-        {
-            for (int row = 1; row <= 3; row++)
-            {
-                double y = WORLD_HEIGHT * row / 4;
-                RuneMesh.Line(mesh, Point(new SimVector(sim.Player.Position.X + 70, y)), Point(new SimVector(WORLD_WIDTH - 64, y)), _scale, LANE_COLOR);
-                for (double x = sim.Player.Position.X + 160; x < WORLD_WIDTH - 64; x += 150)
-                    RuneMesh.Polygon(mesh, Point(new SimVector(x, y)), 4 * _scale, LANE_COLOR, 3, Mathf.PI);
-            }
-            RuneMesh.Ring(mesh, Point(sim.Player.Position), 33 * _scale, 1.5f * _scale, PLAYER_ZONE_COLOR, 12);
         }
 
         /// <summary>마법 개체를 범위형(폭발·잔류)과 이동형(발사·공전)으로 나눠 그린다.</summary>

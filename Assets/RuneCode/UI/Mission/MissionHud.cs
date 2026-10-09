@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 화면의 HUD View다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 시간, 마법 줄과 조각 토스트를 표시하고
+    /// 미션 화면의 HUD View다. 체력·에너지 막대, 스테이지, 처치·조각, 남은 적 수(보스 스테이지는 남은 시간 포함), 마법 줄과 조각 토스트를 표시하고
     /// 일시정지·디버그 버튼 클릭을 알린다. 표시 값 계산은 MissionPresenter가 한다.
     /// </summary>
     public sealed class MissionHud : MonoBehaviour
@@ -71,7 +71,7 @@ namespace RuneCode
         /// <summary>처치·조각 문구를 표시한다.</summary>
         public void SetStats(string text) => _statsLabel.text = text;
 
-        /// <summary>남은 시간 문구를 표시하고 임박하면 경고 색으로 바꾼다.</summary>
+        /// <summary>남은 적 수(보스 스테이지는 남은 시간 포함) 문구를 표시하고 제한시간이 임박하면 경고 색으로 바꾼다.</summary>
         public void SetTimer(string text, bool isWarning)
         {
             _timerLabel.text = text;
