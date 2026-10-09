@@ -13,6 +13,7 @@ namespace RuneCode
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
         private const int STATUS_TYPE_COUNT = 4;
+        private const int PLAYER_TARGET_ID = -1;
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -423,7 +424,10 @@ namespace RuneCode
             }
         }
 
-        /// <summary>Inline Buff의 회복 또는 보호막을 호출부 수식에 맞춰 적용하고 완료 분기를 실행한다.</summary>
+        /// <summary>
+        /// Apply의 자기 적용 효과를 호출부 수식에 맞춰 시전자에게 적용하고 완료 분기를 실행한다.
+        /// 회복은 즉시 회복, 보호는 보호막, 화염은 시전자에게 화상(자해 허용)을 부여한다.
+        /// </summary>
         private void ApplyBuff(SpellAction action, SpellContext context)
         {
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
@@ -432,6 +436,7 @@ namespace RuneCode
             else if (action.SourceElement == "protection")
                 _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier
                     * context.Modifiers.DurationMultiplier, Time);
+            else if (action.SourceElement == "fire") _player.ApplyBurn(Time, _balance.Combat.BurnInterval, _balance.Combat.BurnSeconds);
             for (int instance = 0; instance < action.Count; instance++) Execute(action.OnFirstHitOrExpire, context);
         }
 
@@ -474,14 +479,20 @@ namespace RuneCode
                 if (action.Form == "bolt" && action.Count > 1) direction = direction.Rotated((i / (double)(action.Count - 1) * 2 - 1) * stats.SpreadAngle * DEGREES_TO_RADIANS);
                 SimVector position = context.Origin;
                 if (action.Form == "burst" || action.Form == "zone")
-                { if (!context.FromEvent) position += context.Direction * stats.Offset; if (action.Count > 1) position += new SimVector(Math.Cos(i * 2 * Math.PI / action.Count), Math.Sin(i * 2 * Math.PI / action.Count)) * _balance.Sim.MultiOffset; }
+                {
+                    // 회복·보호 범위는 시전자에게 적용되므로 생성 거리 없이 현재 실행 위치에 만든다.
+                    bool isFunctional = action.SourceElement == "heal" || action.SourceElement == "protection";
+                    if (!context.FromEvent && !isFunctional) position += context.Direction * stats.Offset;
+                    if (action.Count > 1) position += new SimVector(Math.Cos(i * 2 * Math.PI / action.Count), Math.Sin(i * 2 * Math.PI / action.Count)) * _balance.Sim.MultiOffset;
+                }
                 double angle = i * 2 * Math.PI / action.Count;
                 if (action.Form == "orbit") position = (context.FromEvent ? context.Origin : _player.Position) + new SimVector(Math.Cos(angle), Math.Sin(angle)) * stats.OrbitRadius;
                 var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, position, direction,
                     context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds,
                     context.CallEvents, context.Modifiers, context.CostMultiplier);
                 _spellEntities.Add(entity); _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
-                if (action.SourceElement == "protection")
+                // 보호 Orbit(방벽)은 생성 시 보호막을 준다. 보호 Burst는 범위 안의 시전자에게만 HitArea에서 준다.
+                if (action.SourceElement == "protection" && action.Form == SpellGrammar.FORM_ORBIT)
                     _player.GiveShield(action.Power * action.ModifierValues.DamageMultiplier * context.Modifiers.DamageMultiplier,
                         action.BuffDuration * action.ModifierValues.DurationMultiplier * context.Modifiers.DurationMultiplier, Time);
                 if (action.Form == "burst")
@@ -599,7 +610,13 @@ namespace RuneCode
         /// </summary>
         private void HitArea(SimulationSpellEntity entity, bool isBurst)
         {
-            if (entity.Action.SourceElement == "protection") return;
+            string source = entity.Action.SourceElement;
+            if (source == "heal" || (source == "protection" && isBurst))
+            {
+                ApplyFunctionalArea(entity, isBurst);
+                return;
+            }
+            if (source == "protection") return;
             var targets = new List<SimulationEnemy>();
             foreach (SimulationEnemy enemy in _enemies)
             {
@@ -628,6 +645,25 @@ namespace RuneCode
                 if (isNewContact) RaiseHitEvent(entity, enemy.Position, enemy);
             }
             if (isOrbit) entity.EndContactScan();
+        }
+
+        /// <summary>
+        /// 회복·보호(Functional) 범위 효과를 범위 안의 시전자에게만 적용한다(결정 Q15). 적에게는 효과가 없다.
+        /// Burst는 한 번, Persist는 시전자 기준 TickInterval마다 즉시 회복하며 별도 상태 이상을 만들지 않는다.
+        /// </summary>
+        private void ApplyFunctionalArea(SimulationSpellEntity entity, bool isBurst)
+        {
+            bool isInside = entity.IsBox
+                ? IntersectsAreaBox(entity, _player.Position, _sector.PlayerRadius)
+                : SimVector.Distance(entity.Position, _player.Position) <= entity.Radius + _sector.PlayerRadius;
+            if (!isInside) return;
+            bool hasApplied = entity.HitTimes.TryGetValue(PLAYER_TARGET_ID, out double lastTime);
+            if (hasApplied && (isBurst || Time - lastTime + 0.000001 < entity.Stats.TickInterval)) return;
+            entity.HitTimes[PLAYER_TARGET_ID] = Time;
+            SpellAction action = entity.Action;
+            double amount = action.Power * action.ModifierValues.DamageMultiplier * entity.Modifiers.DamageMultiplier;
+            if (action.SourceElement == "heal") _player.Heal(amount);
+            else _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier * entity.Modifiers.DurationMultiplier, Time);
         }
 
         /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄를 처리한다. 이벤트 실행은 호출부가 RaiseHitEvent로 따로 처리한다.</summary>
@@ -718,6 +754,8 @@ namespace RuneCode
         private void AdvanceStatuses()
         {
             _statusTime = Time;
+            while (_player.Hp > 0 && _player.TryTakeBurnTick(Time, _balance.Combat.BurnInterval))
+                HurtPlayerByStatus(_balance.Combat.BurnDps * _balance.Combat.BurnInterval);
             foreach (SimulationEnemy enemy in _enemies)
             {
                 enemy.Observe(Time);
@@ -764,15 +802,19 @@ namespace RuneCode
             burn.Until = Time + _balance.Combat.BurnSeconds; burn.SourceForm = form; burn.IsNoise = noise;
         }
 
-        /// <summary>냉기 스택과 지속시간을 갱신하고, 최대 스택에서 빙결 면역이 아니면 빙결을 부여하며 냉기를 제거한다.</summary>
+        /// <summary>
+        /// 냉기 스택과 지속시간을 갱신하고, 최대 스택에서 빙결 면역이 아니면 빙결을 부여하며 냉기를 제거한다.
+        /// 빙결 면역 중에는 냉기 스택이 면역 중 상한(백서 기준 2)을 넘지 않는다.
+        /// </summary>
         private void ApplyChill(SimulationEnemy enemy)
         {
             CombatBalance combat = _balance.Combat;
-            EnemyStatusEffect chill = GetOrAddStatus(enemy.Id, EnemyStatusType.Chill);
-            chill.Stacks = Math.Min(combat.ChillMaxStacks, chill.Stacks + 1); chill.Until = Time + combat.ChillSeconds;
-            if (chill.Stacks < combat.ChillMaxStacks) return;
             EnemyStatusEffect freeze = FindStatus(enemy.Id, EnemyStatusType.Freeze);
-            if (freeze != null && Time < freeze.ImmuneUntil) return;
+            bool isImmune = freeze != null && Time < freeze.ImmuneUntil;
+            EnemyStatusEffect chill = GetOrAddStatus(enemy.Id, EnemyStatusType.Chill);
+            int maxStacks = isImmune ? combat.ChillImmuneMaxStacks : combat.ChillMaxStacks;
+            chill.Stacks = Math.Min(maxStacks, chill.Stacks + 1); chill.Until = Time + combat.ChillSeconds;
+            if (isImmune || chill.Stacks < combat.ChillMaxStacks) return;
             freeze ??= AddStatus(enemy.Id, EnemyStatusType.Freeze);
             freeze.Until = Time + combat.FreezeSeconds; freeze.ImmuneUntil = freeze.Until + combat.FreezeImmunity;
             RemoveStatusIndex(chill); _enemyStatuses.Remove(chill);
@@ -900,6 +942,17 @@ namespace RuneCode
             double actual = _player.Hurt(damage, Time, _balance.Player.HurtInvulnerability);
             if (actual > 0) _damageNumbers.Add(new DamageNumber(_player.Position, actual, "player", _tick));
             if (actual > 0 || _player.Shield < shieldBefore) TryCastTrigger(SpellGrammar.TRIGGER_ON_HIT_TAKEN);
+        }
+
+        /// <summary>
+        /// 시전자의 상태 이상 피해(화상 DoT)를 적용한다. 피격 무적을 무시하고 주지 않으며 OnHitTaken을 발생시키지 않는다.
+        /// 시험 도크(비전투)에서는 상태만 표시하고 체력을 깎지 않는다(결정 Q13).
+        /// </summary>
+        private void HurtPlayerByStatus(double damage)
+        {
+            if (_debugInvulnerable || !_isMission) return;
+            double actual = _player.HurtByStatus(damage);
+            if (actual > 0) _damageNumbers.Add(new DamageNumber(_player.Position, actual, "player", _tick));
         }
 
         /// <summary>적 공격 설정의 탄환을 부채꼴로 발사한다.</summary>

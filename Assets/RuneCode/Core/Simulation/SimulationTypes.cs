@@ -81,6 +81,8 @@ namespace RuneCode
         private double _dashCooldown;
         private double _dashRemaining;
         private double _invulnerableUntil;
+        private double _burnUntil;
+        private double _burnNextTick;
         public SimVector Position => _position;
         public SimVector AimDirection => _aimDirection;
         public double Hp => _hp;
@@ -124,6 +126,30 @@ namespace RuneCode
         internal double Hurt(double damage, double time, double invulnerability)
         { if (time < _invulnerableUntil) return 0; double absorbed = Math.Min(_shield, damage); _shield -= absorbed; double actual = Math.Min(_hp, damage - absorbed); _hp -= actual; _invulnerableUntil = time + invulnerability; return actual; }
 
+        /// <summary>
+        /// 상태 이상 피해를 보호막과 체력에 적용하고 실제 체력 피해를 반환한다. 피격 무적을 무시하며 새 무적도 주지 않는다(결정 Q13).
+        /// </summary>
+        internal double HurtByStatus(double damage)
+        { double absorbed = Math.Min(_shield, damage); _shield -= absorbed; double actual = Math.Min(_hp, damage - absorbed); _hp -= actual; return actual; }
+
+        /// <summary>지정 시각에 화상 상태인지 반환한다.</summary>
+        public bool IsBurning(double time) => time < _burnUntil;
+
+        /// <summary>화상을 부여한다. 진행 중이면 지속시간만 갱신하고 피해 틱 일정은 유지하며, 끝난 뒤면 새 일정을 시작한다.</summary>
+        internal void ApplyBurn(double time, double interval, double seconds)
+        {
+            if (time >= _burnUntil) _burnNextTick = time + interval;
+            _burnUntil = time + seconds;
+        }
+
+        /// <summary>현재 시각에 도달한 화상 피해 틱이 있으면 다음 틱으로 넘기고 true를 반환한다. 마지막 틱은 만료 시각까지다.</summary>
+        internal bool TryTakeBurnTick(double time, double interval)
+        {
+            if (_burnUntil <= 0 || _burnNextTick > _burnUntil + 0.000001 || time + 0.000001 < _burnNextTick) return false;
+            _burnNextTick += interval;
+            return true;
+        }
+
         /// <summary>회복량을 최대 체력 범위로 제한하여 플레이어 체력에 적용한다.</summary>
         internal void Heal(double amount) { _hp = Math.Min(_maxHp, _hp + Math.Max(0, amount)); }
 
@@ -136,7 +162,7 @@ namespace RuneCode
         /// <summary>위치, 능력치, 보호막, 대시 및 무적의 현재와 예정 상태를 결정성 해시 버퍼에 기록한다.</summary>
         internal void WriteState(StringBuilder state)
         {
-            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}"));
+            state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}|{_burnUntil:R}|{_burnNextTick:R}"));
             foreach (double cooldown in _cooldowns) state.Append(FormattableString.Invariant($"|{cooldown:R}"));
         }
     }

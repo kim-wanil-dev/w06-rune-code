@@ -203,19 +203,24 @@ namespace RuneCode
             return target.Category == "form" && (source.Category == "modifier" || source.Category == "element");
         }
 
-        /// <summary>Inline Magic의 종류·속성·형태 조합과 버프의 이벤트 출력을 검사한다. 해금은 문법 블록 단계에서 검사한다.</summary>
+        /// <summary>
+        /// Inline Magic의 종류·속성·형태 조합과 버프의 이벤트 출력을 검사한다. 해금은 문법 블록 단계에서 검사한다.
+        /// Apply는 회복·보호·화염, 회복 Shape는 Burst·Persist, 보호 Shape는 Burst와 구형 Orbit(방벽)만 허용한다.
+        /// </summary>
         private static void ValidateMagicNode(GraphNode node, RuneDefinition rune, IReadOnlyList<GraphEdge> edges, List<CompileIssue> errors)
         {
             if (rune.Id != "magic.inline") return;
             string magicType = node.GetText("magicType", "sphere");
             string element = node.GetText("element", "normal");
             string form = node.GetText("form", "launch");
-            bool isBuffElement = element == "heal" || element == "protection";
+            bool isBuffElement = element == "heal" || element == "protection" || element == "fire";
             bool isProtectionOrbit = magicType == "sphere" && element == "protection" && form == "orbit";
-            if ((magicType == "buff" && (!isBuffElement || form != "remain"))
-                || (element == "heal" && magicType != "buff")
-                || (element == "protection" && magicType != "buff" && !isProtectionOrbit))
-                errors.Add(new CompileIssue("E14", node.Id));
+            bool isValid;
+            if (magicType == "buff") isValid = isBuffElement && form == "remain";
+            else if (element == "heal") isValid = form == "explosion" || form == "remain";
+            else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit;
+            else isValid = true;
+            if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
                 errors.Add(new CompileIssue("E16", node.Id));

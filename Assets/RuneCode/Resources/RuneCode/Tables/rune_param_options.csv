@@ -19,6 +19,7 @@ shape.box,element,4,healing
 shape.box,element,5,protection
 behavior.apply,element,0,healing
 behavior.apply,element,1,protection
+behavior.apply,element,2,fire
 flow.if,type,0,targetHpBelow
 flow.if,type,1,targetHasStatus
 flow.if,type,2,targetDistanceBelow

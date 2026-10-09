@@ -173,6 +173,7 @@ namespace RuneCode
             RuneMesh.Line(mesh, playerPoint, playerPoint + aim * Mathf.Max(sim.Stage == MissionStage.Bench ? 8 : 0, 27 * _scale),
                 Mathf.Max(sim.Stage == MissionStage.Bench ? 1 : 0, 3 * _scale), new Color(0.92f, 0.83f, 0.49f));
             if (player.Shield > 0) RuneMesh.Ring(mesh, playerPoint, 23 * _scale, 2 * _scale, new Color(0.65f, 0.53f, 1));
+            if (player.IsBurning(sim.Time)) RuneMesh.Polygon(mesh, playerPoint + new Vector2(0, 30 * _scale), 4 * _scale, RuneMesh.ElementColor("fire"), 3);
         }
 
         /// <summary>시간제 전투에서 오른쪽의 적이 왼쪽 플레이어에게 오는 흐름을 배경 도형으로 표시한다.</summary>
