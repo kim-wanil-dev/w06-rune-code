@@ -30,7 +30,9 @@ namespace RuneCode
         public const string ON_HIT_PORT = "onHit";
         public const string ON_EXPIRE_PORT = "onExpire";
         public const string ON_FIRST_HIT_OR_EXPIRE_PORT = "onFirstHitOrExpire";
-        public const string LEGACY_COMPLETE_PORT = "onComplete";
+        public const string ON_COMPLETE_PORT = "onComplete";
+        public const string LEGACY_COMPLETE_PORT = ON_COMPLETE_PORT;
+        public const string BODY_PORT = "body";
 
         public const string PORT_ACTIVE = "active";
         public const string PORT_DEPRECATED = "deprecated";
@@ -97,7 +99,10 @@ namespace RuneCode
             return from.Category == CATEGORY_SHAPE && to.Category == CATEGORY_BEHAVIOR && to.Id != APPLY_RUNE;
         }
 
-        /// <summary>개체 이벤트 출력 포트(onHit, onExpire, onFirstHitOrExpire, 이전 onComplete)인지 반환한다.</summary>
+        /// <summary>
+        /// 개체 이벤트 출력 포트(onHit, onExpire, onFirstHitOrExpire, 이전 Behavior의 onComplete)인지 반환한다.
+        /// Repeat의 onComplete도 같은 ID지만 버전 3 이전 그래프에는 없으므로 이전 이벤트 표시 대상이 되지 않는다.
+        /// </summary>
         public static bool IsEventPort(string portId)
         {
             return portId == ON_HIT_PORT || portId == ON_EXPIRE_PORT || portId == ON_FIRST_HIT_OR_EXPIRE_PORT || portId == LEGACY_COMPLETE_PORT;

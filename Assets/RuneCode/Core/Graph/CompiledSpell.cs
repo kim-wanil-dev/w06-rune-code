@@ -345,6 +345,7 @@ namespace RuneCode
         private IReadOnlyList<SpellAction> _then = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _else = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _body = new List<SpellAction>();
+        private IReadOnlyList<SpellAction> _onComplete = new List<SpellAction>();
         private IReadOnlyList<SpellAction> _next = new List<SpellAction>();
         private IReadOnlyList<string> _attachedNodeIds = new List<string>();
         public string Kind => _kind;
@@ -376,9 +377,12 @@ namespace RuneCode
         public IReadOnlyList<SpellAction> Then => _then;
         public IReadOnlyList<SpellAction> Else => _else;
         public IReadOnlyList<SpellAction> Body => _body;
+
+        /// <summary>Repeat의 모든 회차(내부 Delay 포함)가 정상 종료된 뒤 한 번 실행하는 분기다.</summary>
+        public IReadOnlyList<SpellAction> OnComplete => _onComplete;
         public IReadOnlyList<SpellAction> Next => _next;
 
-        /// <summary>적중·소멸·첫 이벤트·조건·반복·후속 실행의 모든 하위 분기를 반환한다. 분기를 추가하면 이곳에도 추가한다.</summary>
+        /// <summary>적중·소멸·첫 이벤트·조건·반복·반복 완료·후속 실행의 모든 하위 분기를 반환한다. 분기를 추가하면 이곳에도 추가한다.</summary>
         public IEnumerable<IReadOnlyList<SpellAction>> Branches
         {
             get
@@ -389,6 +393,7 @@ namespace RuneCode
                 yield return _then;
                 yield return _else;
                 yield return _body;
+                yield return _onComplete;
                 yield return _next;
             }
         }
@@ -490,6 +495,7 @@ namespace RuneCode
                 case "then": _then = actions; break;
                 case "else": _else = actions; break;
                 case "body": _body = actions; break;
+                case SpellGrammar.ON_COMPLETE_PORT: _onComplete = actions; break;
                 case "next": _next = actions; break;
             }
         }

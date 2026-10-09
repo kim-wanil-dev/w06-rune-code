@@ -143,8 +143,9 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 버전 2 체인을 버전 3 블록으로 바꾸고 그래프 버전을 3으로 올린다(버전 1은 ID만 바꾼다).
+        /// 버전 2 체인을 버전 3 블록으로 바꾸고 그래프 버전을 3으로 올린다.
         /// 버프 체인은 Apply로, 속성 블록은 Shape의 element 값으로 접고, Behavior·Trigger 이름을 바꾼다.
+        /// 버전 1은 실행 순서를 대상 ID 순서로 정했으므로 그 순서를 연결 순번(Order)으로 옮긴 뒤 올린다.
         /// </summary>
         private static void ConvertToVersion3(SpellGraph graph)
         {
@@ -166,8 +167,46 @@ namespace RuneCode
                 else if (node.RuneId == SpellGrammar.CORE_RUNE && V2_TRIGGERS.TryGetValue(node.GetText(SpellGrammar.TRIGGER_PARAM), out string trigger))
                     node.SetText(SpellGrammar.TRIGGER_PARAM, trigger);
             }
-            // 버전 1은 실행 순서 규칙(대상 ID 정렬)이 달라 ID만 바꾸고 버전 번호는 유지한다.
-            if (graph.Version >= 2) graph.SetVersion(SpellGraph.CURRENT_VERSION);
+            if (graph.Version == 1) AssignOrderFromTargets(graph);
+            graph.SetVersion(SpellGraph.CURRENT_VERSION);
+        }
+
+        /// <summary>
+        /// 버전 1의 실행 순서(같은 출력의 연결을 컴파일 대상 노드 ID 순으로 실행)를 연결 순번으로 바꾼다.
+        /// 컴파일 대상은 Shape로 들어가는 연결이면 Shape가 합쳐질 Behavior이므로 그 ID를 기준으로 정렬한다.
+        /// </summary>
+        private static void AssignOrderFromTargets(SpellGraph graph)
+        {
+            var groups = new Dictionary<string, List<GraphEdge>>(StringComparer.Ordinal);
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                if (edge == null || edge.FromPort == SpellGrammar.MODIFIER_PORT || edge.FromPort == SpellGrammar.CHAIN_OUT) continue;
+                string key = edge.FromNode + "\n" + edge.FromPort;
+                if (!groups.TryGetValue(key, out List<GraphEdge> group))
+                {
+                    group = new List<GraphEdge>();
+                    groups.Add(key, group);
+                }
+                group.Add(edge);
+            }
+            foreach (List<GraphEdge> group in groups.Values)
+            {
+                // OrderBy는 안정 정렬이라 같은 대상끼리는 저장 순서를 유지하며, 버전 1 컴파일러와 같은 순서가 된다.
+                List<GraphEdge> ordered = group.OrderBy(edge => CompiledTarget(graph, edge.ToNode), StringComparer.Ordinal).ToList();
+                for (int order = 0; order < ordered.Count; order++)
+                {
+                    GraphEdge edge = ordered[order];
+                    graph.ReplaceEdge(edge.Id, new GraphEdge(edge.Id, edge.FromNode, edge.FromPort, edge.ToNode, edge.ToPort, order, edge.IsLegacyEvent));
+                }
+            }
+        }
+
+        /// <summary>Shape 노드면 체인으로 이어진 Behavior 노드 ID를, 아니면 노드 ID를 그대로 반환한다.</summary>
+        private static string CompiledTarget(SpellGraph graph, string nodeId)
+        {
+            GraphNode node = graph.FindNode(nodeId);
+            if (node == null || SpellGrammar.MagicTypeOf(node.RuneId) == null) return nodeId;
+            return TrySingleChainTarget(graph, nodeId, out GraphEdge chain) ? chain.ToNode : nodeId;
         }
 
         /// <summary>

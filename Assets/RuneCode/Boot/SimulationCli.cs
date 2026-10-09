@@ -114,7 +114,7 @@ namespace RuneCode
                         action.Form == "orbit" ? stats.OrbitRadius + stats.Radius : stats.Offset + stats.Radius;
                 }
                 else if (action.Kind == "blink") candidate = action.Distance + GetActionRange(action.Next);
-                else if (action.Kind == "repeat") candidate = GetActionRange(action.Body);
+                else if (action.Kind == "repeat") candidate = Math.Max(GetActionRange(action.Body), GetActionRange(action.OnComplete));
                 else if (action.Kind == "delay") candidate = GetActionRange(action.Then);
                 else if (action.Kind == "if") candidate = Math.Max(GetActionRange(action.Then), GetActionRange(action.Else));
                 else candidate = GetActionRange(action.Next);

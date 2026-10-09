@@ -34,6 +34,7 @@ flow.delay,0,exec,exec,in,1,
 flow.delay,1,then,exec,out,0,
 flow.repeat,0,exec,exec,in,1,
 flow.repeat,1,body,exec,out,0,
+flow.repeat,2,onComplete,exec,out,0,
 flow.if,0,exec,exec,in,1,
 flow.if,1,then,exec,out,0,
 flow.if,2,else,exec,out,0,deprecated

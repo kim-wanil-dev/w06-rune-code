@@ -267,6 +267,8 @@ namespace RuneCode
                 AppendNumber(state, pending.Context.Origin.X); AppendNumber(state, pending.Context.Origin.Y);
                 AppendNumber(state, pending.Context.Direction.X); AppendNumber(state, pending.Context.Direction.Y);
                 state.Append(pending.Context.Target?.Id ?? 0).Append('|').Append(pending.Context.FromEvent).Append('|').Append(pending.Context.NoiseElement);
+                state.Append('|').Append(pending.IsIteration);
+                pending.Context.Repeat?.AppendState(state);
                 pending.Context.Modifiers.AppendState(state);
                 pending.Context.CallEvents?.AppendState(state);
                 if (pending.Context.Target != null && !pending.Context.Target.IsAlive) pending.Context.Target.WriteState(state);
@@ -301,11 +303,48 @@ namespace RuneCode
             for (int slot = 0; slot < _loadout.Length; slot++) TryCastTriggered(_loadout[slot], trigger, slot);
         }
 
-        /// <summary>예약된 흐름 실행 중 현재 틱에 도달한 명령을 등록 순서대로 실행한다.</summary>
+        /// <summary>
+        /// 예약된 흐름 실행 중 현재 틱에 도달한 명령을 등록 순서대로 실행한다.
+        /// 실패한 Repeat의 남은 회차는 실행하지 않고 건너뛰며, 실행이 끝난 예약은 소속 Repeat의 대기 수에서 뺀다.
+        /// </summary>
         private void RunScheduled()
         {
             for (int i = 0; i < _scheduled.Count;)
-            { ScheduledExecution pending = _scheduled[i]; if (pending.Tick > _tick) { i++; continue; } _scheduled.RemoveAt(i); Execute(pending.Actions, pending.Context); }
+            {
+                ScheduledExecution pending = _scheduled[i];
+                if (pending.Tick > _tick) { i++; continue; }
+                _scheduled.RemoveAt(i);
+                RepeatScope scope = pending.Context.Repeat;
+                if (!(pending.IsIteration && scope != null && scope.IsFailed)) Execute(pending.Actions, pending.Context);
+                if (scope != null) ReleaseRepeat(scope);
+            }
+        }
+
+        /// <summary>
+        /// Repeat의 첫 회차를 즉시 실행하고 나머지 회차를 간격마다 예약한다. 모든 회차와 회차 안의 Delay가 끝나면
+        /// OnComplete를 한 번 실행하며, 회차가 실패하면 남은 회차를 취소하고 OnComplete를 실행하지 않는다.
+        /// 회차가 만든 개체의 수명이나 개체 이벤트는 기다리지 않는다.
+        /// </summary>
+        private void ExecuteRepeat(SpellAction action, SpellContext context)
+        {
+            var scope = new RepeatScope(action.OnComplete, context, context.Repeat);
+            context.Repeat?.Acquire();
+            scope.Acquire();
+            SpellContext bodyContext = context.WithRepeat(scope);
+            Execute(action.Body, bodyContext);
+            for (int repeat = 1; repeat < action.Times && !scope.IsFailed; repeat++) Schedule(action.Body, bodyContext, repeat * action.Interval, true);
+            ReleaseRepeat(scope);
+        }
+
+        /// <summary>
+        /// Repeat의 대기 수를 하나 줄이고 0이 되면 완료 처리한다. 실패하지 않았으면 OnComplete를 Repeat 진입 문맥으로 실행하고,
+        /// 바깥 Repeat의 대기 수도 줄인다.
+        /// </summary>
+        private void ReleaseRepeat(RepeatScope scope)
+        {
+            if (!scope.Release()) return;
+            if (!scope.IsFailed) Execute(scope.OnComplete, scope.CompleteContext);
+            if (scope.Parent != null) ReleaseRepeat(scope.Parent);
         }
 
         /// <summary>실행 명령 목록을 컨텍스트 스냅샷으로 처리하고 모든 실제 실행 노드를 기록한다.</summary>
@@ -314,7 +353,13 @@ namespace RuneCode
             if (_actionBudgetTick != _tick) { _actionBudgetTick = _tick; _actionsThisTick = 0; }
             for (int i = 0; i < actions.Count; i++)
             {
-                if (_actionsThisTick >= _balance.Limits.MaxActionsPerTick) { _droppedExecutions += actions.Count - i; return; }
+                if (_actionsThisTick >= _balance.Limits.MaxActionsPerTick)
+                {
+                    // 안전 상한으로 실행을 생략하면 그 경로를 포함한 Repeat는 실패로 본다(결정 Q8).
+                    _droppedExecutions += actions.Count - i;
+                    context.Repeat?.Fail();
+                    return;
+                }
                 _actionsThisTick++;
                 SpellAction action = actions[i]; RecordNode(action.NodeId);
                 switch (action.Kind)
@@ -323,14 +368,11 @@ namespace RuneCode
                     case "buff": ApplyBuff(action, context); break;
                     case "call": ExecuteCall(action, context); break;
                     case "delay": Schedule(action.Then, context, action.Seconds); break;
-                    case "repeat":
-                        Execute(action.Body, context);
-                        for (int repeat = 1; repeat < action.Times; repeat++) Schedule(action.Body, context, repeat * action.Interval);
-                        break;
+                    case "repeat": ExecuteRepeat(action, context); break;
                     case "if": Execute(Evaluate(action.Condition, context) ? action.Then : action.Else, context); break;
                     case "blink":
                         SimVector destination = context.FromEvent ? _map.NearestFree(context.Origin, _sector.PlayerRadius) : _map.Move(_player.Position, context.Direction * action.Distance, _sector.PlayerRadius);
-                        _player.Move(destination); Execute(action.Next, new SpellContext(destination, context.Direction, context.Target, context.FromEvent, context.NoiseElement, context.Modifiers, context.CallEvents)); break;
+                        _player.Move(destination); Execute(action.Next, new SpellContext(destination, context.Direction, context.Target, context.FromEvent, context.NoiseElement, context.Modifiers, context.CallEvents, context.Repeat)); break;
                     case "shield": _player.GiveShield(action.ShieldAmount, action.ShieldSeconds, Time); Execute(action.Next, context); break;
                 }
             }
@@ -343,14 +385,14 @@ namespace RuneCode
             SpellModifierValues modifiers = context.Modifiers.Combine(action.ModifierValues);
             SpellEventScope events = new SpellEventScope(action.OnHit, action.OnExpire, action.OnFirstHitOrExpire, context.CallEvents, context.Modifiers);
             SpellContext callContext = new SpellContext(context.Origin, context.Direction, context.Target,
-                context.FromEvent, context.NoiseElement, modifiers, events);
+                context.FromEvent, context.NoiseElement, modifiers, events, context.Repeat);
             for (int instance = 0; instance < action.Count; instance++)
             {
                 double spread = action.Count > 1
                     ? (instance / (double)(action.Count - 1) * 2 - 1) * action.ModifierValues.SpreadAngle * DEGREES_TO_RADIANS
                     : 0;
                 SpellContext instanceContext = new SpellContext(callContext.Origin, callContext.Direction.Rotated(spread),
-                    callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents);
+                    callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents, callContext.Repeat);
                 Execute(action.CalledSpell.Root, instanceContext);
             }
         }
@@ -367,12 +409,21 @@ namespace RuneCode
             for (int instance = 0; instance < action.Count; instance++) Execute(action.OnFirstHitOrExpire, context);
         }
 
-        /// <summary>지연 시간에 맞는 틱에 후속 명령과 이벤트 스냅샷을 예약한다.</summary>
-        private void Schedule(IReadOnlyList<SpellAction> actions, SpellContext context, double seconds)
+        /// <summary>
+        /// 지연 시간에 맞는 틱에 후속 명령과 이벤트 스냅샷을 예약한다. isIteration은 Repeat의 남은 회차 예약 표시다.
+        /// 문맥이 Repeat 안이면 그 Repeat가 예약 종료를 기다리고, 예약 상한으로 생략하면 그 Repeat를 실패로 표시한다.
+        /// </summary>
+        private void Schedule(IReadOnlyList<SpellAction> actions, SpellContext context, double seconds, bool isIteration = false)
         {
             if (actions.Count == 0) return;
-            if (_scheduled.Count >= _balance.Limits.MaxScheduledExecutions) { _droppedExecutions += actions.Count; return; }
-            _scheduled.Add(new ScheduledExecution(_tick + Math.Max(1, (int)Math.Round(seconds * TICK_RATE)), actions, context));
+            if (_scheduled.Count >= _balance.Limits.MaxScheduledExecutions)
+            {
+                _droppedExecutions += actions.Count;
+                context.Repeat?.Fail();
+                return;
+            }
+            context.Repeat?.Acquire();
+            _scheduled.Add(new ScheduledExecution(_tick + Math.Max(1, (int)Math.Round(seconds * TICK_RATE)), actions, context, isIteration));
         }
 
         /// <summary>대상 또는 자신 상태에 따른 조건 분기를 평가하며 대상이 없으면 대상 조건을 false로 반환한다.</summary>
@@ -1040,7 +1091,8 @@ namespace RuneCode
             foreach (SpellAction action in actions)
                 if (action.Noise || (action.CalledSpell != null && ContainsNoise(action.CalledSpell.Root))
                     || ContainsNoise(action.OnHit) || ContainsNoise(action.OnExpire) || ContainsNoise(action.OnFirstHitOrExpire)
-                    || ContainsNoise(action.Then) || ContainsNoise(action.Else) || ContainsNoise(action.Body) || ContainsNoise(action.Next)) return true;
+                    || ContainsNoise(action.Then) || ContainsNoise(action.Else) || ContainsNoise(action.Body) || ContainsNoise(action.OnComplete)
+                    || ContainsNoise(action.Next)) return true;
             return false;
         }
 
@@ -1053,6 +1105,7 @@ namespace RuneCode
             private readonly string _noiseElement;
             private readonly SpellModifierValues _modifiers;
             private readonly SpellEventScope _callEvents;
+            private readonly RepeatScope _repeat;
             public SimVector Origin => _origin;
             public SimVector Direction => _direction;
             public SimulationEnemy Target => _target;
@@ -1060,10 +1113,59 @@ namespace RuneCode
             public string NoiseElement => _noiseElement;
             public SpellModifierValues Modifiers => _modifiers;
             public SpellEventScope CallEvents => _callEvents;
-            /// <summary>발생 위치, 방향, 선택 대상 및 이벤트 유래 여부를 예약 가능한 스냅샷으로 보관한다.</summary>
+
+            /// <summary>이 실행 경로가 속한 가장 안쪽 Repeat다. 개체 이벤트로 시작한 경로는 Repeat에 속하지 않는다.</summary>
+            public RepeatScope Repeat => _repeat;
+
+            /// <summary>발생 위치, 방향, 선택 대상, 이벤트 유래 여부와 소속 Repeat를 예약 가능한 스냅샷으로 보관한다.</summary>
             public SpellContext(SimVector origin, SimVector direction, SimulationEnemy target, bool fromEvent,
-                string noiseElement, SpellModifierValues modifiers = null, SpellEventScope callEvents = null)
-            { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; }
+                string noiseElement, SpellModifierValues modifiers = null, SpellEventScope callEvents = null, RepeatScope repeat = null)
+            { _origin = origin; _direction = direction; _target = target; _fromEvent = fromEvent; _noiseElement = noiseElement; _modifiers = modifiers ?? SpellModifierValues.None; _callEvents = callEvents; _repeat = repeat; }
+
+            /// <summary>소속 Repeat만 바꾼 문맥을 반환한다.</summary>
+            public SpellContext WithRepeat(RepeatScope repeat)
+                => new SpellContext(_origin, _direction, _target, _fromEvent, _noiseElement, _modifiers, _callEvents, repeat);
+        }
+
+        /// <summary>
+        /// 실행 중인 Repeat 하나의 완료 추적 상태다. 대기 수는 아직 끝나지 않은 회차 예약·Delay 예약·안쪽 Repeat와
+        /// 회차 예약 단계 자체를 센다. 0이 되면 완료이며, 실패 표시가 있으면 OnComplete를 실행하지 않는다.
+        /// </summary>
+        private sealed class RepeatScope
+        {
+            private readonly IReadOnlyList<SpellAction> _onComplete;
+            private readonly SpellContext _completeContext;
+            private readonly RepeatScope _parent;
+            private int _pending;
+            private bool _isFailed;
+            public IReadOnlyList<SpellAction> OnComplete => _onComplete;
+            public SpellContext CompleteContext => _completeContext;
+            public RepeatScope Parent => _parent;
+            public bool IsFailed => _isFailed;
+
+            /// <summary>완료 분기와 Repeat 진입 문맥(바깥 Repeat 소속), 바깥 Repeat로 추적 상태를 만든다.</summary>
+            public RepeatScope(IReadOnlyList<SpellAction> onComplete, SpellContext entryContext, RepeatScope parent)
+            {
+                _onComplete = onComplete;
+                _completeContext = entryContext;
+                _parent = parent;
+            }
+
+            /// <summary>기다릴 작업을 하나 추가한다.</summary>
+            public void Acquire() { _pending++; }
+
+            /// <summary>기다리던 작업 하나를 끝내고 모든 작업이 끝났으면 true를 반환한다.</summary>
+            public bool Release() { _pending--; return _pending == 0; }
+
+            /// <summary>회차 실패를 표시한다. 남은 회차는 실행하지 않으며 OnComplete도 실행하지 않는다.</summary>
+            public void Fail() { _isFailed = true; }
+
+            /// <summary>대기 수와 실패 여부를 바깥 Repeat까지 결정성 해시 버퍼에 기록한다.</summary>
+            public void AppendState(StringBuilder state)
+            {
+                for (RepeatScope scope = this; scope != null; scope = scope._parent)
+                    state.Append("|r").Append(scope._pending).Append(scope._isFailed ? 'f' : 'o');
+            }
         }
 
         private readonly struct ScheduledExecution
@@ -1071,11 +1173,17 @@ namespace RuneCode
             private readonly int _tick;
             private readonly IReadOnlyList<SpellAction> _actions;
             private readonly SpellContext _context;
+            private readonly bool _isIteration;
             public int Tick => _tick;
             public IReadOnlyList<SpellAction> Actions => _actions;
             public SpellContext Context => _context;
-            /// <summary>목표 틱, 실행 목록 및 컨텍스트를 예약 실행 데이터에 보관한다.</summary>
-            public ScheduledExecution(int tick, IReadOnlyList<SpellAction> actions, SpellContext context) { _tick = tick; _actions = actions; _context = context; }
+
+            /// <summary>Repeat의 남은 회차 예약인지 나타낸다. 소속 Repeat가 실패하면 실행하지 않는다.</summary>
+            public bool IsIteration => _isIteration;
+
+            /// <summary>목표 틱, 실행 목록, 컨텍스트와 Repeat 회차 여부를 예약 실행 데이터에 보관한다.</summary>
+            public ScheduledExecution(int tick, IReadOnlyList<SpellAction> actions, SpellContext context, bool isIteration)
+            { _tick = tick; _actions = actions; _context = context; _isIteration = isIteration; }
         }
 
         private readonly struct DamageSample

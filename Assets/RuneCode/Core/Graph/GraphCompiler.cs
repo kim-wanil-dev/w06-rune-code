@@ -531,7 +531,7 @@ namespace RuneCode
                                 + Cost(action.OnFirstHitOrExpire, hitCap));
                         break;
                     case "delay": sum += Cost(action.Then, hitCap); break;
-                    case "repeat": sum += action.Times * Cost(action.Body, hitCap); break;
+                    case "repeat": sum += action.Times * Cost(action.Body, hitCap) + Cost(action.OnComplete, hitCap); break;
                     case "if": sum += Math.Max(Cost(action.Then, hitCap), Cost(action.Else, hitCap)); break;
                     default: sum += action.OwnEnergy + Cost(action.Next, hitCap); break;
                 }
@@ -565,7 +565,10 @@ namespace RuneCode
                         count = AddBounded(callEntities, MultiplyBounded(callEntities, callEvents, limit), limit);
                         break;
                     case "delay": count = EntityCount(action.Then, hitCap); break;
-                    case "repeat": count = MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit); break;
+                    case "repeat":
+                        count = AddBounded(MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit),
+                            EntityCount(action.OnComplete, hitCap), limit);
+                        break;
                     case "if": count = Math.Max(EntityCount(action.Then, hitCap), EntityCount(action.Else, hitCap)); break;
                     default: count = EntityCount(action.Next, hitCap); break;
                 }
@@ -604,7 +607,11 @@ namespace RuneCode
                         count = AddBounded(count, AddBounded(invocationWork, callEvents, saturation), saturation);
                         break;
                     case "delay": count = AddBounded(count, ActionCount(action.Then, hitCap, saturation), saturation); break;
-                    case "repeat": count = AddBounded(count, MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation), saturation); break;
+                    case "repeat":
+                        long repeatWork = AddBounded(MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation),
+                            ActionCount(action.OnComplete, hitCap, saturation), saturation);
+                        count = AddBounded(count, repeatWork, saturation);
+                        break;
                     case "if": count = AddBounded(count, Math.Max(ActionCount(action.Then, hitCap, saturation), ActionCount(action.Else, hitCap, saturation)), saturation); break;
                     default: count = AddBounded(count, ActionCount(action.Next, hitCap, saturation), saturation); break;
                 }
@@ -643,6 +650,7 @@ namespace RuneCode
                 GatherTags(action.Then, tags);
                 GatherTags(action.Else, tags);
                 GatherTags(action.Body, tags);
+                GatherTags(action.OnComplete, tags);
                 GatherTags(action.Next, tags);
             }
         }
@@ -688,6 +696,7 @@ namespace RuneCode
                 AppendCallSignatures(action.Then, canonical);
                 AppendCallSignatures(action.Else, canonical);
                 AppendCallSignatures(action.Body, canonical);
+                AppendCallSignatures(action.OnComplete, canonical);
                 AppendCallSignatures(action.Next, canonical);
             }
         }
