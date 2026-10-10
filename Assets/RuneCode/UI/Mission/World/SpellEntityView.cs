@@ -8,7 +8,7 @@ namespace RuneCode
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
     /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
     /// Beam은 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시한다.
-    /// 부채꼴(범위·발사체)은 실행 중 만드는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
+    /// 부채꼴(범위·발사체)은 Prefab의 Cone 자식에 실행 중 갱신하는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
     /// 예고 중인 Persist는 최종 범위를 빨간 외곽선으로 두고 진행률만큼 안쪽을 채운다.
     /// </summary>
     public sealed class SpellEntityView : MonoBehaviour
@@ -43,12 +43,20 @@ namespace RuneCode
         [SerializeField] private SpriteRenderer _fill;
         [SerializeField] private SpriteRenderer _outline;
         [SerializeField] private SpriteRenderer _inner;
+        [SerializeField] private MeshFilter _coneFilter;
+        [SerializeField] private MeshRenderer _coneRenderer;
 
         private readonly List<Vector3> _coneVertices = new List<Vector3>();
         private readonly List<Color> _coneColors = new List<Color>();
         private readonly List<int> _coneTriangles = new List<int>();
         private Mesh _coneMesh;
-        private MeshRenderer _coneRenderer;
+
+        void Awake()
+        {
+            _coneMesh = new Mesh { name = "SpellCone" };
+            _coneMesh.MarkDynamic();
+            _coneFilter.sharedMesh = _coneMesh;
+        }
 
         void OnDestroy()
         {
@@ -75,7 +83,7 @@ namespace RuneCode
             MissionWorldSpace.SetVisible(_fill, isArea && !isCone);
             MissionWorldSpace.SetVisible(_outline, isArea && !isCone);
             MissionWorldSpace.SetVisible(_inner, isArea && !isCone);
-            if (isCone || _coneRenderer != null) SetConeVisible(isCone);
+            MissionWorldSpace.SetVisible(_coneRenderer, isCone);
             if (!isArea) PlaceTrail(spell, tint, radius);
             if (isCone) ApplyCone(spell, tint, angle, origin);
             else if (isArea) ApplyArea(spell, tint, radius, boxRotation);
@@ -90,7 +98,7 @@ namespace RuneCode
             MissionWorldSpace.SetVisible(_outline, false);
             MissionWorldSpace.SetVisible(_inner, false);
             MissionWorldSpace.SetVisible(_fill, true);
-            if (_coneRenderer != null) SetConeVisible(false);
+            MissionWorldSpace.SetVisible(_coneRenderer, false);
             Color fill = tint;
             fill.a = BEAM_FILL_ALPHA;
             Vector2 direction = MissionWorldSpace.ToWorldDirection(spell.Direction);
@@ -181,23 +189,6 @@ namespace RuneCode
             _coneMesh.SetVertices(_coneVertices);
             _coneMesh.SetColors(_coneColors);
             _coneMesh.SetTriangles(_coneTriangles, 0);
-        }
-
-        /// <summary>부채꼴 메시 표시를 켜거나 끈다. 처음 켤 때 채움 스프라이트와 같은 재질·정렬 순서로 메시 렌더러를 만든다.</summary>
-        private void SetConeVisible(bool isVisible)
-        {
-            if (_coneRenderer == null)
-            {
-                var cone = new GameObject("Cone", typeof(MeshFilter), typeof(MeshRenderer));
-                cone.transform.SetParent(transform, false);
-                _coneMesh = new Mesh { name = "SpellCone" };
-                _coneMesh.MarkDynamic();
-                cone.GetComponent<MeshFilter>().sharedMesh = _coneMesh;
-                _coneRenderer = cone.GetComponent<MeshRenderer>();
-                _coneRenderer.sharedMaterial = _fill.sharedMaterial;
-                _coneRenderer.sortingOrder = _fill.sortingOrder;
-            }
-            MissionWorldSpace.SetVisible(_coneRenderer, isVisible);
         }
 
         /// <summary>속성별 투사체 도형을 반환한다. 화염은 삼각형, 냉기는 육각형, 전격은 마름모, 그 외는 원이다.</summary>

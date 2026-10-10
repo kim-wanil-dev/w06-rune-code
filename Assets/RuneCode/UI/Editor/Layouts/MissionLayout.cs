@@ -23,6 +23,12 @@ namespace RuneCode
         private const float TIMER_MIN_FONT_SIZE = 16f;
         private const float TOP_BAR_HEIGHT = 74f;
         private const float BOTTOM_BAR_HEIGHT = 70f;
+        private const int RESULT_CLEAR_CHOICE_COUNT = 3;
+        private const float RESULT_CLEAR_CHOICE_LEFT = 108f;
+        private const float RESULT_CLEAR_CHOICE_TOP = 566f;
+        private const float RESULT_CLEAR_CHOICE_WIDTH = 344f;
+        private const float RESULT_CLEAR_CHOICE_HEIGHT = 58f;
+        private const float RESULT_CLEAR_CHOICE_GAP = 16f;
 
         private static readonly Color ArenaBackground = new Color(0.02f, 0.04f, 0.075f);
 
@@ -86,7 +92,7 @@ namespace RuneCode
             LayoutUtility.SaveViewPrefab(page);
         }
 
-        /// <summary>정산 문구와 개선·재도전 버튼의 전체 화면 결과 패널을 만들고 참조를 연결해 반환한다. 처음에는 숨겨 둔다.</summary>
+        /// <summary>정산 문구, 개선·재도전 버튼과 숨긴 클리어 Modifier 선택 버튼 3개의 전체 화면 결과 패널을 만들고 참조를 연결해 반환한다. 처음에는 숨겨 둔다.</summary>
         private static ResultPanel BuildResultPanel(UiFactory ui, RectTransform page)
         {
             RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
@@ -99,6 +105,13 @@ namespace RuneCode
             ui.Text(resultCard, 40, 366, 1016, 64, GameData.L("ui.improveHint"), 20, UiTheme.Muted, FontStyles.Normal, "Hint");
             Button improveButton = ui.Button(resultCard, 40, 464, 344, 58, GameData.L("ui.improveSpell"), null, UiTheme.Cyan, 20, "ImproveButton");
             Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, UiTheme.Muted, 20, "RetryButton");
+            var clearChoiceButtons = new Button[RESULT_CLEAR_CHOICE_COUNT];
+            for (int i = 0; i < clearChoiceButtons.Length; i++)
+            {
+                clearChoiceButtons[i] = ui.Button(resultRoot, RESULT_CLEAR_CHOICE_LEFT + i * (RESULT_CLEAR_CHOICE_WIDTH + RESULT_CLEAR_CHOICE_GAP), RESULT_CLEAR_CHOICE_TOP,
+                    RESULT_CLEAR_CHOICE_WIDTH, RESULT_CLEAR_CHOICE_HEIGHT, "", null, UiTheme.Cyan, 20, "ClearChoiceButton" + i);
+                clearChoiceButtons[i].gameObject.SetActive(false);
+            }
 
             ResultPanel resultPanel = resultRoot.gameObject.AddComponent<ResultPanel>();
             LayoutUtility.SetReference(resultPanel, "_summaryLabel", summary);
@@ -106,6 +119,7 @@ namespace RuneCode
             LayoutUtility.SetReference(resultPanel, "_progressLabel", progress);
             LayoutUtility.SetReference(resultPanel, "_improveButton", improveButton);
             LayoutUtility.SetReference(resultPanel, "_retryButton", retryButton);
+            LayoutUtility.SetReferences(resultPanel, "_clearChoiceButtons", clearChoiceButtons);
             resultRoot.gameObject.SetActive(false);
             return resultPanel;
         }
@@ -176,6 +190,7 @@ namespace RuneCode
             LayoutUtility.SetReference(worldView, "_spellPrefab", worldAssets.Spell);
             LayoutUtility.SetReference(worldView, "_projectilePrefab", worldAssets.Projectile);
             LayoutUtility.SetReference(worldView, "_orbPrefab", worldAssets.Orb);
+            LayoutUtility.SetReference(worldView, "_itemDropPrefab", worldAssets.ItemDrop);
             LayoutUtility.SetReference(worldView, "_damageNumberPrefab", worldAssets.DamageNumber);
             LayoutUtility.SetReference(worldView, "_squareSprite", worldAssets.Square);
             LayoutUtility.SetReference(worldView, "_spriteMaterial", worldAssets.Material);

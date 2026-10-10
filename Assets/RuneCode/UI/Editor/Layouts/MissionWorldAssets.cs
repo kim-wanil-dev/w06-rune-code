@@ -58,6 +58,7 @@ namespace RuneCode
                 Spell = EnsurePrefab("MissionSpell", () => BuildSpell(shapes, material)).GetComponent<SpellEntityView>(),
                 Projectile = EnsurePrefab("MissionHostileProjectile", () => BuildProjectile(shapes, material)).GetComponent<HostileProjectileView>(),
                 Orb = EnsurePrefab("MissionOrb", () => BuildOrb(shapes, material)).GetComponent<OrbView>(),
+                ItemDrop = EnsurePrefab("MissionItemDrop", () => BuildItemDrop(shapes, material)).GetComponent<ItemDropView>(),
                 DamageNumber = EnsurePrefab("MissionDamageNumber", BuildDamageNumber).GetComponent<DamageNumberView>()
             };
         }
@@ -124,13 +125,20 @@ namespace RuneCode
             return root;
         }
 
-        /// <summary>잔상·도형(발사·공전)과 채움·외곽선·안쪽 선(폭발·잔류)을 가진 마법 개체 뷰를 만든다.</summary>
+        /// <summary>잔상·도형(발사·공전), 채움·외곽선·안쪽 선(폭발·잔류)과 부채꼴 메시 자식을 가진 마법 개체 뷰를 만든다.</summary>
         private static GameObject BuildSpell(Shapes shapes, Material material)
         {
             var root = new GameObject("MissionSpell", typeof(SpellEntityView));
             SpellEntityView view = root.GetComponent<SpellEntityView>();
             LayoutUtility.SetReference(view, "_trail", Child(root.transform, "Trail", shapes.Square, material, 30));
             LayoutUtility.SetReference(view, "_fill", Child(root.transform, "Fill", shapes.Circle, material, 31));
+            var cone = new GameObject("Cone", typeof(MeshFilter), typeof(MeshRenderer));
+            cone.transform.SetParent(root.transform, false);
+            MeshRenderer coneRenderer = cone.GetComponent<MeshRenderer>();
+            coneRenderer.sharedMaterial = material;
+            coneRenderer.sortingOrder = 31;
+            LayoutUtility.SetReference(view, "_coneFilter", cone.GetComponent<MeshFilter>());
+            LayoutUtility.SetReference(view, "_coneRenderer", coneRenderer);
             LayoutUtility.SetReference(view, "_outline", Child(root.transform, "Outline", shapes.Ring, material, 32));
             LayoutUtility.SetReference(view, "_inner", Child(root.transform, "Inner", shapes.Ring, material, 33));
             LayoutUtility.SetReference(view, "_shape", Child(root.transform, "Shape", shapes.Circle, material, 34));
@@ -164,6 +172,16 @@ namespace RuneCode
             OrbView view = root.GetComponent<OrbView>();
             LayoutUtility.SetReference(view, "_ring", Child(root.transform, "Ring", shapes.Ring, material, 10));
             LayoutUtility.SetReference(view, "_core", Child(root.transform, "Core", shapes.Diamond, material, 11));
+            return root;
+        }
+
+        /// <summary>정사각 코어와 링을 가진 바닥 Modifier 드롭 뷰를 만든다.</summary>
+        private static GameObject BuildItemDrop(Shapes shapes, Material material)
+        {
+            var root = new GameObject("MissionItemDrop", typeof(ItemDropView));
+            ItemDropView view = root.GetComponent<ItemDropView>();
+            LayoutUtility.SetReference(view, "_ring", Child(root.transform, "Ring", shapes.Square, material, 3));
+            LayoutUtility.SetReference(view, "_core", Child(root.transform, "Core", shapes.Square, material, 4));
             return root;
         }
 
@@ -292,6 +310,7 @@ namespace RuneCode
             public SpellEntityView Spell { get; set; }
             public HostileProjectileView Projectile { get; set; }
             public OrbView Orb { get; set; }
+            public ItemDropView ItemDrop { get; set; }
             public DamageNumberView DamageNumber { get; set; }
         }
     }

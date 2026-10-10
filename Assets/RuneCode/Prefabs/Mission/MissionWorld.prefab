@@ -150,6 +150,7 @@ MonoBehaviour:
   _spellPrefab: {fileID: 332327403904991973, guid: 22271510d19e9044fa504ee12a3ec1b0, type: 3}
   _projectilePrefab: {fileID: 3406863396406486643, guid: a39e6cd97203f2f41bc6628c1e249ffb, type: 3}
   _orbPrefab: {fileID: 8419963189922079988, guid: a2f1fcd356951124fb9f6358308071b7, type: 3}
+  _itemDropPrefab: {fileID: 4608763262859233692, guid: ce8cb89c198d24243be0fefff08b0c20, type: 3}
   _damageNumberPrefab: {fileID: 6844022398535837662, guid: e194a831a998ee84186e3d7bf38a9855, type: 3}
   _squareSprite: {fileID: 21300000, guid: aaed5b4e5cff1f045a9955578a1ea607, type: 3}
   _spriteMaterial: {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
