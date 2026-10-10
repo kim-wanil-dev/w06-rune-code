@@ -15,7 +15,8 @@ namespace RuneCode
         ScrapGain,
         MaxHp,
         MoveSpeed,
-        RuneUnlock
+        RuneUnlock,
+        ScrapPickupRange
     }
 
     [Serializable]

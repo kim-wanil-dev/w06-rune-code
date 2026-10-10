@@ -39,6 +39,7 @@ namespace RuneCode
         private readonly double _damageMultiplier;
         private readonly double _moveSpeedMultiplier;
         private readonly double _scrapGainMultiplier;
+        private readonly double _scrapPickupRangeMultiplier;
         private readonly double _burstExpandSeconds;
         private readonly double _persistWarnSeconds;
         private readonly List<SimulationEnemy> _enemies = new List<SimulationEnemy>();
@@ -139,10 +140,8 @@ namespace RuneCode
         public string RoomName => _isMission ? GameData.L("incremental.stage") + " " + _stageNumber : GameData.L("scenario." + _scenario);
         public int CollectedFragments => _collectedFragments;
         public int Fragments => _collectedFragments;
-        public int EarnedFragments
-        {
-            get { int total = _collectedFragments; foreach (FragmentOrb orb in _orbs) total += orb.Amount; return total; }
-        }
+        /// <summary>플레이어가 획득 반경에 접근해 실제로 주운 스크랩 누계를 반환한다.</summary>
+        public int EarnedFragments => _collectedFragments;
         public int ClearReward => Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
         public int SettlementFragments => IsFailed ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments + ClearReward;
         public double TotalDamage => _totalDamage;
@@ -167,7 +166,7 @@ namespace RuneCode
 
         /// <summary>시드, 스테이지와 트리 능력치를 받아 독립 전투 또는 시험 도크를 생성한다. 생략한 배율은 기본값 1을 사용한다.</summary>
         public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0,
-            double damageMultiplier = 1, double moveSpeedMultiplier = 1, double scrapGainMultiplier = 1)
+            double damageMultiplier = 1, double moveSpeedMultiplier = 1, double scrapGainMultiplier = 1, double scrapPickupRangeMultiplier = 1)
         {
             GameData.Load();
             _balance = GameData.Balance;
@@ -184,6 +183,7 @@ namespace RuneCode
             _damageMultiplier = damageMultiplier;
             _moveSpeedMultiplier = moveSpeedMultiplier;
             _scrapGainMultiplier = scrapGainMultiplier;
+            _scrapPickupRangeMultiplier = scrapPickupRangeMultiplier;
             _burstExpandSeconds = GameData.Runes.Get(BURST_FORM_ID).Stats.ExpandSeconds;
             _persistWarnSeconds = GameData.Runes.Get(PERSIST_FORM_ID).Stats.WarnSeconds;
             _spawnSlots = new SpawnSlots(NextRandom);
@@ -301,7 +301,7 @@ namespace RuneCode
             CleanupEnemies();
             CollectNearbyOrbs();
             CollectNearbyItemDrops();
-            if (_isMission && _player.Hp <= 0) { _stage = MissionStage.Dead; CollectAllOrbs(); CancelCombat(); }
+            if (_isMission && _player.Hp <= 0) { _stage = MissionStage.Dead; DiscardUncollectedOrbs(); CancelCombat(); }
             else if (!_isMission && _scenario == "adapt_loop" && _enemies.Count == 0) SpawnBenchDummy(new SimVector(_balance.Sim.BenchDummyX, _balance.Sim.BenchDummyY), _balance.Sim.BenchHp);
             Adaptation.Advance(Time, Time + STEP_SECONDS);
             _tick++;
@@ -344,12 +344,27 @@ namespace RuneCode
             else SpawnBenchDummy(new SimVector(bench.BenchDummyX, bench.BenchDummyY), bench.BenchHp);
         }
 
-        /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트 지정 시 스테이지 데이터와 무관하게 현재 기본 배율(체력·보상 2배, 속도 1배)을 적용한다.</summary>
-        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 2, 2, 1) : null);
+        /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트는 기본 배율과 현재 스테이지의 드롭 테이블을 사용한다.</summary>
+        public SimulationEnemy DebugSpawn(string id, bool isElite = false)
+        {
+            EliteSpawnDefinition elite = isElite ? new EliteSpawnDefinition(id, 2, 2, 1, GetDebugEliteDropTable(id)) : null;
+            return SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, elite);
+        }
 
-        /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다. 처치로 생긴 분열 대기도 함께 비운다.</summary>
+        /// <summary>디버그 엘리트에 현재 스테이지에서 해당 종족이 쓰는 드롭 테이블을 연결하고, 없으면 첫 설정 테이블을 반환한다.</summary>
+        private string GetDebugEliteDropTable(string enemyId)
+        {
+            IReadOnlyList<EliteSpawnDefinition> elites = _stages.Get(_stageNumber).EliteTypes;
+            foreach (EliteSpawnDefinition elite in elites)
+                if (elite.EnemyId == enemyId && !string.IsNullOrEmpty(elite.DropTable)) return elite.DropTable;
+            foreach (EliteSpawnDefinition elite in elites)
+                if (!string.IsNullOrEmpty(elite.DropTable)) return elite.DropTable;
+            return null;
+        }
+
+        /// <summary>디버그 기능에서 현재 적들을 처치하고 드롭을 남기되 스폰 예약과 보스 제한시간은 유지한다. 처치로 생긴 분열 대기도 함께 비운다.</summary>
         public void DebugDefeatRoom()
-        { if (_isMission && _stage != MissionStage.Combat) return; foreach (SimulationEnemy enemy in _enemies) enemy.Hurt(enemy.Hp, Time); CleanupEnemies(); _pendingSplits.Clear(); if (_isMission) CollectAllOrbs(); }
+        { if (_isMission && _stage != MissionStage.Combat) return; foreach (SimulationEnemy enemy in _enemies) enemy.Hurt(enemy.Hp, Time); CleanupEnemies(); _pendingSplits.Clear(); }
 
         /// <summary>현재 시뮬레이션의 핵심 상태를 안정적으로 해시하여 동일 입력 실행의 결정성을 비교한다.</summary>
         public string StateHash()
@@ -359,7 +374,7 @@ namespace RuneCode
             state.Append('|').Append(_actionBudgetTick).Append('|').Append(_actionsThisTick).Append('|').Append(_droppedExecutions);
             AppendNumber(state, TimeLimit); AppendNumber(state, _energyRegen);
             AppendNumber(state, _damageMultiplier); AppendNumber(state, _moveSpeedMultiplier);
-            AppendNumber(state, _scrapGainMultiplier); AppendNumber(state, _scrapRemainder);
+            AppendNumber(state, _scrapGainMultiplier); AppendNumber(state, _scrapPickupRangeMultiplier); AppendNumber(state, _scrapRemainder);
             _player.WriteState(state);
             foreach (SimulationEnemy enemy in _enemies) enemy.WriteState(state);
             foreach (EnemyStatusEffect status in _enemyStatuses) status.WriteState(state);
@@ -389,7 +404,7 @@ namespace RuneCode
                 pending.Context.CallEvents?.AppendState(state);
                 if (pending.Context.Target != null && !pending.Context.Target.IsAlive) pending.Context.Target.WriteState(state);
             }
-            foreach (FragmentOrb orb in _orbs) { AppendNumber(state, orb.Position.X); AppendNumber(state, orb.Position.Y); state.Append(orb.Amount); }
+            foreach (FragmentOrb orb in _orbs) { AppendNumber(state, orb.Position.X); AppendNumber(state, orb.Position.Y); state.Append(orb.Amount).Append('|').Append(orb.IsAttracted); }
             foreach (SimulationItemDrop drop in _itemDrops) AppendItemDropState(state, drop);
             foreach (SimulationItemDrop drop in _pickedUpItems) AppendItemDropState(state, drop);
             foreach (CompiledSpell spell in _loadout) state.Append('|').Append(spell?.Signature);
@@ -419,6 +434,7 @@ namespace RuneCode
         {
             state.Append('|').Append(drop.RuneId).Append('|').Append(drop.Grade).Append('|').Append(drop.Count);
             AppendNumber(state, drop.Position.X); AppendNumber(state, drop.Position.Y);
+            state.Append('|').Append(drop.IsAttracted);
         }
 
         /// <summary>대시와 일반 이동을 처리하고 이번 입력으로 대시가 시작됐는지 반환한다.</summary>
@@ -1488,12 +1504,42 @@ namespace RuneCode
             }
         }
 
-        /// <summary>플레이어의 자동 흡수 반경 내 조각 오브를 회수한다.</summary>
+        /// <summary>줍기 반경에 들어온 스크랩을 매 틱 플레이어에게 끌어당기고 도착한 오브만 획득한다.</summary>
         private void CollectNearbyOrbs()
-        { for (int i = _orbs.Count - 1; i >= 0; i--) if (SimVector.Distance(_player.Position, _orbs[i].Position) <= _balance.Economy.OrbAbsorbRadius) { _collectedFragments += _orbs[i].Amount; _orbs.RemoveAt(i); } }
+        {
+            for (int i = _orbs.Count - 1; i >= 0; i--)
+            {
+                FragmentOrb orb = _orbs[i];
+                if (!TryAttractPickup(orb.Position, orb.IsAttracted, out SimVector nextPosition, out bool hasArrived)) continue;
+                if (hasArrived)
+                {
+                    _collectedFragments += orb.Amount;
+                    _orbs.RemoveAt(i);
+                }
+                else
+                {
+                    orb.AttractTo(nextPosition);
+                    _orbs[i] = orb;
+                }
+            }
+        }
 
-        /// <summary>전투 종료 시 남아 있는 모든 처치 조각 오브를 회수한다.</summary>
-        private void CollectAllOrbs() { foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount; _orbs.Clear(); }
+        /// <summary>공통 줍기 반경과 추적 상태로 자석 이동 여부를 반환하고 다음 위치와 플레이어 도착 여부를 계산한다.</summary>
+        private bool TryAttractPickup(SimVector position, bool isAttracted, out SimVector nextPosition, out bool hasArrived)
+        {
+            SimVector offset = _player.Position - position;
+            double distance = offset.Length;
+            nextPosition = position;
+            hasArrived = false;
+            if (!isAttracted && distance > _balance.Economy.OrbAbsorbRadius * _scrapPickupRangeMultiplier) return false;
+            double step = _balance.Economy.PickupAttractSpeed * STEP_SECONDS;
+            hasArrived = distance <= step;
+            nextPosition = hasArrived ? _player.Position : position + offset * (step / distance);
+            return true;
+        }
+
+        /// <summary>전투 종료 시 획득하지 않은 스크랩 오브를 보상에 더하지 않고 정리한다.</summary>
+        private void DiscardUncollectedOrbs() { _orbs.Clear(); }
 
         /// <summary>처치된 적의 드롭 테이블 ID를 반환하고 없으면 null을 반환한다. 적·보스 드롭 연결 시 이 메서드에 분기를 모은다.</summary>
         private string GetDropTableId(SimulationEnemy enemy)
@@ -1555,13 +1601,15 @@ namespace RuneCode
             return candidates[(int)(NextRandom() * candidates.Count)];
         }
 
-        /// <summary>플레이어의 줍기 반경 내 바닥 Modifier 드롭을 회수해 누적 목록과 미지급 목록에 넣는다.</summary>
+        /// <summary>스크랩과 같은 반경에서 Modifier를 끌어당기고 플레이어에게 도착하면 누적 목록과 미지급 목록에 넣는다.</summary>
         private void CollectNearbyItemDrops()
         {
             for (int i = _itemDrops.Count - 1; i >= 0; i--)
             {
-                if (SimVector.Distance(_player.Position, _itemDrops[i].Position) > _balance.Sim.ItemPickupRadius) continue;
                 SimulationItemDrop drop = _itemDrops[i];
+                if (!TryAttractPickup(drop.Position, drop.IsAttracted, out SimVector nextPosition, out bool hasArrived)) continue;
+                drop.AttractTo(nextPosition);
+                if (!hasArrived) continue;
                 _itemDrops.RemoveAt(i);
                 _pickedUpItems.Add(drop);
                 _newPickedItems.Add(drop);
@@ -1569,7 +1617,7 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 일반 스테이지는 목표 처치 수에 도달하면 클리어, 보스 스테이지는 보스 처치 시 클리어와 제한시간 초과 시 실패로 전투를 끝내고 남은 보상을 회수한다.
+        /// 일반 스테이지는 목표 처치 수에 도달하면 클리어, 보스 스테이지는 보스 처치 시 클리어와 제한시간 초과 시 실패로 전투를 끝내고 획득하지 않은 스크랩 오브를 정리한다.
         /// 클리어는 남은 적과 적 상태 이상을 모두 정리하며, 같은 틱에 시간 초과와 겹치면 클리어를 우선한다.
         /// </summary>
         private void CheckBattleEnd()
@@ -1577,7 +1625,7 @@ namespace RuneCode
             if (IsBossStage ? _isBossDefeated : _targetKills >= _killTarget) _stage = MissionStage.Cleared;
             else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
             else return;
-            CollectAllOrbs(); CancelCombat();
+            DiscardUncollectedOrbs(); CancelCombat();
             if (_stage != MissionStage.Cleared) return;
             _enemies.Clear(); _enemyStatuses.Clear(); _statusIndex.Clear();
         }

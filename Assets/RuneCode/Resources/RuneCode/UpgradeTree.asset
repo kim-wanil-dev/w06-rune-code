@@ -417,3 +417,19 @@ MonoBehaviour:
     _levels:
     - _cost: 0
       _amount: 0
+  - _id: upgrade.scrapPickupRange
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 9
+    _runeId: 
+    _prerequisites: []
+    _levels:
+    - _cost: 10
+      _amount: 0.1
+    - _cost: 20
+      _amount: 0.1
+    - _cost: 40
+      _amount: 0.1

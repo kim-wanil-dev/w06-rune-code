@@ -20,6 +20,7 @@ namespace RuneCode
         private const string SCRAP_NODE_ID = "upgrade.scrapGain";
         private const string HP_NODE_ID = "upgrade.maxHp";
         private const string MOVE_SPEED_NODE_ID = "upgrade.moveSpeed";
+        private const string SCRAP_PICKUP_RANGE_NODE_ID = "upgrade.scrapPickupRange";
 
         private static readonly HashSet<string> _placedNodeIds = new HashSet<string>
         {
@@ -73,6 +74,7 @@ namespace RuneCode
                 hasChanges = true;
             }
             if (AddMissingUnplacedRuneNodes(definition)) hasChanges = true;
+            if (AddMissingUnplacedPickupRangeNode(definition)) hasChanges = true;
             if (hasChanges) ValidateAndSave(definition);
         }
 
@@ -161,6 +163,24 @@ namespace RuneCode
                 hasChanges = true;
             }
             if (!hasChanges) return false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return true;
+        }
+
+        /// <summary>스크랩 줍기 범위 강화가 없으면 +10%씩 최대 3회 올리는 비배치 노드를 등록한다.</summary>
+        private static bool AddMissingUnplacedPickupRangeNode(UpgradeTreeDefinition definition)
+        {
+            foreach (UpgradeTreeNodeDefinition node in definition.Nodes)
+                if (node != null && node.Id == SCRAP_PICKUP_RANGE_NODE_ID) return false;
+            foreach (UpgradeTreeNodeDefinition node in definition.UnplacedNodes)
+                if (node != null && node.Id == SCRAP_PICKUP_RANGE_NODE_ID) return false;
+
+            SerializedObject serialized = new SerializedObject(definition);
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            AddUpgradeNode(unplaced, SCRAP_PICKUP_RANGE_NODE_ID,
+                "ui.tree.scrapPickupRange", "ui.tree.scrapPickupRangeDescription",
+                Vector2.zero, UpgradeEffectType.ScrapPickupRange, null,
+                new[] { 10, 20, 40 }, new[] { 0.1f, 0.1f, 0.1f });
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return true;
         }

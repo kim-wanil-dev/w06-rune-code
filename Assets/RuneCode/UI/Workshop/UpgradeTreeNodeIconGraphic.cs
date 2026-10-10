@@ -34,6 +34,7 @@ namespace RuneCode
             else if (_effectType == UpgradeEffectType.CastSpeed) DrawSpeedIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.Damage) DrawDamageIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.ScrapGain) DrawScrapIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.ScrapPickupRange) DrawPickupRangeIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.MaxHp) DrawHealthIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.MoveSpeed) DrawMovementIcon(mesh, center, scale, tint);
             else DrawRuneIcon(mesh, center, scale, tint, _runeCategory);
@@ -60,6 +61,13 @@ namespace RuneCode
         {
             RuneMesh.SquareOutline(mesh, center + new Vector2(-5, 4) * scale, 7 * scale, Mathf.PI * 0.25f, 2 * scale, tint);
             RuneMesh.SquareOutline(mesh, center + new Vector2(5, -4) * scale, 7 * scale, Mathf.PI * 0.25f, 2 * scale, tint);
+        }
+
+        /// <summary>스크랩 줍기 범위의 임시 아이콘으로 중심점 주위의 탐지 링을 그린다.</summary>
+        private static void DrawPickupRangeIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.Ring(mesh, center, 12 * scale, ICON_LINE_WIDTH * scale, tint, 20);
+            RuneMesh.Polygon(mesh, center, 3 * scale, tint, 12);
         }
 
         /// <summary>최대 HP의 임시 아이콘으로 십자형 체력 표시를 그린다.</summary>
