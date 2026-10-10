@@ -1626,7 +1626,7 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "tree",
+      "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,

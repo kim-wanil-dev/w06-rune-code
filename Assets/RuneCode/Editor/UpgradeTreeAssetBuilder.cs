@@ -32,7 +32,6 @@ namespace RuneCode
         {
             new RuneNodeSeed("element.fire", MAINBOARD_NODE_ID, new Vector2(650, 220), 0),
             new RuneNodeSeed("element.ice", MAINBOARD_NODE_ID, new Vector2(1350, 220), 15),
-            new RuneNodeSeed("element.neutral", "unlock.element.fire", new Vector2(430, 410), 5),
             new RuneNodeSeed("element.healing", "unlock.element.fire", new Vector2(610, 410), 20),
             new RuneNodeSeed("element.lightning", "unlock.element.ice", new Vector2(1390, 410), 35),
             new RuneNodeSeed("element.protection", "unlock.element.ice", new Vector2(1570, 410), 25),
