@@ -14,6 +14,8 @@ namespace RuneCode
     {
         private const float SHAKE_SECONDS = 0.08f;
         private const float HIT_STOP_SECONDS = 0.025f;
+        // 히트 스톱 시작 후 이 시간 동안은 다시 시작하지 않는다. 폭발 확장처럼 피해가 연속될 때 화면이 계속 멈추지 않게 한다.
+        private const float HIT_STOP_COOLDOWN_SECONDS = 0.15f;
         private const double DAMAGE_EPSILON = 0.000001;
         private const int MAX_DAMAGE_NUMBERS = 64;
         private const int DAMAGE_NUMBER_TICKS = 40;
@@ -57,8 +59,10 @@ namespace RuneCode
         private PlayerView _playerView;
         private double _lastDamage;
         private double _lastStatusDamage;
+        private double _lastPersistDamage;
         private double _lastHp;
         private float _hitStopUntil;
+        private float _hitStopReadyAt;
 
         /// <summary>월드를 따라가는 미션 카메라다. 화면 View가 조준 좌표 변환에 쓴다.</summary>
         public MissionCamera Camera => _camera;
@@ -112,22 +116,30 @@ namespace RuneCode
             _observedSimulation = sim;
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
+            _lastPersistDamage = sim.PersistDamage;
             _lastHp = sim.Player.Hp;
             BuildMap(sim.Map, sim.MapCenter);
         }
 
         /// <summary>
         /// 적에게 준 직접 피해나 플레이어 체력 감소가 있으면 설정에 따라 카메라를 흔들고 히트 스톱을 시작한다.
-        /// 상태 이상 피해(화염)만으로는 카메라가 흔들리지 않고 히트 스톱도 시작하지 않는다.
+        /// 상태 이상 피해(화염)나 잔류(Persist) 피해만으로는 카메라가 흔들리지 않고 히트 스톱도 시작하지 않는다.
+        /// 히트 스톱은 시작 후 재발동 간격 동안 다시 시작하지 않는다.
         /// </summary>
         private void DetectImpact(RuneSimulation sim)
         {
             bool isHpLost = sim.Player.Hp < _lastHp;
-            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
-            if ((directDelta > DAMAGE_EPSILON || isHpLost) && (_isShakeEnabled?.Invoke() ?? false)) _camera.Shake(SHAKE_SECONDS);
-            if (directDelta > DAMAGE_EPSILON || isHpLost) _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage) - (sim.PersistDamage - _lastPersistDamage);
+            bool isImpact = directDelta > DAMAGE_EPSILON || isHpLost;
+            if (isImpact && (_isShakeEnabled?.Invoke() ?? false)) _camera.Shake(SHAKE_SECONDS);
+            if (isImpact && Time.unscaledTime >= _hitStopReadyAt)
+            {
+                _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+                _hitStopReadyAt = Time.unscaledTime + HIT_STOP_COOLDOWN_SECONDS;
+            }
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
+            _lastPersistDamage = sim.PersistDamage;
             _lastHp = sim.Player.Hp;
         }
 
