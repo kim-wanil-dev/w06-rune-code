@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
+
 using UnityEditor;
 
 namespace RuneCode
@@ -8,7 +10,8 @@ namespace RuneCode
     public static class UpgradeTreeAssetBuilder
     {
         private const string ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
-        private const int TOPOLOGY_VERSION = 5;
+        private const int BASE_TOPOLOGY_VERSION = 5;
+        private const int TOPOLOGY_VERSION = 6;
         private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
         private const string RAM_NODE_ID = "upgrade.ram";
         private const string POWER_NODE_ID = "upgrade.maxEnergy";
@@ -17,6 +20,13 @@ namespace RuneCode
         private const string SCRAP_NODE_ID = "upgrade.scrapGain";
         private const string HP_NODE_ID = "upgrade.maxHp";
         private const string MOVE_SPEED_NODE_ID = "upgrade.moveSpeed";
+
+        private static readonly HashSet<string> _placedNodeIds = new HashSet<string>
+        {
+            MAINBOARD_NODE_ID, RAM_NODE_ID, POWER_NODE_ID, CPU_NODE_ID, GPU_NODE_ID,
+            SCRAP_NODE_ID, HP_NODE_ID, MOVE_SPEED_NODE_ID,
+            "unlock.element.fire", "unlock.element.ice", "unlock.behavior.burst", "unlock.behavior.persist"
+        };
 
         private static readonly RuneNodeSeed[] _runeNodeSeeds =
         {
@@ -43,7 +53,7 @@ namespace RuneCode
             new RuneNodeSeed("spell.call", CPU_NODE_ID, new Vector2(800, 600), 25)
         };
 
-        /// <summary>트리 자산이 없으면 기본 데이터를 만들고 이전 토폴로지면 새 하드웨어 트리로 한 번 교체한다.</summary>
+        /// <summary>트리 자산이 없으면 기본 데이터를 만들고 구버전이면 배치·미배치 목록으로 한 번 이전한다.</summary>
         public static void EnsureAsset()
         {
             UpgradeTreeDefinition definition = AssetDatabase.LoadAssetAtPath<UpgradeTreeDefinition>(ASSET_PATH);
@@ -52,8 +62,8 @@ namespace RuneCode
                 definition = ScriptableObject.CreateInstance<UpgradeTreeDefinition>();
                 AssetDatabase.CreateAsset(definition, ASSET_PATH);
             }
-            if (definition.LayoutVersion >= TOPOLOGY_VERSION) return;
-            CreateDefaultNodes(definition);
+            if (definition.LayoutVersion < BASE_TOPOLOGY_VERSION) CreateDefaultNodes(definition);
+            if (definition.LayoutVersion < TOPOLOGY_VERSION) SeparateUnplacedNodes(definition);
         }
 
         /// <summary>기존 노드를 새 하드웨어 트리·레벨별 비용·효과량·선행 관계로 교체하고 검증한 뒤 저장한다.</summary>
@@ -62,6 +72,7 @@ namespace RuneCode
             SerializedObject serialized = new SerializedObject(definition);
             SerializedProperty nodes = serialized.FindProperty("_nodes");
             nodes.ClearArray();
+            serialized.FindProperty("_unplacedNodes").ClearArray();
 
             AddUpgradeNode(nodes, MAINBOARD_NODE_ID, "ui.tree.mainboard", "ui.tree.mainboardDescription",
                 new Vector2(1000, 40), UpgradeEffectType.EnergyRegen, null,
@@ -90,6 +101,32 @@ namespace RuneCode
 
             foreach (RuneNodeSeed seed in _runeNodeSeeds) AddRuneNode(nodes, seed);
 
+            serialized.FindProperty("_layoutVersion").intValue = BASE_TOPOLOGY_VERSION;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            ValidateAndSave(definition);
+        }
+
+        /// <summary>기존 노드의 비용·아이콘·레벨을 보존하면서 지정된 12개만 배치 목록에 남기고 나머지 선행 조건을 비운다.</summary>
+        private static void SeparateUnplacedNodes(UpgradeTreeDefinition definition)
+        {
+            SerializedObject serialized = new SerializedObject(definition);
+            SerializedProperty placed = serialized.FindProperty("_nodes");
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            for (int index = 0; index < placed.arraySize;)
+            {
+                SerializedProperty node = placed.GetArrayElementAtIndex(index);
+                if (_placedNodeIds.Contains(node.FindPropertyRelative("_id").stringValue))
+                {
+                    index++;
+                    continue;
+                }
+                int destinationIndex = unplaced.arraySize;
+                unplaced.InsertArrayElementAtIndex(destinationIndex);
+                SerializedProperty destination = unplaced.GetArrayElementAtIndex(destinationIndex);
+                destination.boxedValue = node.boxedValue;
+                destination.FindPropertyRelative("_prerequisites").ClearArray();
+                placed.DeleteArrayElementAtIndex(index);
+            }
             serialized.FindProperty("_layoutVersion").intValue = TOPOLOGY_VERSION;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             ValidateAndSave(definition);

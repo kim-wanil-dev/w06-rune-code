@@ -22,6 +22,8 @@ namespace RuneCode
             if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen)))
             {
                 EnsureDebugTreeReset();
+                EnsureUpgradeTreeLayout();
+                EnsureUpgradeTreeNodePrefab();
                 return;
             }
             UiFactory ui = LayoutUtility.CreateFactory();
@@ -142,16 +144,21 @@ namespace RuneCode
             ui.Text(parent, 30, 98, 850, 40, GameData.L("ui.tree.title"), 29, Color.white, FontStyles.Bold, "UpgradeTreeTitle");
             TextMeshProUGUI summary = ui.Text(parent, 30, 139, 1210, 23, "", 14, UiTheme.Cyan, FontStyles.Normal, "UpgradeTreeSummary");
 
-            RectTransform viewport = UiFactory.Rect(parent, "UpgradeTreeViewport", 28, 171, 1224, 436);
+            RectTransform viewport = UiFactory.Rect(parent, "UpgradeTreeViewport", 28, 171, 1224, 489);
             Image viewportImage = viewport.gameObject.AddComponent<Image>();
             viewportImage.color = new Color(1, 1, 1, 0.005f);
             viewportImage.raycastTarget = true;
             viewport.gameObject.AddComponent<RectMask2D>();
             RectTransform content = UiFactory.Rect(viewport, "Content", 0, 0, 1800, 560);
 
-            RectTransform hoverPanel = ui.Panel(parent, 28, 615, 1224, 58, UiTheme.Panel, "UpgradeTreeHoverInfo");
-            TextMeshProUGUI hoverTitle = ui.Text(hoverPanel, 14, 5, 1190, 20, "", 14, Color.white, FontStyles.Bold, "HoverTitle");
-            TextMeshProUGUI hoverDescription = ui.Text(hoverPanel, 14, 27, 1190, 25, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverDescription");
+            RectTransform hoverPanel = ui.Panel(parent, 0, 0, 396, 112, UiTheme.Panel, "UpgradeTreeHoverInfo");
+            hoverPanel.pivot = new Vector2(0.5f, 0);
+            hoverPanel.GetComponent<Image>().raycastTarget = false;
+            TextMeshProUGUI hoverTitle = ui.Text(hoverPanel, 12, 8, 274, 24, "", 15, Color.white, FontStyles.Bold, "HoverTitle");
+            TextMeshProUGUI hoverDescription = ui.Text(hoverPanel, 12, 36, 372, 48, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverDescription");
+            TextMeshProUGUI hoverLevel = ui.Text(hoverPanel, 294, 8, 90, 24, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverLevel");
+            TextMeshProUGUI hoverIncrease = ui.Text(hoverPanel, 12, 86, 180, 20, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverIncrease");
+            TextMeshProUGUI hoverCost = ui.Text(hoverPanel, 198, 86, 186, 20, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverCost");
             hoverPanel.gameObject.SetActive(false);
 
             UpgradeTreeDefinition definition = AssetDatabase.LoadAssetAtPath<UpgradeTreeDefinition>(UPGRADE_TREE_ASSET_PATH);
@@ -170,21 +177,111 @@ namespace RuneCode
             LayoutUtility.SetReference(panel, "_hoverPanel", hoverPanel);
             LayoutUtility.SetReference(panel, "_hoverTitle", hoverTitle);
             LayoutUtility.SetReference(panel, "_hoverDescription", hoverDescription);
+            LayoutUtility.SetReference(panel, "_hoverLevel", hoverLevel);
+            LayoutUtility.SetReference(panel, "_hoverIncrease", hoverIncrease);
+            LayoutUtility.SetReference(panel, "_hoverCost", hoverCost);
             return panel;
+        }
+
+        /// <summary>기존 작업실 Prefab에서 스탯 목록을 제거하고 전체 폭 트리와 상승량·비용 툴팁을 연결한다.</summary>
+        private static void EnsureUpgradeTreeLayout()
+        {
+            string path = LayoutUtility.VIEW_FOLDER + nameof(WorkshopScreen) + ".prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                Transform tree = root.transform.Find("Page/UpgradeTreeTab");
+                UpgradeTreePanel panel = tree?.GetComponent<UpgradeTreePanel>();
+                if (panel == null) throw new InvalidOperationException("WorkshopScreen 트리 탭을 찾을 수 없습니다.");
+                bool hasChanged = false;
+                UiFactory ui = LayoutUtility.CreateFactory();
+                TextMeshProUGUI treeTitle = tree.Find("UpgradeTreeTitle").GetComponent<TextMeshProUGUI>();
+                string currentTitle = GameData.L("ui.tree.title");
+                if (treeTitle.text != currentTitle) { treeTitle.text = currentTitle; hasChanged = true; }
+                Transform stats = tree.Find("UpgradeTreeStats");
+                if (stats != null) { UnityEngine.Object.DestroyImmediate(stats.gameObject); hasChanged = true; }
+                RectTransform viewport = (RectTransform)tree.Find("UpgradeTreeViewport");
+                if (viewport.anchoredPosition != new Vector2(28, -171) || viewport.sizeDelta != new Vector2(1224, 489))
+                {
+                    LayoutUtility.SetTopLeftRect(viewport, 28, 171, 1224, 489);
+                    hasChanged = true;
+                }
+                RectTransform hover = (RectTransform)tree.Find("UpgradeTreeHoverInfo");
+                if (hover.pivot != new Vector2(0.5f, 0) || hover.sizeDelta != new Vector2(396, 112))
+                {
+                    LayoutUtility.SetTopLeftRect(hover, 0, 0, 396, 112);
+                    hover.pivot = new Vector2(0.5f, 0);
+                    hasChanged = true;
+                }
+                Image hoverImage = hover.GetComponent<Image>();
+                if (hoverImage.raycastTarget) { hoverImage.raycastTarget = false; hasChanged = true; }
+                TextMeshProUGUI title = hover.Find("HoverTitle").GetComponent<TextMeshProUGUI>();
+                TextMeshProUGUI description = hover.Find("HoverDescription").GetComponent<TextMeshProUGUI>();
+                if (title.rectTransform.sizeDelta != new Vector2(274, 24) || title.rectTransform.anchoredPosition != new Vector2(12, -8))
+                {
+                    LayoutUtility.SetTopLeftRect(title.rectTransform, 12, 8, 274, 24);
+                    hasChanged = true;
+                }
+                if (description.rectTransform.sizeDelta != new Vector2(372, 48) || description.rectTransform.anchoredPosition != new Vector2(12, -36))
+                {
+                    LayoutUtility.SetTopLeftRect(description.rectTransform, 12, 36, 372, 48);
+                    hasChanged = true;
+                }
+                Transform level = hover.Find("HoverLevel");
+                if (level == null)
+                {
+                    level = ui.Text(hover, 294, 8, 90, 24, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverLevel").transform;
+                    hasChanged = true;
+                }
+                RectTransform levelRect = (RectTransform)level;
+                if (levelRect.sizeDelta != new Vector2(90, 24) || levelRect.anchoredPosition != new Vector2(294, -8))
+                {
+                    LayoutUtility.SetTopLeftRect(levelRect, 294, 8, 90, 24);
+                    hasChanged = true;
+                }
+                if (new SerializedObject(panel).FindProperty("_hoverLevel").objectReferenceValue != level.GetComponent<TextMeshProUGUI>())
+                {
+                    LayoutUtility.SetReference(panel, "_hoverLevel", level.GetComponent<TextMeshProUGUI>());
+                    hasChanged = true;
+                }
+                Transform increase = hover.Find("HoverIncrease");
+                if (increase == null)
+                {
+                    increase = ui.Text(hover, 12, 86, 180, 20, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverIncrease").transform;
+                    hasChanged = true;
+                }
+                Transform cost = hover.Find("HoverCost");
+                if (cost == null)
+                {
+                    cost = ui.Text(hover, 198, 86, 186, 20, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverCost").transform;
+                    hasChanged = true;
+                }
+                if (new SerializedObject(panel).FindProperty("_hoverIncrease").objectReferenceValue != increase.GetComponent<TextMeshProUGUI>())
+                {
+                    LayoutUtility.SetReference(panel, "_hoverIncrease", increase.GetComponent<TextMeshProUGUI>());
+                    hasChanged = true;
+                }
+                if (new SerializedObject(panel).FindProperty("_hoverCost").objectReferenceValue != cost.GetComponent<TextMeshProUGUI>())
+                {
+                    LayoutUtility.SetReference(panel, "_hoverCost", cost.GetComponent<TextMeshProUGUI>());
+                    hasChanged = true;
+                }
+                if (hasChanged) PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         /// <summary>노드 Prefab이 있으면 그대로 반환하고, 없으면 아이콘 전용 정사각형 버튼으로 만들어 뷰 참조를 연결한다.</summary>
         private static UpgradeTreeNodeView EnsureUpgradeTreeNodePrefab()
         {
             UpgradeTreeNodeView existing = AssetDatabase.LoadAssetAtPath<UpgradeTreeNodeView>(UPGRADE_TREE_NODE_PREFAB_PATH);
-            if (existing != null) return existing;
-            bool isExistingPrefab = existing != null;
-            GameObject source = isExistingPrefab
-                ? PrefabUtility.LoadPrefabContents(UPGRADE_TREE_NODE_PREFAB_PATH)
-                : new GameObject("UpgradeTreeNode", typeof(RectTransform), typeof(Image));
+            if (existing != null)
+            {
+                EnsureNodeSpriteIcon();
+                return AssetDatabase.LoadAssetAtPath<UpgradeTreeNodeView>(UPGRADE_TREE_NODE_PREFAB_PATH);
+            }
+            GameObject source = new GameObject("UpgradeTreeNode", typeof(RectTransform), typeof(Image));
             source.name = "UpgradeTreeNode";
-            for (int childIndex = source.transform.childCount - 1; childIndex >= 0; childIndex--)
-                UnityEngine.Object.DestroyImmediate(source.transform.GetChild(childIndex).gameObject);
             LayoutUtility.SetTopLeftRect((RectTransform)source.transform, 0, 0, 76, 76);
             Image background = source.GetComponent<Image>();
             if (background == null) background = source.AddComponent<Image>();
@@ -205,17 +302,53 @@ namespace RuneCode
             iconRect.anchoredPosition = Vector2.zero;
             UpgradeTreeNodeIconGraphic icon = iconRect.gameObject.AddComponent<UpgradeTreeNodeIconGraphic>();
             icon.raycastTarget = false;
+            Image spriteIcon = CreateSpriteIcon(source.transform);
 
             UpgradeTreeNodeView view = source.GetComponent<UpgradeTreeNodeView>();
             if (view == null) view = source.AddComponent<UpgradeTreeNodeView>();
             LayoutUtility.SetReference(view, "_background", background);
             LayoutUtility.SetReference(view, "_outline", outline);
             LayoutUtility.SetReference(view, "_icon", icon);
+            LayoutUtility.SetReference(view, "_spriteIcon", spriteIcon);
             LayoutUtility.SetReference(view, "_button", button);
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(source, UPGRADE_TREE_NODE_PREFAB_PATH);
-            if (isExistingPrefab) PrefabUtility.UnloadPrefabContents(source);
-            else UnityEngine.Object.DestroyImmediate(source);
+            UnityEngine.Object.DestroyImmediate(source);
             return prefab.GetComponent<UpgradeTreeNodeView>();
+        }
+
+        /// <summary>노드 Prefab에 SO Sprite를 표시할 이미지가 없을 때만 추가하고 직렬화 참조를 보존한다.</summary>
+        private static void EnsureNodeSpriteIcon()
+        {
+            GameObject source = PrefabUtility.LoadPrefabContents(UPGRADE_TREE_NODE_PREFAB_PATH);
+            try
+            {
+                UpgradeTreeNodeView view = source.GetComponent<UpgradeTreeNodeView>();
+                Transform sprite = source.transform.Find("SpriteIcon");
+                bool hasChanged = false;
+                if (sprite == null) { sprite = CreateSpriteIcon(source.transform).transform; hasChanged = true; }
+                Image image = sprite.GetComponent<Image>();
+                if (new SerializedObject(view).FindProperty("_spriteIcon").objectReferenceValue != image)
+                {
+                    LayoutUtility.SetReference(view, "_spriteIcon", image);
+                    hasChanged = true;
+                }
+                if (hasChanged) PrefabUtility.SaveAsPrefabAsset(source, UPGRADE_TREE_NODE_PREFAB_PATH);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(source); }
+        }
+
+        /// <summary>벡터 임시 아이콘과 같은 위치에 Sprite 교체용 이미지를 만든다.</summary>
+        private static Image CreateSpriteIcon(Transform parent)
+        {
+            RectTransform rect = UiFactory.Rect(parent, "SpriteIcon", 0, 0, 42, 42);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            Image image = rect.gameObject.AddComponent<Image>();
+            image.raycastTarget = false;
+            image.preserveAspect = true;
+            rect.gameObject.SetActive(false);
+            return image;
         }
 
         /// <summary>시간제 전투 안내, 스테이지 선택과 출격 버튼을 만들고 DeployPanel 참조를 연결한다.</summary>

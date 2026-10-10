@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a2343644682447498979d1eb6777c66, type: 3}
   m_Name: UpgradeTree
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeDefinition
-  _layoutVersion: 5
+  _layoutVersion: 6
   _nodes:
   - _id: upgrade.mainboard
     _requiredStage: 1
@@ -168,7 +168,7 @@ MonoBehaviour:
     - _nodeId: upgrade.mainboard
       _requiredLevel: 1
     _levels:
-    - _cost: 0
+    - _cost: 100
       _amount: 0
   - _id: unlock.element.ice
     _requiredStage: 1
@@ -182,63 +182,7 @@ MonoBehaviour:
     - _nodeId: upgrade.mainboard
       _requiredLevel: 1
     _levels:
-    - _cost: 15
-      _amount: 0
-  - _id: unlock.element.neutral
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 430, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.neutral
-    _prerequisites:
-    - _nodeId: unlock.element.fire
-      _requiredLevel: 1
-    _levels:
-    - _cost: 5
-      _amount: 0
-  - _id: unlock.element.healing
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 610, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.healing
-    _prerequisites:
-    - _nodeId: unlock.element.fire
-      _requiredLevel: 1
-    _levels:
-    - _cost: 20
-      _amount: 0
-  - _id: unlock.element.lightning
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1390, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.lightning
-    _prerequisites:
-    - _nodeId: unlock.element.ice
-      _requiredLevel: 1
-    _levels:
-    - _cost: 35
-      _amount: 0
-  - _id: unlock.element.protection
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1570, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.protection
-    _prerequisites:
-    - _nodeId: unlock.element.ice
-      _requiredLevel: 1
-    _levels:
-    - _cost: 25
+    - _cost: 100
       _amount: 0
   - _id: unlock.behavior.burst
     _requiredStage: 1
@@ -252,7 +196,7 @@ MonoBehaviour:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
-    - _cost: 15
+    - _cost: 150
       _amount: 0
   - _id: unlock.behavior.persist
     _requiredStage: 1
@@ -266,7 +210,56 @@ MonoBehaviour:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
+    - _cost: 150
+      _amount: 0
+  _unplacedNodes:
+  - _id: unlock.element.neutral
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 430, y: 410}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.neutral
+    _prerequisites: []
+    _levels:
+    - _cost: 5
+      _amount: 0
+  - _id: unlock.element.healing
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 610, y: 410}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.healing
+    _prerequisites: []
+    _levels:
     - _cost: 20
+      _amount: 0
+  - _id: unlock.element.lightning
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1390, y: 410}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.lightning
+    _prerequisites: []
+    _levels:
+    - _cost: 35
+      _amount: 0
+  - _id: unlock.element.protection
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1570, y: 410}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.protection
+    _prerequisites: []
+    _levels:
+    - _cost: 25
       _amount: 0
   - _id: unlock.behavior.orbit
     _requiredStage: 1
@@ -276,9 +269,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.orbit
-    _prerequisites:
-    - _nodeId: unlock.behavior.persist
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 25
       _amount: 0
@@ -290,9 +281,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.apply
-    _prerequisites:
-    - _nodeId: unlock.behavior.persist
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 35
       _amount: 0
@@ -304,9 +293,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.amplify
-    _prerequisites:
-    - _nodeId: unlock.behavior.burst
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 20
       _amount: 0
@@ -318,9 +305,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.multi
-    _prerequisites:
-    - _nodeId: unlock.behavior.burst
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 30
       _amount: 0
@@ -332,9 +317,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.pierce
-    _prerequisites:
-    - _nodeId: unlock.behavior.burst
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 30
       _amount: 0
@@ -346,9 +329,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.expand
-    _prerequisites:
-    - _nodeId: unlock.behavior.burst
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 30
       _amount: 0
@@ -360,9 +341,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.duration
-    _prerequisites:
-    - _nodeId: unlock.behavior.burst
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 25
       _amount: 0
@@ -374,9 +353,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.speed
-    _prerequisites:
-    - _nodeId: unlock.behavior.persist
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 20
       _amount: 0
@@ -388,9 +365,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.homing
-    _prerequisites:
-    - _nodeId: unlock.behavior.persist
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 50
       _amount: 0
@@ -402,9 +377,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.delay
-    _prerequisites:
-    - _nodeId: upgrade.cpu
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 10
       _amount: 0
@@ -416,9 +389,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.repeat
-    _prerequisites:
-    - _nodeId: upgrade.cpu
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 40
       _amount: 0
@@ -430,9 +401,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.if
-    _prerequisites:
-    - _nodeId: upgrade.cpu
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 60
       _amount: 0
@@ -444,9 +413,7 @@ MonoBehaviour:
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: spell.call
-    _prerequisites:
-    - _nodeId: upgrade.cpu
-      _requiredLevel: 1
+    _prerequisites: []
     _levels:
     - _cost: 25
       _amount: 0

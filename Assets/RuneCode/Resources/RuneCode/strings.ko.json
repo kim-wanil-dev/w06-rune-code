@@ -985,6 +985,22 @@
       "_value": "레벨"
     },
     {
+      "_key": "ui.tree.nextIncrease",
+      "_value": "다음 상승량"
+    },
+    {
+      "_key": "ui.tree.cost",
+      "_value": "비용"
+    },
+    {
+      "_key": "ui.tree.unlockEffect",
+      "_value": "룬 해금"
+    },
+    {
+      "_key": "ui.tree.pendingEffect",
+      "_value": "효과 추후 적용"
+    },
+    {
       "_key": "tree.stageLocked",
       "_value": "스테이지 해금 필요:"
     },

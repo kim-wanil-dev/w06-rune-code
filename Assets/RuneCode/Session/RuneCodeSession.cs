@@ -236,11 +236,14 @@ namespace RuneCode
             PersistProgress();
         }
 
-        /// <summary>디버그 진행의 스탯 강화 레벨만 0으로 되돌리고 이미 열린 룬과 일반 저장은 유지한다.</summary>
+        /// <summary>디버그 진행의 배치·미배치 스탯 레벨을 0으로 되돌리고 룬과 일반 저장은 유지한다.</summary>
         public void ResetDebugTree()
         {
             if (!_isDebugEnabled) return;
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
+                if (node != null && node.EffectType != UpgradeEffectType.RuneUnlock)
+                    _save.SetUpgradeNodeLevel(node.Id, 0);
+            foreach (UpgradeTreeNodeDefinition node in _upgradeTree.UnplacedNodes)
                 if (node != null && node.EffectType != UpgradeEffectType.RuneUnlock)
                     _save.SetUpgradeNodeLevel(node.Id, 0);
             _spells.Recompile();
@@ -331,10 +334,13 @@ namespace RuneCode
             if (!_isDebugEnabled) SaveStore.Write(_save);
         }
 
-        /// <summary>디버그 진행에 트리의 모든 룬 해금 노드를 비용 없이 적용한다.</summary>
+        /// <summary>디버그 진행에 배치 여부와 관계없이 SO의 모든 룬 해금 노드를 적용한다.</summary>
         private void UnlockDebugRunes()
         {
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
+                if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock)
+                    _save.Unlock(node.RuneId);
+            foreach (UpgradeTreeNodeDefinition node in _upgradeTree.UnplacedNodes)
                 if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock)
                     _save.Unlock(node.RuneId);
         }
