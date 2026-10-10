@@ -271,7 +271,8 @@ namespace RuneCode
         public SimVector Facing => _facing;
         public double Hp => _hp;
         public double MaxHp => _maxHp;
-        public double Radius => _definition.Radius;
+        // 엘리트는 엘리트 정의의 반경 배율을 곱한 크기로 판정·표시한다.
+        public double Radius => _elite != null ? _definition.Radius * _elite.RadiusMultiplier : _definition.Radius;
         public double Damage => _damage;
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
