@@ -57,6 +57,13 @@ namespace RuneCode
         public const string TRIGGER_PARAM = "trigger";
         public const string POWER_PARAM = "power";
         public const string BUFF_DURATION_PARAM = "buffDuration";
+        public const string SHAPE_RADIUS_PARAM = "radius";
+        public const string BOX_WIDTH_PARAM = "boxWidth";
+        public const string BOX_HEIGHT_PARAM = "boxHeight";
+        public const string BOX_LENGTH_PARAM = "boxLength";
+        public const string CONE_DISTANCE_PARAM = "coneDistance";
+        public const string CONE_ANGLE_PARAM = "coneAngle";
+        public const string BOX_DIRECTION_PARAM = "boxDirection";
         public const string MODIFIER_GRADE_PARAM = "grade";
         public const int UNLIMITED_PIERCE_COUNT = int.MaxValue;
 

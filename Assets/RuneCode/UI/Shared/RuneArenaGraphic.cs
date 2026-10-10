@@ -114,7 +114,7 @@ namespace RuneCode
             RuneSimulation sim = _simulation?.Invoke();
             if (sim == null) return;
             DrawMap(mesh, sim);
-            foreach (SimulationSpellEntity spell in sim.SpellEntities) DrawSpell(mesh, spell, sim.IsAreaBoxUpright);
+            foreach (SimulationSpellEntity spell in sim.SpellEntities) DrawSpell(mesh, spell);
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles) DrawHostileProjectile(mesh, projectile);
             foreach (FragmentOrb orb in sim.Orbs) DrawOrb(mesh, orb);
             foreach (SimulationItemDrop drop in sim.ItemDrops) DrawItemDrop(mesh, drop);
@@ -187,7 +187,7 @@ namespace RuneCode
         }
 
         /// <summary>마법 개체를 범위형(폭발·잔류)과 이동형(발사·공전)으로 나눠 그린다.</summary>
-        private void DrawSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, bool isAreaBoxUpright)
+        private void DrawSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell)
         {
             Vector2 point = Point(spell.Position);
             Color tint = RuneMesh.ElementColor(spell.Element);
@@ -195,8 +195,7 @@ namespace RuneCode
             Vector2 direction = ScreenDirection(spell.Direction);
             float angle = Mathf.Atan2(direction.y, direction.x);
 
-            // 사각형 판정과 같은 회전을 쓴다. 발사는 항상 진행 방향, 범위·공전은 똑바로 세우기 설정을 따른다.
-            float boxRotation = spell.Kind != SpellGrammar.FORM_BOLT && isAreaBoxUpright ? 0 : angle;
+            float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
             if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST)
                 DrawAreaSpell(mesh, spell, point, radius, angle, boxRotation, tint);
             else
@@ -216,9 +215,11 @@ namespace RuneCode
             fill.a = spell.Kind == SpellGrammar.FORM_ZONE ? 0.12f : 0.22f;
             if (spell.IsBox)
             {
-                RuneMesh.Square(mesh, point, radius, boxRotation, fill);
-                RuneMesh.SquareOutline(mesh, point, radius, boxRotation, 1.8f * _scale, tint);
-                RuneMesh.SquareOutline(mesh, point, radius * 0.6f, boxRotation, _scale, fill * 2);
+                float halfWidth = (float)spell.BoxWidth * 0.5f * _scale;
+                float halfLength = (float)spell.BoxLength * 0.5f * _scale;
+                RuneMesh.Rectangle(mesh, point, halfWidth, halfLength, boxRotation, fill);
+                RuneMesh.RectangleOutline(mesh, point, halfWidth, halfLength, boxRotation, 1.8f * _scale, tint);
+                RuneMesh.RectangleOutline(mesh, point, halfWidth * 0.6f, halfLength * 0.6f, boxRotation, _scale, fill * 2);
             }
             else if (spell.IsCone)
             {
@@ -243,8 +244,11 @@ namespace RuneCode
             float filled = radius * (float)spell.WarnProgress;
             if (spell.IsBox)
             {
-                RuneMesh.Square(mesh, point, filled, boxRotation, fill);
-                RuneMesh.SquareOutline(mesh, point, radius, boxRotation, 1.8f * _scale, PERSIST_WARNING_COLOR);
+                float progress = (float)spell.WarnProgress;
+                RuneMesh.Rectangle(mesh, point, (float)spell.BoxWidth * 0.5f * progress * _scale,
+                    (float)spell.BoxLength * 0.5f * progress * _scale, boxRotation, fill);
+                RuneMesh.RectangleOutline(mesh, point, (float)spell.BoxWidth * 0.5f * _scale,
+                    (float)spell.BoxLength * 0.5f * _scale, boxRotation, 1.8f * _scale, PERSIST_WARNING_COLOR);
             }
             else if (spell.IsCone)
             {
@@ -279,7 +283,8 @@ namespace RuneCode
             float size = Math.Max(2.5f, radius);
             if (spell.IsBox)
             {
-                RuneMesh.Square(mesh, point, size, boxRotation, tint);
+                RuneMesh.Rectangle(mesh, point, (float)spell.BoxWidth * 0.5f * _scale,
+                    (float)spell.BoxLength * 0.5f * _scale, boxRotation, tint);
                 return;
             }
             RuneMesh.Polygon(mesh, point, size, tint, ElementSides(spell.Element), angle);

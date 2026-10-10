@@ -82,12 +82,11 @@ namespace RuneCode
         private double _totalDamage;
         private double _statusDamage;
         private double _rollingDamage;
-        private double _energySpent;
+        private readonly Dictionary<string, double> _resourceCostsSpent = new Dictionary<string, double>(StringComparer.Ordinal);
         private int _peakSpellEntities;
         private int _nodeExecutionCount;
         private string _scenario;
         private bool _debugInvulnerable;
-        private bool _isAreaBoxUpright = true;
         private string[] _lastPatchTags = Array.Empty<string>();
         public int Tick => _tick;
         public double Time => _tick * STEP_SECONDS;
@@ -141,20 +140,13 @@ namespace RuneCode
         /// <summary>상태 이상(화염) 틱으로 입힌 실제 피해의 누적값이며 TotalDamage에 포함된다.</summary>
         public double StatusDamage => _statusDamage;
         public double RollingDps => _rollingDamage / Math.Min(5, Math.Max(STEP_SECONDS, Time));
-        public double EnergySpent => _energySpent;
+        public double EnergySpent => _resourceCostsSpent.TryGetValue("mana", out double amount) ? amount : 0;
+        public IReadOnlyDictionary<string, double> ResourceCostsSpent => _resourceCostsSpent;
         public int PeakSpellEntities => _peakSpellEntities;
         public int NodeExecutionCount => _nodeExecutionCount;
         public IReadOnlyList<string> LastPatchTags => _lastPatchTags;
         public bool AdaptationEnabled => Adaptation.Enabled;
         public bool DebugInvulnerable => _debugInvulnerable;
-        public bool IsAreaBoxUpright => _isAreaBoxUpright;
-
-        /// <summary>
-        /// 폭발·잔류·공전 사각형 판정을 월드 축에 고정할지(true) 개체 진행 방향으로 회전할지(false) 변경한다.
-        /// 발사 사각형은 이 설정과 무관하게 항상 진행 방향을 따른다.
-        /// </summary>
-        public void SetAreaBoxUpright(bool isUpright) { _isAreaBoxUpright = isUpright; }
-
         /// <summary>시험 도크의 적응 학습 및 피해 감쇠 사용 여부를 변경한다.</summary>
         public void SetAdaptationEnabled(bool isEnabled) { Adaptation.SetEnabled(isEnabled); }
 
@@ -305,7 +297,7 @@ namespace RuneCode
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
-            _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
+            _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
             _map = new MissionMap(_sector.Rooms[0].Tiles, _sector.TileSize); _player = new SimulationPlayer(_maxHp, _maxEnergy, new SimVector(bench.BenchPlayerX, bench.BenchPlayerY));
             Adaptation.Clear(); Adaptation.SetEnabled(scenario == "adapt_loop");
@@ -484,16 +476,20 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 실행 노드에 도달했을 때 노드 비용 × 문맥 비용 배율만큼 마나를 차감하고 성공 여부를 반환한다.
+        /// 실행 노드에 도달했을 때 자원별 노드 비용 × 문맥 비용 배율을 함께 차감하고 성공 여부를 반환한다.
         /// 흐름 제어(Delay·Repeat·Condition)는 비용이 없고, 비용이 0이면 항상 성공한다.
         /// </summary>
         private bool TrySpendFor(SpellAction action, SpellContext context)
         {
             if (action.Kind == "delay" || action.Kind == "repeat" || action.Kind == "if") return true;
-            double cost = action.NodeEnergy * context.CostMultiplier;
-            if (cost <= 0) return true;
-            if (!_player.TrySpend(cost)) return false;
-            _energySpent += cost;
+            ResourceCostSet costs = action.GetNodeCosts(context.Modifiers).Multiply(context.CostMultiplier);
+            if (costs.Amounts.Count == 0) return true;
+            if (!_player.TrySpend(costs)) return false;
+            foreach (ResourceAmount amount in costs.Amounts)
+            {
+                _resourceCostsSpent.TryGetValue(amount.Resource, out double spent);
+                _resourceCostsSpent[amount.Resource] = spent + amount.Amount;
+            }
             return true;
         }
 
@@ -647,10 +643,11 @@ namespace RuneCode
             }
             SimVector previous = entity.Position;
             SimVector next = previous + direction * (stats.Speed * STEP_SECONDS);
-            if (!_map.CanOccupy(next, entity.Radius))
+            double collisionRadius = entity.IsBox ? Math.Max(stats.BoxWidth, stats.BoxLength) * 0.5 : entity.Radius;
+            if (!_map.CanOccupy(next, collisionRadius))
             {
                 // 벽·지형 충돌은 직접 충돌이므로 접촉점에서 OnHit을 내고 OnExpire 없이 사라진다.
-                SimVector contact = _map.Move(previous, next - previous, entity.Radius);
+                SimVector contact = _map.Move(previous, next - previous, collisionRadius);
                 entity.Move(contact, direction);
                 RaiseHitEvent(entity, contact, null);
                 entity.HasExpired = true;
@@ -663,7 +660,8 @@ namespace RuneCode
                 bool isInside = entity.IsCone
                     ? IntersectsConeSweep(previous, next, direction, entity.Radius, entity.ConeAngle, enemy.Position, enemy.Radius)
                     : entity.IsBox
-                    ? IntersectsBoxSweep(previous, next, direction, entity.Radius, enemy.Position, enemy.Radius)
+                    ? IntersectsBoxSweep(previous, next, direction, entity.Stats.BoxWidth * 0.5,
+                        entity.Stats.BoxLength * 0.5, entity.Stats.IsBoxWorldAligned, enemy.Position, enemy.Radius)
                     : SegmentDistance(previous, next, enemy.Position) <= entity.Radius + enemy.Radius;
                 if (enemy.IsAlive && !entity.HitTimes.ContainsKey(enemy.Id) && isInside) targets.Add(enemy);
             }
@@ -711,31 +709,37 @@ namespace RuneCode
             return Math.Acos(cosine) <= coneAngle * 0.5 * DEGREES_TO_RADIANS + tolerance;
         }
 
-        /// <summary>방향을 따라 이동하는 정사각형 투사체와 대상 원의 겹침 여부를 반환한다.</summary>
+        /// <summary>방향 설정과 가로·세로 크기를 가진 이동 사각형이 대상 원과 겹치는지 반환한다.</summary>
         private static bool IntersectsBoxSweep(SimVector start, SimVector end, SimVector direction,
-            double halfSize, SimVector target, double targetRadius)
+            double halfWidth, double halfLength, bool isWorldAligned, SimVector target, double targetRadius)
         {
             SimVector movement = end - start;
             double length = movement.Length;
-            SimVector forward = length > 0.000001 ? movement / length : direction.Normalized();
+            SimVector forward = isWorldAligned ? new SimVector(1, 0)
+                : length > 0.000001 ? movement / length : direction.Normalized();
+            SimVector side = new SimVector(-forward.Y, forward.X);
             SimVector relative = target - start;
-            double extent = halfSize + targetRadius;
+            double moveAlong = SimVector.Dot(movement, forward);
+            double moveAcross = SimVector.Dot(movement, side);
             double along = SimVector.Dot(relative, forward);
-            double across = Math.Abs(SimVector.Dot(relative, new SimVector(-forward.Y, forward.X)));
-            return along >= -extent && along <= length + extent && across <= extent;
+            double across = SimVector.Dot(relative, side);
+            double alongExtent = halfLength + targetRadius;
+            double acrossExtent = halfWidth + targetRadius;
+            return along >= Math.Min(0, moveAlong) - alongExtent && along <= Math.Max(0, moveAlong) + alongExtent
+                && across >= Math.Min(0, moveAcross) - acrossExtent && across <= Math.Max(0, moveAcross) + acrossExtent;
         }
 
         /// <summary>
         /// 범위 마법 정사각형(반 변 길이 = 개체 반경)과 대상 원의 겹침 여부를 반환한다.
-        /// 똑바로 세우기 설정이면 월드 축 기준, 아니면 개체 진행 방향 기준으로 판정한다.
+        /// Box 노드의 방향 속성에 따라 월드 축 또는 개체 진행 방향 기준으로 판정한다.
         /// </summary>
         private bool IntersectsAreaBox(SimulationSpellEntity entity, SimVector target, double targetRadius)
         {
-            SimVector forward = _isAreaBoxUpright ? new SimVector(1, 0) : entity.Direction.Normalized();
+            SimVector forward = entity.Stats.IsBoxWorldAligned ? new SimVector(1, 0) : entity.Direction.Normalized();
             SimVector side = new SimVector(-forward.Y, forward.X);
             SimVector relative = target - entity.Position;
-            double extent = entity.Radius + targetRadius;
-            return Math.Abs(SimVector.Dot(relative, forward)) <= extent && Math.Abs(SimVector.Dot(relative, side)) <= extent;
+            return Math.Abs(SimVector.Dot(relative, forward)) <= entity.BoxLength * 0.5 + targetRadius
+                && Math.Abs(SimVector.Dot(relative, side)) <= entity.BoxWidth * 0.5 + targetRadius;
         }
 
         /// <summary>범위 마법(원·사각형·부채꼴)이 대상 원과 겹치는지 반환한다.</summary>

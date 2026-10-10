@@ -54,14 +54,13 @@ namespace RuneCode
         }
 
         /// <summary>마법 개체의 형태·속성·크기·방향으로 맵 중앙(origin) 기준 월드 표시를 갱신한다.</summary>
-        public void Apply(SimulationSpellEntity spell, bool isAreaBoxUpright, SimVector origin)
+        public void Apply(SimulationSpellEntity spell, SimVector origin)
         {
             transform.localPosition = MissionWorldSpace.ToWorld(spell.Position, origin);
             Color tint = RuneMesh.ElementColor(spell.Element);
             float radius = (float)spell.Radius;
             float angle = MissionWorldSpace.ToWorldAngle(spell.Direction);
-            // 사각형 판정과 같은 회전을 쓴다. 발사는 항상 진행 방향, 범위·공전은 똑바로 세우기 설정을 따른다.
-            float boxRotation = spell.Kind != SpellGrammar.FORM_BOLT && isAreaBoxUpright ? 0 : angle;
+            float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
             bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST;
             bool isCone = spell.IsCone && (isArea || spell.Kind == SpellGrammar.FORM_BOLT);
             MissionWorldSpace.SetVisible(_trail, !isArea);
@@ -85,9 +84,19 @@ namespace RuneCode
             _fill.sprite = spell.IsBox ? _squareShape : spell.Element == "ice" && !isWarning ? _iceShape : _defaultShape;
             _outline.sprite = _inner.sprite = spell.IsBox ? _squareOutlineShape : _ringShape;
             Quaternion rotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : 0);
-            MissionWorldSpace.Place(_fill, Vector2.zero, radius * 2 * (float)spell.WarnProgress, fill);
-            MissionWorldSpace.Place(_outline, Vector2.zero, radius * 2, isWarning ? WarningColor : tint);
-            MissionWorldSpace.Place(_inner, Vector2.zero, radius * 2 * INNER_SCALE, fill * 2);
+            if (spell.IsBox)
+            {
+                Vector2 dimensions = new Vector2((float)spell.BoxWidth, (float)spell.BoxLength);
+                MissionWorldSpace.Place(_fill, Vector2.zero, dimensions * (float)spell.WarnProgress, fill);
+                MissionWorldSpace.Place(_outline, Vector2.zero, dimensions, isWarning ? WarningColor : tint);
+                MissionWorldSpace.Place(_inner, Vector2.zero, dimensions * INNER_SCALE, fill * 2);
+            }
+            else
+            {
+                MissionWorldSpace.Place(_fill, Vector2.zero, radius * 2 * (float)spell.WarnProgress, fill);
+                MissionWorldSpace.Place(_outline, Vector2.zero, radius * 2, isWarning ? WarningColor : tint);
+                MissionWorldSpace.Place(_inner, Vector2.zero, radius * 2 * INNER_SCALE, fill * 2);
+            }
             MissionWorldSpace.SetVisible(_inner, !isWarning);
             _fill.transform.localRotation = _outline.transform.localRotation = _inner.transform.localRotation = rotation;
         }
@@ -104,7 +113,10 @@ namespace RuneCode
         private void ApplyProjectile(SimulationSpellEntity spell, Color tint, float radius, float angle, float boxRotation)
         {
             _shape.sprite = spell.IsBox ? _squareShape : GetElementShape(spell.Element);
-            MissionWorldSpace.Place(_shape, Vector2.zero, Mathf.Max(MIN_SHAPE_RADIUS, radius) * 2, tint);
+            if (spell.IsBox)
+                MissionWorldSpace.Place(_shape, Vector2.zero, new Vector2((float)spell.BoxWidth, (float)spell.BoxLength), tint);
+            else
+                MissionWorldSpace.Place(_shape, Vector2.zero, Mathf.Max(MIN_SHAPE_RADIUS, radius) * 2, tint);
             _shape.transform.localRotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : angle);
         }
 

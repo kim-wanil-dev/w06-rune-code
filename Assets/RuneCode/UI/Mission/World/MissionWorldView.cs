@@ -85,7 +85,7 @@ namespace RuneCode
             foreach (SimulationEnemy enemy in sim.Enemies) GetView(_enemyViews, _enemyPrefab, count++).Apply(enemy, sim, origin);
             HideFrom(_enemyViews, count);
             count = 0;
-            foreach (SimulationSpellEntity spell in sim.SpellEntities) GetView(_spellViews, _spellPrefab, count++).Apply(spell, sim.IsAreaBoxUpright, origin);
+            foreach (SimulationSpellEntity spell in sim.SpellEntities) GetView(_spellViews, _spellPrefab, count++).Apply(spell, origin);
             HideFrom(_spellViews, count);
             count = 0;
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles) GetView(_projectileViews, _projectilePrefab, count++).Apply(projectile, origin);

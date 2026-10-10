@@ -368,7 +368,9 @@ namespace RuneCode
                 graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, node.Id + "-chain"), typeId, SpellGrammar.CHAIN_OUT, elementId, SpellGrammar.CHAIN_IN));
                 chainTail = elementId;
             }
-            graph.ReplaceNode(new GraphNode(node.Id, V2_SHAPE_PREFIX + shape, node.X, node.Y));
+            GraphNode shapeNode = new GraphNode(node.Id, V2_SHAPE_PREFIX + shape, node.X, node.Y);
+            CopyShapeParameters(buffSource, shapeNode);
+            graph.ReplaceNode(shapeNode);
             foreach (GraphEdge edge in new List<GraphEdge>(graph.Edges))
             {
                 if (edge.ToNode != node.Id) continue;
@@ -380,6 +382,20 @@ namespace RuneCode
                 else if (edge.ToPort == "mod" && LEGACY_ELEMENTS.ContainsKey(graph.FindNode(edge.FromNode)?.RuneId ?? "")) graph.RemoveEdge(edge.Id);
             }
             graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, node.Id + "-chain"), chainTail, SpellGrammar.CHAIN_OUT, node.Id, SpellGrammar.CHAIN_IN));
+        }
+
+        /// <summary>이전 Inline Magic에 이미 저장된 Shape 크기·방향 값만 변환 후 Shape 노드에 보존한다.</summary>
+        private static void CopyShapeParameters(GraphNode source, GraphNode target)
+        {
+            if (source == null) return;
+            foreach (NodeParameter parameter in source.Params)
+            {
+                if (parameter.Key == SpellGrammar.SHAPE_RADIUS_PARAM || parameter.Key == SpellGrammar.BOX_WIDTH_PARAM
+                    || parameter.Key == SpellGrammar.BOX_HEIGHT_PARAM || parameter.Key == SpellGrammar.BOX_LENGTH_PARAM
+                    || parameter.Key == SpellGrammar.CONE_DISTANCE_PARAM || parameter.Key == SpellGrammar.CONE_ANGLE_PARAM)
+                    target.SetNumber(parameter.Key, parameter.Number);
+                else if (parameter.Key == SpellGrammar.BOX_DIRECTION_PARAM) target.SetText(parameter.Key, parameter.Text);
+            }
         }
 
         /// <summary>방벽 행동을 버프·보호·잔류 체인으로 바꾸고 기존 다음 실행 분기를 이전 완료 포트(onComplete)로 옮긴다.</summary>
