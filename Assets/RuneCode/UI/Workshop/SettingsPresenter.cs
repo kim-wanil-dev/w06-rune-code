@@ -27,6 +27,7 @@ namespace RuneCode
             _view.ResetSaveClicked += ConfirmReset;
             _view.DebugGrantClicked += DebugGrant;
             _view.DebugUnlockClicked += DebugUnlock;
+            _view.DebugTreeResetClicked += ResetDebugTree;
         }
 
         /// <summary>화면 흔들림과 히트스톱 설정의 현재 값을 표시한다.</summary>
@@ -52,7 +53,9 @@ namespace RuneCode
         /// <summary>공용 확인 팝업으로 저장 초기화를 묻고, 확인하면 진행을 초기화한 뒤 초기화 후 동작을 실행한다.</summary>
         private void ConfirmReset()
         {
-            _ui.Confirm(GameData.L("ui.resetSave"), GameData.L("ui.resetSaveMessage"), GameData.L("ui.resetSave"), () =>
+            string titleKey = _session.IsDebugEnabled ? "ui.resetDebugSession" : "ui.resetSave";
+            string messageKey = _session.IsDebugEnabled ? "ui.resetDebugSessionMessage" : "ui.resetSaveMessage";
+            _ui.Confirm(GameData.L(titleKey), GameData.L(messageKey), GameData.L(titleKey), () =>
             {
                 _session.ResetSave();
                 _onReset();
@@ -70,6 +73,13 @@ namespace RuneCode
         private void DebugUnlock()
         {
             _session.DebugUnlock();
+            _onProgressionChanged();
+        }
+
+        /// <summary>디버그 세션의 스탯 강화 레벨을 초기화하고 트리·전투 표시를 갱신한다.</summary>
+        private void ResetDebugTree()
+        {
+            _session.ResetDebugTree();
             _onProgressionChanged();
         }
     }

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace RuneCode
 {
     /// <summary>
-    /// 작업실 화면 Presenter다. 탭 Presenter(도크·벤치·강화 트리·출격·설정)를 조립하고 탭 전환, 헤더·상태줄, 도크 실행 하이라이트를 다룬다.
+    /// 작업실 화면 Presenter다. 탭 Presenter(도크·강화 트리·출격·설정)를 조립하고 탭 전환, 헤더·상태줄, 도크 실행 하이라이트를 다룬다.
     /// 편집 패널(SpellEditorPanel)의 ISpellEditorHost 역할을 맡는다.
     /// </summary>
     public sealed class WorkshopPresenter : ISpellEditorHost, IDisposable
@@ -17,7 +17,6 @@ namespace RuneCode
         private readonly WorkshopScreen _view;
         private readonly DockRun _dockRun;
         private readonly DockPresenter _dock;
-        private readonly BenchPresenter _bench;
         private readonly UpgradeTreePresenter _upgradeTree;
         private readonly DeployPresenter _deploy;
         private readonly SettingsPresenter _settings;
@@ -35,10 +34,9 @@ namespace RuneCode
             _dockRun = new DockRun(session);
             _dock = new DockPresenter(session, _dockRun, view.Dock, IsEditorInputBlocked);
             view.SpellEditor.Initialize(session.Spells, this, ui);
-            _bench = new BenchPresenter(session, view.Bench, RefreshProgression);
             _upgradeTree = new UpgradeTreePresenter(session, view.UpgradeTree, RefreshProgression);
             _deploy = new DeployPresenter(session, view.Deploy);
-            _settings = new SettingsPresenter(session, ui, view.Settings, ShowEditorTab, RefreshHeader);
+            _settings = new SettingsPresenter(session, ui, view.Settings, ShowEditorTab, RefreshProgression);
             _view.TabClicked += SetTab;
             _session.Spells.Compiled += RefreshHeader;
         }
@@ -94,27 +92,24 @@ namespace RuneCode
                 _view.SpellEditor.Hide();
                 _dock.Suspend();
             }
-            if (tab == WorkshopScreen.TAB_BENCH) _bench.Refresh();
             if (tab == WorkshopScreen.TAB_TREE) _upgradeTree.Refresh();
             if (tab == WorkshopScreen.TAB_DEPLOY) _deploy.Refresh();
             if (tab == WorkshopScreen.TAB_SETTINGS) _settings.Refresh();
             RefreshHeader();
         }
 
-        /// <summary>도크를 다시 시작한 뒤 에디터 탭으로 전환하고 벤치·출격·헤더를 갱신한다.</summary>
+        /// <summary>도크를 다시 시작한 뒤 에디터 탭으로 전환하고 출격·헤더를 갱신한다.</summary>
         private void ShowEditorTab()
         {
             _dockRun.ResetDock();
             SetTab(WorkshopScreen.TAB_EDITOR);
-            _bench.Refresh();
             _deploy.Refresh();
         }
 
-        /// <summary>구매 등으로 진행이 바뀌면 도크를 다시 시작하고 벤치·트리·출격·헤더를 갱신한다.</summary>
+        /// <summary>구매 등으로 진행이 바뀌면 도크를 다시 시작하고 트리·출격·헤더를 갱신한다.</summary>
         private void RefreshProgression()
         {
             _dockRun.ResetDock();
-            _bench.Refresh();
             _upgradeTree.Refresh();
             _deploy.Refresh();
             RefreshHeader();

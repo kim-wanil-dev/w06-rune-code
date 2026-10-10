@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
+
 using UnityEditor;
 
 namespace RuneCode
@@ -8,20 +10,50 @@ namespace RuneCode
     public static class UpgradeTreeAssetBuilder
     {
         private const string ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
-        private const int TOPOLOGY_VERSION = 2;
-        private const string REGEN_NODE = "regen";
-        private const string ENERGY_NODE = "max_energy";
-        private const string RAM_NODE = "ram_capacity";
-        private const float STAGE_SPACING = 184;
-        private const float TRACK_SPACING = 124;
+        private const int BASE_TOPOLOGY_VERSION = 5;
+        private const int TOPOLOGY_VERSION = 6;
+        private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
+        private const string RAM_NODE_ID = "upgrade.ram";
+        private const string POWER_NODE_ID = "upgrade.maxEnergy";
+        private const string CPU_NODE_ID = "upgrade.cpu";
+        private const string GPU_NODE_ID = "upgrade.gpu";
+        private const string SCRAP_NODE_ID = "upgrade.scrapGain";
+        private const string HP_NODE_ID = "upgrade.maxHp";
+        private const string MOVE_SPEED_NODE_ID = "upgrade.moveSpeed";
+        private const string SCRAP_PICKUP_RANGE_NODE_ID = "upgrade.scrapPickupRange";
 
-        private static readonly string[] _runeOrder =
+        private static readonly HashSet<string> _placedNodeIds = new HashSet<string>
         {
-            "mod.speed", "element.ice", "mod.pierce", "mod.expand", "behavior.persist",
-            "flow.repeat", "element.lightning", "mod.homing", "flow.if"
+            MAINBOARD_NODE_ID, RAM_NODE_ID, POWER_NODE_ID, CPU_NODE_ID, GPU_NODE_ID,
+            SCRAP_NODE_ID, HP_NODE_ID, MOVE_SPEED_NODE_ID,
+            "unlock.element.fire", "unlock.element.ice", "unlock.behavior.burst", "unlock.behavior.persist"
         };
 
-        /// <summary>트리 자산이 없으면 기본 데이터를 만들고 구형 배치라면 노드 위치·선행 연결만 교차형으로 갱신한다.</summary>
+        private static readonly RuneNodeSeed[] _runeNodeSeeds =
+        {
+            new RuneNodeSeed("element.fire", MAINBOARD_NODE_ID, new Vector2(650, 220), 0),
+            new RuneNodeSeed("element.ice", MAINBOARD_NODE_ID, new Vector2(1350, 220), 15),
+            new RuneNodeSeed("element.healing", "unlock.element.fire", new Vector2(610, 410), 20),
+            new RuneNodeSeed("element.lightning", "unlock.element.ice", new Vector2(1390, 410), 35),
+            new RuneNodeSeed("element.protection", "unlock.element.ice", new Vector2(1570, 410), 25),
+            new RuneNodeSeed("behavior.burst", GPU_NODE_ID, new Vector2(900, 600), 15),
+            new RuneNodeSeed("behavior.persist", GPU_NODE_ID, new Vector2(1170, 600), 20),
+            new RuneNodeSeed("behavior.orbit", "unlock.behavior.persist", new Vector2(1710, 800), 25),
+            new RuneNodeSeed("behavior.apply", "unlock.behavior.persist", new Vector2(1890, 800), 35),
+            new RuneNodeSeed("mod.amplify", "unlock.behavior.burst", new Vector2(510, 800), 20),
+            new RuneNodeSeed("mod.multi", "unlock.behavior.burst", new Vector2(690, 800), 30),
+            new RuneNodeSeed("mod.pierce", "unlock.behavior.burst", new Vector2(870, 800), 30),
+            new RuneNodeSeed("mod.expand", "unlock.behavior.burst", new Vector2(1050, 800), 30),
+            new RuneNodeSeed("mod.duration", "unlock.behavior.burst", new Vector2(1230, 800), 25),
+            new RuneNodeSeed("mod.speed", "unlock.behavior.persist", new Vector2(2070, 800), 20),
+            new RuneNodeSeed("mod.homing", "unlock.behavior.persist", new Vector2(2250, 800), 50),
+            new RuneNodeSeed("flow.delay", CPU_NODE_ID, new Vector2(260, 600), 10),
+            new RuneNodeSeed("flow.repeat", CPU_NODE_ID, new Vector2(440, 600), 40),
+            new RuneNodeSeed("flow.if", CPU_NODE_ID, new Vector2(620, 600), 60),
+            new RuneNodeSeed("spell.call", CPU_NODE_ID, new Vector2(800, 600), 25)
+        };
+
+        /// <summary>트리 자산이 없으면 기본 데이터를 만들고 구버전이면 배치·미배치 목록으로 한 번 이전한다.</summary>
         public static void EnsureAsset()
         {
             UpgradeTreeDefinition definition = AssetDatabase.LoadAssetAtPath<UpgradeTreeDefinition>(ASSET_PATH);
@@ -29,148 +61,172 @@ namespace RuneCode
             {
                 definition = ScriptableObject.CreateInstance<UpgradeTreeDefinition>();
                 AssetDatabase.CreateAsset(definition, ASSET_PATH);
-                CreateDefaultNodes(definition);
-                return;
             }
-            if (definition.LayoutVersion >= TOPOLOGY_VERSION) return;
-            MigrateTopology(definition);
+            bool hasChanges = false;
+            if (definition.LayoutVersion < BASE_TOPOLOGY_VERSION)
+            {
+                CreateDefaultNodes(definition);
+                hasChanges = true;
+            }
+            if (definition.LayoutVersion < TOPOLOGY_VERSION)
+            {
+                SeparateUnplacedNodes(definition);
+                hasChanges = true;
+            }
+            if (AddMissingUnplacedRuneNodes(definition)) hasChanges = true;
+            if (AddMissingUnplacedPickupRangeNode(definition)) hasChanges = true;
+            if (hasChanges) ValidateAndSave(definition);
         }
 
-        /// <summary>빈 트리에 기본 강화량·레벨별 비용과 서로 교차하는 1~10 스테이지 선행 연결을 추가한다.</summary>
+        /// <summary>기존 노드를 새 하드웨어 트리·레벨별 비용·효과량·선행 관계로 교체하고 검증한 뒤 저장한다.</summary>
         private static void CreateDefaultNodes(UpgradeTreeDefinition definition)
         {
             SerializedObject serialized = new SerializedObject(definition);
             SerializedProperty nodes = serialized.FindProperty("_nodes");
             nodes.ClearArray();
-            for (int stage = 1; stage <= 10; stage++)
-            {
-                AddStatNode(nodes, stage, REGEN_NODE, "ui.tree.regen", "ui.tree.regenDescription",
-                    UpgradeEffectType.EnergyRegen, 5, 0.5f);
-                AddStatNode(nodes, stage, ENERGY_NODE, "ui.tree.maxEnergy", "ui.tree.maxEnergyDescription",
-                    UpgradeEffectType.MaxEnergy, 6, 5);
-                AddStatNode(nodes, stage, RAM_NODE, "ui.tree.ramCapacity", "ui.tree.ramDescription",
-                    UpgradeEffectType.RamCapacity, 8, 1);
-                if (stage <= _runeOrder.Length) AddRuneNode(nodes, stage, _runeOrder[stage - 1]);
-            }
-            serialized.FindProperty("_layoutVersion").intValue = TOPOLOGY_VERSION;
+            serialized.FindProperty("_unplacedNodes").ClearArray();
+
+            AddUpgradeNode(nodes, MAINBOARD_NODE_ID, "ui.tree.mainboard", "ui.tree.mainboardDescription",
+                new Vector2(1000, 40), UpgradeEffectType.EnergyRegen, null,
+                new[] { 0, 10, 20 }, new[] { 0.5f, 0.5f, 0.5f });
+            AddUpgradeNode(nodes, RAM_NODE_ID, "ui.tree.ramCapacity", "ui.tree.ramDescription",
+                new Vector2(1000, 220), UpgradeEffectType.RamCapacity, MAINBOARD_NODE_ID,
+                new[] { 10, 20, 40 }, new[] { 1f, 1f, 1f });
+            AddUpgradeNode(nodes, POWER_NODE_ID, "ui.tree.maxEnergy", "ui.tree.maxEnergyDescription",
+                new Vector2(830, 410), UpgradeEffectType.MaxEnergy, RAM_NODE_ID,
+                new[] { 8, 16, 32 }, new[] { 5f, 5f, 5f });
+            AddUpgradeNode(nodes, CPU_NODE_ID, "ui.tree.cpu", "ui.tree.cpuDescription",
+                new Vector2(1000, 410), UpgradeEffectType.CastSpeed, RAM_NODE_ID,
+                new[] { 10, 20, 40 }, new[] { 0f, 0f, 0f });
+            AddUpgradeNode(nodes, GPU_NODE_ID, "ui.tree.gpu", "ui.tree.gpuDescription",
+                new Vector2(1170, 410), UpgradeEffectType.Damage, RAM_NODE_ID,
+                new[] { 12, 24, 48 }, new[] { 0.1f, 0.1f, 0.1f });
+            AddUpgradeNode(nodes, SCRAP_NODE_ID, "ui.tree.scrapGain", "ui.tree.scrapGainDescription",
+                new Vector2(1440, 600), UpgradeEffectType.ScrapGain, GPU_NODE_ID,
+                new[] { 15, 30, 60 }, new[] { 0.1f, 0.1f, 0.1f });
+            AddUpgradeNode(nodes, HP_NODE_ID, "ui.tree.maxHp", "ui.tree.maxHpDescription",
+                new Vector2(1350, 800), UpgradeEffectType.MaxHp, SCRAP_NODE_ID,
+                new[] { 10, 20, 40 }, new[] { 10f, 10f, 10f });
+            AddUpgradeNode(nodes, MOVE_SPEED_NODE_ID, "ui.tree.moveSpeed", "ui.tree.moveSpeedDescription",
+                new Vector2(1530, 800), UpgradeEffectType.MoveSpeed, SCRAP_NODE_ID,
+                new[] { 15, 30, 60 }, new[] { 0.05f, 0.05f, 0.05f });
+
+            foreach (RuneNodeSeed seed in _runeNodeSeeds) AddRuneNode(nodes, seed);
+
+            serialized.FindProperty("_layoutVersion").intValue = BASE_TOPOLOGY_VERSION;
             serialized.ApplyModifiedPropertiesWithoutUndo();
-            ValidateAndSave(definition);
         }
 
-        /// <summary>기존 기본 노드의 ID·비용·효과량과 추가 사용자 노드를 보존하면서 기본 노드 연결망을 한 번만 재배치한다.</summary>
-        private static void MigrateTopology(UpgradeTreeDefinition definition)
+        /// <summary>기존 노드의 비용·아이콘·레벨을 보존하면서 지정된 12개만 배치 목록에 남기고 나머지 선행 조건을 비운다.</summary>
+        private static void SeparateUnplacedNodes(UpgradeTreeDefinition definition)
         {
             SerializedObject serialized = new SerializedObject(definition);
-            SerializedProperty nodes = serialized.FindProperty("_nodes");
-            for (int index = 0; index < nodes.arraySize; index++)
+            SerializedProperty placed = serialized.FindProperty("_nodes");
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            for (int index = 0; index < placed.arraySize;)
             {
-                SerializedProperty node = nodes.GetArrayElementAtIndex(index);
-                string nodeId = node.FindPropertyRelative("_id").stringValue;
-                if (!TryReadDefaultNode(nodeId, out int stage, out string trackId)) continue;
-                node.FindPropertyRelative("_requiredStage").intValue = stage;
-                node.FindPropertyRelative("_position").vector2Value = GetNodePosition(stage, trackId);
-                SetPrerequisites(node.FindPropertyRelative("_prerequisites"), GetPrerequisites(stage, trackId));
+                SerializedProperty node = placed.GetArrayElementAtIndex(index);
+                if (_placedNodeIds.Contains(node.FindPropertyRelative("_id").stringValue))
+                {
+                    index++;
+                    continue;
+                }
+                int destinationIndex = unplaced.arraySize;
+                unplaced.InsertArrayElementAtIndex(destinationIndex);
+                SerializedProperty destination = unplaced.GetArrayElementAtIndex(destinationIndex);
+                destination.boxedValue = node.boxedValue;
+                destination.FindPropertyRelative("_prerequisites").ClearArray();
+                placed.DeleteArrayElementAtIndex(index);
             }
             serialized.FindProperty("_layoutVersion").intValue = TOPOLOGY_VERSION;
             serialized.ApplyModifiedPropertiesWithoutUndo();
-            ValidateAndSave(definition);
         }
 
-        /// <summary>알려진 기본 ID만 해석해 스테이지와 노드 계열을 반환하고 사용자 노드면 false를 반환한다.</summary>
-        private static bool TryReadDefaultNode(string nodeId, out int stage, out string trackId)
+        /// <summary>배치 여부가 아직 지정되지 않은 트리 해금 룬을 선행 조건 없는 비배치 노드로 등록한다.</summary>
+        private static bool AddMissingUnplacedRuneNodes(UpgradeTreeDefinition definition)
         {
-            stage = 0;
-            trackId = null;
-            if (string.IsNullOrEmpty(nodeId) || !nodeId.StartsWith("stage_", StringComparison.Ordinal)) return false;
-            int separator = nodeId.IndexOf('.');
-            if (separator < 0 || !int.TryParse(nodeId.Substring(6, separator - 6), out stage)) return false;
-            trackId = nodeId.Substring(separator + 1);
-            if (trackId == REGEN_NODE || trackId == ENERGY_NODE || trackId == RAM_NODE) return stage >= 1 && stage <= 10;
-            if (!trackId.StartsWith("rune.", StringComparison.Ordinal) || stage < 1 || stage > _runeOrder.Length) return false;
-            return trackId.Substring(5) == _runeOrder[stage - 1];
-        }
+            HashSet<string> existingRuneIds = new HashSet<string>();
+            foreach (UpgradeTreeNodeDefinition node in definition.Nodes)
+                if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock) existingRuneIds.Add(node.RuneId);
+            foreach (UpgradeTreeNodeDefinition node in definition.UnplacedNodes)
+                if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock) existingRuneIds.Add(node.RuneId);
 
-        /// <summary>트랙마다 스테이지 열과 행을 달리 배치해 정사각형 노드 사이에 대각선 경로가 교차하게 한다.</summary>
-        private static Vector2 GetNodePosition(int stage, string trackId)
-        {
-            int track = trackId == REGEN_NODE ? 0 : trackId == ENERGY_NODE ? 1 : trackId == RAM_NODE ? 2 : 3;
-            float stageOffset = (stage - 1) * STAGE_SPACING;
-            float trackOffset = track * TRACK_SPACING;
-            float stagger = stage % 2 == 0 && track % 2 == 1 ? 34 : 0;
-            return new Vector2(46 + stageOffset + stagger, 40 + trackOffset);
-        }
-
-        /// <summary>현재 트랙이 이전 스테이지의 서로 다른 노드들을 요구하도록 교차 선행 ID를 반환한다.</summary>
-        private static string[] GetPrerequisites(int stage, string trackId)
-        {
-            if (stage == 1)
+            SerializedObject serialized = new SerializedObject(definition);
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            bool hasChanges = false;
+            foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (trackId == REGEN_NODE) return Array.Empty<string>();
-                if (trackId == ENERGY_NODE || trackId == RAM_NODE) return new[] { NodeId(1, REGEN_NODE) };
-                return new[] { NodeId(1, ENERGY_NODE), NodeId(1, RAM_NODE) };
+                if ((rune.UnlockType != "tree" && rune.UnlockType != "bench") || !existingRuneIds.Add(rune.Id)) continue;
+                AddNode(unplaced, RuneNodeId(rune.Id), "ui.tree.unlockRune", "ui.tree.unlockRuneDescription",
+                    Vector2.zero, UpgradeEffectType.RuneUnlock, rune.Id, null,
+                    new[] { rune.UnlockCost }, new[] { 0f });
+                hasChanges = true;
             }
-
-            int previousStage = stage - 1;
-            if (trackId == REGEN_NODE)
-                return new[] { NodeId(previousStage, ENERGY_NODE), RuneNodeId(previousStage) };
-            if (trackId == ENERGY_NODE)
-                return new[] { NodeId(previousStage, REGEN_NODE), NodeId(previousStage, RAM_NODE) };
-            if (trackId == RAM_NODE)
-                return new[] { NodeId(previousStage, REGEN_NODE), RuneNodeId(previousStage) };
-            return new[] { NodeId(previousStage, ENERGY_NODE), NodeId(previousStage, RAM_NODE), RuneNodeId(previousStage) };
+            if (!hasChanges) return false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return true;
         }
 
-        /// <summary>스테이지와 기본 트랙 이름으로 세이브에 연결되는 안정적인 노드 ID를 반환한다.</summary>
-        private static string NodeId(int stage, string trackId)
+        /// <summary>스크랩 줍기 범위 강화가 없으면 +10%씩 최대 3회 올리는 비배치 노드를 등록한다.</summary>
+        private static bool AddMissingUnplacedPickupRangeNode(UpgradeTreeDefinition definition)
         {
-            return "stage_" + stage.ToString("00") + "." + trackId;
+            foreach (UpgradeTreeNodeDefinition node in definition.Nodes)
+                if (node != null && node.Id == SCRAP_PICKUP_RANGE_NODE_ID) return false;
+            foreach (UpgradeTreeNodeDefinition node in definition.UnplacedNodes)
+                if (node != null && node.Id == SCRAP_PICKUP_RANGE_NODE_ID) return false;
+
+            SerializedObject serialized = new SerializedObject(definition);
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            AddUpgradeNode(unplaced, SCRAP_PICKUP_RANGE_NODE_ID,
+                "ui.tree.scrapPickupRange", "ui.tree.scrapPickupRangeDescription",
+                Vector2.zero, UpgradeEffectType.ScrapPickupRange, null,
+                new[] { 10, 20, 40 }, new[] { 0.1f, 0.1f, 0.1f });
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return true;
         }
 
-        /// <summary>스테이지 순서에 해당하는 기본 룬 해금 노드 ID를 반환한다.</summary>
-        private static string RuneNodeId(int stage)
+        /// <summary>룬 카탈로그의 해금 대상 룬과 지정한 부모·위치·비용으로 1회 구매 노드를 추가한다.</summary>
+        private static void AddRuneNode(SerializedProperty nodes, RuneNodeSeed seed)
         {
-            return NodeId(stage, "rune." + _runeOrder[stage - 1]);
+            if (!GameData.Runes.TryGet(seed.RuneId, out RuneDefinition rune) || rune.UnlockType != "tree")
+                throw new InvalidOperationException("트리 해금 대상 룬을 찾을 수 없습니다: " + seed.RuneId);
+            AddNode(nodes, RuneNodeId(seed.RuneId), "ui.tree.unlockRune", "ui.tree.unlockRuneDescription",
+                seed.Position, UpgradeEffectType.RuneUnlock, seed.RuneId, seed.ParentNodeId,
+                new[] { seed.Cost }, new[] { 0f });
         }
 
-        /// <summary>능력치 노드와 기본 레벨별 비용·효과량·선행 노드 구성을 직렬화 목록에 추가한다.</summary>
-        private static void AddStatNode(SerializedProperty nodes, int stage, string trackId, string titleKey,
-            string descriptionKey, UpgradeEffectType effectType, int baseCost, float amount)
+        /// <summary>강화 노드와 레벨별 비용·증가량을 기록하고 선택한 부모의 1레벨을 선행 조건으로 설정한다.</summary>
+        private static void AddUpgradeNode(SerializedProperty nodes, string nodeId, string titleKey, string descriptionKey,
+            Vector2 position, UpgradeEffectType effectType, string parentNodeId, int[] costs, float[] amounts)
         {
-            string nodeId = NodeId(stage, trackId);
-            float stageScale = Mathf.Pow(1.12f, stage - 1);
-            int firstCost = Mathf.Max(1, Mathf.RoundToInt(baseCost * stageScale));
-            int secondCost = Mathf.Max(firstCost + 1, Mathf.RoundToInt(baseCost * 1.6f * stageScale));
-            Vector2 position = GetNodePosition(stage, trackId);
-            AddNode(nodes, nodeId, stage, titleKey, descriptionKey, position, effectType, null,
-                GetPrerequisites(stage, trackId), new[] { firstCost, secondCost }, new[] { amount, amount });
+            AddNode(nodes, nodeId, titleKey, descriptionKey, position, effectType, null, parentNodeId, costs, amounts);
         }
 
-        /// <summary>현재 룬 하나를 이전 스테이지 능력치와 룬에 교차 연결된 해금 노드로 추가한다.</summary>
-        private static void AddRuneNode(SerializedProperty nodes, int stage, string runeId)
-        {
-            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune))
-                throw new InvalidOperationException("기본 업그레이드 트리에서 룬을 찾을 수 없습니다: " + runeId);
-            AddNode(nodes, NodeId(stage, "rune." + runeId), stage, "ui.tree.unlockRune", "ui.tree.unlockRuneDescription",
-                GetNodePosition(stage, "rune." + runeId), UpgradeEffectType.RuneUnlock, runeId,
-                GetPrerequisites(stage, "rune." + runeId), new[] { rune.UnlockCost }, new[] { 0f });
-        }
-
-        /// <summary>새 노드와 레벨별 구매 값을 기록하고 선행 조건 목록을 채운다.</summary>
-        private static void AddNode(SerializedProperty nodes, string nodeId, int stage, string titleKey,
-            string descriptionKey, Vector2 position, UpgradeEffectType effectType, string runeId,
-            string[] prerequisiteIds, int[] costs, float[] amounts)
+        /// <summary>노드 ID·표시 키·아이콘 자리·효과·부모와 단계별 값을 직렬화 배열에 기록한다.</summary>
+        private static void AddNode(SerializedProperty nodes, string nodeId, string titleKey, string descriptionKey,
+            Vector2 position, UpgradeEffectType effectType, string runeId, string parentNodeId, int[] costs, float[] amounts)
         {
             int index = nodes.arraySize;
             nodes.InsertArrayElementAtIndex(index);
             SerializedProperty node = nodes.GetArrayElementAtIndex(index);
             node.FindPropertyRelative("_id").stringValue = nodeId;
-            node.FindPropertyRelative("_requiredStage").intValue = stage;
+            node.FindPropertyRelative("_requiredStage").intValue = 1;
             node.FindPropertyRelative("_titleKey").stringValue = titleKey;
             node.FindPropertyRelative("_descriptionKey").stringValue = descriptionKey;
             node.FindPropertyRelative("_position").vector2Value = position;
+            node.FindPropertyRelative("_icon").objectReferenceValue = null;
             node.FindPropertyRelative("_effectType").enumValueIndex = (int)effectType;
             node.FindPropertyRelative("_runeId").stringValue = runeId;
-            SetPrerequisites(node.FindPropertyRelative("_prerequisites"), prerequisiteIds);
+
+            SerializedProperty prerequisites = node.FindPropertyRelative("_prerequisites");
+            prerequisites.ClearArray();
+            if (!string.IsNullOrEmpty(parentNodeId))
+            {
+                prerequisites.InsertArrayElementAtIndex(0);
+                SerializedProperty prerequisite = prerequisites.GetArrayElementAtIndex(0);
+                prerequisite.FindPropertyRelative("_nodeId").stringValue = parentNodeId;
+                prerequisite.FindPropertyRelative("_requiredLevel").intValue = 1;
+            }
 
             SerializedProperty levels = node.FindPropertyRelative("_levels");
             levels.ClearArray();
@@ -183,25 +239,40 @@ namespace RuneCode
             }
         }
 
-        /// <summary>기존 선행 조건 배열을 지우고 전달된 노드 ID를 1레벨 요구량으로 설정한다.</summary>
-        private static void SetPrerequisites(SerializedProperty prerequisites, string[] prerequisiteIds)
+        /// <summary>룬 ID에 접두어를 붙여 ScriptableObject에서 안정적으로 참조할 노드 ID를 반환한다.</summary>
+        private static string RuneNodeId(string runeId)
         {
-            prerequisites.ClearArray();
-            for (int index = 0; index < prerequisiteIds.Length; index++)
-            {
-                prerequisites.InsertArrayElementAtIndex(index);
-                SerializedProperty prerequisite = prerequisites.GetArrayElementAtIndex(index);
-                prerequisite.FindPropertyRelative("_nodeId").stringValue = prerequisiteIds[index];
-                prerequisite.FindPropertyRelative("_requiredLevel").intValue = 1;
-            }
+            return "unlock." + runeId;
         }
 
-        /// <summary>변경된 트리를 검증하고 저장하며 설정 오류가 있으면 씬 생성을 중단한다.</summary>
+        /// <summary>업그레이드 트리의 구조·룬 커버리지·선행 조건을 검증해 잘못된 자산 저장을 막는다.</summary>
         private static void ValidateAndSave(UpgradeTreeDefinition definition)
         {
             if (!definition.Validate(out string error)) throw new InvalidOperationException(error);
             EditorUtility.SetDirty(definition);
             AssetDatabase.SaveAssets();
+        }
+
+        private readonly struct RuneNodeSeed
+        {
+            private readonly string _runeId;
+            private readonly string _parentNodeId;
+            private readonly Vector2 _position;
+            private readonly int _cost;
+
+            public string RuneId => _runeId;
+            public string ParentNodeId => _parentNodeId;
+            public Vector2 Position => _position;
+            public int Cost => _cost;
+
+            /// <summary>룬 해금 ID와 부모, 시작 위치, 기본 비용을 저장해 에셋 노드 생성 입력을 만든다.</summary>
+            public RuneNodeSeed(string runeId, string parentNodeId, Vector2 position, int cost)
+            {
+                _runeId = runeId;
+                _parentNodeId = parentNodeId;
+                _position = position;
+                _cost = cost;
+            }
         }
     }
 }

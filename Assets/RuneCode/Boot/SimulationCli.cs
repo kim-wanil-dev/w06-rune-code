@@ -29,9 +29,7 @@ namespace RuneCode
                 var stage = int.Parse(Argument(arguments, "--stage", "1"), CultureInfo.InvariantCulture);
                 var duration = double.Parse(Argument(arguments, "--duration", "0"), CultureInfo.InvariantCulture);
                 if (duration != 0) UnityEngine.Debug.LogWarning("--duration은 더 이상 쓰이지 않습니다. 일반 스테이지는 목표 처치 수 달성, 보스 스테이지는 보스 처치 또는 제한시간으로 끝납니다.");
-                var capacityLevel = int.Parse(Argument(arguments, "--capacity-level", "0"), CultureInfo.InvariantCulture);
-                var energyLevel = int.Parse(Argument(arguments, "--energy-level", "0"), CultureInfo.InvariantCulture);
-                var report = Run(spell, scenario, ticks, seed, stage, capacityLevel, energyLevel);
+                var report = Run(spell, scenario, ticks, seed, stage);
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output)));
                 File.WriteAllText(output, report);
                 UnityEngine.Debug.Log(report);
@@ -46,7 +44,7 @@ namespace RuneCode
         }
 
         /// <summary>전달한 마법과 시드로 고정 tick 시뮬레이션을 실행하여 피해·DPS·실행 횟수 JSON을 반환한다.</summary>
-        public static string Run(string spellPath, string scenario, int ticks, int seed, int stage = 1, int capacityLevel = 0, int energyLevel = 0)
+        public static string Run(string spellPath, string scenario, int ticks, int seed, int stage = 1)
         {
             GameData.Load();
             if (ticks < 1 || ticks > 1000000) throw new ArgumentOutOfRangeException(nameof(ticks));
@@ -59,16 +57,15 @@ namespace RuneCode
                 graph = ShareCodec.Deserialize(resource.text);
             }
             var economy = GameData.Balance.Economy;
-            if (stage < 1 || stage > 1000000
-                || capacityLevel < 0 || capacityLevel > economy.MaxGrowthLevel || energyLevel < 0 || energyLevel > economy.MaxGrowthLevel)
-                throw new ArgumentOutOfRangeException(nameof(stage), "스테이지 또는 성장 단계가 유효하지 않습니다.");
+            if (stage < 1 || stage > 1000000)
+                throw new ArgumentOutOfRangeException(nameof(stage), "스테이지가 유효하지 않습니다.");
             var isTimedBattle = scenario == "incremental";
-            var capacity = economy.BaseCapacity + (isTimedBattle ? capacityLevel : economy.CapacityCosts.Count) * economy.CapacityStep;
-            var maxEnergy = GameData.Balance.Player.MaxEnergy + (isTimedBattle ? energyLevel : economy.StatCosts.Count) * economy.StatStep;
+            var capacity = economy.BaseCapacity;
+            var maxEnergy = GameData.Balance.Player.MaxEnergy;
             var compiled = GraphCompiler.Compile(graph, GameData.Runes, GameData.Balance.Grammar, GameData.Runes.All.Select(rune => rune.Id), capacity, maxEnergy);
             if (!compiled.Ok) throw new ArgumentException(string.Join("\n", compiled.Errors.Select(CompileIssueText.Format)));
             var simulation = new RuneSimulation(seed, isTimedBattle, GameData.Balance.Player.MaxHp, maxEnergy, stage,
-                GameData.Balance.Player.EnergyRegen + (isTimedBattle ? energyLevel : 0) * economy.EnergyRegenStep);
+                GameData.Balance.Player.EnergyRegen);
             if (!isTimedBattle) { simulation.ResetBench(scenario); simulation.SetAdaptationEnabled(scenario == "adapt_loop"); }
             simulation.SetUnlockedElements(new[] { "raw", "fire", "ice", "arc" });
             simulation.SetLoadout(new[] { compiled.Spell });
@@ -80,7 +77,7 @@ namespace RuneCode
             return JsonUtility.ToJson(new SimulationReport(simulation, simulation.Tick, seed, scenario, compiled.Spell, timer.Elapsed.TotalMilliseconds), true);
         }
 
-        /// <summary>살아 있는 가장 가까운 적을 조준하고 사거리 안에서만 단일 마법을 시전하는 자동 전투 입력을 반환한다.</summary>
+        /// <summary>살아 있는 가장 가까운 적을 조준하고 사거리 안에서 단일 마법을 시전하는 자동 전투 입력을 반환한다.</summary>
         public static SimulationInput CreateAutomaticInput(RuneSimulation simulation, double castRange)
         {
             SimulationEnemy nearest = null;

@@ -31,7 +31,59 @@ namespace RuneCode
             if (_effectType == UpgradeEffectType.EnergyRegen) DrawRegenerationIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.MaxEnergy) DrawEnergyIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.RamCapacity) DrawMemoryIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.CastSpeed) DrawSpeedIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.Damage) DrawDamageIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.ScrapGain) DrawScrapIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.ScrapPickupRange) DrawPickupRangeIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.MaxHp) DrawHealthIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.MoveSpeed) DrawMovementIcon(mesh, center, scale, tint);
             else DrawRuneIcon(mesh, center, scale, tint, _runeCategory);
+        }
+
+        /// <summary>CPU의 임시 아이콘으로 중심 칩과 빠른 진행 화살표를 그린다.</summary>
+        private static void DrawSpeedIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.SquareOutline(mesh, center, 10 * scale, 0, ICON_LINE_WIDTH * scale, tint);
+            RuneMesh.Line(mesh, center + new Vector2(-5, -3) * scale, center + new Vector2(6, -3) * scale, 2 * scale, tint);
+            RuneMesh.Polygon(mesh, center + new Vector2(8, -3) * scale, 4 * scale, tint, 3, -Mathf.PI * 0.5f);
+        }
+
+        /// <summary>GPU의 임시 아이콘으로 중앙의 피해 표적과 교차선을 그린다.</summary>
+        private static void DrawDamageIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.Ring(mesh, center, 10 * scale, ICON_LINE_WIDTH * scale, tint, 20);
+            RuneMesh.Line(mesh, center + Vector2.left * 16 * scale, center + Vector2.right * 16 * scale, 2 * scale, tint);
+            RuneMesh.Line(mesh, center + Vector2.up * 16 * scale, center + Vector2.down * 16 * scale, 2 * scale, tint);
+        }
+
+        /// <summary>스크랩 획득량의 임시 아이콘으로 중첩된 자원 조각을 그린다.</summary>
+        private static void DrawScrapIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.SquareOutline(mesh, center + new Vector2(-5, 4) * scale, 7 * scale, Mathf.PI * 0.25f, 2 * scale, tint);
+            RuneMesh.SquareOutline(mesh, center + new Vector2(5, -4) * scale, 7 * scale, Mathf.PI * 0.25f, 2 * scale, tint);
+        }
+
+        /// <summary>스크랩 줍기 범위의 임시 아이콘으로 중심점 주위의 탐지 링을 그린다.</summary>
+        private static void DrawPickupRangeIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.Ring(mesh, center, 12 * scale, ICON_LINE_WIDTH * scale, tint, 20);
+            RuneMesh.Polygon(mesh, center, 3 * scale, tint, 12);
+        }
+
+        /// <summary>최대 HP의 임시 아이콘으로 십자형 체력 표시를 그린다.</summary>
+        private static void DrawHealthIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.Line(mesh, center + Vector2.left * 13 * scale, center + Vector2.right * 13 * scale, 6 * scale, tint);
+            RuneMesh.Line(mesh, center + Vector2.up * 13 * scale, center + Vector2.down * 13 * scale, 6 * scale, tint);
+        }
+
+        /// <summary>이동속도의 임시 아이콘으로 두 개의 진행 화살표를 그린다.</summary>
+        private static void DrawMovementIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            RuneMesh.Line(mesh, center + new Vector2(-15, 7) * scale, center + new Vector2(7, 7) * scale, 2 * scale, tint);
+            RuneMesh.Line(mesh, center + new Vector2(-15, -7) * scale, center + new Vector2(7, -7) * scale, 2 * scale, tint);
+            RuneMesh.Polygon(mesh, center + new Vector2(11, 7) * scale, 5 * scale, tint, 3, -Mathf.PI * 0.5f);
+            RuneMesh.Polygon(mesh, center + new Vector2(11, -7) * scale, 5 * scale, tint, 3, -Mathf.PI * 0.5f);
         }
 
         /// <summary>회복을 순환 화살표와 링으로 표시한다.</summary>

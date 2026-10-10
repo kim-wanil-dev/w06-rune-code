@@ -271,7 +271,8 @@ namespace RuneCode
         public SimVector Facing => _facing;
         public double Hp => _hp;
         public double MaxHp => _maxHp;
-        public double Radius => _definition.Radius;
+        // 엘리트는 엘리트 정의의 반경 배율을 곱한 크기로 판정·표시한다.
+        public double Radius => _elite != null ? _definition.Radius * _elite.RadiusMultiplier : _definition.Radius;
         public double Damage => _damage;
         public int Reward => _reward;
         public bool IsDummy => _isDummy;
@@ -536,14 +537,19 @@ namespace RuneCode
         { state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_speed:R}|{_damage:R}|{_radius:R}|{_lifetime:R}|{_isHazard}|{_warning:R}|{_age:R}")); }
     }
 
-    public readonly struct FragmentOrb
+    public struct FragmentOrb
     {
-        private readonly SimVector _position;
+        private SimVector _position;
         private readonly int _amount;
+        private bool _isAttracted;
         public SimVector Position => _position;
         public int Amount => _amount;
+        public bool IsAttracted => _isAttracted;
         /// <summary>처치 위치와 조각 개수로 회수 가능한 오브를 생성한다.</summary>
-        internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; }
+        internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; _isAttracted = false; }
+
+        /// <summary>자석 이동이 시작된 오브의 위치를 갱신하고 추적 상태를 유지한다.</summary>
+        internal void AttractTo(SimVector position) { _position = position; _isAttracted = true; }
     }
 
     /// <summary>바닥에 떨어져 플레이어가 줍기를 기다리는 Modifier 드롭 개체다. 등급은 C·B·A·S 문자열이며 등급 없이 드롭된 항목은 null이다.</summary>
@@ -552,15 +558,20 @@ namespace RuneCode
         private readonly string _runeId;
         private readonly string _grade;
         private readonly int _count;
-        private readonly SimVector _position;
+        private SimVector _position;
+        private bool _isAttracted;
         public string RuneId => _runeId;
         public string Grade => _grade;
         public int Count => _count;
         public SimVector Position => _position;
+        public bool IsAttracted => _isAttracted;
 
         /// <summary>Modifier 룬 ID, 등급 문자, 수량과 바닥 위치로 드롭 개체를 생성한다.</summary>
         internal SimulationItemDrop(string runeId, string grade, int count, SimVector position)
         { _runeId = runeId; _grade = grade; _count = count; _position = position; }
+
+        /// <summary>자석 이동이 시작된 Modifier의 위치를 갱신하고 추적 상태를 유지한다.</summary>
+        internal void AttractTo(SimVector position) { _position = position; _isAttracted = true; }
     }
 
     public readonly struct DamageNumber
