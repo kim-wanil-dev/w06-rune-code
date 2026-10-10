@@ -622,11 +622,19 @@ namespace RuneCode
                     }
                 }
                 RuneDefinition shape = null;
+                RuneDefinition behavior = null;
                 if (rune.Id == SpellGrammar.INLINE_RUNE && node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE) != SpellGrammar.MAGIC_TYPE_BUFF)
                     runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out shape);
+                if (rune.Id == SpellGrammar.INLINE_RUNE)
+                {
+                    string behaviorId = node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE) == SpellGrammar.MAGIC_TYPE_BUFF
+                        ? SpellGrammar.APPLY_RUNE : SpellGrammar.BehaviorRune(node.GetText("form", "launch"));
+                    runes.TryGet(behaviorId, out behavior);
+                }
+                else if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) behavior = rune;
                 float coneAngle = shape?.Stats.ConeAngle ?? 0f;
                 SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell,
-                    shape, coneAngle, runes.ModifierGrades, context.LegacyBoxWorldAligned);
+                    shape, coneAngle, runes.ModifierGrades, context.LegacyBoxWorldAligned, behavior);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {

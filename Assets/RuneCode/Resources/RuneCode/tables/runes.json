@@ -7,6 +7,7 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -57,6 +58,7 @@
           ]
         }
       ]
+
     },
     {
       "_id": "form.bolt",
@@ -462,6 +464,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.4,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -487,6 +490,7 @@
         "behavior.beam",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.multi",
@@ -495,6 +499,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.8,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -521,6 +526,7 @@
         "behavior.persist",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.pierce",
@@ -529,6 +535,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 30,
       "_stats": {
@@ -551,6 +558,7 @@
         "behavior.launch",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.homing",
@@ -559,6 +567,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 50,
       "_stats": {
@@ -593,6 +602,7 @@
         "behavior.launch",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.expand",
@@ -601,6 +611,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 30,
       "_stats": {
@@ -625,6 +636,7 @@
         "behavior.beam",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.speed",
@@ -633,6 +645,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.15,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 20,
       "_stats": {
@@ -655,6 +668,7 @@
         "behavior.orbit",
         "spell.call"
       ]
+
     },
     {
       "_id": "flow.delay",
@@ -663,6 +677,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -697,6 +712,7 @@
           "_defaultNumber": 0.5
         }
       ]
+
     },
     {
       "_id": "flow.repeat",
@@ -705,6 +721,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 40,
       "_stats": {
@@ -755,6 +772,7 @@
           "_defaultNumber": 0.15
         }
       ]
+
     },
     {
       "_id": "flow.if",
@@ -763,6 +781,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "bench",
       "_unlockCost": 60,
       "_stats": {
@@ -870,6 +889,7 @@
           "_defaultNumber": 160
         }
       ]
+
     },
     {
       "_id": "magic.inline",
@@ -878,6 +898,7 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1126,6 +1147,7 @@
           "_tag": "magic"
         }
       ]
+
     },
     {
       "_id": "spell.call",
@@ -1134,6 +1156,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1203,6 +1226,7 @@
           "_tag": "call"
         }
       ]
+
     },
     {
       "_id": "mod.duration",
@@ -1211,6 +1235,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1241,6 +1266,7 @@
         "behavior.apply",
         "spell.call"
       ]
+
     },
     {
       "_id": "shape.sphere",
@@ -1249,6 +1275,8 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
       "_shapeCostRates": [
         {
           "_resource": "mana",
@@ -1343,6 +1371,7 @@
           "_defaultNumber": 6
         }
       ]
+
     },
     {
       "_id": "shape.box",
@@ -1351,6 +1380,8 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
       "_shapeCostRates": [
         {
           "_resource": "mana",
@@ -1483,6 +1514,7 @@
           ]
         }
       ]
+
     },
     {
       "_id": "shape.cone",
@@ -1491,6 +1523,8 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
       "_shapeCostRates": [
         {
           "_resource": "mana",
@@ -1595,6 +1629,7 @@
           "_defaultNumber": 60
         }
       ]
+
     },
     {
       "_id": "element.neutral",
@@ -1727,6 +1762,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1779,6 +1815,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.burst",
@@ -1787,6 +1824,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1841,6 +1879,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.beam",
@@ -1849,6 +1888,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1879,6 +1919,7 @@
           "_max": 0
         }
       ]
+
     },
     {
       "_id": "behavior.orbit",
@@ -1887,6 +1928,7 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
@@ -1940,6 +1982,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.persist",
@@ -1948,6 +1991,7 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "bench",
       "_unlockCost": 35,
       "_stats": {
@@ -2002,6 +2046,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.apply",
@@ -2010,6 +2055,7 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "bench",
       "_unlockCost": 35,
       "_stats": {
@@ -2109,6 +2155,7 @@
           "_defaultNumber": 5
         }
       ]
+
     }
   ]
 }

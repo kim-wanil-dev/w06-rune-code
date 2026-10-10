@@ -85,6 +85,20 @@ namespace RuneCode
         /// <summary>Inline Magic의 magicType 값(sphere 등)에 해당하는 Shape 룬 ID(shape.sphere 등)를 반환한다.</summary>
         public static string ShapeRune(string magicType) => SHAPE_PREFIX + magicType;
 
+        /// <summary>Inline Magic의 form 값에 해당하는 Behavior 룬 ID를 반환한다.</summary>
+        public static string BehaviorRune(string form)
+        {
+            switch (form)
+            {
+                case "launch": return "behavior.launch";
+                case "explosion": return "behavior.burst";
+                case "orbit": return "behavior.orbit";
+                case "remain": return "behavior.persist";
+                case FORM_BEAM: return "behavior.beam";
+                default: return "";
+            }
+        }
+
         /// <summary>Shape 블록(shape.sphere 등)이면 Inline Magic의 magicType 값(sphere 등)을, 아니면 null을 반환한다.</summary>
         public static string MagicTypeOf(string runeId) => ValueOf(runeId, SHAPE_PREFIX);
 

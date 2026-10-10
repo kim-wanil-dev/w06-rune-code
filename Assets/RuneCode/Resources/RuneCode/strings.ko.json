@@ -161,6 +161,14 @@
       "_value": "쿨다운"
     },
     {
+      "_key": "ui.executing",
+      "_value": "실행 중"
+    },
+    {
+      "_key": "ui.executionTime",
+      "_value": "예상 실행"
+    },
+    {
       "_key": "ui.undo",
       "_value": "실행 취소"
     },

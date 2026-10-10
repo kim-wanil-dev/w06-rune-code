@@ -243,8 +243,11 @@ namespace RuneCode
                 : GameData.L("ui.killProgress") + " " + sim.TargetKills + " / " + sim.KillTarget;
             _hud.SetTimer(objective,
                 sim.IsBossStage && sim.RemainingTime <= TIMER_WARNING_SECONDS);
-            _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " "
-                + sim.Player.Cooldowns[0].ToString("0.0") + "s  ·  " + GameData.L("ui.cost") + " " + FormatSpellCosts(_run.SpellCosts));
+            string executionState = sim.Player.IsSpellRunning(0)
+                ? GameData.L("ui.executing") + " " + sim.Player.ExecutionRemaining(0).ToString("0.0") + "s " + GameData.L("ui.remaining")
+                : GameData.L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") + "s";
+            _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + executionState
+                + "  ·  " + GameData.L("ui.cost") + " " + FormatSpellCosts(_run.SpellCosts));
             if (sim.EarnedFragments > _lastFragments)
             {
                 _hud.SetToast("+" + (sim.EarnedFragments - _lastFragments) + " " + GameData.L("ui.fragments"));

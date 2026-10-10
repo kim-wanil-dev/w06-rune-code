@@ -112,6 +112,7 @@
     "_hitFlashSeconds": 0.1,
     "_damageNumberSeconds": 1,
     "_wandOffset": 8,
-    "_itemPickupRadius": 24
+    "_itemPickupRadius": 24,
+    "_executionTimeScale": 1
   }
 }

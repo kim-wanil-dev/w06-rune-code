@@ -218,6 +218,8 @@ namespace RuneCode
         private readonly int _ram;
         private readonly float _energy;
         private readonly float _energyMult;
+        private readonly float _executionSeconds;
+        private readonly float _executionSecondsPerArea;
         private readonly string _unlockType;
         private readonly int _unlockCost;
         private readonly ResourceCostSet _costs;
@@ -234,6 +236,8 @@ namespace RuneCode
         public int Ram => _ram;
         public float Energy => _energy;
         public float EnergyMult => _energyMult;
+        public float ExecutionSeconds => _executionSeconds;
+        public float ExecutionSecondsPerArea => _executionSecondsPerArea;
         public string UnlockType => _unlockType;
         public int UnlockCost => _unlockCost;
         public ResourceCostSet Costs => _costs;
@@ -255,6 +259,8 @@ namespace RuneCode
             _costs = costs;
             _energy = (float)costs.GetAmount("mana");
             _energyMult = row._energyMult;
+            _executionSeconds = row._executionSeconds;
+            _executionSecondsPerArea = row._executionSecondsPerArea;
             _unlockType = row._unlockType ?? "";
             _unlockCost = row._unlockCost;
             _tags = tags;
@@ -388,6 +394,7 @@ namespace RuneCode
                 }
                 ResourceCostSet costs = BuildCosts(row, log);
                 IReadOnlyList<ShapeCostRateDefinition> shapeCostRates = BuildShapeCostRates(row, log);
+                ValidateExecutionTime(row, log);
                 var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log),
                     BuildHomingTiers(row, log), costs, shapeCostRates);
                 RequireText(rune, row, log);
@@ -787,6 +794,17 @@ namespace RuneCode
                 rates.Add(new ShapeCostRateDefinition(rate));
             }
             return rates;
+        }
+
+        /// <summary>노드 기본 시간과 Shape 면적 단가를 검증하여 유한한 0 이상 값인지 확인한다.</summary>
+        private static void ValidateExecutionTime(RuneRowData row, TableErrorLog log)
+        {
+            if (row._executionSeconds < 0f || float.IsNaN(row._executionSeconds) || float.IsInfinity(row._executionSeconds))
+                log.Add(row._id, "executionSeconds", "실행 시간은 유한한 0 이상이어야 합니다.");
+            if (row._executionSecondsPerArea < 0f || float.IsNaN(row._executionSecondsPerArea) || float.IsInfinity(row._executionSecondsPerArea))
+                log.Add(row._id, "executionSecondsPerArea", "면적 단가는 유한한 0 이상이어야 합니다.");
+            if (row._executionSecondsPerArea > 0f && row._category != SpellGrammar.CATEGORY_SHAPE)
+                log.Add(row._id, "executionSecondsPerArea", "면적 단가는 Shape 카테고리에만 정의할 수 있습니다.");
         }
 
         /// <summary>룬 효과 수치가 음수가 아니고 형태 룬에 필수 수치가 있는지 검증하고 위반을 오류 로그에 기록한다.</summary>
