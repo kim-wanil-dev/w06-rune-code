@@ -215,8 +215,10 @@ namespace RuneCode
             RuneSimulation sim = _run.Simulation;
             _hud.SetBars(sim.Player.Hp, sim.Player.MaxHp, sim.Player.Energy, sim.Player.MaxEnergy);
             _hud.SetStats(GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments);
-            string remainingEnemies = GameData.L("ui.remainingEnemies") + " " + sim.RemainingEnemies;
-            _hud.SetTimer(sim.IsBossStage ? remainingEnemies + " · " + sim.RemainingTime.ToString("0.0") + "s" : remainingEnemies,
+            string objective = sim.IsBossStage
+                ? GameData.L("ui.bossObjective") + " · " + sim.RemainingTime.ToString("0.0") + "s"
+                : GameData.L("ui.killProgress") + " " + sim.TargetKills + " / " + sim.KillTarget;
+            _hud.SetTimer(objective,
                 sim.IsBossStage && sim.RemainingTime <= TIMER_WARNING_SECONDS);
             _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " "
                 + sim.Player.Cooldowns[0].ToString("0.0") + "s  ·  " + GameData.L("ui.cost") + " " + (float.IsInfinity(_run.SpellCost) ? GameData.L("ui.costUnbounded") : _run.SpellCost.ToString("0.#") + " EN"));

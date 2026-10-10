@@ -20,6 +20,7 @@ namespace RuneCode
         private const string BOLT_RUNE_ID = "form.bolt";
         private const string SURROUND_SHAPE = "ringAllSlots";
         private const string REINFORCEMENT_ENEMY_ID = "enemy.scout";
+        private const string BOSS_GOVERNOR_ID = "boss.governor";
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -67,6 +68,9 @@ namespace RuneCode
         private int _streamSpawns;
         private int _spawnedEnemies;
         private int _killCount;
+        private int _killTarget;
+        private int _targetKills;
+        private bool _isBossDefeated;
         private int _actionBudgetTick = -1;
         private int _actionsThisTick;
         private int _droppedExecutions;
@@ -104,8 +108,8 @@ namespace RuneCode
         public bool IsBossStage => _stageDefinition != null && _stageDefinition.IsBoss;
         public double TimeLimit => _stageDefinition?.TimeLimit ?? 0;
         public double RemainingTime => IsBossStage ? Math.Max(0, TimeLimit - Time) : 0;
-        public int RemainingEnemies => (_director?.PendingCount ?? 0) + CountAliveEnemies() + _pendingSplits.Count;
-        public int TotalEnemies => _spawnedEnemies + (_director?.PendingCount ?? 0) + _pendingSplits.Count;
+        public int KillTarget => _killTarget;
+        public int TargetKills => _targetKills;
         public SimVector MapCenter => new SimVector(_map.Width * 0.5, _map.Height * 0.5);
         public double EnergyRegen => _energyRegen;
         public int SpawnedEnemies => _spawnedEnemies;
@@ -275,7 +279,7 @@ namespace RuneCode
         }
 
         /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트 지정 시 스테이지 데이터와 무관하게 현재 기본 배율(체력·보상 2배, 속도 1배)을 적용한다.</summary>
-        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 0, 2, 2, 1) : null);
+        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 2, 2, 1) : null);
 
         /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다. 처치로 생긴 분열 대기도 함께 비운다.</summary>
         public void DebugDefeatRoom()
@@ -285,7 +289,7 @@ namespace RuneCode
         public string StateHash()
         {
             var state = new StringBuilder();
-            state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_director?.PendingCount ?? 0).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
+            state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_killTarget).Append('|').Append(_targetKills).Append('|').Append(_isBossDefeated).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
             state.Append('|').Append(_actionBudgetTick).Append('|').Append(_actionsThisTick).Append('|').Append(_droppedExecutions);
             AppendNumber(state, TimeLimit); AppendNumber(state, _energyRegen);
             _player.WriteState(state);
@@ -1148,7 +1152,7 @@ namespace RuneCode
             ExecuteCallEvent(entity, false, isFirstEvent, entity.Position, null);
         }
 
-        /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다. 분열형은 미션 중 처치되면 자식 생성을 예약한다.</summary>
+        /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계, 목표 처치 수 집계, 보스 처치 판정과 RAM 오브를 생성한다. 분열형은 미션 중 처치되면 자식 생성을 예약한다.</summary>
         private void CleanupEnemies()
         {
             for (int i = _enemies.Count - 1; i >= 0; i--)
@@ -1156,6 +1160,8 @@ namespace RuneCode
                 SimulationEnemy enemy = _enemies[i]; if (enemy.IsAlive) continue;
                 if (_isMission)
                 {
+                    if (enemy.IsKillTarget) _targetKills++;
+                    if (enemy.Kind == BOSS_GOVERNOR_ID) _isBossDefeated = true;
                     if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
                     if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward));
                     _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
@@ -1186,23 +1192,21 @@ namespace RuneCode
         private void CollectAllOrbs() { foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount; _orbs.Clear(); }
 
         /// <summary>
-        /// 남은 스폰 예약, 살아 있는 적과 분열 대기가 모두 없으면 클리어, 보스 스테이지 제한시간이 지나면 시간 초과 실패로 전투를 끝내고 남은 보상을 회수한다.
-        /// 같은 틱에 두 조건이 겹치면 클리어를 우선한다.
+        /// 일반 스테이지는 목표 처치 수에 도달하면 클리어, 보스 스테이지는 보스 처치 시 클리어와 제한시간 초과 시 실패로 전투를 끝내고 남은 보상을 회수한다.
+        /// 클리어는 남은 적과 적 상태 이상을 모두 정리하며, 같은 틱에 시간 초과와 겹치면 클리어를 우선한다.
         /// </summary>
         private void CheckBattleEnd()
         {
-            if (_director.PendingCount == 0 && CountAliveEnemies() == 0 && _pendingSplits.Count == 0) _stage = MissionStage.Cleared;
+            if (IsBossStage ? _isBossDefeated : _targetKills >= _killTarget) _stage = MissionStage.Cleared;
             else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
             else return;
             CollectAllOrbs(); CancelCombat();
+            if (_stage != MissionStage.Cleared) return;
+            _enemies.Clear(); _enemyStatuses.Clear(); _statusIndex.Clear();
         }
 
-        /// <summary>살아 있는 적의 수를 반환한다.</summary>
-        private int CountAliveEnemies()
-        { int count = 0; foreach (SimulationEnemy enemy in _enemies) if (enemy.IsAlive) count++; return count; }
-
         /// <summary>
-        /// 스테이지 편성으로 외곽 벽만 있는 맵, 맵 중앙의 플레이어, 스폰 반경과 스폰 예약을 준비하고 0틱 예약을 바로 스폰한다.
+        /// 스테이지 편성으로 외곽 벽만 있는 맵, 맵 중앙의 플레이어, 스폰 반경, 목표 처치 수와 스폰 진행을 준비하고 0틱 예약을 바로 스폰한다.
         /// 스폰 반경 = 기본 발사 사거리 + 가장 큰 적 반경 + 여유이며 막 스폰된 적에게 기본 발사체가 닿지 않게 한다.
         /// </summary>
         private void BeginTimedBattle()
@@ -1216,20 +1220,23 @@ namespace RuneCode
             double largestRadius = 0;
             foreach (EnemyDefinition enemy in _enemyCatalog.Enemies) largestRadius = Math.Max(largestRadius, enemy.Radius);
             _spawnRadius = (double)bolt.Speed * bolt.Lifetime + largestRadius + _stages.Spawn.RingMargin;
+            _killTarget = _stageDefinition.IsBoss ? 0 : _stages.Growth.GetKillTarget(_stageDefinition.KillTarget, _stageNumber);
+            _targetKills = 0; _isBossDefeated = false;
             _director = new SpawnDirector(_stageDefinition, _stageNumber, _formations, TICK_RATE);
             AdvanceSpawns();
         }
 
-        /// <summary>현재 틱까지 도달한 스폰 예약을 순서대로 처리한다. 기본 흐름 순번이 엘리트 정의와 일치하면 그 종족을 엘리트로 생성한다. 적 수가 상한이면 남은 예약을 다음 틱으로 미룬다.</summary>
+        /// <summary>현재 틱까지 도달한 스폰을 순서대로 처리한다. 기본 흐름 스폰 순번이 엘리트 주기와 일치하면 그 종족을 엘리트로 생성한다. 적 수가 상한이면 이번 틱 처리를 멈춘다.</summary>
         private void AdvanceSpawns()
         {
             while (_director.TryPeek(_tick, out SpawnOrder order))
             {
                 if (_enemies.Count >= EnemyLimit) return;
-                _director.Consume();
+                _director.Consume(_tick);
+                bool isStream = order.IsStream;
                 EliteSpawnDefinition elite = null;
-                if (order.IsStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
-                SpawnByFormation(order, elite != null ? elite.EnemyId : (order.IsStream ? PickStreamEnemy() : order.EnemyId), elite);
+                if (isStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
+                SpawnByFormation(order, elite != null ? elite.EnemyId : (isStream ? PickStreamEnemy() : order.EnemyId), elite, isStream);
             }
         }
 
@@ -1247,10 +1254,11 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다. elite가 있으면 엘리트 배율로 생성한다.
+        /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다. elite가 있으면 엘리트 배율로 생성하고,
+        /// isKillTarget은 기본 흐름 스폰에만 true로 받아 목표 처치 수 집계 대상으로 만든다.
         /// 묶음의 첫 스폰에서 슬롯 시작 각도(무작위 또는 진행 방향)와 기준 슬롯을 정하고, 위치는 스폰 순간의 플레이어 위치 기준으로 계산한다.
         /// </summary>
-        private void SpawnByFormation(SpawnOrder order, string enemyId, EliteSpawnDefinition elite)
+        private void SpawnByFormation(SpawnOrder order, string enemyId, EliteSpawnDefinition elite, bool isKillTarget)
         {
             FormationSettings settings = _director.GetSettings(order.Group);
             SpawnFormation formation = SpawnFormations.Get(settings.Shape);
@@ -1264,7 +1272,7 @@ namespace RuneCode
             }
             else _spawnSlots.Refresh(_map, _player.Position, _spawnRadius, slotCount, _director.GetStartAngle(order.Group), radius);
             SpawnPlacement placement = formation.Place(order.Index, order.Count, _director.GetAnchor(order.Group), _spawnSlots, settings);
-            SpawnEnemy(enemyId, ResolvePlacement(placement, radius), false, 0, elite);
+            SpawnEnemy(enemyId, ResolvePlacement(placement, radius), false, 0, elite, isKillTarget);
         }
 
         /// <summary>보스 주변 원 위에 같은 간격으로 증원을 생성한다. 시작 각도는 보스가 바라보는 방향이며 맵 밖 위치는 원형 슬롯과 같이 제외한다.</summary>
@@ -1350,8 +1358,8 @@ namespace RuneCode
         /// <summary>무반격 더미 적을 지정한 위치와 체력으로 생성한다.</summary>
         private SimulationEnemy SpawnBenchDummy(SimVector position, double hp) => SpawnEnemy("enemy.scout", position, true, hp);
 
-        /// <summary>설정 ID와 개별 위치, 더미 여부, 체력 및 엘리트 정의로 적을 생성하고 상대 시간 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도에 배율을 곱한다.</summary>
-        public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0, EliteSpawnDefinition elite = null)
+        /// <summary>설정 ID와 개별 위치, 더미 여부, 체력, 엘리트 정의 및 목표 처치 수 집계 대상 여부로 적을 생성하고 상대 시간 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도에 배율을 곱한다.</summary>
+        public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0, EliteSpawnDefinition elite = null, bool isKillTarget = false)
         {
             if (Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
             EnemyDefinition definition = _enemyCatalog.Get(id);
@@ -1360,9 +1368,9 @@ namespace RuneCode
             double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget);
             enemy.AttackAt = Time + definition.AttackInterval;
-            if (id == "boss.governor") { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
+            if (id == BOSS_GOVERNOR_ID) { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;
         }
 

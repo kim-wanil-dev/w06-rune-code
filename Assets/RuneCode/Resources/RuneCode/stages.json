@@ -8,7 +8,8 @@
   "_growth": {
     "_hpStageScale": 0.15,
     "_damageStageScale": 0.1,
-    "_clearRewardStageScale": 0.15
+    "_clearRewardStageScale": 0.15,
+    "_killTargetStageScale": 0.1
   },
   "_spawn": {
     "_ringSlots": 20,
@@ -50,6 +51,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
+      "_killTarget": 30,
       "_stream": {
         "_candidates": [
           {
@@ -86,26 +88,24 @@
         "_baseInterval": 1.6,
         "_minInterval": 0.35,
         "_stageScale": 0.08,
-        "_intraRamp": 0.35,
-        "_until": 30,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
         "_formation": "scatter"
       },
       "_waves": [],
-      "_elites": [
+      "_eliteEvery": 10,
+      "_eliteTypes": [
         {
           "_enemyId": "enemy.hunter",
-          "_order": 10,
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2
         },
         {
           "_enemyId": "enemy.scout",
-          "_order": 17,
           "_speedMultiplier": 1.2
         },
         {
           "_enemyId": "enemy.scout",
-          "_order": 25,
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2
         }
@@ -117,6 +117,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
+      "_killTarget": 30,
       "_stream": {
         "_candidates": [
           {
@@ -153,13 +154,26 @@
         "_baseInterval": 1.6,
         "_minInterval": 0.35,
         "_stageScale": 0.08,
-        "_intraRamp": 0.35,
-        "_until": 30,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
         "_formation": "scatter"
       },
+      "_eliteEvery": 10,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.scout",
+          "_speedMultiplier": 1.2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        }
+      ],
       "_waves": [
         {
           "_at": 8,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -176,6 +190,7 @@
         },
         {
           "_at": 18,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "line",
             "_angle": "ahead",
@@ -234,13 +249,14 @@
         "_baseInterval": 1.6,
         "_minInterval": 0.35,
         "_stageScale": 0.08,
-        "_intraRamp": 0.35,
-        "_until": 30,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
         "_formation": "scatter"
       },
       "_waves": [
         {
           "_at": 0,
+          "_repeatInterval": 0,
           "_formation": {
             "_id": "line",
             "_angle": "",
@@ -299,13 +315,14 @@
         "_baseInterval": 1.6,
         "_minInterval": 0.35,
         "_stageScale": 0.08,
-        "_intraRamp": 0.35,
-        "_until": 30,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
         "_formation": "scatter"
       },
       "_waves": [
         {
           "_at": 0,
+          "_repeatInterval": 0,
           "_formation": {
             "_id": "line",
             "_angle": "",
