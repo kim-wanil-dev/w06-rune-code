@@ -279,6 +279,7 @@ namespace RuneCode
         private HashSet<int> _nextContacts = new HashSet<int>();
         private SimVector _position;
         private SimVector _direction;
+        private readonly double _beamLength;
         private double _age;
         private double _angle;
         private int _hits;
@@ -316,10 +317,17 @@ namespace RuneCode
 
         /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
         public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
+
+        /// <summary>Beam의 실제 Box 길이(px, 벽으로 잘린 길이)다. Beam이 아니면 0이다.</summary>
+        public double BeamLength => _beamLength;
         public double Age => _age;
-        /// <summary>개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간, 그 외는 유지 시간이다.</summary>
+        /// <summary>
+        /// 개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간,
+        /// Beam은 잔상 시간(balance의 spellVisualSeconds), 그 외는 유지 시간이다.
+        /// </summary>
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _warmupSeconds + _visualSeconds
-            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime : _stats.Lifetime;
+            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime
+            : _action.Form == SpellGrammar.FORM_BEAM ? _visualSeconds : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -349,10 +357,12 @@ namespace RuneCode
         /// <summary>
         /// 컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.
         /// warmupSeconds는 Burst의 확장 시간 또는 Persist의 예고 시간이며 그 외 형태는 0이다.
+        /// beamLength는 Beam의 벽으로 잘린 실제 Box 길이이며 다른 형태는 0이다.
         /// </summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
+            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster,
+            double beamLength = 0)
         {
             _warmupSeconds = warmupSeconds;
             _costMultiplier = costMultiplier;
@@ -368,6 +378,7 @@ namespace RuneCode
             _visualSeconds = visualSeconds;
             _anchor = anchor;
             _angle = angle;
+            _beamLength = beamLength;
             _callEvents = callEvents;
             _modifiers = modifiers ?? SpellModifierValues.None;
         }

@@ -41,6 +41,7 @@ namespace RuneCode
         public const string FORM_BURST = "burst";
         public const string FORM_ORBIT = "orbit";
         public const string FORM_ZONE = "zone";
+        public const string FORM_BEAM = "beam";
 
         public const string MAGIC_TYPE_SPHERE = "sphere";
         public const string MAGIC_TYPE_BOX = "box";
@@ -82,7 +83,7 @@ namespace RuneCode
 
         /// <summary>
         /// Behavior 블록이면 Inline Magic의 form 값을 반환한다. 내부 값은 이전 문법을 유지한다
-        /// (Launch=launch, Burst=explosion, Orbit=orbit, Persist·Apply=remain). Behavior가 아니면 null을 반환한다.
+        /// (Launch=launch, Burst=explosion, Orbit=orbit, Persist·Apply=remain, Beam=beam). Behavior가 아니면 null을 반환한다.
         /// </summary>
         public static string FormOf(string runeId)
         {
@@ -93,6 +94,7 @@ namespace RuneCode
                 case "orbit": return "orbit";
                 case "persist": return "remain";
                 case "apply": return "remain";
+                case "beam": return FORM_BEAM;
                 default: return null;
             }
         }

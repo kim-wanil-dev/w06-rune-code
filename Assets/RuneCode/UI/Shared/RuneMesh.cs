@@ -66,6 +66,37 @@ namespace RuneCode
             }
         }
 
+        /// <summary>중심, 진행 방향 반 길이·수직 반 폭과 회전(라디안)으로 채워진 직사각형 메시를 추가한다.</summary>
+        internal static void Box(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfForward, float halfSide, float rotation, Color color)
+        {
+            Vector2 axisX = new Vector2(Mathf.Cos(rotation), Mathf.Sin(rotation)) * halfForward;
+            Vector2 axisY = new Vector2(-axisX.y, axisX.x) * halfSide;
+            int index = mesh.currentVertCount;
+            mesh.AddVert(center - axisX - axisY, color, Vector2.zero);
+            mesh.AddVert(center + axisX - axisY, color, Vector2.zero);
+            mesh.AddVert(center + axisX + axisY, color, Vector2.zero);
+            mesh.AddVert(center - axisX + axisY, color, Vector2.zero);
+            mesh.AddTriangle(index, index + 1, index + 2);
+            mesh.AddTriangle(index, index + 2, index + 3);
+        }
+
+        /// <summary>중심, 진행 방향 반 길이·수직 반 폭과 회전(라디안)으로 지정 두께의 직사각형 윤곽선을 추가한다.</summary>
+        internal static void BoxOutline(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfForward, float halfSide, float rotation, float width, Color color)
+        {
+            Vector2 axisX = new Vector2(Mathf.Cos(rotation), Mathf.Sin(rotation)) * halfForward;
+            Vector2 axisY = new Vector2(-axisX.y, axisX.x) * halfSide;
+            Vector2[] corners = { center - axisX - axisY, center + axisX - axisY, center + axisX + axisY, center - axisX + axisY };
+            for (int i = 0; i < corners.Length; i++)
+            {
+                Vector2 from = corners[i];
+                Vector2 to = corners[(i + 1) % corners.Length];
+
+                // 선 두께의 절반만큼 양 끝을 늘려 모서리 이음새가 비지 않게 한다.
+                Vector2 extension = (to - from).normalized * width * 0.5f;
+                Line(mesh, from - extension, to + extension, width, color);
+            }
+        }
+
         /// <summary>꼭짓점, 반경, 중심 방향(라디안)과 전체 각도(라디안)로 채워진 부채꼴 메시를 추가한다.</summary>
         internal static void Sector(UnityEngine.UI.VertexHelper mesh, Vector2 apex, float radius, float rotation, float angle, Color color, int segments = 16)
         {

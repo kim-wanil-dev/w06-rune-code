@@ -512,6 +512,7 @@ namespace RuneCode
                 case "explosion": return "burst";
                 case "orbit": return "orbit";
                 case "remain": return "zone";
+                case SpellGrammar.FORM_BEAM: return SpellGrammar.FORM_BEAM;
                 default: return "";
             }
         }

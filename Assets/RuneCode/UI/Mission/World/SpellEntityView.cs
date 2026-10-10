@@ -7,6 +7,7 @@ namespace RuneCode
     /// <summary>
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
     /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
+    /// Beam은 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시한다.
     /// 부채꼴(범위·발사체)은 실행 중 만드는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
     /// 예고 중인 Persist는 최종 범위를 빨간 외곽선으로 두고 진행률만큼 안쪽을 채운다.
     /// </summary>
@@ -20,6 +21,7 @@ namespace RuneCode
         private const float BURST_FILL_ALPHA = 0.22f;
         private const float TRAIL_ALPHA = 0.25f;
         private const float LAUNCH_CONE_FILL_ALPHA = 0.6f;
+        private const float BEAM_FILL_ALPHA = 0.6f;
         private const float CONE_EDGE_WIDTH = 2f;
         private const int CONE_SEGMENTS = 24;
         private const float WARNING_FILL_ALPHA = 0.25f;
@@ -60,6 +62,11 @@ namespace RuneCode
             Color tint = RuneMesh.ElementColor(spell.Element);
             float radius = (float)spell.Radius;
             float angle = MissionWorldSpace.ToWorldAngle(spell.Direction);
+            if (spell.Kind == SpellGrammar.FORM_BEAM)
+            {
+                ApplyBeam(spell, tint, origin);
+                return;
+            }
             // 사각형 판정과 같은 회전을 쓴다. 발사는 항상 진행 방향, 범위·공전은 똑바로 세우기 설정을 따른다.
             float boxRotation = spell.Kind != SpellGrammar.FORM_BOLT && isAreaBoxUpright ? 0 : angle;
             bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST;
@@ -74,6 +81,24 @@ namespace RuneCode
             if (isCone) ApplyCone(spell, tint, angle, origin);
             else if (isArea) ApplyArea(spell, tint, radius, boxRotation);
             else ApplyProjectile(spell, tint, radius, angle, boxRotation);
+        }
+
+        /// <summary>Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시하고 나머지 표시를 끈다.</summary>
+        private void ApplyBeam(SimulationSpellEntity spell, Color tint, SimVector origin)
+        {
+            MissionWorldSpace.SetVisible(_trail, false);
+            MissionWorldSpace.SetVisible(_shape, false);
+            MissionWorldSpace.SetVisible(_outline, false);
+            MissionWorldSpace.SetVisible(_inner, false);
+            MissionWorldSpace.SetVisible(_fill, true);
+            if (_coneRenderer != null) SetConeVisible(false);
+            Color fill = tint;
+            fill.a = BEAM_FILL_ALPHA;
+            Vector2 direction = MissionWorldSpace.ToWorldDirection(spell.Direction);
+            float length = MissionWorldSpace.ToWorldLength(spell.BeamLength);
+            Vector2 center = MissionWorldSpace.ToWorld(spell.Position, origin);
+            MissionWorldSpace.PlaceLine(_fill, center - direction * (length * 0.5f), center + direction * (length * 0.5f),
+                (float)spell.Radius * 2f, fill);
         }
 
         /// <summary>폭발·잔류를 원 또는 사각형의 채움, 외곽선, 안쪽 선으로 표시한다. 예고 중인 잔류는 빨간 외곽선과 진행률만큼의 채움만 그린다.</summary>
