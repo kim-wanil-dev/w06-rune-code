@@ -80,6 +80,8 @@ namespace RuneCode
         private readonly float _tickInterval;
         private readonly float _damageMultiplier;
         private readonly float _radiusMultiplier;
+        private readonly float _speedMultiplier;
+        private readonly float _durationMultiplier;
         private readonly int _pierce;
         private readonly float _pierceLoss;
         private readonly float _homingTurn;
@@ -108,6 +110,8 @@ namespace RuneCode
         public float TickInterval => _tickInterval;
         public float DamageMultiplier => _damageMultiplier;
         public float RadiusMultiplier => _radiusMultiplier;
+        public float SpeedMultiplier => _speedMultiplier;
+        public float DurationMultiplier => _durationMultiplier;
         public int Pierce => _pierce;
         public float PierceLoss => _pierceLoss;
         public float HomingTurn => _homingTurn;
@@ -145,6 +149,8 @@ namespace RuneCode
             _tickInterval = row._tickInterval;
             _damageMultiplier = row._damageMultiplier;
             _radiusMultiplier = row._radiusMultiplier;
+            _speedMultiplier = row._speedMultiplier;
+            _durationMultiplier = row._durationMultiplier;
             _pierce = row._pierce;
             _pierceLoss = row._pierceLoss;
             _homingTurn = row._homingTurn;
@@ -162,6 +168,26 @@ namespace RuneCode
         }
     }
 
+    /// <summary>Modifier의 이름 있는 유도 단계와 고정 유도 수치를 보관한다.</summary>
+    public sealed class HomingTierDefinition
+    {
+        private readonly string _tier;
+        private readonly float _homingTurn;
+        private readonly float _homingRange;
+
+        public string Tier => _tier;
+        public float HomingTurn => _homingTurn;
+        public float HomingRange => _homingRange;
+
+        /// <summary>runes.json의 유도 단계 설정으로 실행 수치를 만든다.</summary>
+        internal HomingTierDefinition(RuneHomingTierData row)
+        {
+            _tier = row._tier;
+            _homingTurn = row._homingTurn;
+            _homingRange = row._homingRange;
+        }
+    }
+
     public sealed class RuneDefinition
     {
         private readonly string _id;
@@ -176,6 +202,7 @@ namespace RuneCode
         private readonly IReadOnlyList<PortDefinition> _ports;
         private readonly IReadOnlyList<ParameterDefinition> _params;
         private readonly RuneStats _stats;
+        private readonly IReadOnlyList<HomingTierDefinition> _homingTiers;
 
         public string Id => _id;
         public string Name => _name;
@@ -190,9 +217,9 @@ namespace RuneCode
         public IReadOnlyList<ParameterDefinition> Params => _params;
         public RuneStats Stats => _stats;
 
-        /// <summary>룬 데이터와 자식 목록에서 모은 태그·포트·파라미터로 룬 정의를 만든다. 수치가 없으면 전부 기본값이다.</summary>
+        /// <summary>룬 데이터와 자식 목록에서 모은 태그·포트·파라미터·유도 단계 수치로 룬 정의를 만든다.</summary>
         internal RuneDefinition(RuneRowData row, IReadOnlyList<string> tags, IReadOnlyList<PortDefinition> ports,
-            IReadOnlyList<ParameterDefinition> parameters)
+            IReadOnlyList<ParameterDefinition> parameters, IReadOnlyList<HomingTierDefinition> homingTiers)
         {
             _id = row._id;
             _name = row._name ?? "";
@@ -206,6 +233,15 @@ namespace RuneCode
             _ports = ports;
             _params = parameters;
             _stats = new RuneStats(row._stats ?? new RuneStatsData());
+            _homingTiers = homingTiers;
+        }
+
+        /// <summary>이름이 일치하는 유도 단계 설정을 반환하고 없으면 null을 반환한다.</summary>
+        public HomingTierDefinition FindHomingTier(string tier)
+        {
+            foreach (HomingTierDefinition homingTier in _homingTiers)
+                if (homingTier.Tier == tier) return homingTier;
+            return null;
         }
 
         /// <summary>포트 ID와 방향으로 해당 룬의 포트 정의를 찾거나 null을 반환한다.</summary>
@@ -271,10 +307,12 @@ namespace RuneCode
         private readonly IReadOnlyList<ElementDefinition> _elements;
         private readonly Dictionary<string, ElementDefinition> _elementsById = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _modifierTargets;
+        private ModifierGradeTable _modifierGrades;
 
         public IReadOnlyList<RuneDefinition> All => _runes;
         public IReadOnlyList<string> StartRunes => _startRunes;
         public IReadOnlyList<ElementDefinition> Elements => _elements;
+        public ModifierGradeTable ModifierGrades => _modifierGrades;
 
         /// <summary>검증된 룬·속성 목록과 효과 대상 조회표(효과 ID가 키, 대상 ID 집합이 값)로 ID 조회표와 시작 해금 목록을 만든다.</summary>
         private RuneCatalog(IReadOnlyList<RuneDefinition> runes, IReadOnlyList<ElementDefinition> elements,
@@ -319,10 +357,10 @@ namespace RuneCode
                     log.Add(row != null ? row._id : null, "id", "룬 ID가 비어 있거나 중복입니다.");
                     continue;
                 }
-                var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log));
+                var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log), BuildHomingTiers(row, log));
                 RequireText(rune, row, log);
                 ValidateRune(rune, log);
-                ValidateStats(rune, log);
+                ValidateStats(rune, rune.Stats, log, "stats");
                 definitions.Add(rune);
 
                 if (row._element != null)
@@ -518,6 +556,50 @@ namespace RuneCode
             return result;
         }
 
+        /// <summary>JSON 원본에서 로드한 Modifier 등급 효과·스테이지 표를 카탈로그에 연결한다.</summary>
+        public void AttachModifierGrades(ModifierGradeTable modifierGrades)
+        {
+            _modifierGrades = modifierGrades;
+        }
+
+        /// <summary>유도 단계 수치를 읽고 mod.homing 전용·이름 중복 없음 규칙을 검증한다.</summary>
+        private static List<HomingTierDefinition> BuildHomingTiers(RuneRowData row, TableErrorLog log)
+        {
+            var result = new List<HomingTierDefinition>();
+            bool isHomingModifier = row._id == "mod.homing";
+            if (!isHomingModifier)
+            {
+                if (row._homingTiers != null && row._homingTiers.Count > 0)
+                    log.Add(row._id, "homingTiers", "유도 단계는 mod.homing에만 정의할 수 있습니다.");
+                return result;
+            }
+            if (row._homingTiers == null || row._homingTiers.Count == 0)
+            {
+                log.Add(row._id, "homingTiers", "유도 단계 수치가 비어 있습니다.");
+                return result;
+            }
+            var tiers = new HashSet<string>(StringComparer.Ordinal);
+            foreach (RuneHomingTierData tierRow in row._homingTiers)
+            {
+                if (tierRow == null || string.IsNullOrEmpty(tierRow._tier))
+                {
+                    log.Add(row._id, "homingTiers", "비어 있거나 이름이 없는 유도 단계가 있습니다.");
+                    continue;
+                }
+                if (!tiers.Add(tierRow._tier))
+                {
+                    log.Add(row._id, "homingTiers:" + tierRow._tier, "유도 단계 이름이 중복되었습니다.");
+                    continue;
+                }
+                if (tierRow._homingTurn <= 0f || tierRow._homingRange <= 0f)
+                {
+                    log.Add(row._id, "homingTiers:" + tierRow._tier, "유도 회전과 사거리는 양수여야 합니다.");
+                }
+                result.Add(new HomingTierDefinition(tierRow));
+            }
+            return result;
+        }
+
         /// <summary>룬 데이터의 속성 정의를 만들고 분류·카테고리·식별자 중복을 검증한다. 값이 전부 비어 있으면 속성 없음으로 무시한다.</summary>
         private static void AddElement(List<ElementDefinition> elements, HashSet<string> elementIds,
             RuneDefinition rune, RuneElementData row, TableErrorLog log)
@@ -624,26 +706,25 @@ namespace RuneCode
         }
 
         /// <summary>룬 효과 수치가 음수가 아니고 형태 룬에 필수 수치가 있는지 검증하고 위반을 오류 로그에 기록한다.</summary>
-        private static void ValidateStats(RuneDefinition rune, TableErrorLog log)
+        private static void ValidateStats(RuneDefinition rune, RuneStats stats, TableErrorLog log, string field)
         {
-            RuneStats stats = rune.Stats;
             float[] numbers = { stats.Damage, stats.Speed, stats.Radius, stats.Lifetime, stats.Offset, stats.OrbitRadius,
                 stats.AngularSpeed, stats.HitInterval, stats.TickInterval, stats.DamageMultiplier, stats.RadiusMultiplier,
-                stats.PierceLoss, stats.HomingTurn, stats.HomingRange, stats.ArcRange, stats.ArcMultiplier,
+                stats.SpeedMultiplier, stats.DurationMultiplier, stats.PierceLoss, stats.HomingTurn, stats.HomingRange, stats.ArcRange, stats.ArcMultiplier,
                 stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle, stats.ExpandSeconds, stats.WarnSeconds };
             foreach (float value in numbers)
             {
                 if (value < 0f)
                 {
-                    log.Add(rune.Id, "stats", "효과 수치는 음수일 수 없습니다.");
+                    log.Add(rune.Id, field, "효과 수치는 음수일 수 없습니다.");
                     break;
                 }
             }
             if (stats.Count < 0 || stats.Pierce < 0 || stats.ArcTargets < 0 || stats.OrbitCount < 0
                 || (rune.Category == "form" && (stats.Count <= 0 || stats.Damage <= 0f || stats.Radius <= 0f)))
-                log.Add(rune.Id, "stats", "유효하지 않은 형태 룬 수치입니다 (form은 count·damage·radius가 0보다 커야 함).");
+                log.Add(rune.Id, field, "유효하지 않은 형태 룬 수치입니다 (form은 count·damage·radius가 0보다 커야 함).");
             if (rune.Id == SpellGrammar.CONE_RUNE && (stats.ConeAngle <= 0f || stats.ConeAngle > 360f))
-                log.Add(rune.Id, "stats:coneAngle", "부채꼴 각도는 0보다 크고 360 이하여야 합니다.");
+                log.Add(rune.Id, field + ":coneAngle", "부채꼴 각도는 0보다 크고 360 이하여야 합니다.");
         }
     }
 }

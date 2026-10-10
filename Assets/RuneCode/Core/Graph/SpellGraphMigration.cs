@@ -34,6 +34,8 @@ namespace RuneCode
         private const string V2_BUFF_TYPE = "type.buff";
         private const string V2_REMAIN_SHAPE = "shape.remain";
 
+        private static readonly string[] LEGACY_MODIFIER_PARAMETERS = { "sizeScale", "speedScale", "durationScale", "rangeScale" };
+
         private static readonly Dictionary<string, string> V2_SHAPES = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             { "type.sphere", "shape.sphere" }, { "type.box", "shape.box" }
@@ -67,8 +69,14 @@ namespace RuneCode
             return MapLegacyUnlock(runeId).SelectMany(MapV2Unlock).Distinct();
         }
 
-        /// <summary>그래프의 이전 룬과 버전 2 체인을 현재 문법으로 바꾸고 변경 여부를 반환한다.</summary>
+        /// <summary>이전 그래프 문법과 Modifier 파라미터를 바꾸며 등급 표가 있으면 누락 등급도 보완한다.</summary>
         public static bool Migrate(SpellGraph graph)
+        {
+            return Migrate(graph, null);
+        }
+
+        /// <summary>이전 그래프와 등급 없는 Modifier 노드를 현재 문법 및 지정 표의 최저 등급으로 바꾼다.</summary>
+        public static bool Migrate(SpellGraph graph, ModifierGradeTable modifierGrades)
         {
             if (graph?.Nodes == null || graph.Edges == null) return false;
             bool isChanged = false;
@@ -82,6 +90,26 @@ namespace RuneCode
                 ConvertToVersion3(graph);
                 MarkLegacyEvents(graph);
                 isChanged = true;
+            }
+            if (MigrateModifierGrades(graph, modifierGrades)) isChanged = true;
+            return isChanged;
+        }
+
+        /// <summary>표의 최저 등급을 Modifier 노드에 넣고 이전 배율 파라미터를 제거한다.</summary>
+        private static bool MigrateModifierGrades(SpellGraph graph, ModifierGradeTable modifierGrades)
+        {
+            bool isChanged = false;
+            foreach (GraphNode node in graph.Nodes)
+            {
+                if (node == null || string.IsNullOrEmpty(node.RuneId) || !node.RuneId.StartsWith("mod.", StringComparison.Ordinal)) continue;
+                string grade = node.GetText(SpellGrammar.MODIFIER_GRADE_PARAM, null);
+                if (modifierGrades != null && string.IsNullOrEmpty(grade))
+                {
+                    node.SetText(SpellGrammar.MODIFIER_GRADE_PARAM, modifierGrades.GetLowestAvailableGrade(node.RuneId));
+                    isChanged = true;
+                }
+                foreach (string parameter in LEGACY_MODIFIER_PARAMETERS)
+                    if (node.RemoveParameter(parameter)) isChanged = true;
             }
             return isChanged;
         }

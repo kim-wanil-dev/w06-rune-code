@@ -58,49 +58,77 @@ namespace RuneCode
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
 
-        /// <summary>Modifier 룬의 소지량(보관함 전체 공유)을 반환하고 기록이 없으면 0을 반환한다.</summary>
-        public int GetModifierStock(string runeId)
+        /// <summary>Modifier 룬의 지정 문자열 등급 소지량(보관함 전체 공유)을 반환하고 기록이 없으면 0을 반환한다.</summary>
+        public int GetModifierStock(string runeId, string grade)
         {
+            int count = 0;
             foreach (ModifierStock stock in _modifierStock)
-                if (stock != null && stock.RuneId == runeId) return stock.Count;
-            return 0;
+                if (stock != null && stock.RuneId == runeId && stock.Grade == grade) count += stock.Count;
+            return count;
         }
 
-        /// <summary>Modifier 룬 ID별 소지량을 새 사전으로 반환한다. 컴파일·배치 검사에 쓴다.</summary>
+        /// <summary>Modifier 룬 ID와 등급별 소지량을 등급 키 사전으로 반환한다. 컴파일·배치 검사에 쓴다.</summary>
         public Dictionary<string, int> CreateModifierStockMap()
         {
             var map = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (ModifierStock stock in _modifierStock)
-                if (stock != null && !string.IsNullOrEmpty(stock.RuneId)) map[stock.RuneId] = stock.Count;
+            {
+                if (stock == null || string.IsNullOrEmpty(stock.RuneId) || string.IsNullOrEmpty(stock.Grade)) continue;
+                string key = SpellGrammar.ModifierStockKey(stock.RuneId, stock.Grade);
+                map.TryGetValue(key, out int count);
+                map[key] = count + stock.Count;
+            }
             return map;
         }
 
-        /// <summary>Modifier 룬의 소지량을 늘린다. Modifier가 아니거나 수량이 0 이하이면 무시한다. 스테이지 보상 등에서 쓴다.</summary>
-        public void AddModifierStock(string runeId, int amount)
+        /// <summary>Modifier 룬의 지정 문자열 등급 소지량을 늘린다. 등급·룬이 유효하지 않거나 수량이 0 이하이면 무시한다.</summary>
+        public void AddModifierStock(string runeId, string grade, int amount)
         {
-            if (amount <= 0 || !GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return;
+            if (amount <= 0 || !GameData.Runes.TryGet(runeId, out RuneDefinition rune)
+                || rune.Category != SpellGrammar.CATEGORY_MODIFIER || !GameData.ModifierGrades.IsGradeAvailable(runeId, grade)) return;
             foreach (ModifierStock stock in _modifierStock)
             {
-                if (stock == null || stock.RuneId != runeId) continue;
+                if (stock == null || stock.RuneId != runeId || stock.Grade != grade) continue;
                 stock.Add(amount);
                 return;
             }
-            _modifierStock.Add(new ModifierStock(runeId, amount));
+            _modifierStock.Add(new ModifierStock(runeId, grade, amount));
+        }
+
+        /// <summary>등급을 지정하지 않은 기존 보상을 Modifier의 가장 낮은 가용 등급에 더한다.</summary>
+        public void AddModifierStock(string runeId, int amount)
+        {
+            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return;
+            AddModifierStock(runeId, GameData.ModifierGrades.GetLowestAvailableGrade(runeId), amount);
         }
 
         /// <summary>
-        /// 소지량 기록이 없는 Modifier 룬에 시작 소지량을 넣고, 카탈로그에 없거나 Modifier가 아닌 기록은 지운다.
+        /// 등급이 없는 이전 기록을 Modifier의 최저 등급으로 옮기고, 그 등급에만 시작 소지량을 넣는다.
         /// 새 세이브와 이전 세이브 로드에서 호출하며 여러 번 호출해도 결과가 같다.
         /// </summary>
         private void EnsureModifierStock()
         {
             if (_modifierStock == null) _modifierStock = new List<ModifierStock>();
             _modifierStock.RemoveAll(stock => stock == null || !GameData.Runes.TryGet(stock.RuneId, out RuneDefinition rune)
-                || rune.Category != SpellGrammar.CATEGORY_MODIFIER);
+                || rune.Category != SpellGrammar.CATEGORY_MODIFIER || (stock.HasGrade && !GameData.ModifierGrades.IsGradeAvailable(stock.RuneId, stock.Grade)));
+            foreach (ModifierStock stock in _modifierStock)
+                if (!stock.HasGrade) stock.SetGrade(GameData.ModifierGrades.GetLowestAvailableGrade(stock.RuneId));
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < _modifierStock.Count; index++)
+            {
+                ModifierStock stock = _modifierStock[index];
+                string key = SpellGrammar.ModifierStockKey(stock.RuneId, stock.Grade);
+                if (seen.Add(key)) continue;
+                ModifierStock first = _modifierStock.Find(candidate => candidate != stock && candidate.RuneId == stock.RuneId && candidate.Grade == stock.Grade);
+                first.Add(stock.Count);
+                _modifierStock.RemoveAt(index--);
+            }
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER || _modifierStock.Exists(stock => stock.RuneId == rune.Id)) continue;
-                _modifierStock.Add(new ModifierStock(rune.Id, GameData.Balance.Economy.ModifierStartStock));
+                string grade = GameData.ModifierGrades.GetLowestAvailableGrade(rune.Id);
+                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER
+                    || _modifierStock.Exists(stock => stock.RuneId == rune.Id && stock.Grade == grade)) continue;
+                _modifierStock.Add(new ModifierStock(rune.Id, grade, GameData.Balance.Economy.ModifierStartStock));
             }
         }
 
@@ -161,7 +189,7 @@ namespace RuneCode
         public void MigrateSpellGrammar()
         {
             if (_graphs == null || _unlockedRunes == null) return;
-            foreach (var graph in _graphs) SpellGraphMigration.Migrate(graph);
+            foreach (var graph in _graphs) SpellGraphMigration.Migrate(graph, GameData.ModifierGrades);
             var unlocked = new List<string>();
             foreach (var runeId in _unlockedRunes)
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
@@ -390,21 +418,31 @@ namespace RuneCode
         private sealed class ModifierStock
         {
             [SerializeField] private string _runeId;
+            [SerializeField] private string _grade;
             [SerializeField] private int _count;
 
             public string RuneId => _runeId;
+            public string Grade => _grade;
             public int Count => _count;
+            public bool HasGrade => !string.IsNullOrEmpty(_grade);
 
             /// <summary>저장 직렬화에서 소지량 목록을 복원하기 위한 기본 생성자다.</summary>
             private ModifierStock()
             {
             }
 
-            /// <summary>Modifier 룬 ID와 소지량으로 기록을 만든다.</summary>
-            public ModifierStock(string runeId, int count)
+            /// <summary>Modifier 룬 ID, 문자열 등급과 소지량으로 기록을 만든다.</summary>
+            public ModifierStock(string runeId, string grade, int count)
             {
                 _runeId = runeId;
+                _grade = grade;
                 _count = Math.Max(0, count);
+            }
+
+            /// <summary>등급이 없는 이전 기록을 지정된 문자열 등급으로 표시한다.</summary>
+            public void SetGrade(string grade)
+            {
+                _grade = grade;
             }
 
             /// <summary>소지량을 늘린다.</summary>

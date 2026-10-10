@@ -29,11 +29,11 @@ namespace RuneCode
         /// <summary>룬이 해금되어 팔레트에서 배치 가능한지 반환한다.</summary>
         bool IsRuneUnlocked(string runeId);
 
-        /// <summary>편집 중인 마법을 포함한 보관함 전체의 Modifier 배치 수와 소지량을 구한다. Modifier가 아니면 false를 반환한다.</summary>
-        bool TryGetModifierUsage(string runeId, out int used, out int owned);
+        /// <summary>편집 중인 마법을 포함한 보관함 전체에서 지정 등급 Modifier의 배치 수와 소지량을 구한다.</summary>
+        bool TryGetModifierUsage(string runeId, string grade, out int used, out int owned);
 
-        /// <summary>지정 좌표에 룬 노드를 배치한다.</summary>
-        void AddRune(string runeId, float x, float y);
+        /// <summary>지정 좌표에 룬 노드를 배치하고 Modifier이면 지정 문자열 등급을 저장한다.</summary>
+        void AddRune(string runeId, float x, float y, string grade = null);
 
         /// <summary>포트 연결을 검증하고 성공하면 엣지를 추가한다.</summary>
         bool Connect(string fromNode, string fromPort, string toNode, string toPort);

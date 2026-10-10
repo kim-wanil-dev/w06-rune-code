@@ -85,6 +85,12 @@ namespace RuneCode
         /// <summary>키의 문자열 파라미터를 교체하거나 추가한다.</summary>
         public void SetText(string key, string value) => SetParameter(new NodeParameter(key, 0f, value));
 
+        /// <summary>지정한 키의 파라미터를 모두 제거하고 하나라도 제거했는지 반환한다.</summary>
+        internal bool RemoveParameter(string key)
+        {
+            return _params.RemoveAll(parameter => parameter.Key == key) > 0;
+        }
+
         /// <summary>파라미터가 독립된 노드 복사본을 만들고 새 노드 ID를 지정한다.</summary>
         public GraphNode Clone(string newId)
         {

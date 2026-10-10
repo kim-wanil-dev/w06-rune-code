@@ -26,13 +26,16 @@ namespace RuneCode
     public static class GameData
     {
         private const string RUNE_TABLE = "tables/runes";
+        private const string MODIFIER_GRADE_TABLE = "tables/elite_modifier_drops";
 
         private static RuneCatalog _runes;
+        private static ModifierGradeTable _modifierGrades;
         private static BalanceData _balance;
         private static IReadOnlyList<SpellGraph> _spells;
         private static Dictionary<string, string> _strings;
         public static bool IsLoaded => _runes != null;
         public static RuneCatalog Runes => _runes;
+        public static ModifierGradeTable ModifierGrades => _modifierGrades;
         public static BalanceData Balance => _balance;
         public static IReadOnlyList<SpellGraph> Spells => _spells;
 
@@ -50,14 +53,16 @@ namespace RuneCode
             }
             RuneTableData runeTable = JsonUtility.FromJson<RuneTableData>(ReadResource(RUNE_TABLE));
             RuneCatalog runes = RuneCatalog.FromTable(runeTable);
+            ModifierGradeTable modifierGrades = ModifierGradeTable.FromJson(ReadResource(MODIFIER_GRADE_TABLE), runes);
+            runes.AttachModifierGrades(modifierGrades);
             BalanceData balance = BalanceData.FromJson(ReadResource("balance"));
             List<SpellGraph> spells = new List<SpellGraph>
             {
-                ShareCodec.Deserialize(ReadResource("spells/firebolt")),
-                ShareCodec.Deserialize(ReadResource("spells/shockwave")),
-                ShareCodec.Deserialize(ReadResource("spells/triplefire")),
-                ShareCodec.Deserialize(ReadResource("spells/magicmissile")),
-                ShareCodec.Deserialize(ReadResource("spells/barrier"))
+                ShareCodec.Deserialize(ReadResource("spells/firebolt"), modifierGrades),
+                ShareCodec.Deserialize(ReadResource("spells/shockwave"), modifierGrades),
+                ShareCodec.Deserialize(ReadResource("spells/triplefire"), modifierGrades),
+                ShareCodec.Deserialize(ReadResource("spells/magicmissile"), modifierGrades),
+                ShareCodec.Deserialize(ReadResource("spells/barrier"), modifierGrades)
             };
             foreach (SpellGraph graph in spells)
             {
@@ -65,6 +70,7 @@ namespace RuneCode
                 if (!result.Ok) throw new FormatException("시작 마법이 유효하지 않습니다: " + graph.Name);
             }
             _balance = balance;
+            _modifierGrades = modifierGrades;
             _spells = spells;
             _runes = runes;
         }

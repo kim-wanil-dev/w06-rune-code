@@ -8,11 +8,12 @@ namespace RuneCode
     {
         private RuneGraphCanvas _graph;
         private string _runeId;
+        private string _grade;
         private bool _canPlace;
 
-        /// <summary>팔레트 항목의 룬 ID와 대상 그래프 및 해금 상태를 연결한다.</summary>
-        public void Initialize(RuneGraphCanvas graph, string runeId, bool canPlace)
-        { _graph = graph; _runeId = runeId; _canPlace = canPlace; }
+        /// <summary>팔레트 항목의 룬 ID·등급과 대상 그래프 및 배치 가능 여부를 연결한다.</summary>
+        public void Initialize(RuneGraphCanvas graph, string runeId, string grade, bool canPlace)
+        { _graph = graph; _runeId = runeId; _grade = grade; _canPlace = canPlace; }
 
         /// <summary>룬 항목의 드래그 입력을 Unity 이벤트 시스템에서 활성화한다.</summary>
         public void OnBeginDrag(PointerEventData eventData) { }
@@ -24,7 +25,7 @@ namespace RuneCode
         public void OnEndDrag(PointerEventData eventData)
         {
             if (_canPlace && _graph != null && _graph.TryGetGraphPoint(eventData.position, out Vector2 point))
-                _graph.PlaceRune(_runeId, point);
+                _graph.PlaceRune(_runeId, point, _grade);
         }
     }
 }

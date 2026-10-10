@@ -18,13 +18,19 @@ namespace RuneCode
         /// <summary>크기·필수 필드·ID·숫자를 검증하고 이전 룬을 문법 블록으로 변환한 JSON 그래프를 반환한다.</summary>
         public static SpellGraph Deserialize(string json)
         {
+            return Deserialize(json, GameData.IsLoaded ? GameData.ModifierGrades : null);
+        }
+
+        /// <summary>JSON 그래프를 검사하고 룬 등급 표의 최저 등급으로 이전 Modifier를 보완한다.</summary>
+        public static SpellGraph Deserialize(string json, ModifierGradeTable modifierGrades)
+        {
             string trimmed = json?.TrimStart();
             if (string.IsNullOrEmpty(trimmed) || json.Length > MAX_JSON_LENGTH || trimmed[0] != '{')
                 throw new FormatException(GameData.L("share.invalid"));
             SpellGraph graph = JsonUtility.FromJson<SpellGraphData>(json)?.ToGraph();
             if (!SpellGraphValidator.IsValid(graph))
                 throw new FormatException(GameData.L("share.invalid"));
-            SpellGraphMigration.Migrate(graph);
+            SpellGraphMigration.Migrate(graph, modifierGrades);
             return graph;
         }
 
@@ -56,7 +62,7 @@ namespace RuneCode
                 string base64 = payload.Replace('-', '+').Replace('_', '/');
                 base64 = base64.PadRight((base64.Length + 3) / 4 * 4, '=');
                 string json = new UTF8Encoding(false, true).GetString(Convert.FromBase64String(base64));
-                graph = Deserialize(json);
+                graph = Deserialize(json, GameData.IsLoaded ? GameData.ModifierGrades : null);
                 if (GameData.IsLoaded)
                 {
                     List<string> allRunes = new List<string>();
