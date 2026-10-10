@@ -571,7 +571,7 @@ namespace RuneCode
         }
 
         /// <summary>호출 문맥의 추가 Modifier를 Shape에 적용해 이번 실행 노드의 자원별 비용을 반환한다.</summary>
-        internal ResourceCostSet GetNodeCosts(SpellModifierValues inheritedModifiers)
+        public ResourceCostSet GetNodeCosts(SpellModifierValues inheritedModifiers)
         {
             if (_shapeDefinition == null || _shapeDefinition.ShapeCostRates.Count == 0 || _stats == null) return _baseNodeCosts;
             SpellStats effectiveStats = _stats.Apply(inheritedModifiers ?? SpellModifierValues.None);

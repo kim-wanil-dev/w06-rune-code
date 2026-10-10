@@ -93,7 +93,8 @@ namespace RuneCode
             if (multiplier == 1 || _amounts.Count == 0) return this;
             var values = new List<ResourceAmount>(_amounts.Count);
             foreach (ResourceAmount amount in _amounts)
-                values.Add(new ResourceAmount(amount.Resource, amount.Amount * multiplier));
+                // 노드 비용 배율은 float 데이터라 기존 float 곱셈과 같은 값이 되도록 float 정밀도로 맞춘다.
+                values.Add(new ResourceAmount(amount.Resource, (float)(amount.Amount * multiplier)));
             return new ResourceCostSet(values);
         }
 
