@@ -24,6 +24,8 @@ namespace RuneCode
         public int _ram;
         public float _energy;
         public float _energyMult = 1f;
+        public List<RuneResourceCostData> _resourceCosts;
+        public List<RuneShapeCostRateData> _shapeCostRates;
         public string _unlockType;
         public int _unlockCost;
         public RuneStatsData _stats;
@@ -33,6 +35,22 @@ namespace RuneCode
         public RuneElementData _element;
         public List<string> _modifierTargets;
         public List<RuneHomingTierData> _homingTiers;
+    }
+
+    /// <summary>자원별 기본 비용 하나를 나타내는 runes.json 행이다.</summary>
+    [Serializable]
+    public sealed class RuneResourceCostData
+    {
+        public string _resource;
+        public float _amount;
+    }
+
+    /// <summary>Shape의 넓이 단위당 자원 비용률 하나를 나타내는 runes.json 행이다.</summary>
+    [Serializable]
+    public sealed class RuneShapeCostRateData
+    {
+        public string _resource;
+        public float _rate;
     }
 
     /// <summary>룬의 전투 수치다. JSON에 없는 배율 필드는 1, 나머지는 0이 기본값이다.</summary>

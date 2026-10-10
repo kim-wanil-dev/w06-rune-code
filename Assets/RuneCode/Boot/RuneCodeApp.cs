@@ -16,9 +16,7 @@ namespace RuneCode
     {
         private const string BOOT_SCENE = "Boot";
 
-        [Header("마법 판정")]
-        [Tooltip("켜면 폭발·잔류·공전의 사각형이 시전 방향과 관계없이 월드 축에 맞춰 똑바로 선다. 끄면 진행 방향으로 회전한다.")]
-        [SerializeField] private bool _isAreaBoxUpright = true;
+        [SerializeField, HideInInspector] private bool _isAreaBoxUpright = true;
 
         private RuneCodeSession _session;
         private UIManager _ui;

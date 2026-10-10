@@ -41,6 +41,9 @@ namespace RuneCode
         /// <summary>시전할 마법의 에너지 비용을 반환한다.</summary>
         public float SpellCost => _spell?.EnergyCost ?? 0f;
 
+        /// <summary>시전할 마법의 자원별 최대 비용을 반환한다.</summary>
+        public ResourceCostSet SpellCosts => _spell?.ResourceCosts ?? ResourceCostSet.Empty;
+
         /// <summary>일시정지 상태를 반환한다.</summary>
         public bool IsPaused => _isPaused;
 
@@ -71,7 +74,6 @@ namespace RuneCode
             _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
-            _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);
             LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
         }
 

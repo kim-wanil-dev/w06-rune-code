@@ -66,6 +66,40 @@ namespace RuneCode
             }
         }
 
+        /// <summary>중심, 반 폭·반 길이와 회전(라디안)으로 채워진 직사각형 메시를 추가한다.</summary>
+        internal static void Rectangle(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfWidth, float halfLength,
+            float rotation, Color color)
+        {
+            Vector2[] corners = RectangleCorners(center, halfWidth, halfLength, rotation);
+            int index = mesh.currentVertCount;
+            foreach (Vector2 corner in corners) mesh.AddVert(corner, color, Vector2.zero);
+            mesh.AddTriangle(index, index + 1, index + 2);
+            mesh.AddTriangle(index, index + 2, index + 3);
+        }
+
+        /// <summary>중심, 반 폭·반 길이와 회전(라디안)으로 지정 두께의 직사각형 윤곽선을 추가한다.</summary>
+        internal static void RectangleOutline(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfWidth,
+            float halfLength, float rotation, float width, Color color)
+        {
+            Vector2[] corners = RectangleCorners(center, halfWidth, halfLength, rotation);
+            for (int i = 0; i < corners.Length; i++)
+            {
+                Vector2 from = corners[i];
+                Vector2 to = corners[(i + 1) % corners.Length];
+                Vector2 extension = (to - from).normalized * width * 0.5f;
+                Line(mesh, from - extension, to + extension, width, color);
+            }
+        }
+
+        /// <summary>중심·반 폭·반 길이와 회전으로 직사각형 꼭짓점을 반환한다.</summary>
+        private static Vector2[] RectangleCorners(Vector2 center, float halfWidth, float halfLength, float rotation)
+        {
+            Vector2 lengthAxis = new Vector2(Mathf.Cos(rotation), Mathf.Sin(rotation)) * halfLength;
+            Vector2 widthAxis = new Vector2(-Mathf.Sin(rotation), Mathf.Cos(rotation)) * halfWidth;
+            return new[] { center - lengthAxis - widthAxis, center + lengthAxis - widthAxis,
+                center + lengthAxis + widthAxis, center - lengthAxis + widthAxis };
+        }
+
         /// <summary>꼭짓점, 반경, 중심 방향(라디안)과 전체 각도(라디안)로 채워진 부채꼴 메시를 추가한다.</summary>
         internal static void Sector(UnityEngine.UI.VertexHelper mesh, Vector2 apex, float radius, float rotation, float angle, Color color, int segments = 16)
         {

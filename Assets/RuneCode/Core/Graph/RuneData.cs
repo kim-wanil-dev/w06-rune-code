@@ -168,6 +168,23 @@ namespace RuneCode
         }
     }
 
+    /// <summary>Shape 넓이에 곱할 자원별 단가다.</summary>
+    public sealed class ShapeCostRateDefinition
+    {
+        private readonly string _resource;
+        private readonly float _rate;
+
+        public string Resource => _resource;
+        public float Rate => _rate;
+
+        /// <summary>Shape 비용률 행의 자원 ID와 단가를 보관한다.</summary>
+        internal ShapeCostRateDefinition(RuneShapeCostRateData row)
+        {
+            _resource = row._resource;
+            _rate = row._rate;
+        }
+    }
+
     /// <summary>Modifier의 이름 있는 유도 단계와 고정 유도 수치를 보관한다.</summary>
     public sealed class HomingTierDefinition
     {
@@ -198,11 +215,13 @@ namespace RuneCode
         private readonly float _energyMult;
         private readonly string _unlockType;
         private readonly int _unlockCost;
+        private readonly ResourceCostSet _costs;
         private readonly IReadOnlyList<string> _tags;
         private readonly IReadOnlyList<PortDefinition> _ports;
         private readonly IReadOnlyList<ParameterDefinition> _params;
         private readonly RuneStats _stats;
         private readonly IReadOnlyList<HomingTierDefinition> _homingTiers;
+        private readonly IReadOnlyList<ShapeCostRateDefinition> _shapeCostRates;
 
         public string Id => _id;
         public string Name => _name;
@@ -212,20 +231,24 @@ namespace RuneCode
         public float EnergyMult => _energyMult;
         public string UnlockType => _unlockType;
         public int UnlockCost => _unlockCost;
+        public ResourceCostSet Costs => _costs;
         public IReadOnlyList<string> Tags => _tags;
         public IReadOnlyList<PortDefinition> Ports => _ports;
         public IReadOnlyList<ParameterDefinition> Params => _params;
         public RuneStats Stats => _stats;
+        public IReadOnlyList<ShapeCostRateDefinition> ShapeCostRates => _shapeCostRates;
 
         /// <summary>룬 데이터와 자식 목록에서 모은 태그·포트·파라미터·유도 단계 수치로 룬 정의를 만든다.</summary>
         internal RuneDefinition(RuneRowData row, IReadOnlyList<string> tags, IReadOnlyList<PortDefinition> ports,
-            IReadOnlyList<ParameterDefinition> parameters, IReadOnlyList<HomingTierDefinition> homingTiers)
+            IReadOnlyList<ParameterDefinition> parameters, IReadOnlyList<HomingTierDefinition> homingTiers,
+            ResourceCostSet costs, IReadOnlyList<ShapeCostRateDefinition> shapeCostRates)
         {
             _id = row._id;
             _name = row._name ?? "";
             _category = row._category ?? "";
             _ram = row._ram;
-            _energy = row._energy;
+            _costs = costs;
+            _energy = (float)costs.GetAmount("mana");
             _energyMult = row._energyMult;
             _unlockType = row._unlockType ?? "";
             _unlockCost = row._unlockCost;
@@ -234,6 +257,7 @@ namespace RuneCode
             _params = parameters;
             _stats = new RuneStats(row._stats ?? new RuneStatsData());
             _homingTiers = homingTiers;
+            _shapeCostRates = shapeCostRates;
         }
 
         /// <summary>이름이 일치하는 유도 단계 설정을 반환하고 없으면 null을 반환한다.</summary>
@@ -357,7 +381,10 @@ namespace RuneCode
                     log.Add(row != null ? row._id : null, "id", "룬 ID가 비어 있거나 중복입니다.");
                     continue;
                 }
-                var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log), BuildHomingTiers(row, log));
+                ResourceCostSet costs = BuildCosts(row, log);
+                IReadOnlyList<ShapeCostRateDefinition> shapeCostRates = BuildShapeCostRates(row, log);
+                var rune = new RuneDefinition(row, BuildTags(row, log), BuildPorts(row, log), BuildParameters(row, log),
+                    BuildHomingTiers(row, log), costs, shapeCostRates);
                 RequireText(rune, row, log);
                 ValidateRune(rune, log);
                 ValidateStats(rune, rune.Stats, log, "stats");
@@ -700,9 +727,61 @@ namespace RuneCode
             if (!UNLOCK_TYPES.Contains(rune.UnlockType)) log.Add(rune.Id, "unlockType", "알 수 없는 해금 방식입니다: " + rune.UnlockType);
             if (rune.Ram < 0) log.Add(rune.Id, "ram", "음수일 수 없습니다.");
             if (rune.Energy < 0f) log.Add(rune.Id, "energy", "음수일 수 없습니다.");
+            foreach (ResourceAmount cost in rune.Costs.Amounts)
+                if (cost.Amount < 0) log.Add(rune.Id, "resourceCosts:" + cost.Resource, "음수일 수 없습니다.");
             if (rune.EnergyMult <= 0f) log.Add(rune.Id, "energyMult", "0보다 커야 합니다.");
             if (rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
                 log.Add(rune.Id, "unlockCost", "음수일 수 없으며 bench 해금은 비용이 있어야 합니다.");
+        }
+
+        /// <summary>룬의 자원별 기본 비용을 만들고 빈 ID·음수·중복을 검증한다. 기존 energy는 mana 비용으로 읽는다.</summary>
+        private static ResourceCostSet BuildCosts(RuneRowData row, TableErrorLog log)
+        {
+            var costs = new List<ResourceAmount>();
+            if (row._resourceCosts != null && row._resourceCosts.Count > 0)
+            {
+                if (row._energy != 0f)
+                    log.Add(row._id, "energy", "자원별 비용을 쓰면 energy는 0이어야 합니다.");
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (RuneResourceCostData cost in row._resourceCosts)
+                {
+                    if (cost == null || string.IsNullOrWhiteSpace(cost._resource) || !seen.Add(cost._resource))
+                    {
+                        log.Add(row._id, "resourceCosts", "자원 ID가 비어 있거나 중복되었습니다.");
+                        continue;
+                    }
+                    if (cost._amount < 0f || float.IsNaN(cost._amount) || float.IsInfinity(cost._amount))
+                        log.Add(row._id, "resourceCosts:" + cost._resource, "비용은 유한한 0 이상이어야 합니다.");
+                    costs.Add(new ResourceAmount(cost._resource, cost._amount));
+                }
+            }
+            else if (row._energy != 0f)
+            {
+                costs.Add(new ResourceAmount("mana", row._energy));
+            }
+            return new ResourceCostSet(costs);
+        }
+
+        /// <summary>Shape 비용률을 만들고 비Shape 사용·빈 자원·음수 단가·중복 자원을 검증한다.</summary>
+        private static IReadOnlyList<ShapeCostRateDefinition> BuildShapeCostRates(RuneRowData row, TableErrorLog log)
+        {
+            var rates = new List<ShapeCostRateDefinition>();
+            if (row._shapeCostRates == null) return rates;
+            if (row._shapeCostRates.Count > 0 && row._category != SpellGrammar.CATEGORY_SHAPE)
+                log.Add(row._id, "shapeCostRates", "Shape 카테고리에만 비용률을 정의할 수 있습니다.");
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (RuneShapeCostRateData rate in row._shapeCostRates)
+            {
+                if (rate == null || string.IsNullOrWhiteSpace(rate._resource) || !seen.Add(rate._resource))
+                {
+                    log.Add(row._id, "shapeCostRates", "자원 ID가 비어 있거나 중복되었습니다.");
+                    continue;
+                }
+                if (rate._rate < 0f || float.IsNaN(rate._rate) || float.IsInfinity(rate._rate))
+                    log.Add(row._id, "shapeCostRates:" + rate._resource, "단가는 유한한 0 이상이어야 합니다.");
+                rates.Add(new ShapeCostRateDefinition(rate));
+            }
+            return rates;
         }
 
         /// <summary>룬 효과 수치가 음수가 아니고 형태 룬에 필수 수치가 있는지 검증하고 위반을 오류 로그에 기록한다.</summary>

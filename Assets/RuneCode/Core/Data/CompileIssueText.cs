@@ -10,7 +10,23 @@ namespace RuneCode
         public static string Format(CompileIssue issue)
         {
             string text = GameData.L("issue." + issue.Code);
-            if (issue.Detail != null)
+            if (issue.Code == "W7" && issue.Detail != null)
+            {
+                int separator = issue.Detail.IndexOf('=');
+                int divider = issue.Detail.IndexOf('/', separator + 1);
+                if (separator > 0 && divider > separator)
+                {
+                    string resource = issue.Detail.Substring(0, separator);
+                    text += " " + ResourceName(resource) + " " + issue.Detail.Substring(separator + 1, divider - separator - 1)
+                        + "/" + issue.Detail.Substring(divider + 1);
+                }
+                else text += " " + issue.Detail;
+            }
+            else if (issue.Code == "W8" && issue.Detail != null)
+            {
+                text += " " + ResourceName(issue.Detail);
+            }
+            else if (issue.Detail != null)
             {
                 text += " " + issue.Detail;
             }
@@ -19,6 +35,14 @@ namespace RuneCode
                 text += ": " + Format(issue.Cause);
             }
             return text;
+        }
+
+        /// <summary>자원 ID를 현지화 이름으로 바꾸고 번역이 없으면 ID를 반환한다.</summary>
+        private static string ResourceName(string resource)
+        {
+            string key = "resource." + resource;
+            string localized = GameData.L(key);
+            return localized == key ? resource : localized;
         }
     }
 }

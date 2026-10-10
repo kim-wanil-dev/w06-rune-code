@@ -69,6 +69,8 @@ namespace RuneCode
     public sealed class SimulationPlayer
     {
         private readonly double[] _cooldowns = new double[3];
+        private readonly Dictionary<string, double> _otherResources = new Dictionary<string, double>(StringComparer.Ordinal);
+        private readonly Dictionary<string, double> _otherResourceCaps = new Dictionary<string, double>(StringComparer.Ordinal);
         private SimVector _position;
         private SimVector _aimDirection = new SimVector(1, 0);
         private SimVector _dashDirection;
@@ -103,13 +105,41 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>슬롯 쿨다운이 끝났으면 쿨다운을 시작하고 true를 반환한다. 마나는 실행 노드에 도달할 때 TrySpend로 차감한다.</summary>
+        /// <summary>슬롯 쿨다운이 끝났으면 쿨다운을 시작하고 true를 반환한다. 자원은 실행 노드에 도달할 때 차감한다.</summary>
         internal bool TryStartCooldown(CompiledSpell spell, int slot)
         { if (_cooldowns[slot] > 0.000001) return false; _cooldowns[slot] = spell.Cooldown; return true; }
 
-        /// <summary>현재 마나가 비용 이상이면 차감하고 true를, 부족하면 차감하지 않고 false를 반환한다.</summary>
-        internal bool TrySpend(double amount)
-        { if (_energy + 0.000001 < amount) return false; _energy = Math.Max(0, _energy - amount); return true; }
+        /// <summary>모든 비용 자원이 충분할 때만 함께 차감하고 하나라도 부족하면 상태를 바꾸지 않은 채 false를 반환한다.</summary>
+        internal bool TrySpend(ResourceCostSet costs)
+        {
+            foreach (ResourceAmount amount in costs.Amounts)
+                if (GetResourceAmount(amount.Resource) + 0.000001 < amount.Amount) return false;
+            foreach (ResourceAmount amount in costs.Amounts)
+                SetResourceAmount(amount.Resource, Math.Max(0, GetResourceAmount(amount.Resource) - amount.Amount));
+            return true;
+        }
+
+        /// <summary>현재 자원량을 반환하고 관리 대상이 아닌 자원은 0을 반환한다.</summary>
+        public double GetResourceAmount(string resource)
+        {
+            if (resource == "mana") return _energy;
+            return _otherResources.TryGetValue(resource, out double amount) ? amount : 0;
+        }
+
+        /// <summary>재생 자원 이외의 현재 보유량과 한도를 시뮬레이션 상태에 등록한다.</summary>
+        internal void SetResource(string resource, double amount, double maximum)
+        {
+            if (resource == "mana") return;
+            _otherResources[resource] = Math.Max(0, amount);
+            _otherResourceCaps[resource] = Math.Max(0, maximum);
+        }
+
+        /// <summary>지정 자원의 현재 보유량을 갱신하고 mana는 기존 에너지 필드에 기록한다.</summary>
+        private void SetResourceAmount(string resource, double amount)
+        {
+            if (resource == "mana") _energy = amount;
+            else if (_otherResources.ContainsKey(resource)) _otherResources[resource] = amount;
+        }
 
         /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
@@ -163,6 +193,10 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}|{_burnUntil:R}|{_burnNextTick:R}"));
+            var resources = new List<string>(_otherResources.Keys);
+            resources.Sort(StringComparer.Ordinal);
+            foreach (string resource in resources)
+                state.Append(FormattableString.Invariant($"|{resource}:{_otherResources[resource]:R}/{_otherResourceCaps[resource]:R}"));
             foreach (double cooldown in _cooldowns) state.Append(FormattableString.Invariant($"|{cooldown:R}"));
         }
     }
@@ -294,6 +328,9 @@ namespace RuneCode
         /// <summary>현재 판정 반경이다. Burst는 확장 시간 동안 0에서 최종 반경까지 커지고, 그 외는 최종 반경이다.</summary>
         public double Radius => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
             ? _stats.Radius * Math.Min(1, _age / _warmupSeconds) : _stats.Radius;
+        public double BoxWidth => _stats.BoxWidth * ExpansionProgress;
+        public double BoxLength => _stats.BoxLength * ExpansionProgress;
+        public bool IsBoxWorldAligned => _stats.IsBoxWorldAligned;
 
         /// <summary>Persist가 활성화 전 예고 중인지 나타낸다. 예고 중에는 효과·적중 판정을 하지 않는다.</summary>
         public bool IsWarning => _action.Form == SpellGrammar.FORM_ZONE && _age + 0.000001 < _warmupSeconds;
@@ -303,6 +340,8 @@ namespace RuneCode
 
         /// <summary>Burst가 아직 확장 중이라 새 대상을 판정하는지 나타낸다.</summary>
         internal bool IsExpanding => _action.Form == SpellGrammar.FORM_BURST && _age <= _warmupSeconds + 0.000001;
+        private double ExpansionProgress => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
+            ? Math.Min(1, _age / _warmupSeconds) : 1;
         public bool IsBox => _action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
 
         /// <summary>부채꼴인지 나타낸다. 판정·그리기는 꼭짓점(ConeApex)에서 진행 방향으로 펼친 부채꼴이다.</summary>

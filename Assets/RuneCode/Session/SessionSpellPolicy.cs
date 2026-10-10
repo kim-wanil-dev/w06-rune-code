@@ -22,7 +22,7 @@ namespace RuneCode
         public SpellCompileContext GetCompileContext()
         {
             return new SpellCompileContext(_session.Save.UnlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,
-                _session.Save.CreateModifierStockMap());
+                _session.Save.CreateModifierStockMap(), legacyBoxWorldAligned: _session.LegacyBoxWorldAligned);
         }
 
         /// <summary>룬이 세이브의 해금 목록에 있는지 반환한다.</summary>

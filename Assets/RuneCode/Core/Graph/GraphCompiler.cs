@@ -14,9 +14,11 @@ namespace RuneCode
         /// </summary>
         public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, GrammarLimits limits,
             IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f, IEnumerable<SpellGraph> library = null,
-            IReadOnlyDictionary<string, int> modifierStock = null)
+            IReadOnlyDictionary<string, int> modifierStock = null, IReadOnlyDictionary<string, float> maxResourceCosts = null,
+            bool legacyBoxWorldAligned = true)
         {
-            CompileContext context = new CompileContext(unlocked ?? runes.StartRunes, library, graph, capacity, maxEnergy);
+            CompileContext context = new CompileContext(unlocked ?? runes.StartRunes, library, graph, capacity, maxEnergy,
+                maxResourceCosts, legacyBoxWorldAligned);
             List<CompileIssue> dependencyErrors = new List<CompileIssue>();
             ValidateSpellDependencies(graph, context.Library, new HashSet<string>(StringComparer.Ordinal),
                 new List<string>(), dependencyErrors);
@@ -212,20 +214,29 @@ namespace RuneCode
             List<SpellAction> root = BuildBranch(graph, cores[0].Id, "exec", nodes, definitions, warnings, errors, runes, limits, context);
             if (errors.Any(issue => issue.Code == "E11" || issue.Code == "E12" || issue.Code == "E14" || issue.Code == "E15"))
                 return new CompileResult(errors, warnings, null);
-            float energy = Cost(root, limits.HitTriggerCap);
+            ResourceCostSet resourceCosts = Cost(root, limits.HitTriggerCap);
             int entities = EntityCount(root, limits.HitTriggerCap);
-            float energyLimit = context.MaxEnergy < 0f ? limits.MaxEnergy : context.MaxEnergy;
             long actionCeiling = limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
             // 최대 예상 비용은 시전을 막지 않는 정보다(백서 7.2). 실행 수 상한만 안전 제약으로 오류 처리한다.
             if (expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
-            if (float.IsInfinity(energy) || float.IsNaN(energy)) warnings.Add(new CompileIssue("W8"));
-            else if (energy > energyLimit) warnings.Add(new CompileIssue("W7"));
+            foreach (ResourceAmount cost in resourceCosts.Amounts)
+            {
+                if (double.IsInfinity(cost.Amount) || double.IsNaN(cost.Amount))
+                {
+                    warnings.Add(new CompileIssue("W8", null, cost.Resource));
+                }
+                else if (context.TryGetMaxResource(cost.Resource, limits, out float maximum) && cost.Amount > maximum)
+                {
+                    warnings.Add(new CompileIssue("W7", null, cost.Resource + "="
+                        + cost.Amount.ToString("0.#", CultureInfo.InvariantCulture) + "/" + maximum.ToString("0.#", CultureInfo.InvariantCulture)));
+                }
+            }
             if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
             string trigger = cores[0].GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
-            CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, energy,
+            CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, resourceCosts,
                 limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
             return new CompileResult(errors, warnings, compiled);
         }
@@ -606,10 +617,12 @@ namespace RuneCode
                         else errors.Add(new CompileIssue("E15", node.Id, target.Name, targetResult.Errors[0]));
                     }
                 }
-                float coneAngle = rune.Id == SpellGrammar.INLINE_RUNE
-                    && runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out RuneDefinition shape)
-                    ? shape.Stats.ConeAngle : 0f;
-                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell, coneAngle, runes.ModifierGrades);
+                RuneDefinition shape = null;
+                if (rune.Id == SpellGrammar.INLINE_RUNE && node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE) != SpellGrammar.MAGIC_TYPE_BUFF)
+                    runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out shape);
+                float coneAngle = shape?.Stats.ConeAngle ?? 0f;
+                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell,
+                    shape, coneAngle, runes.ModifierGrades, context.LegacyBoxWorldAligned);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {
@@ -646,37 +659,58 @@ namespace RuneCode
         /// 최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
         /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다.
         /// </summary>
-        private static float Cost(IReadOnlyList<SpellAction> actions, int hitCap)
+        private static ResourceCostSet Cost(IReadOnlyList<SpellAction> actions, int hitCap,
+            SpellModifierValues inheritedModifiers = null, double costMultiplier = 1d)
         {
-            float sum = 0f;
+            ResourceCostSet sum = ResourceCostSet.Empty;
+            inheritedModifiers = inheritedModifiers ?? SpellModifierValues.None;
             foreach (SpellAction action in actions)
             {
+                ResourceCostSet ownCosts = action.GetNodeCosts(inheritedModifiers).Multiply(costMultiplier);
                 switch (action.Kind)
                 {
                     case "spawn":
-                        float hitChainCost = Cost(action.OnHit, hitCap);
+                        ResourceCostSet hitChainCost = Cost(action.OnHit, hitCap, inheritedModifiers, costMultiplier);
                         // Burst.OnHit은 개체당 상한이 없어(결정) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
-                        float hitCost = action.Form == SpellGrammar.FORM_BURST
-                            ? (hitChainCost > 0f ? float.PositiveInfinity : 0f)
-                            : MaxHitEvents(action, hitCap) * hitChainCost;
-                        float expireCost = Cost(action.OnExpire, hitCap);
-                        float eventCost = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitCost, expireCost) : hitCost + expireCost;
-                        sum += action.OwnEnergy + action.Count * (eventCost + Cost(action.OnFirstHitOrExpire, hitCap));
+                        ResourceCostSet hitCost = action.Form == SpellGrammar.FORM_BURST
+                            ? (HasCosts(hitChainCost) ? hitChainCost.MarkUnbounded() : ResourceCostSet.Empty)
+                            : hitChainCost.Multiply(MaxHitEvents(action, hitCap));
+                        ResourceCostSet expireCost = Cost(action.OnExpire, hitCap, inheritedModifiers, costMultiplier);
+                        ResourceCostSet eventCost = action.Form == SpellGrammar.FORM_BOLT
+                            ? ResourceCostSet.Max(hitCost, expireCost) : hitCost.Add(expireCost);
+                        sum = sum.Add(ownCosts).Add(eventCost.Add(Cost(action.OnFirstHitOrExpire, hitCap,
+                            inheritedModifiers, costMultiplier)).Multiply(action.Count));
                         break;
-                    case "buff": sum += action.OwnEnergy + action.Count * Cost(action.OnFirstHitOrExpire, hitCap); break;
+                    case "buff": sum = sum.Add(ownCosts).Add(Cost(action.OnFirstHitOrExpire, hitCap,
+                        inheritedModifiers, costMultiplier).Multiply(action.Count)); break;
                     case "call":
                         long eventCount = (long)action.Count * action.CalledSpell.WorstCaseEntities;
-                        sum += action.OwnEnergy
-                            + eventCount * (hitCap * Cost(action.OnHit, hitCap) + Cost(action.OnExpire, hitCap)
-                                + Cost(action.OnFirstHitOrExpire, hitCap));
+                        SpellModifierValues callModifiers = inheritedModifiers.Combine(action.ModifierValues);
+                        double callCostMultiplier = costMultiplier * action.EnergyMultiplier;
+                        ResourceCostSet calledCosts = Cost(action.CalledSpell.Root, hitCap, callModifiers, callCostMultiplier)
+                            .Multiply(action.Count);
+                        ResourceCostSet eventCosts = Cost(action.OnHit, hitCap, inheritedModifiers, costMultiplier).Multiply(hitCap)
+                            .Add(Cost(action.OnExpire, hitCap, inheritedModifiers, costMultiplier))
+                            .Add(Cost(action.OnFirstHitOrExpire, hitCap, inheritedModifiers, costMultiplier));
+                        sum = sum.Add(ownCosts).Add(calledCosts).Add(eventCosts.Multiply(eventCount));
                         break;
-                    case "delay": sum += Cost(action.Then, hitCap); break;
-                    case "repeat": sum += action.Times * Cost(action.Body, hitCap) + Cost(action.OnComplete, hitCap); break;
-                    case "if": sum += Math.Max(Cost(action.Then, hitCap), Cost(action.Else, hitCap)); break;
-                    default: sum += action.OwnEnergy + Cost(action.Next, hitCap); break;
+                    case "delay": sum = sum.Add(Cost(action.Then, hitCap, inheritedModifiers, costMultiplier)); break;
+                    case "repeat": sum = sum.Add(Cost(action.Body, hitCap, inheritedModifiers, costMultiplier).Multiply(action.Times))
+                        .Add(Cost(action.OnComplete, hitCap, inheritedModifiers, costMultiplier)); break;
+                    case "if": sum = sum.Add(ResourceCostSet.Max(Cost(action.Then, hitCap, inheritedModifiers, costMultiplier),
+                        Cost(action.Else, hitCap, inheritedModifiers, costMultiplier))); break;
+                    default: sum = sum.Add(ownCosts).Add(Cost(action.Next, hitCap, inheritedModifiers, costMultiplier)); break;
                 }
             }
             return sum;
+        }
+
+        /// <summary>자원별 비용 묶음에 양수 비용이 하나라도 있는지 반환한다.</summary>
+        private static bool HasCosts(ResourceCostSet costs)
+        {
+            foreach (ResourceAmount amount in costs.Amounts)
+                if (amount.Amount > 0 || double.IsInfinity(amount.Amount)) return true;
+            return false;
         }
 
         /// <summary>최악 분기의 생성 수를 이벤트 상한과 반복 횟수에 따라 합산한다.</summary>
@@ -861,15 +895,19 @@ namespace RuneCode
             private readonly HashSet<string> _activeSpellIds = new HashSet<string>(StringComparer.Ordinal);
             private readonly int _capacity;
             private readonly float _maxEnergy;
+            private readonly IReadOnlyDictionary<string, float> _maxResourceCosts;
+            private readonly bool _legacyBoxWorldAligned;
             public HashSet<string> UnlockedIds => _unlockedIds;
             public Dictionary<string, SpellGraph> Library => _library;
             public Dictionary<string, CompiledSpell> Compiled => _compiled;
             public HashSet<string> ActiveSpellIds => _activeSpellIds;
             public int Capacity => _capacity;
             public float MaxEnergy => _maxEnergy;
+            public bool LegacyBoxWorldAligned => _legacyBoxWorldAligned;
 
-            /// <summary>라이브러리 참조·해금 상태·컴파일 캐시와 실행 제한을 컴파일 작업에 보관한다.</summary>
-            public CompileContext(IEnumerable<string> unlocked, IEnumerable<SpellGraph> library, SpellGraph current, int capacity, float maxEnergy)
+            /// <summary>라이브러리·해금·컴파일 캐시·자원 한도와 레거시 Box 기본 방향을 컴파일 작업에 보관한다.</summary>
+            public CompileContext(IEnumerable<string> unlocked, IEnumerable<SpellGraph> library, SpellGraph current, int capacity,
+                float maxEnergy, IReadOnlyDictionary<string, float> maxResourceCosts, bool legacyBoxWorldAligned)
             {
                 _unlockedIds = new HashSet<string>(unlocked ?? Array.Empty<string>(), StringComparer.Ordinal);
                 _unlockedIds.Add(SpellGrammar.INLINE_RUNE);
@@ -880,6 +918,21 @@ namespace RuneCode
                 if (current != null && !string.IsNullOrEmpty(current.Id)) _library[current.Id] = current;
                 _capacity = capacity;
                 _maxEnergy = maxEnergy;
+                _maxResourceCosts = maxResourceCosts;
+                _legacyBoxWorldAligned = legacyBoxWorldAligned;
+            }
+
+            /// <summary>자원별 최대 비용 한도를 반환하고 등록되지 않은 자원에는 false를 반환한다.</summary>
+            public bool TryGetMaxResource(string resource, GrammarLimits limits, out float maximum)
+            {
+                if (_maxResourceCosts != null && _maxResourceCosts.TryGetValue(resource, out maximum)) return true;
+                if (resource == "mana")
+                {
+                    maximum = _maxEnergy < 0f ? limits.MaxEnergy : _maxEnergy;
+                    return true;
+                }
+                maximum = 0f;
+                return false;
             }
         }
     }
