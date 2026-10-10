@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a2343644682447498979d1eb6777c66, type: 3}
   m_Name: UpgradeTree
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeDefinition
-  _layoutVersion: 6
+  _layoutVersion: 7
   _nodes:
   - _id: upgrade.mainboard
     _requiredStage: 1
@@ -24,11 +24,11 @@ MonoBehaviour:
     _runeId: 
     _prerequisites: []
     _levels:
-    - _cost: 0
-      _amount: 0.5
     - _cost: 10
       _amount: 0.5
     - _cost: 20
+      _amount: 0.5
+    - _cost: 40
       _amount: 0.5
   - _id: upgrade.ram
     _requiredStage: 1
@@ -42,17 +42,17 @@ MonoBehaviour:
     - _nodeId: upgrade.mainboard
       _requiredLevel: 1
     _levels:
-    - _cost: 10
-      _amount: 1
     - _cost: 20
       _amount: 1
     - _cost: 40
+      _amount: 1
+    - _cost: 80
       _amount: 1
   - _id: upgrade.maxEnergy
     _requiredStage: 1
     _titleKey: ui.tree.maxEnergy
     _descriptionKey: ui.tree.maxEnergyDescription
-    _position: {x: 830, y: 410}
+    _position: {x: 800, y: 410}
     _icon: {fileID: 0}
     _effectType: 1
     _runeId: 
@@ -60,35 +60,17 @@ MonoBehaviour:
     - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 8
+    - _cost: 30
       _amount: 5
-    - _cost: 16
+    - _cost: 60
       _amount: 5
-    - _cost: 32
+    - _cost: 120
       _amount: 5
-  - _id: upgrade.cpu
-    _requiredStage: 1
-    _titleKey: ui.tree.cpu
-    _descriptionKey: ui.tree.cpuDescription
-    _position: {x: 1000, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 3
-    _runeId: 
-    _prerequisites:
-    - _nodeId: upgrade.ram
-      _requiredLevel: 1
-    _levels:
-    - _cost: 10
-      _amount: 0
-    - _cost: 20
-      _amount: 0
-    - _cost: 40
-      _amount: 0
   - _id: upgrade.gpu
     _requiredStage: 1
     _titleKey: ui.tree.gpu
     _descriptionKey: ui.tree.gpuDescription
-    _position: {x: 1170, y: 410}
+    _position: {x: 1200, y: 410}
     _icon: {fileID: 0}
     _effectType: 4
     _runeId: 
@@ -96,71 +78,161 @@ MonoBehaviour:
     - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 12
+    - _cost: 30
       _amount: 0.1
-    - _cost: 24
+    - _cost: 60
       _amount: 0.1
-    - _cost: 48
+    - _cost: 120
       _amount: 0.1
-  - _id: upgrade.scrapGain
+  - _id: upgrade.mainboard.secondary
     _requiredStage: 1
-    _titleKey: ui.tree.scrapGain
-    _descriptionKey: ui.tree.scrapGainDescription
-    _position: {x: 1440, y: 600}
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
+    _position: {x: 1200, y: 600}
     _icon: {fileID: 0}
-    _effectType: 5
+    _effectType: 0
     _runeId: 
     _prerequisites:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
-    - _cost: 15
-      _amount: 0.1
-    - _cost: 30
-      _amount: 0.1
-    - _cost: 60
-      _amount: 0.1
+    - _cost: 40
+      _amount: 0.5
+    - _cost: 80
+      _amount: 0.5
+    - _cost: 160
+      _amount: 0.5
+  - _id: upgrade.cpu
+    _requiredStage: 1
+    _titleKey: ui.tree.cpu
+    _descriptionKey: ui.tree.cpuDescription
+    _position: {x: 1400, y: 600}
+    _icon: {fileID: 0}
+    _effectType: 3
+    _runeId: 
+    _prerequisites:
+    - _nodeId: upgrade.gpu
+      _requiredLevel: 1
+    _levels:
+    - _cost: 40
+      _amount: 0
+    - _cost: 80
+      _amount: 0
+    - _cost: 160
+      _amount: 0
   - _id: upgrade.maxHp
     _requiredStage: 1
     _titleKey: ui.tree.maxHp
     _descriptionKey: ui.tree.maxHpDescription
-    _position: {x: 1350, y: 800}
+    _position: {x: 1400, y: 790}
     _icon: {fileID: 0}
     _effectType: 6
     _runeId: 
     _prerequisites:
-    - _nodeId: upgrade.scrapGain
+    - _nodeId: upgrade.cpu
       _requiredLevel: 1
     _levels:
-    - _cost: 10
+    - _cost: 50
       _amount: 10
-    - _cost: 20
+    - _cost: 100
       _amount: 10
-    - _cost: 40
+    - _cost: 200
       _amount: 10
+  - _id: upgrade.scrapPickupRange
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _position: {x: 1600, y: 790}
+    _icon: {fileID: 0}
+    _effectType: 9
+    _runeId: 
+    _prerequisites:
+    - _nodeId: upgrade.cpu
+      _requiredLevel: 1
+    _levels:
+    - _cost: 50
+      _amount: 0.1
+    - _cost: 100
+      _amount: 0.1
+    - _cost: 200
+      _amount: 0.1
   - _id: upgrade.moveSpeed
     _requiredStage: 1
     _titleKey: ui.tree.moveSpeed
     _descriptionKey: ui.tree.moveSpeedDescription
-    _position: {x: 1530, y: 800}
+    _position: {x: 1600, y: 980}
     _icon: {fileID: 0}
     _effectType: 7
+    _runeId: 
+    _prerequisites:
+    - _nodeId: upgrade.scrapPickupRange
+      _requiredLevel: 1
+    _levels:
+    - _cost: 60
+      _amount: 0.05
+    - _cost: 120
+      _amount: 0.05
+    - _cost: 240
+      _amount: 0.05
+  - _id: upgrade.scrapGain
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapGain
+    _descriptionKey: ui.tree.scrapGainDescription
+    _position: {x: 1800, y: 980}
+    _icon: {fileID: 0}
+    _effectType: 5
+    _runeId: 
+    _prerequisites:
+    - _nodeId: upgrade.scrapPickupRange
+      _requiredLevel: 1
+    _levels:
+    - _cost: 60
+      _amount: 0.1
+    - _cost: 120
+      _amount: 0.1
+    - _cost: 240
+      _amount: 0.1
+  - _id: upgrade.mainboard.final
+    _requiredStage: 1
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
+    _position: {x: 1800, y: 1170}
+    _icon: {fileID: 0}
+    _effectType: 0
     _runeId: 
     _prerequisites:
     - _nodeId: upgrade.scrapGain
       _requiredLevel: 1
     _levels:
-    - _cost: 15
-      _amount: 0.05
-    - _cost: 30
-      _amount: 0.05
-    - _cost: 60
-      _amount: 0.05
+    - _cost: 70
+      _amount: 0.5
+    - _cost: 140
+      _amount: 0.5
+    - _cost: 280
+      _amount: 0.5
+  - _id: upgrade.gpu.final
+    _requiredStage: 1
+    _titleKey: ui.tree.gpu
+    _descriptionKey: ui.tree.gpuDescription
+    _position: {x: 2000, y: 1170}
+    _icon: {fileID: 0}
+    _effectType: 4
+    _runeId: 
+    _prerequisites:
+    - _nodeId: upgrade.scrapGain
+      _requiredLevel: 1
+    _levels:
+    - _cost: 70
+      _amount: 0.1
+    - _cost: 140
+      _amount: 0.1
+    - _cost: 280
+      _amount: 0.1
   - _id: unlock.element.fire
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 650, y: 220}
+    _position: {x: 800, y: 220}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: element.fire
@@ -170,30 +242,44 @@ MonoBehaviour:
     _levels:
     - _cost: 100
       _amount: 0
-  - _id: unlock.element.ice
+  - _id: unlock.shape.cone
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1350, y: 220}
+    _position: {x: 1000, y: 410}
     _icon: {fileID: 0}
     _effectType: 8
-    _runeId: element.ice
+    _runeId: shape.cone
     _prerequisites:
-    - _nodeId: upgrade.mainboard
+    - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 100
+    - _cost: 200
       _amount: 0
   - _id: unlock.behavior.burst
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 900, y: 600}
+    _position: {x: 1000, y: 600}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.burst
     _prerequisites:
     - _nodeId: upgrade.gpu
+      _requiredLevel: 1
+    _levels:
+    - _cost: 200
+      _amount: 0
+  - _id: unlock.element.ice
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1200, y: 790}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.ice
+    _prerequisites:
+    - _nodeId: upgrade.cpu
       _requiredLevel: 1
     _levels:
     - _cost: 150
@@ -202,106 +288,60 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1170, y: 600}
+    _position: {x: 1400, y: 980}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.persist
     _prerequisites:
-    - _nodeId: upgrade.gpu
+    - _nodeId: upgrade.scrapPickupRange
       _requiredLevel: 1
     _levels:
-    - _cost: 150
+    - _cost: 250
+      _amount: 0
+  - _id: unlock.shape.box
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 1600, y: 1170}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: shape.box
+    _prerequisites:
+    - _nodeId: upgrade.scrapGain
+      _requiredLevel: 1
+    _levels:
+    - _cost: 300
       _amount: 0
   _unplacedNodes:
-  - _id: unlock.element.healing
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 610, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.healing
-    _prerequisites: []
-    _levels:
-    - _cost: 20
-      _amount: 0
-  - _id: unlock.element.lightning
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1390, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.lightning
-    _prerequisites: []
-    _levels:
-    - _cost: 35
-      _amount: 0
-  - _id: unlock.element.protection
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1570, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.protection
-    _prerequisites: []
-    _levels:
-    - _cost: 25
-      _amount: 0
-  - _id: unlock.behavior.orbit
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1710, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: behavior.orbit
-    _prerequisites: []
-    _levels:
-    - _cost: 25
-      _amount: 0
-  - _id: unlock.behavior.apply
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1890, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: behavior.apply
-    _prerequisites: []
-    _levels:
-    - _cost: 35
-      _amount: 0
   - _id: unlock.mod.amplify
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 510, y: 800}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.amplify
     _prerequisites: []
     _levels:
-    - _cost: 20
+    - _cost: 0
       _amount: 0
   - _id: unlock.mod.multi
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 690, y: 800}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.multi
     _prerequisites: []
     _levels:
-    - _cost: 30
+    - _cost: 0
       _amount: 0
   - _id: unlock.mod.pierce
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 870, y: 800}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.pierce
@@ -309,47 +349,11 @@ MonoBehaviour:
     _levels:
     - _cost: 30
       _amount: 0
-  - _id: unlock.mod.expand
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1050, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: mod.expand
-    _prerequisites: []
-    _levels:
-    - _cost: 30
-      _amount: 0
-  - _id: unlock.mod.duration
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1230, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: mod.duration
-    _prerequisites: []
-    _levels:
-    - _cost: 25
-      _amount: 0
-  - _id: unlock.mod.speed
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 2070, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: mod.speed
-    _prerequisites: []
-    _levels:
-    - _cost: 20
-      _amount: 0
   - _id: unlock.mod.homing
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 2250, y: 800}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.homing
@@ -357,23 +361,47 @@ MonoBehaviour:
     _levels:
     - _cost: 50
       _amount: 0
+  - _id: unlock.mod.expand
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: mod.expand
+    _prerequisites: []
+    _levels:
+    - _cost: 30
+      _amount: 0
+  - _id: unlock.mod.speed
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: mod.speed
+    _prerequisites: []
+    _levels:
+    - _cost: 20
+      _amount: 0
   - _id: unlock.flow.delay
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 260, y: 600}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.delay
     _prerequisites: []
     _levels:
-    - _cost: 10
+    - _cost: 0
       _amount: 0
   - _id: unlock.flow.repeat
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 440, y: 600}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.repeat
@@ -385,7 +413,7 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 620, y: 600}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.if
@@ -397,27 +425,83 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 800, y: 600}
+    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: spell.call
     _prerequisites: []
     _levels:
-    - _cost: 25
+    - _cost: 0
       _amount: 0
-  - _id: upgrade.scrapPickupRange
+  - _id: unlock.mod.duration
     _requiredStage: 1
-    _titleKey: ui.tree.scrapPickupRange
-    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
     _position: {x: 0, y: 0}
     _icon: {fileID: 0}
-    _effectType: 9
-    _runeId: 
+    _effectType: 8
+    _runeId: mod.duration
     _prerequisites: []
     _levels:
-    - _cost: 10
-      _amount: 0.1
-    - _cost: 20
-      _amount: 0.1
-    - _cost: 40
-      _amount: 0.1
+    - _cost: 0
+      _amount: 0
+  - _id: unlock.element.lightning
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.lightning
+    _prerequisites: []
+    _levels:
+    - _cost: 0
+      _amount: 0
+  - _id: unlock.element.healing
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.healing
+    _prerequisites: []
+    _levels:
+    - _cost: 0
+      _amount: 0
+  - _id: unlock.element.protection
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.protection
+    _prerequisites: []
+    _levels:
+    - _cost: 0
+      _amount: 0
+  - _id: unlock.behavior.orbit
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: behavior.orbit
+    _prerequisites: []
+    _levels:
+    - _cost: 0
+      _amount: 0
+  - _id: unlock.behavior.apply
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: behavior.apply
+    _prerequisites: []
+    _levels:
+    - _cost: 35
+      _amount: 0
