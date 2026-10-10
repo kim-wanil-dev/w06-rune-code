@@ -14,16 +14,14 @@ namespace RuneCode
     public sealed class WorkshopScreen : UiView
     {
         public const string TAB_EDITOR = "editor";
-        public const string TAB_BENCH = "bench";
         public const string TAB_TREE = "tree";
         public const string TAB_DEPLOY = "deploy";
         public const string TAB_SETTINGS = "settings";
 
-        private static readonly string[] TABS = { TAB_EDITOR, TAB_BENCH, TAB_TREE, TAB_DEPLOY, TAB_SETTINGS };
+        private static readonly string[] TABS = { TAB_EDITOR, TAB_TREE, TAB_DEPLOY, TAB_SETTINGS };
 
         [Header("탭 구성")]
         [SerializeField] private RectTransform _editorRoot;
-        [SerializeField] private RectTransform _benchRoot;
         [SerializeField] private RectTransform _treeRoot;
         [SerializeField] private RectTransform _deployRoot;
         [SerializeField] private RectTransform _settingsRoot;
@@ -33,7 +31,6 @@ namespace RuneCode
         [Header("패널")]
         [SerializeField] private SpellEditorPanel _spellEditor;
         [SerializeField] private DockPanel _dockPanel;
-        [SerializeField] private BenchPanel _benchPanel;
         [SerializeField] private UpgradeTreePanel _upgradeTreePanel;
         [SerializeField] private DeployPanel _deployPanel;
         [SerializeField] private SettingsPanel _settingsPanel;
@@ -46,7 +43,6 @@ namespace RuneCode
 
         public SpellEditorPanel SpellEditor => _spellEditor;
         public DockPanel Dock => _dockPanel;
-        public BenchPanel Bench => _benchPanel;
         public UpgradeTreePanel UpgradeTree => _upgradeTreePanel;
         public DeployPanel Deploy => _deployPanel;
         public SettingsPanel Settings => _settingsPanel;
@@ -70,7 +66,6 @@ namespace RuneCode
         public void ShowTab(string tab)
         {
             _editorRoot.gameObject.SetActive(tab == TAB_EDITOR);
-            _benchRoot.gameObject.SetActive(tab == TAB_BENCH);
             _treeRoot.gameObject.SetActive(tab == TAB_TREE);
             _deployRoot.gameObject.SetActive(tab == TAB_DEPLOY);
             _settingsRoot.gameObject.SetActive(tab == TAB_SETTINGS);

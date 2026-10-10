@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-
 using UnityEngine;
 
 namespace RuneCode
@@ -122,54 +120,22 @@ namespace RuneCode
     public sealed class EconomyBalance
     {
         [Header("성장")]
-        [SerializeField] private int[] _capacityCosts;
-        [SerializeField] private int[] _statCosts;
         [SerializeField] private int _slotCost;
         [SerializeField] private float _deathRetention;
         [SerializeField] private int _baseCapacity;
-        [SerializeField] private int _capacityStep;
         [SerializeField] private int _maxLibrary;
         [SerializeField] private int _modifierStartStock;
-        [SerializeField] private int _statStep;
         [SerializeField] private float _orbAbsorbRadius;
         [SerializeField] private float _terminalHeal;
-
-        [Header("인크리멘탈 성장")]
-        [SerializeField] private int _capacityBaseCost = 12;
-        [SerializeField] private int _energyBaseCost = 15;
-        [SerializeField] private int _durationBaseCost = 18;
-        [SerializeField] private float _growthCostMultiplier = 1.22f;
-        [SerializeField] private int _maxGrowthLevel = 100;
-        [SerializeField] private int _maxDurationLevel = 18;
-        [SerializeField] private float _durationStep = 5;
-        [SerializeField] private float _energyRegenStep = 1;
-        public IReadOnlyList<int> CapacityCosts => _capacityCosts;
-        public IReadOnlyList<int> StatCosts => _statCosts;
         public int SlotCost => _slotCost;
         public float DeathRetention => _deathRetention;
         public int BaseCapacity => _baseCapacity;
-        public int CapacityStep => _capacityStep;
         public int MaxLibrary => _maxLibrary;
 
         /// <summary>새 세이브(또는 소지량 기록이 없는 세이브)에서 Modifier 종류마다 주는 시작 소지량이다.</summary>
         public int ModifierStartStock => _modifierStartStock;
-        public int StatStep => _statStep;
         public float OrbAbsorbRadius => _orbAbsorbRadius;
         public float TerminalHeal => _terminalHeal;
-        public int MaxGrowthLevel => _maxGrowthLevel;
-        public int MaxDurationLevel => _maxDurationLevel;
-        public float DurationStep => _durationStep;
-        public float EnergyRegenStep => _energyRegenStep;
-        public float GrowthCostMultiplier => _growthCostMultiplier;
-
-        /// <summary>성장 종류와 현재 단계에서 다음 강화 가격을 계산하고 상한 도달이면 -1을 반환한다.</summary>
-        public int GetGrowthCost(string kind, int level)
-        {
-            int baseCost = kind == "capacity" ? _capacityBaseCost : kind == "energy" ? _energyBaseCost : kind == "duration" ? _durationBaseCost : 0;
-            int maxLevel = kind == "duration" ? _maxDurationLevel : _maxGrowthLevel;
-            if (baseCost == 0 || level < 0 || level >= maxLevel) return -1;
-            return (int)Math.Min(int.MaxValue, Math.Ceiling(baseCost * Math.Pow(_growthCostMultiplier, level)));
-        }
     }
 
     [Serializable]
@@ -270,7 +236,7 @@ namespace RuneCode
                 || data.Combat == null || data.Economy == null || data.Ram == null || data.Sim == null
                 || data.Player.MaxHp <= 0f || data.Player.MaxEnergy <= 0f || data.Sim.TickRate != 60
                 || data.Limits.MaxLiveSpellEntities <= 0 || data.Limits.HitTriggerCap <= 0
-                || data.Economy.BaseCapacity <= 0 || data.Economy.CapacityCosts == null || data.Economy.StatCosts == null
+                || data.Economy.BaseCapacity <= 0
                 || (data.Ram.Mode != "shared" && data.Ram.Mode != "perSpell"))
                 throw new FormatException("유효하지 않은 밸런스 데이터입니다.");
             float[] values = { data.Player.MaxHp, data.Player.MoveSpeed, data.Player.MaxEnergy, data.Player.EnergyRegen,
@@ -285,8 +251,7 @@ namespace RuneCode
                 data.Sim.TelemetryHighlightSeconds, data.Sim.BenchPlayerX, data.Sim.BenchPlayerY, data.Sim.BenchDummyX,
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
-                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius,
-                data.Economy.DurationStep, data.Economy.EnergyRegenStep, data.Economy.GrowthCostMultiplier };
+                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius };
             foreach (float value in values)
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
                     throw new FormatException("밸런스 값은 유한한 0 이상이어야 합니다.");
@@ -295,25 +260,15 @@ namespace RuneCode
                 || data.Combat.ChillImmuneMaxStacks >= data.Combat.ChillMaxStacks
                 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
-                || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.CapacityStep <= 0
-                || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0
+                || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.MaxLibrary <= 0
+                || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0
                 || data.Limits.MaxFrameSteps <= 0 || data.Limits.MaxGraphNodes <= 0 || data.Limits.MaxGraphEdges <= 0
-                || data.Economy.CapacityCosts.Count == 0 || data.Economy.StatCosts.Count == 0 || data.Sim.BenchHp <= 0f
+                || data.Sim.BenchHp <= 0f
                 || data.Sim.BenchLineCount <= 0 || data.Sim.BenchSwarmColumns <= 0 || data.Sim.BenchSwarmRows <= 0
                 || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f || data.Sim.ItemPickupRadius <= 0f
                 || data.Limits.MaxEnemies <= 0 || data.Limits.MaxCompiledActions <= 0
-                || data.Limits.MaxScheduledExecutions <= 0 || data.Limits.MaxActionsPerTick <= 0
-                || data.Economy.MaxGrowthLevel <= 0 || data.Economy.MaxGrowthLevel > 255
-                || data.Economy.MaxDurationLevel <= 0 || data.Economy.MaxDurationLevel > 100
-                || data.Economy.DurationStep <= 0 || data.Economy.EnergyRegenStep < 0
-                || data.Economy.GrowthCostMultiplier < 1 || data.Economy.GrowthCostMultiplier > 2
-                || data.Economy.GetGrowthCost("capacity", 0) <= 0 || data.Economy.GetGrowthCost("energy", 0) <= 0
-                || data.Economy.GetGrowthCost("duration", 0) <= 0)
-                throw new FormatException("밸런스 범위 또는 비용 목록이 유효하지 않습니다.");
-            foreach (int cost in data.Economy.CapacityCosts)
-                if (cost <= 0) throw new FormatException("RAM 용량 비용은 양수여야 합니다.");
-            foreach (int cost in data.Economy.StatCosts)
-                if (cost <= 0) throw new FormatException("능력치 비용은 양수여야 합니다.");
+                || data.Limits.MaxScheduledExecutions <= 0 || data.Limits.MaxActionsPerTick <= 0)
+                throw new FormatException("밸런스 범위가 유효하지 않습니다.");
             return data;
         }
     }

@@ -17,10 +17,6 @@
       "_value": "룬 설계"
     },
     {
-      "_key": "ui.bench",
-      "_value": "기반 강화"
-    },
-    {
       "_key": "ui.tree",
       "_value": "강화 트리"
     },
@@ -142,7 +138,7 @@
     },
     {
       "_key": "ui.energy",
-      "_value": "에너지"
+      "_value": "전력"
     },
     {
       "_key": "ui.peak",
@@ -181,6 +177,10 @@
       "_value": "미해금"
     },
     {
+      "_key": "ui.unlockViaTree",
+      "_value": "강화 트리에서 해금"
+    },
+    {
       "_key": "ui.reward",
       "_value": "첫 단계 완료 보상"
     },
@@ -198,7 +198,7 @@
     },
     {
       "_key": "ui.fragments",
-      "_value": "RAM"
+      "_value": "스크랩"
     },
     {
       "_key": "ui.capacity",
@@ -294,7 +294,7 @@
     },
     {
       "_key": "ui.help",
-      "_value": "노드 강화 → 시간제 전투 → RAM 획득"
+      "_value": "업그레이드 트리 강화 → 전투로 스크랩 획득"
     },
     {
       "_key": "ui.tutorial1",
@@ -310,7 +310,7 @@
     },
     {
       "_key": "ui.complete",
-      "_value": "설계가 준비되었습니다. 전투로 RAM을 얻고 같은 마법을 계속 확장하세요"
+      "_value": "설계가 준비되었습니다. 전투로 스크랩을 얻고 같은 마법을 계속 확장하세요"
     },
     {
       "_key": "ui.empty",
@@ -342,7 +342,7 @@
     },
     {
       "_key": "ui.grant",
-      "_value": "조각 +200"
+      "_value": "스크랩 +200"
     },
     {
       "_key": "ui.unlockAll",
@@ -502,15 +502,11 @@
     },
     {
       "_key": "result.fragments",
-      "_value": "정산 RAM"
+      "_value": "정산 스크랩"
     },
     {
-      "_key": "bench.maxed",
-      "_value": "최대 단계에 도달했습니다"
-    },
-    {
-      "_key": "bench.insufficient",
-      "_value": "RAM 조각이 부족합니다"
+      "_key": "tree.insufficient",
+      "_value": "스크랩이 부족합니다"
     },
     {
       "_key": "share.invalid",
@@ -854,7 +850,7 @@
     },
     {
       "_key": "ui.retreat",
-      "_value": "전투 중단 · 획득 RAM 70% 회수"
+      "_value": "전투 중단 · 획득 스크랩 70% 회수"
     },
     {
       "_key": "ui.unequip",
@@ -870,7 +866,7 @@
     },
     {
       "_key": "ui.incrementalLoop",
-      "_value": "적 처치로 RAM 획득 · 노드 용량 / 에너지 / 전투 시간 강화 · 더 높은 단계 도전"
+      "_value": "적 처치로 스크랩 획득 · 트리에서 전력 / RAM 용량 강화 · 더 높은 단계 도전"
     },
     {
       "_key": "ui.tree.title",
@@ -894,19 +890,19 @@
     },
     {
       "_key": "ui.tree.regen",
-      "_value": "에너지 회복량"
+      "_value": "전력 회복량"
     },
     {
       "_key": "ui.tree.regenDescription",
-      "_value": "초당 에너지 회복"
+      "_value": "초당 전력 회복"
     },
     {
       "_key": "ui.tree.maxEnergy",
-      "_value": "최대 에너지"
+      "_value": "최대 전력"
     },
     {
       "_key": "ui.tree.maxEnergyDescription",
-      "_value": "최대 보유 에너지"
+      "_value": "최대 보유 전력"
     },
     {
       "_key": "ui.tree.ramCapacity",
@@ -953,28 +949,12 @@
       "_value": "전투 시간"
     },
     {
-      "_key": "ui.capacityDescription",
-      "_value": "현재 마법에 더 많은 룬 노드를 배치할 수 있습니다"
-    },
-    {
-      "_key": "ui.energyDescription",
-      "_value": "최대 에너지와 초당 회복량을 함께 높입니다"
-    },
-    {
-      "_key": "ui.durationDescription",
-      "_value": "다음 전투에서 더 오래 처치하고 RAM을 획득합니다"
-    },
-    {
       "_key": "ui.regen",
       "_value": "회복"
     },
     {
       "_key": "ui.maxed",
       "_value": "최대 단계"
-    },
-    {
-      "_key": "ui.runeUnlocks",
-      "_value": "새 룬 해금 · 새로운 노드로 현재 마법을 확장하세요"
     },
     {
       "_key": "ui.timedBattle",
@@ -1030,7 +1010,7 @@
     },
     {
       "_key": "ui.improveHint",
-      "_value": "획득한 RAM으로 기반을 강화하고, 현재 마법의 노드를 추가하거나 연결을 바꿔 다음 전투를 준비하세요"
+      "_value": "획득한 스크랩으로 업그레이드 트리를 진행하고, 현재 마법의 노드를 추가하거나 연결을 바꿔 다음 전투를 준비하세요"
     },
     {
       "_key": "ui.improveSpell",
@@ -1274,7 +1254,7 @@
     },
     {
       "_key": "ui.resetSaveMessage",
-      "_value": "모든 진행(조각, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
+      "_value": "모든 진행(스크랩, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
     }
   ]
 }

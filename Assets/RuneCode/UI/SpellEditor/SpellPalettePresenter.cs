@@ -11,6 +11,7 @@ namespace RuneCode
     public sealed class SpellPalettePresenter
     {
         private const float ROW_HEIGHT = 40f;
+        private const float LOCKED_ROW_HEIGHT = 52f;
 
         private readonly ISpellEditor _editor;
         private readonly UIManager _ui;
@@ -40,16 +41,23 @@ namespace RuneCode
             string query = _view.SearchQuery;
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (!IsPaletteRune(rune) || !_editor.IsRuneUnlocked(rune.Id) || (_category != "all" && rune.Category != _category) || !MatchesSearch(rune, query)) continue;
+                if (!IsPaletteRune(rune) || (_category != "all" && rune.Category != _category) || !MatchesSearch(rune, query)) continue;
+                bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
+                if (!isUnlocked)
+                {
+                    string lockedLabel = rune.Name + "   " + rune.Ram + " RAM\n" + GameData.L("ui.locked") + " · " + GameData.L("ui.unlockViaTree");
+                    AddPaletteRune(rune, null, lockedLabel, false);
+                    continue;
+                }
                 if (rune.Category != SpellGrammar.CATEGORY_MODIFIER)
                 {
-                    AddPaletteRune(rune, null, rune.Name + "   " + rune.Ram + " RAM");
+                    AddPaletteRune(rune, null, rune.Name + "   " + rune.Ram + " RAM", true);
                     continue;
                 }
                 foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
                 {
                     if (!TryGetRemaining(rune.Id, grade, out int remaining, out int owned)) continue;
-                    AddPaletteRune(rune, grade, ModifierLabel(rune, grade, remaining, owned));
+                    AddPaletteRune(rune, grade, ModifierLabel(rune, grade, remaining, owned), true);
                 }
             }
         }
@@ -84,12 +92,14 @@ namespace RuneCode
             }
         }
 
-        /// <summary>룬(Modifier면 지정 등급) 팔레트 행을 만들고 누르면 제안 위치에 배치하게 한다.</summary>
-        private void AddPaletteRune(RuneDefinition rune, string grade, string label)
+        /// <summary>룬 팔레트 행을 만든다. 잠긴 행은 비활성화하고, 배치 가능한 행은 지정 등급으로 그래프에 추가한다.</summary>
+        private void AddPaletteRune(RuneDefinition rune, string grade, string label, bool canPlace)
         {
             string runeId = rune.Id;
-            _view.AddPaletteRow(label, RuneMesh.CategoryColor(rune.Category), ROW_HEIGHT,
-                () => _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade), runeId, grade, true);
+            Action onClick = null;
+            if (canPlace) onClick = () => _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade);
+            _view.AddPaletteRow(label, canPlace ? RuneMesh.CategoryColor(rune.Category) : UiTheme.Muted,
+                canPlace ? ROW_HEIGHT : LOCKED_ROW_HEIGHT, onClick, runeId, grade, canPlace);
         }
 
         /// <summary>Modifier 등급의 남은 소지량(remaining)과 소지량(owned)을 구하고 남은 소지량이 1 이상이면 true를 반환한다.</summary>

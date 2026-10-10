@@ -8,14 +8,13 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>작업실 화면 Prefab의 헤더, 5개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
+    /// <summary>작업실 화면 Prefab의 헤더, 4개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
-        private const string UPGRADE_CARD_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeCard.prefab";
         private const string UPGRADE_TREE_NODE_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeTreeNode.prefab";
         private const string UPGRADE_TREE_ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
         private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
-        private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "settings" };
+        private static readonly string[] TABS = { "editor", "tree", "deploy", "settings" };
 
         /// <summary>작업실 헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 WorkshopScreen Prefab으로 저장한다.</summary>
         public static void Build()
@@ -40,22 +39,18 @@ namespace RuneCode
             RectTransform editorRoot = UiFactory.Rect(page, "EditorTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             SpellEditorPanel spellEditor = SpellEditorLayout.Build(ui, editorRoot);
             DockPanel dockPanel = BuildDock(ui, editorRoot);
-            RectTransform benchRoot = UiFactory.Rect(page, "BenchTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
-            BenchPanel benchPanel = BuildBench(ui, benchRoot);
             RectTransform treeRoot = UiFactory.Rect(page, "UpgradeTreeTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             UpgradeTreePanel upgradeTreePanel = BuildUpgradeTree(ui, treeRoot);
             RectTransform deployRoot = UiFactory.Rect(page, "DeployTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             DeployPanel deployPanel = BuildDeploy(ui, deployRoot);
             RectTransform settingsRoot = UiFactory.Rect(page, "SettingsTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             SettingsPanel settingsPanel = BuildSettings(ui, settingsRoot);
-            benchRoot.gameObject.SetActive(false);
             treeRoot.gameObject.SetActive(false);
             deployRoot.gameObject.SetActive(false);
             settingsRoot.gameObject.SetActive(false);
 
             WorkshopScreen screen = root.gameObject.AddComponent<WorkshopScreen>();
             LayoutUtility.SetReference(screen, "_editorRoot", editorRoot);
-            LayoutUtility.SetReference(screen, "_benchRoot", benchRoot);
             LayoutUtility.SetReference(screen, "_treeRoot", treeRoot);
             LayoutUtility.SetReference(screen, "_deployRoot", deployRoot);
             LayoutUtility.SetReference(screen, "_settingsRoot", settingsRoot);
@@ -63,7 +58,6 @@ namespace RuneCode
             LayoutUtility.SetReferences(screen, "_tabLabels", tabLabels);
             LayoutUtility.SetReference(screen, "_spellEditor", spellEditor);
             LayoutUtility.SetReference(screen, "_dockPanel", dockPanel);
-            LayoutUtility.SetReference(screen, "_benchPanel", benchPanel);
             LayoutUtility.SetReference(screen, "_upgradeTreePanel", upgradeTreePanel);
             LayoutUtility.SetReference(screen, "_deployPanel", deployPanel);
             LayoutUtility.SetReference(screen, "_settingsPanel", settingsPanel);
@@ -99,31 +93,6 @@ namespace RuneCode
             LayoutUtility.SetReference(dockPanel, "_metrics", metrics);
             LayoutUtility.SetReference(dockPanel, "_adaptationText", adaptation);
             return dockPanel;
-        }
-
-        /// <summary>성장 카드 3장과 룬 해금 목록, 행 Prefab을 만들고 BenchPanel 참조를 연결한다.</summary>
-        private static BenchPanel BuildBench(UiFactory ui, RectTransform parent)
-        {
-            ui.Text(parent, 30, 98, 850, 40, GameData.L("ui.bench"), 29, Color.white, FontStyles.Bold, "BenchTitle");
-            TextMeshProUGUI balance = ui.Text(parent, 30, 144, 800, 34, "", 20, UiTheme.Cyan, FontStyles.Normal, "Balance");
-            string[] types = { "capacity", "energy", "duration" };
-            UpgradeCardView[] upgradeCards = new UpgradeCardView[types.Length];
-            UpgradeCardView upgradeCardPrefab = EnsureUpgradeCardPrefab(ui);
-            for (int i = 0; i < types.Length; i++)
-            {
-                upgradeCards[i] = LayoutUtility.InstantiatePrefab(upgradeCardPrefab, parent, types[i] + "UpgradeCard");
-                LayoutUtility.SetTopLeftRect((RectTransform)upgradeCards[i].transform, 30 + i * 406, 196, 386, 184);
-            }
-            ui.Text(parent, 30, 393, 1200, 24, GameData.L("ui.runeUnlocks"), 15, Color.white, FontStyles.Bold, "RuneUnlocksTitle");
-            RectTransform unlockList = UiFactory.ScrollList(parent, "UnlockList", 28, 426, 1224, 228);
-
-            BenchPanel benchPanel = parent.gameObject.AddComponent<BenchPanel>();
-            LayoutUtility.SetReference(benchPanel, "_balanceText", balance);
-            LayoutUtility.SetReferences(benchPanel, "_upgradeCards", upgradeCards);
-            LayoutUtility.SetReference(benchPanel, "_unlockList", unlockList);
-            UiRow runeRow = LayoutUtility.GetSharedRowPrefab(ui);
-            LayoutUtility.SetReference(benchPanel, "_runeRowPrefab", runeRow);
-            return benchPanel;
         }
 
         /// <summary>트리 뷰포트·우클릭 이동·휠 확대, 포인터 정보 패널과 ScriptableObject·노드 Prefab 참조를 연결한다.</summary>
@@ -206,30 +175,6 @@ namespace RuneCode
             if (isExistingPrefab) PrefabUtility.UnloadPrefabContents(source);
             else UnityEngine.Object.DestroyImmediate(source);
             return prefab.GetComponent<UpgradeTreeNodeView>();
-        }
-
-        /// <summary>성장 카드 공통 Prefab이 없을 때 기존 화면의 크기와 타이포그래피로 생성해 자산으로 저장한다.</summary>
-        private static UpgradeCardView EnsureUpgradeCardPrefab(UiFactory ui)
-        {
-            UpgradeCardView existing = AssetDatabase.LoadAssetAtPath<UpgradeCardView>(UPGRADE_CARD_PREFAB_PATH);
-            if (existing != null) return existing;
-
-            GameObject source = new GameObject("UpgradeCard", typeof(RectTransform));
-            LayoutUtility.SetTopLeftRect((RectTransform)source.transform, 0, 0, 386, 184);
-            ui.Panel(source.transform, 0, 0, 386, 184, UiTheme.Panel, "Background");
-            TextMeshProUGUI title = ui.Text(source.transform, 18, 14, 350, 31, "", 21, Color.white, FontStyles.Normal, "CardTitle");
-            TextMeshProUGUI value = ui.Text(source.transform, 18, 52, 350, 34, "", 28, UiTheme.Cyan, FontStyles.Bold, "CardValue");
-            TextMeshProUGUI description = ui.Text(source.transform, 18, 93, 350, 38, "", 12, UiTheme.Muted, FontStyles.Normal, "CardDescription");
-            Button buyButton = ui.Button(source.transform, 16, 142, 354, 28, "", null, UiTheme.Muted, 12, "BuyButton");
-
-            UpgradeCardView view = source.AddComponent<UpgradeCardView>();
-            LayoutUtility.SetReference(view, "_title", title);
-            LayoutUtility.SetReference(view, "_value", value);
-            LayoutUtility.SetReference(view, "_description", description);
-            LayoutUtility.SetReference(view, "_buyButton", buyButton);
-            LayoutUtility.SetReference(view, "_buyButtonImage", buyButton.GetComponent<Image>());
-            LayoutUtility.SetReference(view, "_buyLabel", buyButton.GetComponentInChildren<TextMeshProUGUI>());
-            return LayoutUtility.SavePrefab(source, "UpgradeCard").GetComponent<UpgradeCardView>();
         }
 
         /// <summary>시간제 전투 안내, 스테이지 선택과 출격 버튼을 만들고 DeployPanel 참조를 연결한다.</summary>

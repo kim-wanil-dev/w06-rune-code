@@ -7,17 +7,19 @@ namespace RuneCode
 {
     public static class SaveStore
     {
-        private const string SAVE_FILE = "runecode.save.v2.json";
-        private const string LEGACY_SAVE_FILE = "runecode.save.v1.json";
+        private const string SAVE_FILE = "runecode.save.v3.json";
+        private const string LEGACY_SAVE_V2_FILE = "runecode.save.v2.json";
+        private const string LEGACY_SAVE_V1_FILE = "runecode.save.v1.json";
         private static string _lastWarning;
         public static string LastWarning => _lastWarning;
         public static string SavePath => Path.Combine(Application.persistentDataPath, SAVE_FILE);
 
-        /// <summary>버전 2 진행을 읽거나 이전 저장을 보존하여 이전하고 손상된 파일은 백업한다.</summary>
+        /// <summary>버전 3 진행을 읽거나 이전 저장을 보존하여 이전하고 손상된 파일은 백업한다.</summary>
         public static PlayerSave Load()
         {
             _lastWarning = null;
-            var sourcePath = File.Exists(SavePath) ? SavePath : Path.Combine(Application.persistentDataPath, LEGACY_SAVE_FILE);
+            var sourcePath = File.Exists(SavePath) ? SavePath : Path.Combine(Application.persistentDataPath, LEGACY_SAVE_V2_FILE);
+            if (!File.Exists(sourcePath)) sourcePath = Path.Combine(Application.persistentDataPath, LEGACY_SAVE_V1_FILE);
             if (!File.Exists(sourcePath)) return PlayerSave.CreateNew();
             try
             {
@@ -39,12 +41,13 @@ namespace RuneCode
             return PlayerSave.CreateNew();
         }
 
-        /// <summary>버전 1 설계를 단일 마법 진행으로 이전하고 마법 그래프를 문법 블록으로 변환한다. 알 수 없는 버전은 원본을 보존한다.</summary>
+        /// <summary>이전 진행을 단일 마법·새 트리 저장으로 이전하고 그래프를 문법 블록으로 변환한다. 알 수 없는 버전은 원본을 보존한다.</summary>
         private static PlayerSave Migrate(PlayerSave save)
         {
             if (save == null) return null;
             if (save.Version == 1) save.MigrateToIncremental();
-            else if (save.Version != 2) throw new FormatException("지원하지 않는 룬 코드 저장 버전입니다.");
+            if (save.Version == 2) save.MigrateToHardwareTree();
+            if (save.Version != 3) throw new FormatException("지원하지 않는 룬 코드 저장 버전입니다.");
             save.MigrateSpellGrammar();
             return save;
         }

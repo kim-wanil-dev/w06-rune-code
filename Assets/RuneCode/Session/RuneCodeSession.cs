@@ -36,11 +36,11 @@ namespace RuneCode
         public bool DockAdaptation => _dockAdaptation;
         public float DockSpeed => _dockSpeed;
 
-        public int Capacity => GameData.Balance.Economy.BaseCapacity + _save.CapacityLevel * GameData.Balance.Economy.CapacityStep + Mathf.RoundToInt(GetUpgradeTreeEffectTotal(UpgradeEffectType.RamCapacity));
-        public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.MaxEnergy);
-        public float MaxHp => GameData.Balance.Player.MaxHp + _save.HpLevel * GameData.Balance.Economy.StatStep;
-        public float EnergyRegen => GameData.Balance.Player.EnergyRegen + _save.EnergyLevel * GameData.Balance.Economy.EnergyRegenStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.EnergyRegen);
-        public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
+        public int Capacity => GameData.Balance.Economy.BaseCapacity + Mathf.RoundToInt(GetUpgradeTreeEffectTotal(UpgradeEffectType.RamCapacity));
+        public float MaxEnergy => GameData.Balance.Player.MaxEnergy + GetUpgradeTreeEffectTotal(UpgradeEffectType.MaxEnergy);
+        public float MaxHp => GameData.Balance.Player.MaxHp;
+        public float EnergyRegen => GameData.Balance.Player.EnergyRegen + GetUpgradeTreeEffectTotal(UpgradeEffectType.EnergyRegen);
+        public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
         public int HighestClearedStage => _save.HighestClearedStage;
@@ -95,23 +95,6 @@ namespace RuneCode
             return elements;
         }
 
-        /// <summary>성장 항목 또는 벤치 룬의 구매 비용을 반환하며 구매 불가면 -1을 반환한다.</summary>
-        public int GetUpgradeCost(string kind)
-        {
-            var economy = GameData.Balance.Economy;
-            switch (kind)
-            {
-                case "capacity": return economy.GetGrowthCost(kind, _save.CapacityLevel);
-                case "energy": return economy.GetGrowthCost(kind, _save.EnergyLevel);
-                case "duration": return economy.GetGrowthCost(kind, _save.DurationLevel);
-                default:
-                    if (!GameData.Runes.TryGet(kind, out var rune) || _save.UnlockedRunes.Contains(kind)) return -1;
-                    UpgradeTreeNodeDefinition treeNode = _upgradeTree.FindRuneUnlock(kind);
-                    if (treeNode != null) return treeNode.GetNextCost(_save.GetUpgradeNodeLevel(treeNode.Id));
-                    return rune.UnlockType == "bench" ? rune.UnlockCost : -1;
-            }
-        }
-
         /// <summary>노드의 구매 단계를 반환하고, 기존 해금 화면에서 이미 얻은 룬은 트리에서도 완료로 처리한다.</summary>
         public int GetUpgradeNodeLevel(string nodeId)
         {
@@ -163,7 +146,7 @@ namespace RuneCode
             int cost = node.GetNextCost(currentLevel);
             if (cost < 0 || _save.Currency < cost)
             {
-                reasonKey = "bench.insufficient";
+                reasonKey = "tree.insufficient";
                 return false;
             }
             return true;
@@ -182,7 +165,7 @@ namespace RuneCode
             int cost = node.GetNextCost(currentLevel);
             if (!_save.Spend(cost))
             {
-                SetStatus("bench.insufficient");
+                SetStatus("tree.insufficient");
                 return false;
             }
             _save.SetUpgradeNodeLevel(nodeId, currentLevel + 1);
@@ -190,22 +173,6 @@ namespace RuneCode
             SaveStore.Write(_save);
             _spells.Recompile();
             LocalTelemetry.Record(0, "upgradeTree.purchase", nodeId + ":" + (currentLevel + 1) + ":" + cost);
-            return true;
-        }
-
-        /// <summary>비용을 지불하고 성장 또는 룬 해금을 적용해 저장한다. 성공하면 true를 반환한다.</summary>
-        public bool BuyUpgrade(string kind)
-        {
-            UpgradeTreeNodeDefinition treeNode = _upgradeTree.FindRuneUnlock(kind);
-            if (treeNode != null) return BuyUpgradeNode(treeNode.Id);
-
-            var cost = GetUpgradeCost(kind);
-            if (cost < 0) { SetStatus("bench.maxed"); return false; }
-            if (!_save.Spend(cost)) { SetStatus("bench.insufficient"); return false; }
-            if (kind.Contains(".")) _save.Unlock(kind); else _save.Upgrade(kind);
-            SaveStore.Write(_save);
-            _spells.Recompile();
-            LocalTelemetry.Record(0, "bench.purchase", kind + ":" + cost);
             return true;
         }
 
