@@ -68,7 +68,8 @@ namespace RuneCode
             _session = session;
             _spell = spell;
             _spellName = spellName;
-            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen);
+            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen,
+                session.DamageMultiplier, session.MoveSpeedMultiplier, session.ScrapGainMultiplier);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);

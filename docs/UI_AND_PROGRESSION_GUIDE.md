@@ -53,6 +53,7 @@ UI에서 요청을 전달하는 대상으로, UI 폴더로 옮기지 않는다. 
 | `Core/Data/GameData.cs` | 공용 밸런스·현지화·룬·마법 템플릿 리소스를 로드하고 조회한다. |
 | `Features/Workshop/DockRun.cs` | 작업실 시험 도크 시뮬레이션을 실행한다. `DockPanel`은 이 상태를 보여준다. |
 | `Features/Mission/MissionRun.cs` | 실제 미션 진행과 전투 상태를 관리한다. `MissionScreen`과 HUD가 결과를 표시한다. |
+| `Core/Simulation/RuneSimulation.cs` | 미션·시험 도크에 전달된 트리 능력치로 체력·전력·이동·마법 피해를 적용하고, 처치 스크랩 보너스를 오브에 반영한다. |
 | `Boot/RuneCodeApp.cs`, `Boot/AppScreen.cs` | 앱 시작과 화면 전환 수명주기를 관리한다. |
 
 ## 공용 Prefab 편집
@@ -89,6 +90,8 @@ UI에서 요청을 전달하는 대상으로, UI 폴더로 옮기지 않는다. 
 
 현재 트리의 기본 강화 노드와 효과 종류는 메인보드(전력 회복), RAM 용량, 파워(최대 전력), CPU(캐스팅 속도), GPU(피해), 스크랩 획득량, 기본 HP, 이동 속도다. 새 효과 종류를 추가하려면 `UpgradeEffectType`에 값을 추가하고 실제 적용은 `Session/RuneCodeSession.cs` 및 해당 Core/Features 능력치 계산에 연결한다. 임시 아이콘 렌더링은 `UpgradeTreeNodeIconGraphic.cs`가 맡으며 `_icon` Sprite 표시 연결은 UI 마일스톤에서 완료한다.
 
+트리 능력치는 레벨별 `_amount`의 합으로 계산한다. 메인보드의 회복량, 파워의 최대 전력, RAM 용량, HP는 기본값에 더한다. GPU의 피해, 이동속도, 스크랩 획득량은 각각 `1 + 합계` 배율이다. GPU는 적에게 들어가는 마법 피해(화염 지속 피해 포함)에 적용하고 회복·보호량에는 적용하지 않는다. 이동속도는 일반 이동에 적용하고 대시는 기존 거리·시간을 쓴다. 스크랩 증가는 처치 기본 보상과 처치 드롭의 스크랩 오브에 적용되며, 소수 보너스는 다음 드롭으로 이월된다. 스테이지 클리어 보상에는 적용하지 않는다. CPU는 현재 구매와 저장만 되며 캐스팅 속도에는 연결되지 않는다.
+
 기본 비용·증가량은 첫 트리 구성용 초깃값이며, 실제 밸런스는 SO의 `_levels`에서 조정한다. CPU는 현재 비용과 레벨만 기록하고 효과량은 0으로 둔다. 초기 스크랩이 없어도 시작 마법을 사용할 수 있도록 메인보드 첫 레벨과 화염 해금 비용은 0으로 설정했다. Builder는 레이아웃 버전이 5보다 낮을 때 기존 트리를 한 번 새 하드웨어 노드 구성으로 교체한다. 이후에는 `Rune Code > Build Scenes`를 실행해도 버전이 같은 자산의 노드 값을 덮어쓰지 않는다.
 
 ## 연결 흐름
@@ -99,7 +102,8 @@ UI/Workshop/UpgradeTreePanel ── UpgradeTreeNodeView ── UpgradeTreeNodeIc
   └─ RuneCodeSession → 비용 확인·재화 지불·강화/해금·저장
        ├─ UpgradeTreeDefinition (Resources/RuneCode/UpgradeTree.asset)
        ├─ PlayerSave → 진행 상태
-       ├─ BalanceData → 강화 비용과 수치
+       ├─ BalanceData → 강화 전 기본 능력치
+       ├─ MissionRun/DockRun → RuneSimulation 전투 능력치
        └─ RuneData/GameData → 룬 정의와 표시 데이터
 ```
 

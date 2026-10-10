@@ -42,7 +42,9 @@ namespace RuneCode
         public void StartDock(string scenario)
         {
             _session.SetDockOptions(scenario, _session.DockAutoFire, _session.DockAdaptation, _session.DockSpeed);
-            _dock = new RuneSimulation(1, false, _session.MaxHp, _session.MaxEnergy, energyRegen: _session.EnergyRegen);
+            _dock = new RuneSimulation(1, false, _session.MaxHp, _session.MaxEnergy, energyRegen: _session.EnergyRegen,
+                damageMultiplier: _session.DamageMultiplier, moveSpeedMultiplier: _session.MoveSpeedMultiplier,
+                scrapGainMultiplier: _session.ScrapGainMultiplier);
             _dock.ResetBench(scenario);
             _dock.SetAdaptationEnabled(_session.DockAdaptation || scenario == "adapt_loop");
             _dock.SetUnlockedElements(_session.GetUnlockedElements());
