@@ -197,7 +197,7 @@ namespace RuneCode
             }
         }
 
-        /// <summary>마법 개체를 범위형(폭발·잔류·Sphere·Cone Beam), Box Beam 잔상과 이동형(발사·공전)으로 나눠 그린다.</summary>
+        /// <summary>마법 개체를 범위형(폭발·잔류)과 이동형(발사·공전)으로 나눠 그린다.</summary>
         private void DrawSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell)
         {
             Vector2 point = Point(spell.Position);
@@ -205,37 +205,22 @@ namespace RuneCode
             float radius = (float)spell.Radius * _scale;
             Vector2 direction = ScreenDirection(spell.Direction);
             float angle = Mathf.Atan2(direction.y, direction.x);
-            if (spell.Kind == SpellGrammar.FORM_BEAM && spell.IsBox)
-            {
-                DrawBeam(mesh, spell, point, (float)(spell.BeamWidth * 0.5) * _scale, angle, tint);
-                return;
-            }
-
-            float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
-            if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST || spell.Kind == SpellGrammar.FORM_BEAM)
-                DrawAreaSpell(mesh, spell, point, radius, angle, boxRotation, tint);
+            if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST)
+                DrawAreaSpell(mesh, spell, point, radius, angle, tint);
             else
-                DrawMovingSpell(mesh, spell, point, radius, direction, angle, boxRotation, tint);
+                DrawMovingSpell(mesh, spell, point, radius, direction, angle, tint);
         }
 
-        /// <summary>Box Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box(채움과 외곽선)으로 그린다.</summary>
-        private void DrawBeam(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float halfWidth, float angle, Color tint)
-        {
-            Color fill = tint;
-            fill.a = 0.6f;
-            float halfLength = (float)(spell.BeamLength * 0.5) * _scale;
-            RuneMesh.Rectangle(mesh, point, halfWidth, halfLength, angle, fill);
-            RuneMesh.RectangleOutline(mesh, point, halfWidth, halfLength, angle, 1.8f * _scale, tint);
-            RuneMesh.Rectangle(mesh, point, Math.Max(1f, halfWidth * 0.15f), halfLength, angle, fill * 2);
-        }
-
-        /// <summary>폭발·잔류 범위를 사각형·부채꼴·원 판정 모양 그대로 채움과 외곽선으로 그린다. 예고 중인 잔류는 예고 표시로 그린다.</summary>
+        /// <summary>
+        /// 폭발·잔류 범위를 Beam 사각형·부채꼴·원 판정 모양 그대로 채움과 외곽선으로 그린다. Beam은 BoxCenter에 진행 방향으로 그린다.
+        /// 예고 중인 잔류는 예고 표시로 그린다.
+        /// </summary>
         private void DrawAreaSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
-            float angle, float boxRotation, Color tint)
+            float angle, Color tint)
         {
             if (spell.IsWarning)
             {
-                DrawWarningArea(mesh, spell, point, radius, angle, boxRotation);
+                DrawWarningArea(mesh, spell, point, radius, angle);
                 return;
             }
             Color fill = tint;
@@ -244,9 +229,10 @@ namespace RuneCode
             {
                 float halfWidth = (float)spell.BoxWidth * 0.5f * _scale;
                 float halfLength = (float)spell.BoxLength * 0.5f * _scale;
-                RuneMesh.Rectangle(mesh, point, halfWidth, halfLength, boxRotation, fill);
-                RuneMesh.RectangleOutline(mesh, point, halfWidth, halfLength, boxRotation, 1.8f * _scale, tint);
-                RuneMesh.RectangleOutline(mesh, point, halfWidth * 0.6f, halfLength * 0.6f, boxRotation, _scale, fill * 2);
+                Vector2 center = Point(spell.BoxCenter);
+                RuneMesh.Rectangle(mesh, center, halfWidth, halfLength, angle, fill);
+                RuneMesh.RectangleOutline(mesh, center, halfWidth, halfLength, angle, 1.8f * _scale, tint);
+                RuneMesh.RectangleOutline(mesh, center, halfWidth * 0.6f, halfLength * 0.6f, angle, _scale, fill * 2);
             }
             else if (spell.IsCone)
             {
@@ -264,7 +250,7 @@ namespace RuneCode
 
         /// <summary>예고 중인 잔류 범위를 판정 모양 그대로 빨간 외곽선과 진행률만큼 커지는 반투명 채움으로 그린다.</summary>
         private void DrawWarningArea(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
-            float angle, float boxRotation)
+            float angle)
         {
             Color fill = PERSIST_WARNING_COLOR;
             fill.a = 0.25f;
@@ -272,10 +258,11 @@ namespace RuneCode
             if (spell.IsBox)
             {
                 float progress = (float)spell.WarnProgress;
-                RuneMesh.Rectangle(mesh, point, (float)spell.BoxWidth * 0.5f * progress * _scale,
-                    (float)spell.BoxLength * 0.5f * progress * _scale, boxRotation, fill);
-                RuneMesh.RectangleOutline(mesh, point, (float)spell.BoxWidth * 0.5f * _scale,
-                    (float)spell.BoxLength * 0.5f * _scale, boxRotation, 1.8f * _scale, PERSIST_WARNING_COLOR);
+                Vector2 center = Point(spell.BoxCenter);
+                RuneMesh.Rectangle(mesh, center, (float)spell.BoxWidth * 0.5f * progress * _scale,
+                    (float)spell.BoxLength * 0.5f * progress * _scale, angle, fill);
+                RuneMesh.RectangleOutline(mesh, center, (float)spell.BoxWidth * 0.5f * _scale,
+                    (float)spell.BoxLength * 0.5f * _scale, angle, 1.8f * _scale, PERSIST_WARNING_COLOR);
             }
             else if (spell.IsCone)
             {
@@ -290,9 +277,9 @@ namespace RuneCode
             }
         }
 
-        /// <summary>발사체·공전체를 꼬리선과 속성별 다각형(사각형 Shape면 회전 사각형)으로, 부채꼴 발사체는 꼬리선과 진행 방향 부채꼴로 그린다.</summary>
+        /// <summary>발사체·공전체를 꼬리선과 속성별 다각형(Beam Shape면 진행 방향 사각형)으로, 부채꼴 발사체는 꼬리선과 진행 방향 부채꼴로 그린다.</summary>
         private void DrawMovingSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float radius,
-            Vector2 direction, float angle, float boxRotation, Color tint)
+            Vector2 direction, float angle, Color tint)
         {
             Color trail = tint;
             trail.a = 0.25f;
@@ -311,7 +298,7 @@ namespace RuneCode
             if (spell.IsBox)
             {
                 RuneMesh.Rectangle(mesh, point, (float)spell.BoxWidth * 0.5f * _scale,
-                    (float)spell.BoxLength * 0.5f * _scale, boxRotation, tint);
+                    (float)spell.BoxLength * 0.5f * _scale, angle, tint);
                 return;
             }
             RuneMesh.Polygon(mesh, point, size, tint, ElementSides(spell.Element), angle);

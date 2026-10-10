@@ -172,17 +172,13 @@ namespace RuneCode
             return inline;
         }
 
-        /// <summary>Shape에 저장된 크기·방향과 기능 속성의 효과량 파라미터를 정규화 노드에 복사한다.</summary>
+        /// <summary>기능 속성의 효과량 파라미터를 정규화 노드에 복사한다. Shape 크기는 형상 정의 데이터의 고정값을 쓰므로 복사하지 않는다.</summary>
         private static void CopyEffectParameters(GraphNode source, GraphNode target)
         {
             foreach (NodeParameter param in source.Params)
             {
-                if (param.Key == SpellGrammar.POWER_PARAM || param.Key == SpellGrammar.BUFF_DURATION_PARAM
-                    || param.Key == SpellGrammar.SHAPE_RADIUS_PARAM || param.Key == SpellGrammar.BOX_WIDTH_PARAM
-                    || param.Key == SpellGrammar.BOX_HEIGHT_PARAM || param.Key == SpellGrammar.BOX_LENGTH_PARAM
-                    || param.Key == SpellGrammar.CONE_DISTANCE_PARAM || param.Key == SpellGrammar.CONE_ANGLE_PARAM)
+                if (param.Key == SpellGrammar.POWER_PARAM || param.Key == SpellGrammar.BUFF_DURATION_PARAM)
                     target.SetNumber(param.Key, param.Number);
-                else if (param.Key == SpellGrammar.BOX_DIRECTION_PARAM) target.SetText(param.Key, param.Text);
             }
         }
 

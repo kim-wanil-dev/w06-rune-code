@@ -16,7 +16,6 @@ namespace RuneCode
         private readonly StageCatalog _stages;
         private readonly UpgradeTreeDefinition _upgradeTree;
         private readonly bool _isDebugEnabled;
-        private readonly bool _legacyBoxWorldAligned;
         private readonly SpellEditSession _spells;
         private string _statusMessage;
 
@@ -28,7 +27,6 @@ namespace RuneCode
         public PlayerSave Save => _save;
         public ISpellEditor Spells => _spells;
         public bool IsDebugEnabled => _isDebugEnabled;
-        public bool LegacyBoxWorldAligned => _legacyBoxWorldAligned;
         public string StatusMessage => _statusMessage;
 
         public string DockScenario => _dockScenario;
@@ -49,17 +47,15 @@ namespace RuneCode
         public event Action<AppScreen> ScreenRequested;
 
         /// <summary>
-        /// 세이브, 스테이지 정의(제한시간 성장 표시 기준값), 디버그 여부, 시작 경고 문구와
-        /// 기존 저장 그래프의 Box 방향 기본값과 함께 세션과 마법 편집 세션을 만든다.
+        /// 세이브, 스테이지 정의(제한시간 성장 표시 기준값), 디버그 여부와 시작 경고 문구로 세션과 마법 편집 세션을 만든다.
         /// </summary>
         public RuneCodeSession(PlayerSave save, StageCatalog stages, UpgradeTreeDefinition upgradeTree, bool isDebugEnabled,
-            string initialStatus, bool legacyBoxWorldAligned)
+            string initialStatus)
         {
             _save = save;
             _stages = stages;
             _upgradeTree = upgradeTree;
             _isDebugEnabled = isDebugEnabled;
-            _legacyBoxWorldAligned = legacyBoxWorldAligned;
             _statusMessage = initialStatus;
             var storage = new SessionSpellStorage(() => _save);
             var policy = new SessionSpellPolicy(this);

@@ -14,11 +14,10 @@ namespace RuneCode
         /// </summary>
         public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, GrammarLimits limits,
             IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f, IEnumerable<SpellGraph> library = null,
-            IReadOnlyDictionary<string, int> modifierStock = null, IReadOnlyDictionary<string, float> maxResourceCosts = null,
-            bool legacyBoxWorldAligned = true)
+            IReadOnlyDictionary<string, int> modifierStock = null, IReadOnlyDictionary<string, float> maxResourceCosts = null)
         {
             CompileContext context = new CompileContext(unlocked ?? runes.StartRunes, library, graph, capacity, maxEnergy,
-                maxResourceCosts, legacyBoxWorldAligned);
+                maxResourceCosts);
             List<CompileIssue> dependencyErrors = new List<CompileIssue>();
             ValidateSpellDependencies(graph, context.Library, new HashSet<string>(StringComparer.Ordinal),
                 new List<string>(), dependencyErrors);
@@ -317,14 +316,11 @@ namespace RuneCode
             bool isProtectionOrbit = magicType == "sphere" && element == "protection" && form == "orbit";
             bool isValid;
             if (magicType == "buff") isValid = isBuffElement && form == "remain";
-            else if (element == "heal") isValid = form == "explosion" || form == "remain" || form == SpellGrammar.FORM_BEAM;
-            else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit || form == SpellGrammar.FORM_BEAM;
+            else if (element == "heal") isValid = form == "explosion" || form == "remain";
+            else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit;
             else isValid = true;
-            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist·Beam)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
-            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch" && form != SpellGrammar.FORM_BEAM) isValid = false;
-            // Beam은 Sphere·Box·Cone Shape와 조합할 수 있다(백서 v6). 그 외(버프)는 E14다.
-            if (form == SpellGrammar.FORM_BEAM && magicType != SpellGrammar.MAGIC_TYPE_SPHERE && magicType != SpellGrammar.MAGIC_TYPE_BOX
-                && magicType != SpellGrammar.MAGIC_TYPE_CONE) isValid = false;
+            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
+            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch") isValid = false;
             if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))
@@ -357,7 +353,6 @@ namespace RuneCode
                 case "explosion": return "behavior.burst";
                 case "orbit": return "behavior.orbit";
                 case "remain": return "behavior.persist";
-                case SpellGrammar.FORM_BEAM: return "behavior.beam";
                 default: return null;
             }
         }
@@ -372,7 +367,6 @@ namespace RuneCode
                 case "explosion": return "form.burst";
                 case "orbit": return "form.orbit";
                 case "remain": return "form.zone";
-                case SpellGrammar.FORM_BEAM: return "form.beam";
                 default: return "";
             }
         }
@@ -635,7 +629,7 @@ namespace RuneCode
                 else if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) behavior = rune;
                 float coneAngle = shape?.Stats.ConeAngle ?? 0f;
                 SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell,
-                    shape, coneAngle, runes.ModifierGrades, context.LegacyBoxWorldAligned, behavior);
+                    shape, coneAngle, runes.ModifierGrades, behavior);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {
@@ -661,7 +655,7 @@ namespace RuneCode
 
         /// <summary>
         /// 개체 하나가 이벤트를 낼 수 있는 최대 OnHit 횟수를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽),
-        /// 공전·Burst·Beam은 대상마다 내므로 개체당 이벤트 안전 상한을 쓴다. Burst·Beam의 마나 비용은 Cost에서 산정 불가로 따로 다룬다.
+        /// 공전·Burst는 대상마다 내므로 개체당 이벤트 안전 상한을 쓴다. Burst의 마나 비용은 Cost에서 산정 불가로 따로 다룬다.
         /// </summary>
         private static int MaxHitEvents(SpellAction action, int hitCap)
         {
@@ -684,8 +678,8 @@ namespace RuneCode
                 {
                     case "spawn":
                         ResourceCostSet hitChainCost = Cost(action.OnHit, hitCap, inheritedModifiers, costMultiplier);
-                        // Burst·Beam.OnHit은 개체당 상한이 없어(대상마다 1회) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
-                        ResourceCostSet hitCost = action.Form == SpellGrammar.FORM_BURST || action.Form == SpellGrammar.FORM_BEAM
+                        // Burst.OnHit은 개체당 상한이 없어(대상마다 1회) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
+                        ResourceCostSet hitCost = action.Form == SpellGrammar.FORM_BURST
                             ? (HasCosts(hitChainCost) ? hitChainCost.MarkUnbounded() : ResourceCostSet.Empty)
                             : hitChainCost.Multiply(MaxHitEvents(action, hitCap));
                         ResourceCostSet expireCost = Cost(action.OnExpire, hitCap, inheritedModifiers, costMultiplier);
@@ -909,18 +903,16 @@ namespace RuneCode
             private readonly int _capacity;
             private readonly float _maxEnergy;
             private readonly IReadOnlyDictionary<string, float> _maxResourceCosts;
-            private readonly bool _legacyBoxWorldAligned;
             public HashSet<string> UnlockedIds => _unlockedIds;
             public Dictionary<string, SpellGraph> Library => _library;
             public Dictionary<string, CompiledSpell> Compiled => _compiled;
             public HashSet<string> ActiveSpellIds => _activeSpellIds;
             public int Capacity => _capacity;
             public float MaxEnergy => _maxEnergy;
-            public bool LegacyBoxWorldAligned => _legacyBoxWorldAligned;
 
-            /// <summary>라이브러리·해금·컴파일 캐시·자원 한도와 레거시 Box 기본 방향을 컴파일 작업에 보관한다.</summary>
+            /// <summary>라이브러리·해금·컴파일 캐시와 자원 한도를 컴파일 작업에 보관한다.</summary>
             public CompileContext(IEnumerable<string> unlocked, IEnumerable<SpellGraph> library, SpellGraph current, int capacity,
-                float maxEnergy, IReadOnlyDictionary<string, float> maxResourceCosts, bool legacyBoxWorldAligned)
+                float maxEnergy, IReadOnlyDictionary<string, float> maxResourceCosts)
             {
                 _unlockedIds = new HashSet<string>(unlocked ?? Array.Empty<string>(), StringComparer.Ordinal);
                 _unlockedIds.Add(SpellGrammar.INLINE_RUNE);
@@ -932,7 +924,6 @@ namespace RuneCode
                 _capacity = capacity;
                 _maxEnergy = maxEnergy;
                 _maxResourceCosts = maxResourceCosts;
-                _legacyBoxWorldAligned = legacyBoxWorldAligned;
             }
 
             /// <summary>자원별 최대 비용 한도를 반환하고 등록되지 않은 자원에는 false를 반환한다.</summary>

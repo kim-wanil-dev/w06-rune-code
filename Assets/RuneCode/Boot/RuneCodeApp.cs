@@ -16,8 +16,6 @@ namespace RuneCode
     {
         private const string BOOT_SCENE = "Boot";
 
-        [SerializeField, HideInInspector] private bool _isAreaBoxUpright = true;
-
         private RuneCodeSession _session;
         private UIManager _ui;
         private bool _isSwitching;
@@ -44,7 +42,7 @@ namespace RuneCode
             if (upgradeTree == null) throw new InvalidOperationException("업그레이드 트리 자산이 없습니다: RuneCode/UpgradeTree");
             if (!upgradeTree.Validate(out string treeError)) throw new InvalidOperationException(treeError);
             bool isDebug = Environment.GetCommandLineArgs().Contains("-debug") || Application.absoluteURL.Contains("debug=1");
-            _session = new RuneCodeSession(save, stages, upgradeTree, isDebug, SaveStore.LastWarning, _isAreaBoxUpright);
+            _session = new RuneCodeSession(save, stages, upgradeTree, isDebug, SaveStore.LastWarning);
             _session.ScreenRequested += OnScreenRequested;
             _ui = UIManager.Create(transform);
             LocalTelemetry.Record(0, "session", "start");

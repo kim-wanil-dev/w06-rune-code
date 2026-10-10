@@ -187,54 +187,6 @@
       ]
     },
     {
-      "_id": "form.beam",
-      "_name": "빔",
-      "_category": "internal",
-      "_ram": 1,
-      "_energy": 10,
-      "_energyMult": 1,
-      "_unlockType": "start",
-      "_unlockCost": 0,
-      "_stats": {
-        "_beamLength": 400,
-        "_damage": 12,
-        "_radius": 24,
-        "_count": 1,
-        "_damageMultiplier": 1,
-        "_radiusMultiplier": 1,
-        "_learningMultiplier": 1
-      },
-      "_ports": [
-        {
-          "_order": 0,
-          "_portId": "exec",
-          "_kind": "exec",
-          "_direction": "in",
-          "_max": 1
-        },
-        {
-          "_order": 1,
-          "_portId": "mod",
-          "_kind": "mod",
-          "_direction": "in",
-          "_max": 0
-        },
-        {
-          "_order": 2,
-          "_portId": "onHit",
-          "_kind": "exec",
-          "_direction": "out",
-          "_max": 0
-        }
-      ],
-      "_tags": [
-        {
-          "_order": 0,
-          "_tag": "beam"
-        }
-      ]
-    },
-    {
       "_id": "form.orbit",
       "_name": "오비트",
       "_category": "internal",
@@ -487,7 +439,6 @@
         "behavior.orbit",
         "behavior.persist",
         "behavior.apply",
-        "behavior.beam",
         "spell.call"
       ]
 
@@ -633,7 +584,6 @@
         "behavior.burst",
         "behavior.orbit",
         "behavior.persist",
-        "behavior.beam",
         "spell.call"
       ]
 
@@ -1041,10 +991,6 @@
             {
               "_order": 3,
               "_option": "remain"
-            },
-            {
-              "_order": 4,
-              "_option": "beam"
             }
           ]
         },
@@ -1065,80 +1011,6 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
-        },
-        {
-          "_order": 5,
-          "_paramId": "radius",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 6
-        },
-        {
-          "_order": 6,
-          "_paramId": "coneDistance",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 6
-        },
-        {
-          "_order": 7,
-          "_paramId": "boxWidth",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 8,
-          "_paramId": "boxHeight",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 9,
-          "_paramId": "boxLength",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 10,
-          "_paramId": "boxDirection",
-          "_kind": "enum",
-          "_min": 0,
-          "_max": 0,
-          "_step": 0,
-          "_defaultNumber": 0,
-          "_defaultText": "aim",
-          "_options": [
-            {
-              "_order": 0,
-              "_option": "aim"
-            },
-            {
-              "_order": 1,
-              "_option": "world"
-            }
-          ]
-        },
-        {
-          "_order": 11,
-          "_paramId": "coneAngle",
-          "_kind": "number",
-          "_min": 10,
-          "_max": 180,
-          "_step": 1,
-          "_defaultNumber": 60
         }
       ],
       "_tags": [
@@ -1360,22 +1232,13 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
-        },
-        {
-          "_order": 3,
-          "_paramId": "radius",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 6
         }
       ]
 
     },
     {
       "_id": "shape.box",
-      "_name": "사각",
+      "_name": "빔",
       "_category": "shape",
       "_ram": 0,
       "_energy": 0,
@@ -1391,6 +1254,8 @@
       "_unlockType": "start",
       "_unlockCost": 0,
       "_stats": {
+        "_beamWidth": 48,
+        "_beamLength": 400,
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
@@ -1465,53 +1330,6 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
-        },
-        {
-          "_order": 3,
-          "_paramId": "boxWidth",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 4,
-          "_paramId": "boxHeight",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 5,
-          "_paramId": "boxLength",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 12
-        },
-        {
-          "_order": 6,
-          "_paramId": "boxDirection",
-          "_kind": "enum",
-          "_min": 0,
-          "_max": 0,
-          "_step": 0,
-          "_defaultNumber": 0,
-          "_defaultText": "aim",
-          "_options": [
-            {
-              "_order": 0,
-              "_option": "aim"
-            },
-            {
-              "_order": 1,
-              "_option": "world"
-            }
-          ]
         }
       ]
 
@@ -1609,24 +1427,6 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
-        },
-        {
-          "_order": 3,
-          "_paramId": "coneDistance",
-          "_kind": "number",
-          "_min": 4,
-          "_max": 800,
-          "_step": 1,
-          "_defaultNumber": 6
-        },
-        {
-          "_order": 4,
-          "_paramId": "coneAngle",
-          "_kind": "number",
-          "_min": 10,
-          "_max": 180,
-          "_step": 1,
-          "_defaultNumber": 60
         }
       ]
 
@@ -1877,46 +1677,6 @@
           "_direction": "out",
           "_max": 0,
           "_status": "deprecated"
-        }
-      ]
-
-    },
-    {
-      "_id": "behavior.beam",
-      "_name": "빔",
-      "_category": "behavior",
-      "_ram": 1,
-      "_energy": 0,
-      "_energyMult": 1,
-      "_executionSeconds": 0.05,
-      "_unlockType": "start",
-      "_unlockCost": 0,
-      "_stats": {
-        "_damageMultiplier": 1,
-        "_radiusMultiplier": 1,
-        "_learningMultiplier": 1
-      },
-      "_ports": [
-        {
-          "_order": 0,
-          "_portId": "in",
-          "_kind": "chain",
-          "_direction": "in",
-          "_max": 1
-        },
-        {
-          "_order": 1,
-          "_portId": "mod",
-          "_kind": "mod",
-          "_direction": "in",
-          "_max": 0
-        },
-        {
-          "_order": 2,
-          "_portId": "onHit",
-          "_kind": "exec",
-          "_direction": "out",
-          "_max": 0
         }
       ]
 

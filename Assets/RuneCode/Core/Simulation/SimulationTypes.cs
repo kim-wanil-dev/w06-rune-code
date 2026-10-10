@@ -346,7 +346,6 @@ namespace RuneCode
         private HashSet<int> _nextContacts = new HashSet<int>();
         private SimVector _position;
         private SimVector _direction;
-        private readonly double _beamLength;
         private double _age;
         private double _angle;
         private int _hits;
@@ -362,9 +361,15 @@ namespace RuneCode
         /// <summary>현재 판정 반경이다. Burst는 확장 시간 동안 0에서 최종 반경까지 커지고, 그 외는 최종 반경이다.</summary>
         public double Radius => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
             ? _stats.Radius * Math.Min(1, _age / _warmupSeconds) : _stats.Radius;
-        public double BoxWidth => _stats.BoxWidth * ExpansionProgress;
+        /// <summary>Beam 범위의 폭이다. Burst도 확장 중 폭은 그대로다.</summary>
+        public double BoxWidth => _stats.BoxWidth;
+
+        /// <summary>Beam 범위의 현재 길이다. Burst는 확장 시간 동안 0에서 최종 길이까지 진행 방향으로 늘어난다.</summary>
         public double BoxLength => _stats.BoxLength * ExpansionProgress;
-        public bool IsBoxWorldAligned => _stats.IsBoxWorldAligned;
+
+        /// <summary>Beam 범위의 중심이다. Burst·Persist는 뒤쪽 면을 개체 위치에 두므로 진행 방향으로 현재 길이의 절반 앞이고, 그 외는 개체 위치다.</summary>
+        public SimVector BoxCenter => _action.Form == SpellGrammar.FORM_BURST || _action.Form == SpellGrammar.FORM_ZONE
+            ? _position + _direction.Normalized() * (BoxLength * 0.5) : _position;
 
         /// <summary>Persist가 활성화 전 예고 중인지 나타낸다. 예고 중에는 효과·적중 판정을 하지 않는다.</summary>
         public bool IsWarning => _action.Form == SpellGrammar.FORM_ZONE && _age + 0.000001 < _warmupSeconds;
@@ -389,20 +394,12 @@ namespace RuneCode
 
         /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
         public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
-
-        /// <summary>Beam의 실제 Box 길이(px, 벽으로 잘린 길이)다. Beam이 아니면 0이다.</summary>
-        public double BeamLength => _beamLength;
-
-        /// <summary>Beam 잔상의 폭(Box Shape 폭, Expand 반영)이다. Beam이 아니면 의미가 없다.</summary>
-        public double BeamWidth => _stats.BoxWidth;
         public double Age => _age;
         /// <summary>
-        /// 개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간,
-        /// Beam은 잔상 시간(balance의 spellVisualSeconds), 그 외는 유지 시간이다.
+        /// 개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간, 그 외는 유지 시간이다.
         /// </summary>
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _warmupSeconds + _visualSeconds
-            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime
-            : _action.Form == SpellGrammar.FORM_BEAM ? _visualSeconds : _stats.Lifetime;
+            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -432,12 +429,10 @@ namespace RuneCode
         /// <summary>
         /// 컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.
         /// warmupSeconds는 Burst의 확장 시간 또는 Persist의 예고 시간이며 그 외 형태는 0이다.
-        /// beamLength는 Beam의 벽으로 잘린 실제 Box 길이이며 다른 형태는 0이다.
         /// </summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster,
-            double beamLength = 0)
+            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
         {
             _warmupSeconds = warmupSeconds;
             _costMultiplier = costMultiplier;
@@ -453,7 +448,6 @@ namespace RuneCode
             _visualSeconds = visualSeconds;
             _anchor = anchor;
             _angle = angle;
-            _beamLength = beamLength;
             _callEvents = callEvents;
             _modifiers = modifiers ?? SpellModifierValues.None;
         }

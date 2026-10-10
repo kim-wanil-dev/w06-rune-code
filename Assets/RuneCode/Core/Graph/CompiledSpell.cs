@@ -206,7 +206,6 @@ namespace RuneCode
         private readonly float _shapeRadius;
         private readonly float _boxWidth;
         private readonly float _boxLength;
-        private readonly bool _isBoxWorldAligned;
         private readonly float _lifetime;
         private readonly float _offset;
         private readonly float _orbitRadius;
@@ -228,7 +227,6 @@ namespace RuneCode
         public float ShapeRadius => _shapeRadius;
         public float BoxWidth => _boxWidth;
         public float BoxLength => _boxLength;
-        public bool IsBoxWorldAligned => _isBoxWorldAligned;
         public float Lifetime => _lifetime;
         public float Offset => _offset;
         public float OrbitRadius => _orbitRadius;
@@ -249,7 +247,7 @@ namespace RuneCode
         public SpellStats(RuneStats form, RuneStats element, IReadOnlyList<RuneDefinition> mods, string formKind,
             IReadOnlyList<GraphNode> modifierNodes = null, ModifierGradeTable modifierGrades = null,
             string magicType = SpellGrammar.MAGIC_TYPE_SPHERE, float shapeRadius = -1f, float boxWidth = -1f,
-            float boxLength = -1f, bool isBoxWorldAligned = false)
+            float boxLength = -1f)
         {
             float damageMult = 1f;
             float radiusMult = 1f;
@@ -297,7 +295,6 @@ namespace RuneCode
             _shapeRadius = (shapeRadius >= 0f ? shapeRadius : form.Radius) * radiusMult;
             _boxWidth = (boxWidth >= 0f ? boxWidth : form.Radius * 2f) * radiusMult;
             _boxLength = (boxLength >= 0f ? boxLength : form.Radius * 2f) * radiusMult;
-            _isBoxWorldAligned = isBoxWorldAligned;
             _radius = magicType == SpellGrammar.MAGIC_TYPE_SPHERE || magicType == SpellGrammar.MAGIC_TYPE_CONE
                 ? _shapeRadius : form.Radius * radiusMult;
             _lifetime = (formKind == "bolt" ? form.Lifetime * rangeMult / speedMult : form.Lifetime) * durationMult;
@@ -325,7 +322,6 @@ namespace RuneCode
             _shapeRadius = source._shapeRadius * modifiers.RadiusMultiplier;
             _boxWidth = source._boxWidth * modifiers.RadiusMultiplier;
             _boxLength = source._boxLength * modifiers.RadiusMultiplier;
-            _isBoxWorldAligned = source._isBoxWorldAligned;
             _radius = source._radius * modifiers.RadiusMultiplier;
             _lifetime = source._lifetime * modifiers.DurationMultiplier * modifiers.RangeMultiplier;
             _offset = source._offset * modifiers.RangeMultiplier;
@@ -482,11 +478,11 @@ namespace RuneCode
         }
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
-        /// <summary>원본 노드와 효과·Shape·Behavior 정의, 호출 대상, 연결 수식 및 레거시 Box 기본 방향으로 실행 명령을 초기화한다.</summary>
+        /// <summary>원본 노드와 효과·Shape·Behavior 정의, 호출 대상과 연결 수식으로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
             IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null,
             RuneDefinition shape = null, float coneAngle = 0f, ModifierGradeTable modifierGrades = null,
-            bool legacyBoxWorldAligned = true, RuneDefinition behavior = null)
+            RuneDefinition behavior = null)
         {
             _nodeId = node.Id;
             _shapeDefinition = shape;
@@ -494,8 +490,7 @@ namespace RuneCode
             _executionSeconds = rune.ExecutionSeconds + behaviorSeconds + (shape?.ExecutionSeconds ?? 0f);
             _magicType = rune.Id == "magic.inline" ? node.GetText("magicType", "sphere") : rune.Category == "form" ? "sphere" : "";
             _form = rune.Id == "magic.inline" ? MapForm(node.GetText("form", "launch")) : rune.Category == "form" ? rune.Id.Substring(5) : "";
-            _coneAngle = _magicType == SpellGrammar.MAGIC_TYPE_CONE
-                ? node.GetNumber(SpellGrammar.CONE_ANGLE_PARAM, shape?.Stats.ConeAngle ?? coneAngle) : 0f;
+            _coneAngle = _magicType == SpellGrammar.MAGIC_TYPE_CONE ? shape?.Stats.ConeAngle ?? coneAngle : 0f;
             _sourceElement = rune.Id == "magic.inline" ? node.GetText("element", "normal") : element == null ? "normal" : SourceElementFromRune(element.Id);
             _element = rune.Id == "magic.inline" ? RuntimeElement(_sourceElement) : element == null ? "raw" : element.Id.Substring(5);
             _calledSpellId = rune.Id == "spell.call" ? node.GetText("spellId").Trim() : "";
@@ -523,18 +518,12 @@ namespace RuneCode
             _modifierValues = SpellModifierValues.From(mods, modifierNodes, modifierGrades);
             if (_kind == "spawn" || _kind == "buff")
             {
+                // Shape 크기는 노드에서 편집하지 않는다(백서 v7). Sphere 반경·Cone 거리는 Behavior 기준 반경, Beam은 Shape 정의의 고정 폭·길이다.
                 float behaviorRadius = effectForm.Stats.Radius;
-                string radiusParameter = _magicType == SpellGrammar.MAGIC_TYPE_CONE
-                    ? SpellGrammar.CONE_DISTANCE_PARAM : SpellGrammar.SHAPE_RADIUS_PARAM;
-                float shapeRadius = node.GetNumber(radiusParameter, behaviorRadius);
-                float boxWidth = node.GetNumber(SpellGrammar.BOX_WIDTH_PARAM, behaviorRadius * 2f);
-                // Beam은 Box 길이 기본값을 형태 데이터의 빔 길이로 쓴다. 그 외 Box는 반경×2.
-                float defaultBoxLength = _form == SpellGrammar.FORM_BEAM && effectForm.Stats.BeamLength > 0f ? effectForm.Stats.BeamLength : behaviorRadius * 2f;
-                float boxLength = node.GetNumber(SpellGrammar.BOX_LENGTH_PARAM, defaultBoxLength);
-                string defaultBoxDirection = _form == SpellGrammar.FORM_BOLT || !legacyBoxWorldAligned ? "aim" : "world";
-                bool isBoxWorldAligned = node.GetText(SpellGrammar.BOX_DIRECTION_PARAM, defaultBoxDirection) == "world";
+                float boxWidth = shape != null && shape.Stats.BeamWidth > 0f ? shape.Stats.BeamWidth : behaviorRadius * 2f;
+                float boxLength = shape != null && shape.Stats.BeamLength > 0f ? shape.Stats.BeamLength : behaviorRadius * 2f;
                 _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades,
-                    _magicType, shapeRadius, boxWidth, boxLength, isBoxWorldAligned);
+                    _magicType, behaviorRadius, boxWidth, boxLength);
             }
             ResourceCostSet baseCosts = rune.Costs;
             if (rune.Id == "magic.inline") baseCosts = baseCosts.Add(effectForm.Costs);
@@ -613,7 +602,6 @@ namespace RuneCode
                 case "explosion": return "burst";
                 case "orbit": return "orbit";
                 case "remain": return "zone";
-                case SpellGrammar.FORM_BEAM: return SpellGrammar.FORM_BEAM;
                 default: return "";
             }
         }

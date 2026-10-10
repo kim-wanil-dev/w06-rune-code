@@ -10,15 +10,13 @@ namespace RuneCode
         public float MaxEnergy { get; }
         public IEnumerable<SpellGraph> Library { get; }
         public IReadOnlyDictionary<string, float> MaxResourceCosts { get; }
-        public bool LegacyBoxWorldAligned { get; }
 
         /// <summary>Modifier 룬 ID별 소지량(보관함 전체 공유)이다. null이면 소지량을 검사하지 않는다.</summary>
         public IReadOnlyDictionary<string, int> ModifierStock { get; }
 
         /// <summary>해금 룬, RAM 용량, 최대 에너지, 참조 가능한 마법 보관함과 Modifier 소지량으로 컴파일 문맥을 만든다.</summary>
         public SpellCompileContext(IEnumerable<string> unlockedRunes, int capacity, float maxEnergy, IEnumerable<SpellGraph> library,
-            IReadOnlyDictionary<string, int> modifierStock = null, IReadOnlyDictionary<string, float> maxResourceCosts = null,
-            bool legacyBoxWorldAligned = true)
+            IReadOnlyDictionary<string, int> modifierStock = null, IReadOnlyDictionary<string, float> maxResourceCosts = null)
         {
             UnlockedRunes = unlockedRunes;
             Capacity = capacity;
@@ -26,7 +24,6 @@ namespace RuneCode
             Library = library;
             ModifierStock = modifierStock;
             MaxResourceCosts = maxResourceCosts;
-            LegacyBoxWorldAligned = legacyBoxWorldAligned;
         }
     }
 }

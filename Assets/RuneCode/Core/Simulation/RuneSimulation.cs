@@ -18,9 +18,6 @@ namespace RuneCode
         private const string PERSIST_FORM_ID = "form.zone";
         private const double SAME_SPAWN_DISTANCE = 0.5;
         private const string BOLT_RUNE_ID = "form.bolt";
-        private const double BEAM_CLIP_MIN_STEP = 4;
-        private const double BEAM_CLIP_STEP_RATIO = 0.25;
-        private const int BEAM_CLIP_REFINEMENT_STEPS = 6;
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -694,21 +691,24 @@ namespace RuneCode
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
             string element = action.Noise ? ChooseNoiseElement(context) : action.Element;
             SpellStats stats = action.Stats.Apply(context.Modifiers);
-            // Beam은 이동체를 만들지 않고 즉시 Shape 판정과 잔상 표시로 끝난다(백서 v6).
-            if (action.Form == SpellGrammar.FORM_BEAM) { SpawnBeam(action, stats, element, context); return; }
             for (int i = 0; i < action.Count; i++)
             {
                 if (_spellEntities.Count >= _balance.Limits.MaxLiveSpellEntities) return;
                 SimVector direction = context.Direction;
                 if (action.Form == "bolt" && action.Count > 1) direction = direction.Rotated((i / (double)(action.Count - 1) * 2 - 1) * stats.SpreadAngle * DEGREES_TO_RADIANS);
                 SimVector position = context.Origin;
+                // Beam 발사체는 뒤쪽 면을 실행 위치에 두고 진행 방향으로 뻗는다(백서 v7).
+                if (action.Form == "bolt" && action.MagicType == SpellGrammar.MAGIC_TYPE_BOX)
+                    position += direction.Normalized() * (stats.BoxLength * 0.5);
                 if (action.Form == "burst" || action.Form == "zone")
                 {
                     // 회복·보호 범위는 시전자에게 적용되므로 생성 거리 없이 현재 실행 위치에 만든다.
-                    // 부채꼴은 실행 위치를 꼭짓점으로 진행 방향에 펼친다(결정 Q17).
+                    // 부채꼴은 실행 위치를 꼭짓점으로, Beam은 실행 위치를 뒤쪽 면으로 진행 방향에 펼친다(결정 Q17, 백서 v7).
                     bool isFunctional = action.SourceElement == "heal" || action.SourceElement == "protection";
-                    bool isCone = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE;
-                    if (!context.FromEvent && !isFunctional && !isCone) position += context.Direction * stats.Offset;
+                    bool isAnchored = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE || action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
+                    if (!context.FromEvent && !isFunctional && !isAnchored) position += context.Direction * stats.Offset;
+                    // 지팡이 끝은 시전자 몸 밖이므로 직접 시전한 회복·보호 Beam은 뒤쪽 면을 시전자 중심에 둬 자신을 포함한다.
+                    if (!context.FromEvent && isFunctional && action.MagicType == SpellGrammar.MAGIC_TYPE_BOX) position = context.Caster.Position;
                     if (action.Count > 1) position += new SimVector(Math.Cos(i * 2 * Math.PI / action.Count), Math.Sin(i * 2 * Math.PI / action.Count)) * _balance.Sim.MultiOffset;
                 }
                 double angle = i * 2 * Math.PI / action.Count;
@@ -726,146 +726,6 @@ namespace RuneCode
                 if (action.Form == "burst") HitArea(entity, true);
                 else if (action.Form == "zone" && action.SourceElement != "protection" && !entity.IsWarning) HitArea(entity, false);
             }
-        }
-
-        /// <summary>
-        /// Box Beam의 Box 폭과 길이를 Box Shape 노드의 크기 속성(Expand 반영)으로 반환한다. Sphere·Cone Beam은 stats.Radius를 쓴다.
-        /// 속성이 없는 노드는 폭 = 형태 반경×2, 길이 = form.beam 데이터의 기본 빔 길이(_beamLength)다.
-        /// </summary>
-        public static void GetBeamBox(SpellStats stats, out double width, out double length)
-        {
-            width = stats.BoxWidth;
-            length = stats.BoxLength;
-        }
-
-        /// <summary>
-        /// Beam을 실행 시점에 선택 Shape로 한 번 판정하고 잔상만 남긴다. 원점·방향은 실행 문맥(시전은 지팡이 끝과 조준, 이벤트는 사건 위치·방향)을 따른다.
-        /// Box는 뒤쪽 면을 원점에 두고 첫 벽에서 길이가 잘리며, Cone은 꼭짓점을 원점에, Sphere(2D 원)는 중심을 진행 방향으로 반경만큼 앞에 둔다.
-        /// Cone·Sphere는 원점에서 대상까지의 직선이 벽에 막히면 제외한다. 범위 안의 살아 있는 적을 가까운 순서(같으면 ID 순)로 각 한 번 적중하며 대상별 OnHit을 낸다.
-        /// 회복·보호는 적 대신 범위 안의 시전자에게 한 번 적용된다. 판정 후 잔상 개체(판정 없음)만 spellVisualSeconds 동안 남긴다.
-        /// </summary>
-        private void SpawnBeam(SpellAction action, SpellStats stats, string element, SpellContext context)
-        {
-            if (_spellEntities.Count >= _balance.Limits.MaxLiveSpellEntities) return;
-            SimVector direction = context.Direction.Normalized();
-            bool isBox = action.MagicType == SpellGrammar.MAGIC_TYPE_BOX;
-            GetBeamBox(stats, out double width, out double length);
-            double clipped = isBox ? ClipBeamLength(context.Origin, direction, length) : 0;
-            // 잔상 개체는 Box면 잘린 Box의 중심, Cone이면 꼭짓점(원점), Sphere면 원 중심에 두고 판정에는 쓰지 않는다.
-            SimVector center = isBox ? context.Origin + direction * (clipped * 0.5)
-                : action.MagicType == SpellGrammar.MAGIC_TYPE_CONE ? context.Origin : context.Origin + direction * stats.Radius;
-            var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, center,
-                direction, context.FromEvent, context.Origin, 0, context.NoiseElement, _balance.Sim.SpellVisualSeconds, 0,
-                context.CallEvents, context.Modifiers, context.CostMultiplier, context.Caster, clipped);
-            _spellEntities.Add(entity);
-            _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
-            if (action.SourceElement == "heal" || action.SourceElement == "protection")
-            {
-                ApplyFunctionalBeam(action, entity, context.Origin, direction, clipped, width);
-                return;
-            }
-            var targets = new List<SimulationEnemy>();
-            foreach (SimulationEnemy enemy in _enemies)
-                if (enemy.IsAlive && IsInsideBeam(entity, context.Origin, direction, clipped, width, enemy.Position, enemy.Radius)) targets.Add(enemy);
-            targets.Sort((a, b) =>
-            {
-                int distanceOrder = (a.Position - context.Origin).LengthSquared.CompareTo((b.Position - context.Origin).LengthSquared);
-                return distanceOrder != 0 ? distanceOrder : a.Id.CompareTo(b.Id);
-            });
-            foreach (SimulationEnemy enemy in targets)
-            {
-                if (!enemy.IsAlive) continue;
-                Hit(entity, enemy, stats.Damage, false);
-                SimVector contact = isBox ? BeamContactPoint(context.Origin, direction, clipped, enemy.Position)
-                    : MoveToward(entity.IsCone ? context.Origin : center, enemy.Position, stats.Radius);
-                RaiseHitEvent(entity, contact, enemy);
-            }
-        }
-
-        /// <summary>
-        /// 대상 원이 Beam 범위 안인지 반환한다. Box는 잘린 길이(length)·폭(width)의 Box, Cone은 원점 꼭짓점의 부채꼴, Sphere는 잔상 개체 중심의 원으로 판정하며
-        /// Cone·Sphere는 원점에서 대상 중심까지 벽에 막히지 않아야 한다.
-        /// </summary>
-        private bool IsInsideBeam(SimulationSpellEntity entity, SimVector origin, SimVector direction, double length, double width, SimVector target, double targetRadius)
-        {
-            if (entity.IsBox) return IntersectsBeamBox(origin, direction, length, width, target, targetRadius);
-            bool isInside = entity.IsCone
-                ? IntersectsSector(origin, direction, entity.Radius, entity.ConeAngle, target, targetRadius)
-                : (target - entity.Position).Length <= entity.Radius + targetRadius;
-            return isInside && HasLineOfSight(origin, target);
-        }
-
-        /// <summary>원점에서 대상 위치까지의 직선이 맵 벽에 막히지 않았는지 반환한다. Beam 길이 절단과 같은 간격으로 검사한다.</summary>
-        private bool HasLineOfSight(SimVector origin, SimVector target)
-        {
-            SimVector offset = target - origin;
-            double distance = offset.Length;
-            if (distance <= 0.000001) return true;
-            return ClipBeamLength(origin, offset / distance, distance) >= distance - 0.000001;
-        }
-
-        /// <summary>시작점에서 대상 쪽으로 최대 reach만큼(대상이 더 가까우면 대상 위치까지) 간 위치를 반환한다.</summary>
-        private static SimVector MoveToward(SimVector from, SimVector target, double reach)
-        {
-            SimVector offset = target - from;
-            double distance = offset.Length;
-            return distance <= 0.000001 ? from : from + offset / distance * Math.Min(reach, distance);
-        }
-
-        /// <summary>Beam 원점에서 방향으로 뻗는 중심선을 타일의 1/4 간격으로 검사해 첫 벽(맵 비통과 타일) 앞까지의 길이를 반환한다.</summary>
-        private double ClipBeamLength(SimVector origin, SimVector direction, double length)
-        {
-            double step = Math.Max(BEAM_CLIP_MIN_STEP, _map.TileSize * BEAM_CLIP_STEP_RATIO);
-            double free = 0;
-            double distance = Math.Min(step, length);
-            while (distance <= length + 0.000001)
-            {
-                if (_map.IsWall(origin + direction * distance)) return RefineBeamClip(origin, direction, free, distance);
-                free = distance;
-                distance += step;
-            }
-            return length;
-        }
-
-        /// <summary>벽에 들어간 구간을 절반씩 좁혀 첫 벽 경계 바로 앞까지의 잘린 길이를 반환한다.</summary>
-        private double RefineBeamClip(SimVector origin, SimVector direction, double free, double hit)
-        {
-            for (int i = 0; i < BEAM_CLIP_REFINEMENT_STEPS; i++)
-            {
-                double middle = (free + hit) * 0.5;
-                if (_map.IsWall(origin + direction * middle)) hit = middle;
-                else free = middle;
-            }
-            return free;
-        }
-
-        /// <summary>원점에서 방향으로 길이만큼, 수직으로 폭의 절반만큼 뻗은 Box와 대상 원의 겹침 여부를 반환한다. 대상 반경만큼 여유를 둔다.</summary>
-        private static bool IntersectsBeamBox(SimVector origin, SimVector direction, double length, double width, SimVector target, double targetRadius)
-        {
-            SimVector relative = target - origin;
-            double extent = width * 0.5 + targetRadius;
-            double along = SimVector.Dot(relative, direction);
-            double across = Math.Abs(SimVector.Dot(relative, new SimVector(-direction.Y, direction.X)));
-            return along >= -extent && along <= length + extent && across <= extent;
-        }
-
-        /// <summary>Box 중심선 위에서 대상에 가장 가까운 접촉 위치를 반환한다. 대상이 원점 뒤나 끝 밖이면 해당 끝점이다.</summary>
-        private static SimVector BeamContactPoint(SimVector origin, SimVector direction, double length, SimVector target)
-        {
-            double along = Math.Max(0, Math.Min(length, SimVector.Dot(target - origin, direction)));
-            return origin + direction * along;
-        }
-
-        /// <summary>
-        /// 회복·보호 Beam을 범위 안의 시전자에게 한 번 적용한다(Burst의 기능 속성 규칙과 같다). 적에게는 효과가 없고 Hit 이벤트도 만들지 않는다.
-        /// 회복은 즉시 회복, 보호는 보호막이며 보호막 지속시간은 효과량 파라미터와 수식 배율을 따른다.
-        /// </summary>
-        private void ApplyFunctionalBeam(SpellAction action, SimulationSpellEntity entity, SimVector origin, SimVector direction, double length, double width)
-        {
-            if (!IsInsideBeam(entity, origin, direction, length, width, _player.Position, _sector.PlayerRadius)) return;
-            double amount = action.Power * action.ModifierValues.DamageMultiplier * entity.Modifiers.DamageMultiplier;
-            if (action.SourceElement == "heal") _player.Heal(amount);
-            else _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier * entity.Modifiers.DurationMultiplier, Time);
         }
 
         /// <summary>투사체 이동, 유도, 회전 및 지속 범위 피해를 처리하고 소멸 이벤트를 한 번만 발생시킨다.</summary>
@@ -913,12 +773,14 @@ namespace RuneCode
             }
             SimVector previous = entity.Position;
             SimVector next = previous + direction * (stats.Speed * STEP_SECONDS);
-            double collisionRadius = entity.IsBox ? Math.Max(stats.BoxWidth, stats.BoxLength) * 0.5 : entity.Radius;
-            if (!_map.CanOccupy(next, collisionRadius))
+            // Beam 발사체는 앞쪽 면 중앙을 폭의 절반 반경으로 벽 검사한다. 그 외는 개체 중심과 반경이다.
+            SimVector front = entity.IsBox ? direction.Normalized() * (stats.BoxLength * 0.5) : SimVector.Zero;
+            double collisionRadius = entity.IsBox ? stats.BoxWidth * 0.5 : entity.Radius;
+            if (!_map.CanOccupy(next + front, collisionRadius))
             {
                 // 벽·지형 충돌은 직접 충돌이므로 접촉점에서 OnHit을 내고 OnExpire 없이 사라진다.
-                SimVector contact = _map.Move(previous, next - previous, collisionRadius);
-                entity.Move(contact, direction);
+                SimVector contact = _map.Move(previous + front, next - previous, collisionRadius);
+                entity.Move(contact - front, direction);
                 RaiseHitEvent(entity, contact, null);
                 entity.HasExpired = true;
                 return;
@@ -931,7 +793,7 @@ namespace RuneCode
                     ? IntersectsConeSweep(previous, next, direction, entity.Radius, entity.ConeAngle, enemy.Position, enemy.Radius)
                     : entity.IsBox
                     ? IntersectsBoxSweep(previous, next, direction, entity.Stats.BoxWidth * 0.5,
-                        entity.Stats.BoxLength * 0.5, entity.Stats.IsBoxWorldAligned, enemy.Position, enemy.Radius)
+                        entity.Stats.BoxLength * 0.5, enemy.Position, enemy.Radius)
                     : SegmentDistance(previous, next, enemy.Position) <= entity.Radius + enemy.Radius;
                 if (enemy.IsAlive && !entity.HitTimes.ContainsKey(enemy.Id) && isInside) targets.Add(enemy);
             }
@@ -979,14 +841,13 @@ namespace RuneCode
             return Math.Acos(cosine) <= coneAngle * 0.5 * DEGREES_TO_RADIANS + tolerance;
         }
 
-        /// <summary>방향 설정과 가로·세로 크기를 가진 이동 사각형이 대상 원과 겹치는지 반환한다.</summary>
+        /// <summary>진행 방향으로 길이, 수직으로 폭을 가진 이동 사각형이 이번 틱 이동 중 대상 원과 겹치는지 반환한다.</summary>
         private static bool IntersectsBoxSweep(SimVector start, SimVector end, SimVector direction,
-            double halfWidth, double halfLength, bool isWorldAligned, SimVector target, double targetRadius)
+            double halfWidth, double halfLength, SimVector target, double targetRadius)
         {
             SimVector movement = end - start;
             double length = movement.Length;
-            SimVector forward = isWorldAligned ? new SimVector(1, 0)
-                : length > 0.000001 ? movement / length : direction.Normalized();
+            SimVector forward = length > 0.000001 ? movement / length : direction.Normalized();
             SimVector side = new SimVector(-forward.Y, forward.X);
             SimVector relative = target - start;
             double moveAlong = SimVector.Dot(movement, forward);
@@ -1000,14 +861,14 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 범위 마법 정사각형(반 변 길이 = 개체 반경)과 대상 원의 겹침 여부를 반환한다.
-        /// Box 노드의 방향 속성에 따라 월드 축 또는 개체 진행 방향 기준으로 판정한다.
+        /// 진행 방향으로 현재 길이, 수직으로 폭을 가진 Beam 범위(BoxCenter 중심)와 대상 원의 겹침 여부를 반환한다.
+        /// Burst·Persist는 뒤쪽 면이 개체 위치에 있고, 공전은 개체 위치가 중심이다.
         /// </summary>
         private bool IntersectsAreaBox(SimulationSpellEntity entity, SimVector target, double targetRadius)
         {
-            SimVector forward = entity.Stats.IsBoxWorldAligned ? new SimVector(1, 0) : entity.Direction.Normalized();
+            SimVector forward = entity.Direction.Normalized();
             SimVector side = new SimVector(-forward.Y, forward.X);
-            SimVector relative = target - entity.Position;
+            SimVector relative = target - entity.BoxCenter;
             return Math.Abs(SimVector.Dot(relative, forward)) <= entity.BoxLength * 0.5 + targetRadius
                 && Math.Abs(SimVector.Dot(relative, side)) <= entity.BoxWidth * 0.5 + targetRadius;
         }
@@ -1027,9 +888,18 @@ namespace RuneCode
         private static bool IntersectsCone(SimulationSpellEntity entity, SimVector target, double targetRadius)
             => IntersectsSector(entity.Position, entity.Direction, entity.Radius, entity.ConeAngle, target, targetRadius);
 
-        /// <summary>범위 중심에서 대상 쪽으로 현재 반경만큼(대상이 더 가까우면 대상 위치까지) 간 접촉 위치를 반환한다.</summary>
+        /// <summary>
+        /// 범위 중심에서 대상 쪽으로 현재 반경만큼(대상이 더 가까우면 대상 위치까지) 간 접촉 위치를 반환한다.
+        /// Beam 범위는 현재 길이의 중심선 위에서 대상에 가장 가까운 위치다.
+        /// </summary>
         private static SimVector GetContactPoint(SimulationSpellEntity entity, SimVector target)
         {
+            if (entity.IsBox)
+            {
+                SimVector forward = entity.Direction.Normalized();
+                SimVector back = entity.BoxCenter - forward * (entity.BoxLength * 0.5);
+                return back + forward * Math.Max(0, Math.Min(entity.BoxLength, SimVector.Dot(target - back, forward)));
+            }
             SimVector offset = target - entity.Position;
             double distance = offset.Length;
             return distance <= 0.000001 ? entity.Position : entity.Position + offset / distance * Math.Min(entity.Radius, distance);
@@ -1123,12 +993,23 @@ namespace RuneCode
             if (isBolt) entity.HasDirectHit = true;
             if (entity.TriggerCount >= _balance.Limits.HitTriggerCap) return;
             entity.TriggerCount++;
-            SpellContext context = new SpellContext(position, entity.Direction, target, true,
+            SpellContext context = new SpellContext(position, GetEventDirection(entity, position, target), target, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = isBolt && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnHit, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
             ExecuteCallEvent(entity, true, isFirstEvent, position, target);
+        }
+
+        /// <summary>
+        /// 적중 후속 실행의 방향을 접촉 위치(시작점)에서 적중 대상의 위치(도착점)로 반환한다(백서 v7 6장).
+        /// 대상이 없거나 두 위치가 같으면 개체의 진행 방향을 쓴다.
+        /// </summary>
+        private static SimVector GetEventDirection(SimulationSpellEntity entity, SimVector contact, SimulationEnemy target)
+        {
+            if (target == null) return entity.Direction;
+            SimVector offset = target.Position - contact;
+            return offset.Length > 0.000001 ? offset.Normalized() : entity.Direction;
         }
 
         /// <summary>
@@ -1140,7 +1021,7 @@ namespace RuneCode
             for (SpellEventScope current = entity.CallEvents; current != null; current = current.Parent)
             {
                 IReadOnlyList<SpellAction> actions = isHit ? current.OnHit : current.OnExpire;
-                SpellContext context = new SpellContext(origin, entity.Direction, target, true, entity.CastNoiseElement,
+                SpellContext context = new SpellContext(origin, GetEventDirection(entity, origin, target), target, true, entity.CastNoiseElement,
                     current.ParentModifiers, current.Parent, null, current.ParentCostMultiplier, entity.Caster, entity.Id);
                 Execute(actions, context);
                 if (isFirstEvent) Execute(current.OnFirstHitOrExpire, context);
@@ -1463,13 +1344,13 @@ namespace RuneCode
 
         /// <summary>
         /// 개체의 자연 소멸(수명·사거리 종료)을 처리하고 OnExpire를 소멸 위치에서 한 번 실행한다.
-        /// Burst·Beam은 이벤트 출력이 없고, 직접 충돌한 발사체는 OnExpire를 내지 않는다. 명중 없이 사라지는 발사체만 OnFirstHitOrExpire도 실행한다.
+        /// Burst는 소멸 이벤트를 내지 않고, 직접 충돌한 발사체는 OnExpire를 내지 않는다. 명중 없이 사라지는 발사체만 OnFirstHitOrExpire도 실행한다.
         /// </summary>
         private void Expire(SimulationSpellEntity entity)
         {
             if (entity.HasExpired) return;
             entity.HasExpired = true;
-            if (entity.Kind == SpellGrammar.FORM_BURST || entity.Kind == SpellGrammar.FORM_BEAM || entity.HasDirectHit) return;
+            if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();

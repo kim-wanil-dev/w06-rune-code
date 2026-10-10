@@ -88,6 +88,7 @@ namespace RuneCode
         public float _coneAngle;
         public float _expandSeconds;
         public float _warnSeconds;
+        public float _beamWidth;
         public float _beamLength;
     }
 
