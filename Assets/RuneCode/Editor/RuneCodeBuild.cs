@@ -41,7 +41,7 @@ namespace RuneCode
             EditorSceneManager.OpenScene(BOOT_SCENE_PATH, OpenSceneMode.Single);
         }
 
-        /// <summary>화면·팝업 View Prefab 중 없는 것만 만든다. 이미 있는 Prefab은 Unity에서 직접 편집하는 원본이라 덮어쓰지 않는다. 씬은 건드리지 않는다.</summary>
+        /// <summary>없는 화면·팝업 Prefab을 만들고 기존 타이틀·작업실의 누락된 디버그 버튼 연결만 보충한다. 씬은 건드리지 않는다.</summary>
         public static void BuildViewPrefabs()
         {
             GameData.Load();

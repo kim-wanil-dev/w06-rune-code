@@ -16,10 +16,14 @@ namespace RuneCode
         private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
         private static readonly string[] TABS = { "editor", "tree", "deploy", "settings" };
 
-        /// <summary>작업실 헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 WorkshopScreen Prefab으로 저장한다.</summary>
+        /// <summary>작업실 Prefab이 없으면 생성하고, 이미 있으면 디버그 트리 초기화 버튼의 누락된 연결만 보충한다.</summary>
         public static void Build()
         {
-            if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen))) return;
+            if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen)))
+            {
+                EnsureDebugTreeReset();
+                return;
+            }
             UiFactory ui = LayoutUtility.CreateFactory();
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(WorkshopScreen));
             RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
@@ -64,6 +68,43 @@ namespace RuneCode
             LayoutUtility.SetReference(screen, "_headerStats", headerStats);
             LayoutUtility.SetReference(screen, "_status", status);
             LayoutUtility.SaveViewPrefab(root);
+        }
+
+        /// <summary>기존 작업실 Prefab의 미사용 디버그 버튼을 트리 초기화 버튼으로 연결한다.</summary>
+        private static void EnsureDebugTreeReset()
+        {
+            GameData.Load();
+            string path = LayoutUtility.VIEW_FOLDER + nameof(WorkshopScreen) + ".prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                Transform settings = root.transform.Find("Page/SettingsTab");
+                Transform debugGroup = settings?.Find("DebugGroup");
+                SettingsPanel panel = settings?.GetComponent<SettingsPanel>();
+                Transform buttonTransform = debugGroup?.Find("DebugResetTreeButton") ?? debugGroup?.Find("DebugInvulnerableButton");
+                Button button = buttonTransform?.GetComponent<Button>();
+                if (panel == null || button == null)
+                    throw new InvalidOperationException("WorkshopScreen Prefab의 디버그 설정 버튼을 찾을 수 없습니다.");
+                bool hasChanged = false;
+                if (button.name != "DebugResetTreeButton")
+                {
+                    button.name = "DebugResetTreeButton";
+                    TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
+                    if (label != null) label.text = GameData.L("ui.resetDebugTree");
+                    hasChanged = true;
+                }
+                SerializedObject serialized = new SerializedObject(panel);
+                if (serialized.FindProperty("_debugResetTreeButton").objectReferenceValue != button)
+                {
+                    LayoutUtility.SetReference(panel, "_debugResetTreeButton", button);
+                    hasChanged = true;
+                }
+                if (hasChanged) PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
         }
 
         /// <summary>시험 도크의 경기장, 시나리오·시험·리셋·자동 발사·적응·배속 조작과 지표 문구를 만들고 DockPanel 참조를 연결한다.</summary>
@@ -214,7 +255,7 @@ namespace RuneCode
             RectTransform debugGroup = UiFactory.Rect(parent, "DebugGroup", 560, 190, 444, 243);
             Button grantButton = ui.Button(debugGroup, 0, 0, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "DebugGrantButton");
             Button unlockButton = ui.Button(debugGroup, 0, 65, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "DebugUnlockAllButton");
-            ui.Button(debugGroup, 0, 130, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "DebugInvulnerableButton");
+            Button resetTreeButton = ui.Button(debugGroup, 0, 130, 444, 48, GameData.L("ui.resetDebugTree"), null, UiTheme.Muted, 14, "DebugResetTreeButton");
             ui.Button(debugGroup, 0, 195, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "DebugSpawnButton");
 
 
@@ -227,6 +268,7 @@ namespace RuneCode
             LayoutUtility.SetReference(settingsPanel, "_debugGroup", debugGroup.gameObject);
             LayoutUtility.SetReference(settingsPanel, "_debugGrantButton", grantButton);
             LayoutUtility.SetReference(settingsPanel, "_debugUnlockButton", unlockButton);
+            LayoutUtility.SetReference(settingsPanel, "_debugResetTreeButton", resetTreeButton);
             return settingsPanel;
         }
     }

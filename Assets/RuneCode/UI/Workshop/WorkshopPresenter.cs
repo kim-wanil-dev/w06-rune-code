@@ -36,7 +36,7 @@ namespace RuneCode
             view.SpellEditor.Initialize(session.Spells, this, ui);
             _upgradeTree = new UpgradeTreePresenter(session, view.UpgradeTree, RefreshProgression);
             _deploy = new DeployPresenter(session, view.Deploy);
-            _settings = new SettingsPresenter(session, ui, view.Settings, ShowEditorTab, RefreshHeader);
+            _settings = new SettingsPresenter(session, ui, view.Settings, ShowEditorTab, RefreshProgression);
             _view.TabClicked += SetTab;
             _session.Spells.Compiled += RefreshHeader;
         }

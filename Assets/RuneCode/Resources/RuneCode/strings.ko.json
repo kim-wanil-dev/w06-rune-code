@@ -13,6 +13,26 @@
       "_value": "작업실 입장"
     },
     {
+      "_key": "ui.startNormal",
+      "_value": "일반 모드 시작"
+    },
+    {
+      "_key": "ui.startDebug",
+      "_value": "디버그 모드 시작"
+    },
+    {
+      "_key": "ui.resetDebugTree",
+      "_value": "강화 트리 초기화"
+    },
+    {
+      "_key": "ui.resetDebugSession",
+      "_value": "디버그 진행 초기화"
+    },
+    {
+      "_key": "ui.resetDebugSessionMessage",
+      "_value": "이번 디버그 실행의 스크랩, 강화, 마법 보관함을 초기화합니다. 일반 저장은 유지됩니다."
+    },
+    {
       "_key": "ui.editor",
       "_value": "룬 설계"
     },
