@@ -98,16 +98,19 @@
         {
           "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
-          "_rewardMultiplier": 2
+          "_rewardMultiplier": 2,
+          "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
-          "_speedMultiplier": 1.2
+          "_speedMultiplier": 1.2,
+          "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
-          "_rewardMultiplier": 2
+          "_rewardMultiplier": 2,
+          "_dropTable": "drop.elite.basic"
         }
       ]
     },
@@ -162,12 +165,14 @@
       "_eliteTypes": [
         {
           "_enemyId": "enemy.scout",
-          "_speedMultiplier": 1.2
+          "_speedMultiplier": 1.2,
+          "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
-          "_rewardMultiplier": 2
+          "_rewardMultiplier": 2,
+          "_dropTable": "drop.elite.basic"
         }
       ],
       "_waves": [

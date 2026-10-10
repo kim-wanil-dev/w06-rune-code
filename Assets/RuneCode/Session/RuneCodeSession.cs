@@ -284,7 +284,7 @@ namespace RuneCode
                     // Modifier가 아닌 ID는 데이터 오류로 보고 지급하지 않는다.
                     if (!GameData.Runes.TryGet(reward.RuneId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER)
                     { Debug.LogWarning("[Stage] Modifier가 아닌 보상 ID를 건너뜁니다: " + reward.RuneId); continue; }
-                    _save.AddModifierStock(reward.RuneId, reward.Count);
+                    GrantModifier(reward.RuneId, string.IsNullOrEmpty(reward.Grade) ? GameData.ModifierGrades.GetLowestAvailableGrade(reward.RuneId) : reward.Grade, reward.Count);
                     modifierRewards.Add(reward);
                 }
             }
@@ -294,6 +294,14 @@ namespace RuneCode
             SaveStore.Write(_save);
             if (modifierRewards.Count > 0) _spells.Recompile();
             return modifierRewards;
+        }
+
+        /// <summary>주운·선택·보상받은 Modifier를 (종류, 등급) 소지량에 즉시 반영하고 저장한다. 이후 사망·시간 초과·후퇴와 무관하게 유지된다. 그 Modifier에 없는 등급이면 지급하지 않는다.</summary>
+        public void GrantModifier(string runeId, string grade, int count)
+        {
+            if (count <= 0 || !GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return;
+            _save.AddModifierStock(runeId, grade, count);
+            SaveStore.Write(_save);
         }
 
         /// <summary>디버그 실행에서만 조각을 지급한다.</summary>

@@ -209,6 +209,7 @@ namespace RuneCode
         [SerializeField] private float _hitFlashSeconds;
         [SerializeField] private float _damageNumberSeconds;
         [SerializeField] private float _wandOffset;
+        [SerializeField] private float _itemPickupRadius = 24f;
         public int TickRate => _tickRate;
         public float MultiOffset => _multiOffset;
         public float TelemetryHighlightSeconds => _telemetryHighlightSeconds;
@@ -230,6 +231,9 @@ namespace RuneCode
         public float HitFlashSeconds => _hitFlashSeconds;
         public float DamageNumberSeconds => _damageNumberSeconds;
         public float WandOffset => _wandOffset;
+
+        /// <summary>바닥에 떨어진 Modifier 드롭을 줍는 반경이다.</summary>
+        public float ItemPickupRadius => _itemPickupRadius;
     }
 
     [Serializable]
@@ -281,7 +285,7 @@ namespace RuneCode
                 data.Sim.TelemetryHighlightSeconds, data.Sim.BenchPlayerX, data.Sim.BenchPlayerY, data.Sim.BenchDummyX,
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
-                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset,
+                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius,
                 data.Economy.DurationStep, data.Economy.EnergyRegenStep, data.Economy.GrowthCostMultiplier };
             foreach (float value in values)
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
@@ -296,7 +300,7 @@ namespace RuneCode
                 || data.Limits.MaxFrameSteps <= 0 || data.Limits.MaxGraphNodes <= 0 || data.Limits.MaxGraphEdges <= 0
                 || data.Economy.CapacityCosts.Count == 0 || data.Economy.StatCosts.Count == 0 || data.Sim.BenchHp <= 0f
                 || data.Sim.BenchLineCount <= 0 || data.Sim.BenchSwarmColumns <= 0 || data.Sim.BenchSwarmRows <= 0
-                || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f
+                || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f || data.Sim.ItemPickupRadius <= 0f
                 || data.Limits.MaxEnemies <= 0 || data.Limits.MaxCompiledActions <= 0
                 || data.Limits.MaxScheduledExecutions <= 0 || data.Limits.MaxActionsPerTick <= 0
                 || data.Economy.MaxGrowthLevel <= 0 || data.Economy.MaxGrowthLevel > 255

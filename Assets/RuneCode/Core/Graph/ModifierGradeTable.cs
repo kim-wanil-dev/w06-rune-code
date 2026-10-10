@@ -146,11 +146,14 @@ namespace RuneCode
         }
 
         /// <summary>S 등급 값이 null이 아닌 Modifier ID를 데이터 파일 순서대로 반환한다.</summary>
-        public IReadOnlyList<string> GetSGradeModifierCandidates()
+        public IReadOnlyList<string> GetSGradeModifierCandidates() => GetModifiersWithGrade("S");
+
+        /// <summary>지정 등급 값이 null이 아닌 Modifier ID를 데이터 파일 순서대로 반환한다. 없는 등급이면 빈 목록이다.</summary>
+        public IReadOnlyList<string> GetModifiersWithGrade(string grade)
         {
             var result = new List<string>();
             foreach (string modifierId in _modifierOrder)
-                if (_effects[modifierId].GradeValues.TryGetValue("S", out object value) && value != null) result.Add(modifierId);
+                if (_effects[modifierId].GradeValues.TryGetValue(grade ?? string.Empty, out object value) && value != null) result.Add(modifierId);
             return result;
         }
 

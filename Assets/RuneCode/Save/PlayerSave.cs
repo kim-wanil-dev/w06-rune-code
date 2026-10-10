@@ -95,13 +95,6 @@ namespace RuneCode
             _modifierStock.Add(new ModifierStock(runeId, grade, amount));
         }
 
-        /// <summary>등급을 지정하지 않은 기존 보상을 Modifier의 가장 낮은 가용 등급에 더한다.</summary>
-        public void AddModifierStock(string runeId, int amount)
-        {
-            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return;
-            AddModifierStock(runeId, GameData.ModifierGrades.GetLowestAvailableGrade(runeId), amount);
-        }
-
         /// <summary>
         /// 등급이 없는 이전 기록을 Modifier의 최저 등급으로 옮기고, 그 등급에만 시작 소지량을 넣는다.
         /// 새 세이브와 이전 세이브 로드에서 호출하며 여러 번 호출해도 결과가 같다.

@@ -1,0 +1,27 @@
+{
+  "_dropTables": [
+    {
+      "_id": "drop.elite.basic",
+      "_rolls": 1,
+      "_guaranteed": [],
+      "_entries": [
+        {
+          "_type": "modifier",
+          "_id": "eliteModifier",
+           "_count": 1,
+          "_weight": 10
+        },
+        {
+          "_type": "fragments",
+          "_min": 6,
+          "_max": 12,
+          "_weight": 30
+        },
+        {
+          "_type": "none",
+          "_weight": 60
+        }
+      ]
+    }
+  ]
+}
