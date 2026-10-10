@@ -265,6 +265,14 @@ namespace RuneCode
         private double _observedTime;
         private string _lastDamageElement = "raw";
         private string _lastDamageForm = "";
+        private SimVector _attackOrigin;
+        private double _aimUntil;
+        private double _behaviorRemaining;
+        private bool _isStopping;
+        private int _carrierOwnerId;
+        private int _spawnCursor;
+        private int _spawnRemaining;
+        private double _spawnRemainingSeconds;
         public int Id => _id;
         public string Kind => _definition.Id;
         public SimVector Position => _position;
@@ -287,6 +295,12 @@ namespace RuneCode
         public string LastDamageForm => _lastDamageForm;
         public EnemyDefinition Definition => _definition;
         public BossDefinition Boss => _boss;
+        public SimVector AttackOrigin => _attackOrigin;
+        public SimVector AimedDirection => _attackDirection;
+        public bool IsAiming => _aimUntil > 0;
+        public double AimUntil => _aimUntil;
+        public bool IsStopping => _isStopping;
+        public int CarrierOwnerId => _carrierOwnerId;
         internal EnemyMovementType MovementType => _movementType;
         internal double DamageMultiplier => _damageMultiplier;
         internal EliteSpawnDefinition Elite => _elite;
@@ -296,10 +310,18 @@ namespace RuneCode
         internal SimVector AttackDirection { get => _attackDirection; set => _attackDirection = value; }
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
+        internal SimVector ShotOrigin { get => _attackOrigin; set => _attackOrigin = value; }
+        internal double AimEndsAt { get => _aimUntil; set => _aimUntil = value; }
+        internal double BehaviorRemaining { get => _behaviorRemaining; set => _behaviorRemaining = value; }
+        internal bool IsBehaviorStopping { get => _isStopping; set => _isStopping = value; }
+        internal int SpawnCursor { get => _spawnCursor; set => _spawnCursor = value; }
+        internal int SpawnRemaining { get => _spawnRemaining; set => _spawnRemaining = value; }
+        internal double SpawnRemainingSeconds { get => _spawnRemainingSeconds; set => _spawnRemainingSeconds = value; }
+        internal int OrbitSign => (_id & 1) == 0 ? 1 : -1;
 
         /// <summary>공유 적 설정과 보스 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격, 엘리트 여부와 엘리트 정의, 목표 처치 수 집계 대상 여부로 실행 상태를 생성한다. 보스가 아니면 보스 설정은 null이다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, BossDefinition boss, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1, EliteSpawnDefinition elite = null, bool isKillTarget = false)
-        { _id = id; _definition = definition; _movementType = movementType; _boss = boss; _position = position; _isDummy = isDummy; _isElite = isElite; _isKillTarget = isKillTarget; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; _elite = elite; }
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, BossDefinition boss, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1, EliteSpawnDefinition elite = null, bool isKillTarget = false, int carrierOwnerId = 0)
+        { _id = id; _definition = definition; _movementType = movementType; _boss = boss; _position = position; _isDummy = isDummy; _isElite = isElite; _isKillTarget = isKillTarget; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; _elite = elite; _carrierOwnerId = carrierOwnerId; _behaviorRemaining = definition.MoveSeconds; }
 
         /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
         internal void Observe(double time) { _observedTime = time; }
@@ -323,6 +345,8 @@ namespace RuneCode
             state.Append(FormattableString.Invariant($"|{_damage:R}|{_damageMultiplier:R}|{_reward}"));
             state.Append('|').Append(_lastDamageElement).Append('|').Append(_lastDamageForm);
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_facing.X:R}|{_facing.Y:R}|{_hp:R}|{_maxHp:R}|{_attackAt:R}|{_warningUntil:R}|{_dashUntil:R}|{_attackDirection.X:R}|{_attackDirection.Y:R}|{_flashUntil:R}|{_phase}|{_patchUntil:R}|{_reinforcementAt:R}|{_hazardAt:R}|{_observedTime:R}"));
+            if (_definition.Attack == EnemyDefinition.ATTACK_SNIPER || _definition.Attack == EnemyDefinition.ATTACK_INTERCEPTOR || _definition.HasTrait(EnemyDefinition.TRAIT_CARRIER) || _carrierOwnerId != 0)
+                state.Append(FormattableString.Invariant($"|extra:{_attackOrigin.X:R}:{_attackOrigin.Y:R}:{_aimUntil:R}:{_behaviorRemaining:R}:{_isStopping}:{_carrierOwnerId}:{_spawnCursor}:{_spawnRemaining}:{_spawnRemainingSeconds:R}"));
         }
     }
 
@@ -517,6 +541,7 @@ namespace RuneCode
         private readonly SimVector _direction;
         private readonly double _speed;
         private readonly double _damage;
+        private readonly bool _isExplosion;
         private readonly double _radius;
         private readonly double _lifetime;
         private readonly bool _isHazard;
@@ -526,6 +551,7 @@ namespace RuneCode
         public SimVector Position => _position;
         public SimVector Direction => _direction;
         public double Radius => _radius;
+        public bool IsExplosion => _isExplosion;
         public double Age => _age;
         public bool IsHazard => _isHazard;
         public bool IsWarning => _isHazard && _age < _warning;
@@ -533,15 +559,15 @@ namespace RuneCode
         internal double Lifetime => _lifetime;
 
         /// <summary>적 탄환 또는 예고 장판을 위치와 공격 설정으로 생성한다.</summary>
-        internal SimulationProjectile(SimVector position, SimVector direction, double speed, double damage, double radius, double lifetime, bool isHazard = false, double warning = 0)
-        { _position = position; _direction = direction; _speed = speed; _damage = damage; _radius = radius; _lifetime = lifetime; _isHazard = isHazard; _warning = warning; }
+        internal SimulationProjectile(SimVector position, SimVector direction, double speed, double damage, double radius, double lifetime, bool isHazard = false, double warning = 0, bool isExplosion = false)
+        { _position = position; _direction = direction; _speed = speed; _damage = damage; _radius = radius; _lifetime = lifetime; _isHazard = isHazard; _warning = warning; _isExplosion = isExplosion; }
 
         /// <summary>탄환의 위치와 수명을 고정 시간만큼 진행한다.</summary>
         internal void Advance(double dt) { _age += dt; _position += _direction * (_speed * dt); }
 
         /// <summary>적 탄환의 이동, 예고, 피해 및 수명 상태를 결정성 해시 버퍼에 기록한다.</summary>
         internal void WriteState(StringBuilder state)
-        { state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_speed:R}|{_damage:R}|{_radius:R}|{_lifetime:R}|{_isHazard}|{_warning:R}|{_age:R}")); }
+        { state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_speed:R}|{_damage:R}|{_radius:R}|{_lifetime:R}|{_isHazard}|{_warning:R}|{_age:R}")); if (_isExplosion) state.Append("|explosion"); }
     }
 
     public readonly struct FragmentOrb

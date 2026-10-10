@@ -13,16 +13,23 @@ namespace RuneCode
         public const string MOVEMENT_ANCHOR = "anchor";
         public const string MOVEMENT_DASH_CHASE = "dashChase";
         public const string MOVEMENT_KEEP_DISTANCE = "keepDistance";
+        public const string MOVEMENT_SNIPER = "sniper";
+        public const string MOVEMENT_INTERCEPTOR = "interceptor";
         public const string ATTACK_NONE = "none";
         public const string ATTACK_CONTACT = "contact";
         public const string ATTACK_BURST = "burst";
         public const string ATTACK_DASH_CONTACT = "dashContact";
+        public const string ATTACK_SNIPER = "sniper";
+        public const string ATTACK_INTERCEPTOR = "interceptor";
         public const string TRAIT_AEGIS_SHIELD = "aegisShield";
         public const string TRAIT_RELAY_AURA = "relayAura";
+        public const string TRAIT_DEATH_EXPLOSION = "deathExplosion";
+        public const string TRAIT_CIRCLE_SHIELD = "circleShield";
+        public const string TRAIT_CARRIER = "carrier";
 
-        private static readonly string[] MOVEMENT_TYPES = { MOVEMENT_CHASE, MOVEMENT_TURRET, MOVEMENT_ANCHOR, MOVEMENT_DASH_CHASE, MOVEMENT_KEEP_DISTANCE };
-        private static readonly string[] ATTACK_TYPES = { ATTACK_NONE, ATTACK_CONTACT, ATTACK_BURST, ATTACK_DASH_CONTACT };
-        private static readonly string[] TRAIT_TYPES = { TRAIT_AEGIS_SHIELD, TRAIT_RELAY_AURA };
+        private static readonly string[] MOVEMENT_TYPES = { MOVEMENT_CHASE, MOVEMENT_TURRET, MOVEMENT_ANCHOR, MOVEMENT_DASH_CHASE, MOVEMENT_KEEP_DISTANCE, MOVEMENT_SNIPER, MOVEMENT_INTERCEPTOR };
+        private static readonly string[] ATTACK_TYPES = { ATTACK_NONE, ATTACK_CONTACT, ATTACK_BURST, ATTACK_DASH_CONTACT, ATTACK_SNIPER, ATTACK_INTERCEPTOR };
+        private static readonly string[] TRAIT_TYPES = { TRAIT_AEGIS_SHIELD, TRAIT_RELAY_AURA, TRAIT_DEATH_EXPLOSION, TRAIT_CIRCLE_SHIELD, TRAIT_CARRIER };
 
         [Header("적 설정")]
         [SerializeField] private string _id;
@@ -49,6 +56,24 @@ namespace RuneCode
         [SerializeField] private string _attack;
         [SerializeField] private string _dropTable;
         [SerializeField] private int _sides;
+
+        [Header("추가 적 행동")]
+        [SerializeField] private double _explosionRadius;
+        [SerializeField] private double _explosionDamage;
+        [SerializeField] private double _shieldRadius;
+        [SerializeField] private double _aimSeconds;
+        [SerializeField] private double _lockSeconds;
+        [SerializeField] private double _moveSeconds;
+        [SerializeField] private double _stopSeconds;
+        [SerializeField] private double _preferredDistance;
+        public double ExplosionRadius => _explosionRadius;
+        public double ExplosionDamage => _explosionDamage;
+        public double ShieldRadius => _shieldRadius;
+        public double AimSeconds => _aimSeconds;
+        public double LockSeconds => _lockSeconds;
+        public double MoveSeconds => _moveSeconds;
+        public double StopSeconds => _stopSeconds;
+        public double PreferredDistance => _preferredDistance;
         public string Id => _id;
         public double Hp => _hp;
         public double Speed => _speed;
@@ -87,10 +112,34 @@ namespace RuneCode
         {
             if (Array.IndexOf(MOVEMENT_TYPES, _movement) < 0) throw new FormatException("알 수 없는 적 이동 방식입니다: " + _id + ", " + _movement);
             if (Array.IndexOf(ATTACK_TYPES, Attack) < 0) throw new FormatException("알 수 없는 적 공격 방식입니다: " + _id + ", " + _attack);
+            ValidateAdditionalSettings();
             if (_traits == null) return;
             foreach (string trait in _traits)
                 if (Array.IndexOf(TRAIT_TYPES, trait) < 0) throw new FormatException("알 수 없는 적 특수 능력입니다: " + _id + ", " + trait);
         }
+
+        /// <summary>새 적 행동의 수치와 이동·공격 조합을 검증하고 잘못된 정의를 거부한다.</summary>
+        private void ValidateAdditionalSettings()
+        {
+            if (HasTrait(TRAIT_DEATH_EXPLOSION) && (!IsPositive(_explosionRadius) || !IsPositive(_explosionDamage)))
+                throw new FormatException("사망 폭발 설정 오류입니다: " + _id);
+            if (HasTrait(TRAIT_CIRCLE_SHIELD) && (!IsPositive(_shieldRadius) || _shieldRadius <= _radius))
+                throw new FormatException("원형 보호막은 몸체보다 커야 합니다: " + _id);
+            if (Attack == ATTACK_SNIPER && (_movement != MOVEMENT_SNIPER || !IsPositive(_aimSeconds) || !IsPositive(_lockSeconds)
+                || !IsPositive(_attackInterval) || !IsPositive(_attackRange) || _attackInterval <= _aimSeconds + _lockSeconds))
+                throw new FormatException("저격 설정 오류입니다: " + _id);
+            if (Attack == ATTACK_INTERCEPTOR && (_movement != MOVEMENT_INTERCEPTOR || !IsPositive(_moveSeconds) || !IsPositive(_stopSeconds)
+                || !IsPositive(_preferredDistance) || !IsPositive(_speed)))
+                throw new FormatException("인터셉터 설정 오류입니다: " + _id);
+            if ((Attack == ATTACK_SNIPER || Attack == ATTACK_INTERCEPTOR)
+                && (!IsPositive(_projectileSpeed) || !IsPositive(_projectileRadius) || !IsPositive(_projectileLifetime)))
+                throw new FormatException("추가 적 탄환 설정 오류입니다: " + _id);
+            if ((_movement == MOVEMENT_SNIPER && Attack != ATTACK_SNIPER) || (_movement == MOVEMENT_INTERCEPTOR && Attack != ATTACK_INTERCEPTOR))
+                throw new FormatException("새 적의 이동·공격 조합 오류입니다: " + _id);
+        }
+
+        /// <summary>수치가 유한한 양수인지 반환한다.</summary>
+        private static bool IsPositive(double value) => !double.IsNaN(value) && !double.IsInfinity(value) && value > 0;
     }
 
     [Serializable]

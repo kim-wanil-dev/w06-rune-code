@@ -2,6 +2,7 @@ using System;
 using System.IO;
 
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 using TMPro;
@@ -29,6 +30,92 @@ namespace RuneCode
 
         private static readonly Color DefaultEnemyTint = new Color(0.94f, 0.34f, 0.40f);
         private static readonly Color SplitterEnemyTint = new Color(0.36f, 0.84f, 0.44f);
+        private static readonly (string name, string id, string shape, Color tint)[] _additionalEnemies =
+        {
+            ("BombSeed", "enemy.bomb_seed", "Circle", new Color(1f, 0.55f, 0.2f)),
+            ("ClockSniper", "enemy.clock_sniper", "Poly4", new Color(0.8f, 0.15f, 0.24f)),
+            ("ShieldMelee", "enemy.shield_melee", "Poly3", new Color(0.3f, 0.95f, 0.85f)),
+            ("ShieldRanged", "enemy.shield_ranged", "Poly4", new Color(0.3f, 0.95f, 0.85f)),
+            ("Carrier", "enemy.carrier", "Poly8", new Color(0.3f, 0.4f, 0.8f)),
+            ("Interceptor", "enemy.interceptor", "Poly3", new Color(1f, 0.45f, 0.5f))
+        };
+
+        /// <summary>공통 적에 필요한 새 표시와 외형을 추가하고 6종 Variant·캐리어 생성 참조를 준비한다. 기존 조정값은 보존한다.</summary>
+        [MenuItem("Rune Code/Prepare Additional Enemies")]
+        public static void PrepareAdditionalEnemies()
+        {
+            Ensure();
+            const string enemyPath = PREFAB_FOLDER + "/MissionEnemy.prefab";
+            const string variantFolder = "Assets/RuneCode/Resources/RuneCode/enemies";
+            LayoutUtility.EnsureFolder(variantFolder);
+            GameObject root = PrefabUtility.LoadPrefabContents(enemyPath);
+            try
+            {
+                EnemyView view = root.GetComponent<EnemyView>();
+                var serialized = new SerializedObject(view);
+                bool hasChanged = false;
+                foreach (string field in new[] { "_circleShield", "_sniperLine" })
+                {
+                    SerializedProperty property = serialized.FindProperty(field);
+                    if (property.objectReferenceValue != null) continue;
+                    Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SHAPE_FOLDER + (field == "_circleShield" ? "/RingThin.png" : "/Square.png"));
+                    Material material = AssetDatabase.LoadAssetAtPath<Material>(SPRITE_MATERIAL_PATH);
+                    property.objectReferenceValue = Child(root.transform, field == "_circleShield" ? "CircleShield" : "SniperLine", sprite, material, 48);
+                    hasChanged = true;
+                }
+                SerializedProperty appearances = serialized.FindProperty("_appearances");
+                foreach (var entry in _additionalEnemies)
+                {
+                    bool exists = false;
+                    for (int i = 0; i < appearances.arraySize; i++)
+                        if (appearances.GetArrayElementAtIndex(i).FindPropertyRelative("_enemyId").stringValue == entry.id) { exists = true; break; }
+                    if (exists) continue;
+                    appearances.InsertArrayElementAtIndex(appearances.arraySize);
+                    SerializedProperty item = appearances.GetArrayElementAtIndex(appearances.arraySize - 1);
+                    item.FindPropertyRelative("_enemyId").stringValue = entry.id;
+                    item.FindPropertyRelative("_shape").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Sprite>(SHAPE_FOLDER + "/" + entry.shape + ".png");
+                    item.FindPropertyRelative("_tint").colorValue = entry.tint;
+                    hasChanged = true;
+                }
+                if (hasChanged) { serialized.ApplyModifiedPropertiesWithoutUndo(); PrefabUtility.SaveAsPrefabAsset(root, enemyPath); }
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(enemyPath);
+            foreach (var entry in _additionalEnemies)
+            {
+                string path = variantFolder + "/" + entry.name + ".prefab";
+                if (AssetDatabase.LoadAssetAtPath<GameObject>(path) != null) continue;
+                var scene = EditorSceneManager.NewPreviewScene();
+                try
+                {
+                    GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(source, scene);
+                    instance.name = entry.name;
+                    var serialized = new SerializedObject(instance.GetComponent<EnemyView>());
+                    serialized.FindProperty("_enemyId").stringValue = entry.id;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                    PrefabUtility.SaveAsPrefabAsset(instance, path);
+                }
+                finally { EditorSceneManager.ClosePreviewScene(scene); }
+            }
+            string carrierPath = variantFolder + "/Carrier.prefab";
+            root = PrefabUtility.LoadPrefabContents(carrierPath);
+            try
+            {
+                if (root.GetComponent<CarrierSpawnSettings>() == null)
+                {
+                    CarrierSpawnSettings settings = root.AddComponent<CarrierSpawnSettings>();
+                    var serialized = new SerializedObject(settings);
+                    SerializedProperty targets = serialized.FindProperty("_targets");
+                    targets.arraySize = 1;
+                    targets.GetArrayElementAtIndex(0).objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyView>(variantFolder + "/Interceptor.prefab");
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                    PrefabUtility.SaveAsPrefabAsset(root, carrierPath);
+                }
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+            MissionLayout.PrepareAdditionalDebugPopup();
+            CarrierSpawnSettings.LoadDefinition().Validate(EnemyCatalog.FromJson(Resources.Load<TextAsset>("RuneCode/enemies").text));
+        }
 
         /// <summary>도형 스프라이트, 재질, 6종 뷰 Prefab을 준비해 씬 빌더가 연결할 자산 묶음으로 반환한다.</summary>
         public static Result Ensure()

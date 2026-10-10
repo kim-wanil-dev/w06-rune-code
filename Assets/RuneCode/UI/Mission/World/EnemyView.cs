@@ -21,6 +21,7 @@ namespace RuneCode
         private const float ICON_RADIUS = 4f;
         private const float HP_BAR_MIN_WIDTH = 28f;
         private const float HP_BAR_HEIGHT = 3f;
+        private const int SNIPER_BLINK_TICKS = 6;
 
         private static readonly Color CoreColor = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color DummyColor = new Color(0.52f, 0.69f, 0.74f);
@@ -32,6 +33,10 @@ namespace RuneCode
         private static readonly Color PatchColor = new Color(0.83f, 0.57f, 1f);
         private static readonly Color ResistColor = new Color(0.77f, 0.69f, 1f);
         private static readonly Color HpBackColor = new Color(0.24f, 0.16f, 0.20f);
+
+        [Header("Prefab 식별")]
+        [SerializeField] private string _enemyId = "enemy.scout";
+        public string EnemyId => _enemyId;
 
         [Header("종류별 모양")]
         [SerializeField] private EnemyAppearance[] _appearances;
@@ -53,6 +58,8 @@ namespace RuneCode
         [SerializeField] private SpriteRenderer _resistRing;
         [SerializeField] private SpriteRenderer _hpBack;
         [SerializeField] private SpriteRenderer _hpFill;
+        [SerializeField] private SpriteRenderer _circleShield;
+        [SerializeField] private SpriteRenderer _sniperLine;
 
         /// <summary>적 상태와 시뮬레이션의 상태 이상·적응 정보로 맵 중앙(origin) 기준 월드 표시를 갱신한다.</summary>
         public void Apply(SimulationEnemy enemy, RuneSimulation sim, SimVector origin)
@@ -98,6 +105,27 @@ namespace RuneCode
             MissionWorldSpace.PlaceLine(_hpBack, new Vector2(-width * 0.5f, barY), new Vector2(width * 0.5f, barY), HP_BAR_HEIGHT, HpBackColor);
             MissionWorldSpace.SetVisible(_hpFill, ratio > 0);
             if (ratio > 0) MissionWorldSpace.PlaceLine(_hpFill, new Vector2(-width * 0.5f, barY), new Vector2(-width * 0.5f + width * ratio, barY), HP_BAR_HEIGHT, tint);
+            ApplyAdditionalIndicators(enemy, sim);
+        }
+
+        /// <summary>원형 보호막과 저격 경로를 시뮬레이션의 반경·저장 조준선으로 갱신한다.</summary>
+        private void ApplyAdditionalIndicators(SimulationEnemy enemy, RuneSimulation sim)
+        {
+            if (_circleShield != null)
+            {
+                bool hasShield = enemy.Definition.HasTrait(EnemyDefinition.TRAIT_CIRCLE_SHIELD);
+                MissionWorldSpace.SetVisible(_circleShield, hasShield);
+                if (hasShield) MissionWorldSpace.Place(_circleShield, Vector2.zero, (float)enemy.Definition.ShieldRadius * 2, new Color(0.3f, 0.95f, 0.85f, 0.7f));
+            }
+            if (_sniperLine != null)
+            {
+                MissionWorldSpace.SetVisible(_sniperLine, enemy.IsAiming);
+                if (!enemy.IsAiming) return;
+                Vector2 start = MissionWorldSpace.ToWorld(enemy.AttackOrigin, enemy.Position) * MissionWorldSpace.PIXELS_PER_UNIT;
+                Vector2 end = MissionWorldSpace.ToWorld(sim.GetSniperEnd(enemy), enemy.Position) * MissionWorldSpace.PIXELS_PER_UNIT;
+                Color color = new Color(1, 0.12f, 0.2f, (sim.Tick / SNIPER_BLINK_TICKS) % 2 == 0 ? 0.6f : 0.2f);
+                MissionWorldSpace.PlaceLine(_sniperLine, start, end, 2, color);
+            }
         }
 
         /// <summary>상태 아이콘을 표시 여부에 따라 켜고 적 기준 위치(px)에 속성 색으로 둔다.</summary>

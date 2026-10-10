@@ -2,7 +2,7 @@ using System;
 
 namespace RuneCode
 {
-    internal enum EnemyMovementType { Chase, Turret, Anchor, DashChase, KeepDistance }
+    internal enum EnemyMovementType { Chase, Turret, Anchor, DashChase, KeepDistance, Sniper, Interceptor }
 
     internal enum EnemyMoveMode { Stay, Face, Move }
 
@@ -113,7 +113,9 @@ namespace RuneCode
             new StationaryAdvanceMovement(true),
             new StationaryAdvanceMovement(false),
             new DashChaseMovement(),
-            new KeepDistanceMovement()
+            new KeepDistanceMovement(),
+            new SniperMovement(),
+            new InterceptorMovement()
         };
 
         /// <summary>적 설정의 이동 방식 이름에 대응하는 이동 종류를 반환하며 모르는 이름에는 데이터 오류를 발생시킨다.</summary>
@@ -121,6 +123,8 @@ namespace RuneCode
         {
             switch (movement)
             {
+                case EnemyDefinition.MOVEMENT_SNIPER: return EnemyMovementType.Sniper;
+                case EnemyDefinition.MOVEMENT_INTERCEPTOR: return EnemyMovementType.Interceptor;
                 case EnemyDefinition.MOVEMENT_TURRET: return EnemyMovementType.Turret;
                 case EnemyDefinition.MOVEMENT_ANCHOR: return EnemyMovementType.Anchor;
                 case EnemyDefinition.MOVEMENT_DASH_CHASE: return EnemyMovementType.DashChase;
@@ -133,5 +137,27 @@ namespace RuneCode
         /// <summary>적의 이동 종류에 해당하는 공유 이동 판단으로 이번 틱의 이동 결과를 계산해 반환한다.</summary>
         public static EnemyMoveDecision Decide(SimulationEnemy enemy, in EnemyMoveContext context)
             => _movements[(int)enemy.MovementType].Decide(enemy, context);
+    }
+
+    internal sealed class SniperMovement : EnemyMovement
+    {
+        /// <summary>조준·발사 대기 중에는 정지하고 그 외에는 미션 접근 속도로 이동한다. 도크에서는 방향만 바꾼다.</summary>
+        public override EnemyMoveDecision Decide(SimulationEnemy enemy, in EnemyMoveContext context)
+        {
+            if (enemy.IsAiming || context.Time + 0.000001 >= enemy.AttackAt) return EnemyMoveDecision.Stay;
+            return context.IsMission ? EnemyMoveDecision.Move(context.Direction, context.AdvanceSpeed) : EnemyMoveDecision.Face(context.Direction);
+        }
+    }
+
+    internal sealed class InterceptorMovement : EnemyMovement
+    {
+        /// <summary>정지 주기에는 쉬고 이동 주기에는 유지 거리 보정과 접선 방향을 합쳐 플레이어 주변을 돈다.</summary>
+        public override EnemyMoveDecision Decide(SimulationEnemy enemy, in EnemyMoveContext context)
+        {
+            if (enemy.IsStopping) return EnemyMoveDecision.Face(context.Direction);
+            SimVector tangent = new SimVector(-context.Direction.Y, context.Direction.X) * enemy.OrbitSign;
+            double correction = Math.Max(-1, Math.Min(1, (context.Offset.Length - enemy.Definition.PreferredDistance) / enemy.Definition.PreferredDistance));
+            return EnemyMoveDecision.Move((tangent + context.Direction * correction).Normalized(), enemy.Definition.Speed);
+        }
     }
 }
