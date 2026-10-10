@@ -217,3 +217,19 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 계획·결정·변경 파일·검증 결과 전체는 `Assets/Docs~/맵 확장 및 스폰 변경 구현 계획.md` 9절에 기록했다.
 - 실제 검증: 임시 복사 프로젝트 Windows 빌드 성공(경고 0), 도크 85건 결과·상태 해시 변경 전과 동일, 표현 전환 전후 170건 동일, 스폰 거리·맵 밖 스폰·전부 처치 클리어·보스 증원/시간 초과·진형 교체·결정성을 시뮬레이션으로 확인. 실제 프로젝트에서 `Rune Code > Build Mission Scene`을 batchmode로 실행해 Mission 씬·도형 스프라이트·뷰 Prefab과 `.meta`를 생성했다.
 - 남은 확인(Unity Editor Play 필요): HUD와 겹친 화면, 조준·자동 시전, 흔들림·히트 스톱, 남은 적 수·보스 시간 표시, 결과 문구, 피해 숫자 크기.
+
+## 하드웨어 업그레이드 트리 M2 — 2026-10-10
+
+- 기존 39개 선형 노드를 새 ScriptableObject 구성으로 교체했다. 트리는 메인보드를 유일한 루트로 두고, 비루트 노드마다 선행 노드 하나의 1레벨만 요구한다. 스탯 강화 8개는 최대 3레벨, 룬 해금 21개는 1회 구매다. 모든 노드는 스테이지 잠금 없이 시작 단계 1을 사용한다.
+- 룬 카탈로그의 플레이어용 25개 중 `shape.sphere`, `shape.box`, `shape.cone`, `behavior.launch` 네 개만 시작 룬으로 두고 나머지 21개를 해금 노드에 연결했다. Core/Internal 문법 토큰은 트리에서 제외하고 컴파일 때만 시작 가능 상태로 합친다.
+- `UpgradeTreeNodeDefinition`에 교체용 Sprite 참조를 추가했다. 비용, 레벨별 증가량, 위치, 부모 연결, 룬 ID는 `UpgradeTree.asset`에서 편집한다. 첫 레벨 메인보드와 화염 해금은 스크랩 0으로 시작 경로를 열며, CPU는 비용·레벨만 기록하고 효과량은 0이다.
+- 룬 테이블의 별도 `unlockCost` 원본을 제거하고 `start`/`tree` 분류로 단순화했다. 버전 3 저장은 스크랩·마법·스테이지 진행을 유지하면서 옛 트리 진행과 비시작 해금을 초기화해 v4로 이전한다.
+- `docs/UI_AND_PROGRESSION_GUIDE.md`의 새 노드·룬 추가 경로와 Inspector 편집 규칙을 갱신했다. M3 이후 실제 전투 능력치 적용과 UI Sprite 바인딩은 후속 범위다.
+
+### 실제 검증
+
+- Unity 6000.3.22f1에서 스크립트 재컴파일 완료, 컴파일 실패 0건을 확인했다.
+- Unity Editor eval에서 `GameData.Load`, `UpgradeTreeAssetBuilder.EnsureAsset`, `UpgradeTreeDefinition.Validate` 성공을 확인했다. 자산은 레이아웃 버전 5, 노드 29개, 룬 해금 21개다.
+- `runes.json`의 34개 행에서 플레이어 룬 25개·트리 해금 21개·시작 분류 오류 0건을 확인하고, `strings.ko.json` 파싱을 통과했다. `_unlockCost` 필드는 0개다.
+- 새 저장의 네 시작 룬과 내부 컴파일 시작 토큰으로는 기본 마법의 `element.fire`가 잠겨 컴파일이 거부되고, ScriptableObject의 무료 `element.fire` 노드 구매를 반영하면 컴파일이 성공한다. 실제 노드 구매 UI, 일반 구매 저장, 전투 능력치 변화와 Play 화면은 M3 이후 검증 대상이다.
+- AGENTS.md에 따라 Git CLI와 커밋은 사용하지 않았다. Editor는 확인 시 이미 Play 상태였으며 Play를 시작하거나 종료하지 않았다. 이 상태의 콘솔에서 `RuneGraphCanvas.OnPointerMove` 223행 NullReferenceException이 반복 기록되어 있었으나 M2 데이터 변경과 무관한 편집기 입력 경로여서 수정하지 않았다. 실제 구매 UI·전투 능력치 변화는 Play 검증하지 않았다.

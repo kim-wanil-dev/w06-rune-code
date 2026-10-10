@@ -13,7 +13,7 @@ namespace RuneCode
         private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
 
         [Header("저장 버전")]
-        [SerializeField] private int _version = 3;
+        [SerializeField] private int _version = 4;
 
         [Header("완드 및 진행")]
         [SerializeField] private int _currency;
@@ -213,7 +213,7 @@ namespace RuneCode
         {
             error = null;
             var economy = GameData.Balance.Economy;
-            if (_version != 3 || _currency < 0 || _currency > 100000000 ||
+            if (_version != 4 || _currency < 0 || _currency > 100000000 ||
                 _highestClearedStage < 0 || _highestClearedStage >= 1000000 ||
                 _selectedStage < 1 || _selectedStage > _highestClearedStage + 1 ||
                 _slotCount != 1 || _tutorialStep < 0 || _tutorialStep > 3)
@@ -297,6 +297,16 @@ namespace RuneCode
             _unlockedRunes = new List<string>();
             AddStarterRunes();
             _version = 3;
+        }
+
+        /// <summary>버전 3의 기존 트리 구매와 비시작 룬 해금을 초기화하고 스크랩·마법·스테이지 진행을 보존해 버전 4로 이전한다.</summary>
+        public void MigrateToUpgradeTreeV4()
+        {
+            if (_version != 3) return;
+            _upgradeNodeProgress = new List<UpgradeNodeProgress>();
+            _unlockedRunes = new List<string>();
+            AddStarterRunes();
+            _version = 4;
         }
 
         /// <summary>해금한 범위 안의 전투 스테이지를 선택하고 저장 상태를 변경한다.</summary>

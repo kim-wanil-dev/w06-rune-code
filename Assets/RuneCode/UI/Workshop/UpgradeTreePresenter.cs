@@ -10,8 +10,6 @@ namespace RuneCode
     /// </summary>
     public sealed class UpgradeTreePresenter
     {
-        private const int MAX_TREE_STAGE = 10;
-
         private readonly RuneCodeSession _session;
         private readonly UpgradeTreePanel _view;
         private readonly UpgradeTreeDefinition _definition;
@@ -33,9 +31,8 @@ namespace RuneCode
         /// <summary>보유 재화·다음 스테이지 요약, 노드 상태, 연결선과 열린 정보 패널을 최신 세이브 기준으로 갱신한다.</summary>
         public void Refresh()
         {
-            int nextStage = Mathf.Min(_session.HighestClearedStage + 1, MAX_TREE_STAGE);
             _view.SetSummary(GameData.L("ui.tree.summary") + "  ·  " + _session.Save.Currency + " " + GameData.L("ui.fragments")
-                + "  ·  " + GameData.L("ui.tree.availableStage") + " " + nextStage + "  ·  " + GameData.L("ui.tree.controls"));
+                + "  ·  " + GameData.L("ui.tree.controls"));
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
             {
                 if (node != null) RefreshNode(node);
@@ -85,17 +82,19 @@ namespace RuneCode
                 title += " · " + rune.Name;
                 description += "  ·  " + GameData.L("category." + rune.Category) + "  ·  " + rune.Ram + " RAM";
             }
-            else if (!isComplete && level < node.Levels.Count)
+            else if (!isComplete && level < node.Levels.Count && node.EffectType != UpgradeEffectType.CastSpeed)
             {
-                description += "  ·  +" + node.Levels[level].Amount.ToString("0.##") + EffectUnit(node.EffectType);
+                float amount = node.Levels[level].Amount;
+                if (IsPercentageEffect(node.EffectType)) amount *= 100f;
+                description += "  ·  +" + amount.ToString("0.##") + EffectUnit(node.EffectType);
             }
             _view.ShowTooltip(title + "   |   " + LevelText(node, level, isComplete), description);
         }
 
-        /// <summary>해금 스테이지·현재 레벨과 완료·잠금 사유·구매 비용 중 해당하는 문구를 반환한다.</summary>
+        /// <summary>현재 레벨과 완료·선행 잠금·구매 비용 중 해당하는 문구를 반환한다.</summary>
         private string LevelText(UpgradeTreeNodeDefinition node, int level, bool isComplete)
         {
-            string text = GameData.L("ui.tree.stage") + " " + node.RequiredStage + "  ·  " + level + "/" + node.MaxLevel;
+            string text = GameData.L("ui.tree.level") + " " + level + "/" + node.MaxLevel;
             _session.CanPurchaseUpgradeNode(node.Id, out string reasonKey);
             int cost = _session.GetUpgradeNodeCost(node.Id);
             if (isComplete) return text + "  ·  " + GameData.L("ui.complete");
@@ -104,15 +103,28 @@ namespace RuneCode
             return text;
         }
 
-        /// <summary>능력치 노드 효과의 단위를 반환한다(에너지 회복 /s, 최대 에너지 EN, 그 외 RAM).</summary>
+        /// <summary>노드 효과량에 표시할 단위를 반환한다.</summary>
         private static string EffectUnit(UpgradeEffectType effectType)
         {
             switch (effectType)
             {
                 case UpgradeEffectType.EnergyRegen: return "/s";
-                case UpgradeEffectType.MaxEnergy: return " EN";
-                default: return " RAM";
+                case UpgradeEffectType.MaxEnergy: return " 전력";
+                case UpgradeEffectType.RamCapacity: return " RAM";
+                case UpgradeEffectType.CastSpeed:
+                case UpgradeEffectType.Damage:
+                case UpgradeEffectType.ScrapGain:
+                case UpgradeEffectType.MoveSpeed: return "%";
+                case UpgradeEffectType.MaxHp: return " HP";
+                default: return "";
             }
+        }
+
+        /// <summary>비율 값으로 저장된 캐스팅·피해·스크랩·이동 효과량인지 반환한다.</summary>
+        private static bool IsPercentageEffect(UpgradeEffectType effectType)
+        {
+            return effectType == UpgradeEffectType.CastSpeed || effectType == UpgradeEffectType.Damage ||
+                effectType == UpgradeEffectType.ScrapGain || effectType == UpgradeEffectType.MoveSpeed;
         }
 
         /// <summary>노드 구매를 요청하고 표시를 갱신한다. 성공하면 구매 성공 후 동작을 실행한다.</summary>

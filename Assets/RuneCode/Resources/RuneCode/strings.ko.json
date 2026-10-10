@@ -870,23 +870,15 @@
     },
     {
       "_key": "ui.tree.title",
-      "_value": "성장 트리 · 1~10 스테이지"
+      "_value": "하드웨어 업그레이드 트리"
     },
     {
       "_key": "ui.tree.summary",
-      "_value": "노드를 구매해 영구 능력과 룬을 해금하세요. 스탯 노드는 2레벨까지 강화할 수 있습니다"
-    },
-    {
-      "_key": "ui.tree.availableStage",
-      "_value": "해금 스테이지"
+      "_value": "메인보드에서 시작해 선행 노드를 열고, 스탯은 최대 3회 강화하거나 룬을 해금하세요"
     },
     {
       "_key": "ui.tree.controls",
       "_value": "우클릭 드래그 이동 · 휠 확대/축소"
-    },
-    {
-      "_key": "ui.tree.stage",
-      "_value": "STAGE"
     },
     {
       "_key": "ui.tree.regen",
@@ -919,6 +911,58 @@
     {
       "_key": "ui.tree.unlockRuneDescription",
       "_value": "설계에 사용할 룬을 해금"
+    },
+    {
+      "_key": "ui.tree.mainboard",
+      "_value": "메인보드"
+    },
+    {
+      "_key": "ui.tree.mainboardDescription",
+      "_value": "전력 회복 속도 증가"
+    },
+    {
+      "_key": "ui.tree.cpu",
+      "_value": "CPU"
+    },
+    {
+      "_key": "ui.tree.cpuDescription",
+      "_value": "마법 캐스팅 속도 강화 · 효과는 추후 적용"
+    },
+    {
+      "_key": "ui.tree.gpu",
+      "_value": "GPU"
+    },
+    {
+      "_key": "ui.tree.gpuDescription",
+      "_value": "마법 피해 증가"
+    },
+    {
+      "_key": "ui.tree.scrapGain",
+      "_value": "스크랩 획득량"
+    },
+    {
+      "_key": "ui.tree.scrapGainDescription",
+      "_value": "적 처치 시 획득하는 스크랩 증가"
+    },
+    {
+      "_key": "ui.tree.maxHp",
+      "_value": "기본 HP"
+    },
+    {
+      "_key": "ui.tree.maxHpDescription",
+      "_value": "최대 HP 증가"
+    },
+    {
+      "_key": "ui.tree.moveSpeed",
+      "_value": "이동 속도"
+    },
+    {
+      "_key": "ui.tree.moveSpeedDescription",
+      "_value": "플레이어 이동 속도 증가"
+    },
+    {
+      "_key": "ui.tree.level",
+      "_value": "레벨"
     },
     {
       "_key": "tree.stageLocked",

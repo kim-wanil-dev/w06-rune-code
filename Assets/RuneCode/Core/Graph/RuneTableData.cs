@@ -25,7 +25,6 @@ namespace RuneCode
         public float _energy;
         public float _energyMult = 1f;
         public string _unlockType;
-        public int _unlockCost;
         public RuneStatsData _stats;
         public List<RunePortData> _ports;
         public List<RuneParamData> _params;

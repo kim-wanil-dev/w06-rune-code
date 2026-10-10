@@ -197,7 +197,6 @@ namespace RuneCode
         private readonly float _energy;
         private readonly float _energyMult;
         private readonly string _unlockType;
-        private readonly int _unlockCost;
         private readonly IReadOnlyList<string> _tags;
         private readonly IReadOnlyList<PortDefinition> _ports;
         private readonly IReadOnlyList<ParameterDefinition> _params;
@@ -211,7 +210,6 @@ namespace RuneCode
         public float Energy => _energy;
         public float EnergyMult => _energyMult;
         public string UnlockType => _unlockType;
-        public int UnlockCost => _unlockCost;
         public IReadOnlyList<string> Tags => _tags;
         public IReadOnlyList<PortDefinition> Ports => _ports;
         public IReadOnlyList<ParameterDefinition> Params => _params;
@@ -228,7 +226,6 @@ namespace RuneCode
             _energy = row._energy;
             _energyMult = row._energyMult;
             _unlockType = row._unlockType ?? "";
-            _unlockCost = row._unlockCost;
             _tags = tags;
             _ports = ports;
             _params = parameters;
@@ -299,7 +296,11 @@ namespace RuneCode
         {
             SpellGrammar.ELEMENT_CATEGORY_ELEMENTAL, SpellGrammar.ELEMENT_CATEGORY_FUNCTIONAL
         };
-        private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "bench", "reward" };
+        private static readonly HashSet<string> STARTER_RUNE_IDS = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "shape.sphere", "shape.box", "shape.cone", "behavior.launch"
+        };
+        private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "tree" };
 
         private readonly IReadOnlyList<RuneDefinition> _runes;
         private readonly Dictionary<string, RuneDefinition> _byId = new Dictionary<string, RuneDefinition>(StringComparer.Ordinal);
@@ -701,8 +702,10 @@ namespace RuneCode
             if (rune.Ram < 0) log.Add(rune.Id, "ram", "음수일 수 없습니다.");
             if (rune.Energy < 0f) log.Add(rune.Id, "energy", "음수일 수 없습니다.");
             if (rune.EnergyMult <= 0f) log.Add(rune.Id, "energyMult", "0보다 커야 합니다.");
-            if (rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
-                log.Add(rune.Id, "unlockCost", "음수일 수 없으며 bench 해금은 비용이 있어야 합니다.");
+            bool isImplementationRune = rune.Category == SpellGrammar.CATEGORY_CORE || rune.Category == SpellGrammar.CATEGORY_INTERNAL;
+            string expectedUnlockType = isImplementationRune || STARTER_RUNE_IDS.Contains(rune.Id) ? "start" : "tree";
+            if (rune.UnlockType != expectedUnlockType)
+                log.Add(rune.Id, "unlockType", "지정된 시작 룬 외의 플레이어 룬은 트리에서 해금해야 합니다.");
         }
 
         /// <summary>룬 효과 수치가 음수가 아니고 형태 룬에 필수 수치가 있는지 검증하고 위반을 오류 로그에 기록한다.</summary>

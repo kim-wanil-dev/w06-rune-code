@@ -10,6 +10,11 @@ namespace RuneCode
         EnergyRegen,
         MaxEnergy,
         RamCapacity,
+        CastSpeed,
+        Damage,
+        ScrapGain,
+        MaxHp,
+        MoveSpeed,
         RuneUnlock
     }
 
@@ -42,6 +47,7 @@ namespace RuneCode
         [SerializeField] private string _titleKey;
         [SerializeField] private string _descriptionKey;
         [SerializeField] private Vector2 _position;
+        [SerializeField] private Sprite _icon;
 
         [Header("강화 효과")]
         [SerializeField] private UpgradeEffectType _effectType;
@@ -54,6 +60,7 @@ namespace RuneCode
         public string TitleKey => _titleKey;
         public string DescriptionKey => _descriptionKey;
         public Vector2 Position => _position;
+        public Sprite Icon => _icon;
         public UpgradeEffectType EffectType => _effectType;
         public string RuneId => _runeId;
         public IReadOnlyList<UpgradeTreePrerequisite> Prerequisites => _prerequisites;
@@ -82,6 +89,12 @@ namespace RuneCode
     [CreateAssetMenu(fileName = "UpgradeTree", menuName = "Rune Code/Upgrade Tree")]
     public sealed class UpgradeTreeDefinition : ScriptableObject
     {
+        private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
+        private static readonly HashSet<string> _starterRuneIds = new HashSet<string>
+        {
+            "shape.sphere", "shape.box", "shape.cone", "behavior.launch"
+        };
+
         [SerializeField, HideInInspector] private int _layoutVersion = 1;
         [SerializeField] private List<UpgradeTreeNodeDefinition> _nodes = new List<UpgradeTreeNodeDefinition>();
 
@@ -106,7 +119,7 @@ namespace RuneCode
             return null;
         }
 
-        /// <summary>노드 ID, 스테이지, 비용, 효과, 룬과 선행 참조를 검사하고 문제가 있으면 설명을 반환한다.</summary>
+        /// <summary>노드 ID, 단일 선행 관계, 레벨 데이터와 플레이어 룬 해금을 검사하고 문제가 있으면 설명을 반환한다.</summary>
         public bool Validate(out string error)
         {
             error = null;
@@ -117,16 +130,18 @@ namespace RuneCode
             }
             HashSet<string> nodeIds = new HashSet<string>();
             HashSet<string> runeIds = new HashSet<string>();
+            UpgradeTreeNodeDefinition mainboard = null;
             foreach (UpgradeTreeNodeDefinition node in _nodes)
             {
-                if (node == null || string.IsNullOrWhiteSpace(node.Id) || !nodeIds.Add(node.Id) || node.RequiredStage < 1 ||
+                if (node == null || string.IsNullOrWhiteSpace(node.Id) || !nodeIds.Add(node.Id) || node.RequiredStage != 1 ||
                     string.IsNullOrWhiteSpace(node.TitleKey) || string.IsNullOrWhiteSpace(node.DescriptionKey) ||
                     node.Position.x < 0 || node.Position.y < 0 || node.Levels == null || node.Levels.Count == 0 ||
                     node.Prerequisites == null || !Enum.IsDefined(typeof(UpgradeEffectType), node.EffectType))
                 {
-                    error = "업그레이드 노드 식별·위치·레벨 데이터가 유효하지 않습니다.";
+                    error = "업그레이드 노드 식별·위치·레벨 데이터가 유효하지 않거나 스테이지 잠금이 설정되어 있습니다.";
                     return false;
                 }
+                if (node.Id == MAINBOARD_NODE_ID) mainboard = node;
                 foreach (UpgradeTreeLevel level in node.Levels)
                     if (level == null || level.Cost < 0 || level.Amount < 0 || float.IsNaN(level.Amount) || float.IsInfinity(level.Amount))
                     {
@@ -141,20 +156,60 @@ namespace RuneCode
                             return false;
                         }
                 if (node.EffectType == UpgradeEffectType.RuneUnlock &&
-                    (node.Levels.Count != 1 || !GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune) || rune.UnlockType == "start" || !runeIds.Add(node.RuneId)))
+                    (node.Levels.Count != 1 || !GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune) ||
+                        !IsPlayerRune(rune) || rune.UnlockType != "tree" || !runeIds.Add(node.RuneId)))
                 {
                     error = "룬 해금 노드의 룬 참조가 없거나 중복되었습니다: " + node.Id;
                     return false;
                 }
+                if (node.EffectType != UpgradeEffectType.RuneUnlock &&
+                    (node.Levels.Count > 3 || !string.IsNullOrEmpty(node.RuneId)))
+                {
+                    error = "강화 노드는 최대 3레벨이며 룬 ID를 가질 수 없습니다: " + node.Id;
+                    return false;
+                }
             }
+
+            if (mainboard == null || mainboard.EffectType != UpgradeEffectType.EnergyRegen || mainboard.Prerequisites.Count != 0)
+            {
+                error = "메인보드 전력 회복 노드가 유일한 시작 노드여야 합니다.";
+                return false;
+            }
+
+            foreach (RuneDefinition rune in GameData.Runes.All)
+            {
+                bool isPlayerRune = IsPlayerRune(rune);
+                bool isStarterRune = _starterRuneIds.Contains(rune.Id);
+                if ((isPlayerRune && isStarterRune && rune.UnlockType != "start") ||
+                    (isPlayerRune && !isStarterRune && rune.UnlockType != "tree") ||
+                    (!isPlayerRune && rune.UnlockType != "start"))
+                {
+                    error = "룬 시작·트리 해금 분류가 지정된 시작 룬과 일치하지 않습니다: " + rune.Id;
+                    return false;
+                }
+                if (isPlayerRune && !isStarterRune && !runeIds.Contains(rune.Id))
+                {
+                    error = "트리에 룬 해금 노드가 없습니다: " + rune.Id;
+                    return false;
+                }
+            }
+
             foreach (UpgradeTreeNodeDefinition node in _nodes)
+            {
+                if ((node.Id == MAINBOARD_NODE_ID && node.Prerequisites.Count != 0) ||
+                    (node.Id != MAINBOARD_NODE_ID && node.Prerequisites.Count != 1))
+                {
+                    error = "메인보드 외의 각 노드는 선행 노드를 하나만 가져야 합니다: " + node.Id;
+                    return false;
+                }
                 foreach (UpgradeTreePrerequisite prerequisite in node.Prerequisites)
-                    if (prerequisite == null || FindNode(prerequisite.NodeId) == null || prerequisite.RequiredLevel < 1 ||
+                    if (prerequisite == null || FindNode(prerequisite.NodeId) == null || prerequisite.RequiredLevel != 1 ||
                         prerequisite.RequiredLevel > FindNode(prerequisite.NodeId).MaxLevel)
                     {
-                        error = "업그레이드 노드의 선행 조건이 유효하지 않습니다: " + node.Id;
+                        error = "업그레이드 노드의 선행 조건은 존재하는 노드의 1레벨이어야 합니다: " + node.Id;
                         return false;
                     }
+            }
             HashSet<string> visiting = new HashSet<string>();
             HashSet<string> visited = new HashSet<string>();
             foreach (UpgradeTreeNodeDefinition node in _nodes)
@@ -162,8 +217,14 @@ namespace RuneCode
                 {
                     error = "업그레이드 노드 선행 조건에 순환이 있습니다: " + node.Id;
                     return false;
-                }
+            }
             return true;
+        }
+
+        /// <summary>Core·Internal 구현 룬을 제외한 룬이 플레이어용 해금 대상인지 반환한다.</summary>
+        private static bool IsPlayerRune(RuneDefinition rune)
+        {
+            return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL;
         }
 
         /// <summary>선행 노드 연결을 재귀 검사해 순환이 없으면 현재 노드 ID를 완료 집합에 추가한다.</summary>
