@@ -30,9 +30,14 @@ namespace RuneCode
         [SerializeField] private RectTransform _hoverPanel;
         [SerializeField] private TextMeshProUGUI _hoverTitle;
         [SerializeField] private TextMeshProUGUI _hoverDescription;
+        [SerializeField] private TextMeshProUGUI _hoverLevel;
+        [SerializeField] private TextMeshProUGUI _hoverIncrease;
+        [SerializeField] private TextMeshProUGUI _hoverCost;
 
         private readonly Dictionary<string, UpgradeTreeNodeView> _nodeViews = new Dictionary<string, UpgradeTreeNodeView>();
         private readonly List<TreeConnection> _connections = new List<TreeConnection>();
+        private readonly Vector3[] _tooltipCorners = new Vector3[4];
+        private string _tooltipNodeId;
 
         /// <summary>표시 중인 트리 자산이다.</summary>
         public UpgradeTreeDefinition Definition => _definition;
@@ -62,7 +67,8 @@ namespace RuneCode
             }
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
             {
-                if (node != null && !string.IsNullOrWhiteSpace(node.Id)) CreateNode(node);
+                if (node == null || string.IsNullOrWhiteSpace(node.Id)) continue;
+                CreateNode(node);
             }
         }
 
@@ -70,9 +76,9 @@ namespace RuneCode
         public void SetSummary(string text) => _summary.text = text;
 
         /// <summary>노드 아이콘의 효과 종류·룬 분류와 열림·완료·구매 가능 상태를 표시한다.</summary>
-        public void SetNodeState(string nodeId, UpgradeEffectType effectType, string runeCategory, bool isAvailable, bool isComplete, bool canPurchase)
+        public void SetNodeState(string nodeId, UpgradeEffectType effectType, string runeCategory, Sprite icon, int level, bool isAvailable, bool isComplete, bool canPurchase)
         {
-            if (_nodeViews.TryGetValue(nodeId, out UpgradeTreeNodeView view)) view.SetContent(effectType, runeCategory, isAvailable, isComplete, canPurchase);
+            if (_nodeViews.TryGetValue(nodeId, out UpgradeTreeNodeView view)) view.SetContent(effectType, runeCategory, icon, level, isAvailable, isComplete, canPurchase);
         }
 
         /// <summary>각 연결선을 선행 노드 조건 충족 여부(노드 ID, 요구 레벨 → 충족)에 따라 완료 색 또는 잠금 색으로 표시한다.</summary>
@@ -82,23 +88,56 @@ namespace RuneCode
                 connection.Image.color = isSatisfied(connection.NodeId, connection.RequiredLevel) ? UiTheme.Cyan : UiTheme.Muted;
         }
 
-        /// <summary>정보 패널에 제목·설명을 표시한다.</summary>
-        public void ShowTooltip(string title, string description)
+        /// <summary>노드 위 정보 상자에 이름·설명·강화 레벨·다음 상승량·비용을 표시한다.</summary>
+        public void ShowTooltip(string nodeId, string title, string description, string level, string increase, string cost)
         {
+            _tooltipNodeId = nodeId;
             _hoverPanel.gameObject.SetActive(true);
             _hoverTitle.text = title;
             _hoverDescription.text = description;
+            _hoverLevel.gameObject.SetActive(!string.IsNullOrEmpty(level));
+            _hoverLevel.text = level;
+            _hoverIncrease.text = increase;
+            _hoverCost.text = cost;
+            PositionTooltip();
         }
 
         /// <summary>정보 패널을 닫는다.</summary>
-        public void HideTooltip() => _hoverPanel.gameObject.SetActive(false);
+        public void HideTooltip()
+        {
+            _tooltipNodeId = null;
+            _hoverPanel.gameObject.SetActive(false);
+        }
+
+        private void LateUpdate()
+        {
+            if (_hoverPanel.gameObject.activeSelf) PositionTooltip();
+        }
+
+        /// <summary>확대·이동 후에도 툴팁을 포인터가 놓인 노드의 위쪽에 유지한다.</summary>
+        private void PositionTooltip()
+        {
+            if (!_nodeViews.TryGetValue(_tooltipNodeId, out UpgradeTreeNodeView view)) return;
+            RectTransform nodeRect = (RectTransform)view.transform;
+            RectTransform parent = (RectTransform)_hoverPanel.parent;
+            nodeRect.GetWorldCorners(_tooltipCorners);
+            Vector3 left = parent.InverseTransformPoint(_tooltipCorners[1]);
+            Vector3 right = parent.InverseTransformPoint(_tooltipCorners[2]);
+            float halfWidth = _hoverPanel.rect.width * 0.5f;
+            float x = Mathf.Clamp((left.x + right.x) * 0.5f, halfWidth + 8, parent.rect.width - halfWidth - 8);
+            _hoverPanel.anchoredPosition = new Vector2(x, Mathf.Max(left.y, right.y) + 8);
+        }
 
         /// <summary>콘텐츠를 좌상단 기준·초기 배율로 되돌리고 모든 노드가 들어가는 크기로 맞춘다.</summary>
         private void ResetContent()
         {
             _content.anchorMin = _content.anchorMax = new Vector2(0, 1);
             _content.pivot = new Vector2(0, 1);
-            _content.anchoredPosition = Vector2.zero;
+            UpgradeTreeNodeDefinition root = null;
+            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
+                if (node != null && node.Prerequisites.Count == 0) { root = node; break; }
+            float rootCenter = root == null ? 0 : root.Position.x + NODE_SIZE * 0.5f;
+            _content.anchoredPosition = new Vector2(_viewport.rect.width * 0.5f - rootCenter * INITIAL_ZOOM, 0);
             _content.localScale = Vector3.one * INITIAL_ZOOM;
             float rightEdge = 0;
             float bottomEdge = 0;

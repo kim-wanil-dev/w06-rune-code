@@ -26,10 +26,10 @@ namespace RuneCode
         public float _energyMult = 1f;
         public float _executionSeconds;
         public float _executionSecondsPerArea;
+        public int _unlockCost;
         public List<RuneResourceCostData> _resourceCosts;
         public List<RuneShapeCostRateData> _shapeCostRates;
         public string _unlockType;
-        public int _unlockCost;
         public RuneStatsData _stats;
         public List<RunePortData> _ports;
         public List<RuneParamData> _params;

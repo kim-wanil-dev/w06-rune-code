@@ -36,6 +36,9 @@ namespace RuneCode
         private readonly double _maxHp;
         private readonly double _maxEnergy;
         private readonly double _energyRegen;
+        private readonly double _damageMultiplier;
+        private readonly double _moveSpeedMultiplier;
+        private readonly double _scrapGainMultiplier;
         private readonly double _burstExpandSeconds;
         private readonly double _persistWarnSeconds;
         private readonly List<SimulationEnemy> _enemies = new List<SimulationEnemy>();
@@ -84,6 +87,7 @@ namespace RuneCode
         private int _actionsThisTick;
         private int _droppedExecutions;
         private int _collectedFragments;
+        private double _scrapRemainder;
         private double _totalDamage;
         private double _statusDamage;
         private double _persistDamage;
@@ -161,8 +165,9 @@ namespace RuneCode
         /// <summary>명시적으로 열린 디버그 기능에서 플레이어 무적 상태를 변경한다.</summary>
         public void SetDebugInvulnerable(bool isInvulnerable) { _debugInvulnerable = isInvulnerable; }
 
-        /// <summary>검증된 데이터, 시드, 스테이지 번호와 영구 능력치로 독립된 전투 또는 시험 도크를 생성한다.</summary>
-        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0)
+        /// <summary>시드, 스테이지와 트리 능력치를 받아 독립 전투 또는 시험 도크를 생성한다. 생략한 배율은 기본값 1을 사용한다.</summary>
+        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0,
+            double damageMultiplier = 1, double moveSpeedMultiplier = 1, double scrapGainMultiplier = 1)
         {
             GameData.Load();
             _balance = GameData.Balance;
@@ -176,6 +181,9 @@ namespace RuneCode
             _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
             _stageNumber = Math.Max(1, stageNumber);
             _energyRegen = energyRegen > 0 ? energyRegen : _balance.Player.EnergyRegen;
+            _damageMultiplier = damageMultiplier;
+            _moveSpeedMultiplier = moveSpeedMultiplier;
+            _scrapGainMultiplier = scrapGainMultiplier;
             _burstExpandSeconds = GameData.Runes.Get(BURST_FORM_ID).Stats.ExpandSeconds;
             _persistWarnSeconds = GameData.Runes.Get(PERSIST_FORM_ID).Stats.WarnSeconds;
             _spawnSlots = new SpawnSlots(NextRandom);
@@ -323,7 +331,9 @@ namespace RuneCode
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
-            _totalDamage = 0; _statusDamage = 0; _persistDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
+            _totalDamage = 0; _statusDamage = 0; _persistDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0;
+            _nodeExecutionCount = 0; _collectedFragments = 0; _scrapRemainder = 0; _killCount = 0; _spawnedEnemies = 0;
+            _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
             _map = new MissionMap(_sector.Rooms[0].Tiles, _sector.TileSize); _player = new SimulationPlayer(_maxHp, _maxEnergy, new SimVector(bench.BenchPlayerX, bench.BenchPlayerY));
             Adaptation.Clear(); Adaptation.SetEnabled(scenario == "adapt_loop");
@@ -348,6 +358,8 @@ namespace RuneCode
             state.Append(_tick).Append('|').Append(_rngState).Append('|').Append(_nextEntityId).Append('|').Append(_stage).Append('|').Append(_stageNumber).Append('|').Append(_killTarget).Append('|').Append(_targetKills).Append('|').Append(_isBossDefeated).Append('|').Append(_spawnedEnemies).Append('|').Append(_killCount).Append('|').Append(_scenario).Append('|').Append(_debugInvulnerable);
             state.Append('|').Append(_actionBudgetTick).Append('|').Append(_actionsThisTick).Append('|').Append(_droppedExecutions);
             AppendNumber(state, TimeLimit); AppendNumber(state, _energyRegen);
+            AppendNumber(state, _damageMultiplier); AppendNumber(state, _moveSpeedMultiplier);
+            AppendNumber(state, _scrapGainMultiplier); AppendNumber(state, _scrapRemainder);
             _player.WriteState(state);
             foreach (SimulationEnemy enemy in _enemies) enemy.WriteState(state);
             foreach (EnemyStatusEffect status in _enemyStatuses) status.WriteState(state);
@@ -416,7 +428,7 @@ namespace RuneCode
             if (move.LengthSquared > 0.000001) { _moveDirection = move.Normalized(); _hasMoveDirection = true; }
             bool startedDash = input.Dash && _stage != MissionStage.Terminal
                 && _player.StartDash(move.LengthSquared > 0.000001 ? move : _player.AimDirection, _balance.Player.DashSeconds, _balance.Player.DashCooldown, Time);
-            SimVector displacement = _player.DashRemaining > 0 ? _player.GetDashDirection() * (_balance.Player.DashDistance / _balance.Player.DashSeconds * Math.Min(STEP_SECONDS, _player.DashRemaining)) : move * (_balance.Player.Speed * STEP_SECONDS);
+            SimVector displacement = _player.DashRemaining > 0 ? _player.GetDashDirection() * (_balance.Player.DashDistance / _balance.Player.DashSeconds * Math.Min(STEP_SECONDS, _player.DashRemaining)) : move * (_balance.Player.Speed * _moveSpeedMultiplier * STEP_SECONDS);
             _player.Move(_map.Move(_player.Position, displacement, _sector.PlayerRadius));
             return startedDash;
         }
@@ -1115,7 +1127,7 @@ namespace RuneCode
         private double ApplyDamage(SimulationEnemy enemy, double damage, string element, string form, bool noise, bool isDot, SimVector direction, bool applyStatus)
         {
             if (!enemy.IsAlive || enemy.IsPatching) return 0;
-            double actual = damage * Adaptation.GetMultiplier(element, form);
+            double actual = damage * _damageMultiplier * Adaptation.GetMultiplier(element, form);
             if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !HasEnemyStatus(enemy, EnemyStatusType.Emp) && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
             bool relayAlive = false;
             bool hasRelayAura = false;
@@ -1453,7 +1465,7 @@ namespace RuneCode
                     if (enemy.IsKillTarget) _targetKills++;
                     if (enemy.Boss != null) _isBossDefeated = true;
                     if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
-                    if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward));
+                    if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, ScaleKillScrap(enemy.Reward)));
                     string dropTableId = GetDropTableId(enemy);
                     if (dropTableId != null) RollDropTable(_drops.Get(dropTableId), enemy.Position);
                     _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
@@ -1490,12 +1502,21 @@ namespace RuneCode
             return string.IsNullOrEmpty(dropTable) ? null : dropTable;
         }
 
-        /// <summary>드롭 테이블을 결정적 난수로 추첨해 fragments는 조각 오브로, modifier는 바닥 드롭 개체로 처치 위치에 떨군다.</summary>
+        /// <summary>적 처치 스크랩에 획득 배율을 적용하고 소수 보너스를 다음 드롭으로 이월해 정수 스크랩량을 반환한다.</summary>
+        private int ScaleKillScrap(int amount)
+        {
+            double scaled = amount * _scrapGainMultiplier + _scrapRemainder;
+            int result = (int)Math.Floor(scaled + 0.000001);
+            _scrapRemainder = Math.Max(0, scaled - result);
+            return result;
+        }
+
+        /// <summary>드롭 테이블을 결정적 난수로 추첨해 스크랩은 배율이 적용된 오브로, modifier는 바닥 드롭 개체로 처치 위치에 떨군다.</summary>
         private void RollDropTable(DropTableDefinition table, SimVector position)
         {
             foreach (DropRoll roll in table.Roll(NextRandom))
             {
-                if (roll.Type == DropCatalog.TYPE_FRAGMENTS) _orbs.Add(new FragmentOrb(position, roll.Fragments));
+                if (roll.Type == DropCatalog.TYPE_FRAGMENTS) _orbs.Add(new FragmentOrb(position, ScaleKillScrap(roll.Fragments)));
                 else if (roll.Type == DropCatalog.TYPE_MODIFIER) DropModifier(roll, position);
             }
         }

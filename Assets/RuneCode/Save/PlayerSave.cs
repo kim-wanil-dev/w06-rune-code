@@ -9,18 +9,15 @@ namespace RuneCode
     [Serializable]
     public sealed class PlayerSave : ISerializationCallbackReceiver
     {
+        private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "shape.box", "shape.cone", "behavior.launch" };
         private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
 
         [Header("저장 버전")]
-        [SerializeField] private int _version = 2;
+        [SerializeField] private int _version = 4;
 
         [Header("완드 및 진행")]
         [SerializeField] private int _currency;
-        [SerializeField] private int _capacityLevel;
         [SerializeField] private int _slotCount = 1;
-        [SerializeField] private int _energyLevel;
-        [SerializeField] private int _hpLevel;
-        [SerializeField] private int _durationLevel;
         [SerializeField] private int _highestClearedStage;
         [SerializeField] private int _selectedStage = 1;
         [SerializeField] private string _activeSpellId;
@@ -41,11 +38,7 @@ namespace RuneCode
 
         public int Version => _version;
         public int Currency => _currency;
-        public int CapacityLevel => _capacityLevel;
         public int SlotCount => _slotCount;
-        public int EnergyLevel => _energyLevel;
-        public int HpLevel => _hpLevel;
-        public int DurationLevel => _durationLevel;
         public int HighestClearedStage => _highestClearedStage;
         public int SelectedStage => _selectedStage;
         public string ActiveSpellId => _activeSpellId;
@@ -163,8 +156,7 @@ namespace RuneCode
         public static PlayerSave CreateNew()
         {
             var save = new PlayerSave();
-            foreach (var rune in GameData.Runes.All)
-                if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL) save._unlockedRunes.Add(rune.Id);
+            save.AddStarterRunes();
             save._graphs.Add(GameData.Spells[0].Clone());
             save._activeSpellId = save._graphs[0].Id;
             save._loadout.Add(save._graphs[0].Id);
@@ -173,6 +165,16 @@ namespace RuneCode
             save.AddDefaultMethods();
             save.EnsureModifierStock();
             return save;
+        }
+
+        /// <summary>기본 트리 시작 룬 네 개를 해금 목록에 중복 없이 추가한다.</summary>
+        private void AddStarterRunes()
+        {
+            if (_unlockedRunes == null) _unlockedRunes = new List<string>();
+            foreach (string runeId in STARTER_RUNE_IDS)
+                if (GameData.Runes.TryGet(runeId, out RuneDefinition rune)
+                    && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !_unlockedRunes.Contains(runeId))
+                    _unlockedRunes.Add(runeId);
         }
 
         /// <summary>
@@ -187,8 +189,9 @@ namespace RuneCode
             foreach (var runeId in _unlockedRunes)
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
                     if (GameData.Runes.TryGet(mapped, out var rune) && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(mapped)) unlocked.Add(mapped);
-            foreach (var rune in GameData.Runes.All)
-                if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(rune.Id)) unlocked.Add(rune.Id);
+            foreach (string runeId in STARTER_RUNE_IDS)
+                if (GameData.Runes.TryGet(runeId, out RuneDefinition rune)
+                    && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(runeId)) unlocked.Add(runeId);
             _unlockedRunes = unlocked;
             AddDefaultMethods();
             EnsureModifierStock();
@@ -210,11 +213,7 @@ namespace RuneCode
         {
             error = null;
             var economy = GameData.Balance.Economy;
-            if (_version != 2 || _currency < 0 || _currency > 100000000 ||
-                _capacityLevel < 0 || _capacityLevel > economy.MaxGrowthLevel ||
-                _energyLevel < 0 || _energyLevel > economy.MaxGrowthLevel ||
-                _hpLevel < 0 || _hpLevel > economy.StatCosts.Count ||
-                _durationLevel < 0 || _durationLevel > economy.MaxDurationLevel ||
+            if (_version != 4 || _currency < 0 || _currency > 100000000 ||
                 _highestClearedStage < 0 || _highestClearedStage >= 1000000 ||
                 _selectedStage < 1 || _selectedStage > _highestClearedStage + 1 ||
                 _slotCount != 1 || _tutorialStep < 0 || _tutorialStep > 3)
@@ -272,13 +271,12 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>버전 1의 설계와 성장 값을 보존하고 A 마법을 단일 활성 설계로 이전한다.</summary>
+        /// <summary>버전 1의 마법 슬롯을 단일 활성 설계로 이전해 버전 2 저장 형태로 바꾼다.</summary>
         public void MigrateToIncremental()
         {
             if (_version != 1) return;
             var economy = GameData.Balance.Economy;
-            if (_slotCount < 2 || _slotCount > 3 || _capacityLevel < 0 || _capacityLevel > economy.CapacityCosts.Count ||
-                _energyLevel < 0 || _energyLevel > economy.StatCosts.Count || _loadout == null || _loadout.Count != 3 ||
+            if (_slotCount < 2 || _slotCount > 3 || _loadout == null || _loadout.Count != 3 ||
                 _graphs == null || _graphs.Count == 0 || _currency < 0 || _currency > 100000000)
                 throw new FormatException("이전 버전 저장 구조가 유효하지 않습니다.");
             _activeSpellId = !string.IsNullOrEmpty(_loadout[0]) && _graphs.Any(graph => graph != null && graph.Id == _loadout[0])
@@ -286,9 +284,29 @@ namespace RuneCode
             if (_slotCount == 3) _currency = Math.Min(100000000, _currency + economy.SlotCost);
             _slotCount = 1;
             _loadout[0] = _activeSpellId; _loadout[1] = null; _loadout[2] = null;
-            _durationLevel = 0; _highestClearedStage = _sectorCleared ? 1 : 0;
+            _highestClearedStage = _sectorCleared ? 1 : 0;
             _selectedStage = _highestClearedStage + 1;
             _version = 2;
+        }
+
+        /// <summary>버전 2 저장의 구형 강화와 트리 구매를 초기화하고 시작 룬 네 개만 남겨 버전 3으로 이전한다.</summary>
+        public void MigrateToHardwareTree()
+        {
+            if (_version != 2) return;
+            _upgradeNodeProgress = new List<UpgradeNodeProgress>();
+            _unlockedRunes = new List<string>();
+            AddStarterRunes();
+            _version = 3;
+        }
+
+        /// <summary>버전 3의 기존 트리 구매와 비시작 룬 해금을 초기화하고 스크랩·마법·스테이지 진행을 보존해 버전 4로 이전한다.</summary>
+        public void MigrateToUpgradeTreeV4()
+        {
+            if (_version != 3) return;
+            _upgradeNodeProgress = new List<UpgradeNodeProgress>();
+            _unlockedRunes = new List<string>();
+            AddStarterRunes();
+            _version = 4;
         }
 
         /// <summary>해금한 범위 안의 전투 스테이지를 선택하고 저장 상태를 변경한다.</summary>
@@ -387,17 +405,6 @@ namespace RuneCode
                 _killCounts.Add(record);
             }
             record.Add(count);
-        }
-
-        /// <summary>지원하는 성장 종류의 단계를 한 단계 증가시킨다.</summary>
-        public void Upgrade(string kind)
-        {
-            switch (kind)
-            {
-                case "capacity": if (_capacityLevel < GameData.Balance.Economy.MaxGrowthLevel) _capacityLevel++; break;
-                case "energy": if (_energyLevel < GameData.Balance.Economy.MaxGrowthLevel) _energyLevel++; break;
-                case "duration": if (_durationLevel < GameData.Balance.Economy.MaxDurationLevel) _durationLevel++; break;
-            }
         }
 
         /// <summary>유효한 룬 ID를 중복 없이 해금 목록에 추가한다.</summary>

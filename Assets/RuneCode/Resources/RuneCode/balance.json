@@ -57,41 +57,13 @@
     "_separationMaxStep": 4
   },
   "_economy": {
-    "_capacityCosts": [
-      20,
-      30,
-      45,
-      65,
-      90,
-      120,
-      160,
-      210,
-      270
-    ],
-    "_statCosts": [
-      30,
-      40,
-      55,
-      70,
-      90
-    ],
     "_slotCost": 120,
     "_deathRetention": 0.7,
     "_baseCapacity": 6,
-    "_capacityStep": 2,
     "_maxLibrary": 30,
     "_modifierStartStock": 1,
-    "_statStep": 10,
     "_orbAbsorbRadius": 160,
-    "_terminalHeal": 0.3,
-    "_capacityBaseCost": 12,
-    "_energyBaseCost": 15,
-    "_durationBaseCost": 18,
-    "_growthCostMultiplier": 1.22,
-    "_maxGrowthLevel": 100,
-    "_maxDurationLevel": 18,
-    "_durationStep": 5,
-    "_energyRegenStep": 1
+    "_terminalHeal": 0.3
   },
   "_sim": {
     "_tickRate": 60,

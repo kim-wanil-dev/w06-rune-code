@@ -13,12 +13,28 @@
       "_value": "작업실 입장"
     },
     {
-      "_key": "ui.editor",
-      "_value": "룬 설계"
+      "_key": "ui.startNormal",
+      "_value": "일반 모드 시작"
     },
     {
-      "_key": "ui.bench",
-      "_value": "기반 강화"
+      "_key": "ui.startDebug",
+      "_value": "디버그 모드 시작"
+    },
+    {
+      "_key": "ui.resetDebugTree",
+      "_value": "강화 트리 초기화"
+    },
+    {
+      "_key": "ui.resetDebugSession",
+      "_value": "디버그 진행 초기화"
+    },
+    {
+      "_key": "ui.resetDebugSessionMessage",
+      "_value": "이번 디버그 실행의 스크랩, 강화, 마법 보관함을 초기화합니다. 일반 저장은 유지됩니다."
+    },
+    {
+      "_key": "ui.editor",
+      "_value": "룬 설계"
     },
     {
       "_key": "ui.tree",
@@ -142,7 +158,7 @@
     },
     {
       "_key": "ui.energy",
-      "_value": "에너지"
+      "_value": "전력"
     },
     {
       "_key": "resource.mana",
@@ -193,6 +209,10 @@
       "_value": "미해금"
     },
     {
+      "_key": "ui.unlockViaTree",
+      "_value": "강화 트리에서 해금"
+    },
+    {
       "_key": "ui.reward",
       "_value": "첫 단계 완료 보상"
     },
@@ -210,7 +230,7 @@
     },
     {
       "_key": "ui.fragments",
-      "_value": "RAM"
+      "_value": "스크랩"
     },
     {
       "_key": "ui.capacity",
@@ -306,7 +326,7 @@
     },
     {
       "_key": "ui.help",
-      "_value": "노드 강화 → 시간제 전투 → RAM 획득"
+      "_value": "업그레이드 트리 강화 → 전투로 스크랩 획득"
     },
     {
       "_key": "ui.tutorial1",
@@ -322,7 +342,7 @@
     },
     {
       "_key": "ui.complete",
-      "_value": "설계가 준비되었습니다. 전투로 RAM을 얻고 같은 마법을 계속 확장하세요"
+      "_value": "설계가 준비되었습니다. 전투로 스크랩을 얻고 같은 마법을 계속 확장하세요"
     },
     {
       "_key": "ui.empty",
@@ -354,7 +374,7 @@
     },
     {
       "_key": "ui.grant",
-      "_value": "조각 +200"
+      "_value": "스크랩 +200"
     },
     {
       "_key": "ui.unlockAll",
@@ -514,15 +534,11 @@
     },
     {
       "_key": "result.fragments",
-      "_value": "정산 RAM"
+      "_value": "정산 스크랩"
     },
     {
-      "_key": "bench.maxed",
-      "_value": "최대 단계에 도달했습니다"
-    },
-    {
-      "_key": "bench.insufficient",
-      "_value": "RAM 조각이 부족합니다"
+      "_key": "tree.insufficient",
+      "_value": "스크랩이 부족합니다"
     },
     {
       "_key": "share.invalid",
@@ -906,7 +922,7 @@
     },
     {
       "_key": "ui.retreat",
-      "_value": "전투 중단 · 획득 RAM 70% 회수"
+      "_value": "전투 중단 · 획득 스크랩 70% 회수"
     },
     {
       "_key": "ui.unequip",
@@ -922,43 +938,35 @@
     },
     {
       "_key": "ui.incrementalLoop",
-      "_value": "적 처치로 RAM 획득 · 노드 용량 / 에너지 / 전투 시간 강화 · 더 높은 단계 도전"
+      "_value": "적 처치로 스크랩 획득 · 트리에서 전력 / RAM 용량 강화 · 더 높은 단계 도전"
     },
     {
       "_key": "ui.tree.title",
-      "_value": "성장 트리 · 1~10 스테이지"
+      "_value": "하드웨어 업그레이드 트리"
     },
     {
       "_key": "ui.tree.summary",
-      "_value": "노드를 구매해 영구 능력과 룬을 해금하세요. 스탯 노드는 2레벨까지 강화할 수 있습니다"
-    },
-    {
-      "_key": "ui.tree.availableStage",
-      "_value": "해금 스테이지"
+      "_value": "메인보드에서 시작해 선행 노드를 열고, 스탯은 최대 3회 강화하거나 룬을 해금하세요"
     },
     {
       "_key": "ui.tree.controls",
       "_value": "우클릭 드래그 이동 · 휠 확대/축소"
     },
     {
-      "_key": "ui.tree.stage",
-      "_value": "STAGE"
-    },
-    {
       "_key": "ui.tree.regen",
-      "_value": "에너지 회복량"
+      "_value": "전력 회복량"
     },
     {
       "_key": "ui.tree.regenDescription",
-      "_value": "초당 에너지 회복"
+      "_value": "초당 전력 회복"
     },
     {
       "_key": "ui.tree.maxEnergy",
-      "_value": "최대 에너지"
+      "_value": "최대 전력"
     },
     {
       "_key": "ui.tree.maxEnergyDescription",
-      "_value": "최대 보유 에너지"
+      "_value": "최대 보유 전력"
     },
     {
       "_key": "ui.tree.ramCapacity",
@@ -975,6 +983,74 @@
     {
       "_key": "ui.tree.unlockRuneDescription",
       "_value": "설계에 사용할 룬을 해금"
+    },
+    {
+      "_key": "ui.tree.mainboard",
+      "_value": "메인보드"
+    },
+    {
+      "_key": "ui.tree.mainboardDescription",
+      "_value": "전력 회복 속도 증가"
+    },
+    {
+      "_key": "ui.tree.cpu",
+      "_value": "CPU"
+    },
+    {
+      "_key": "ui.tree.cpuDescription",
+      "_value": "마법 캐스팅 속도 강화 · 효과는 추후 적용"
+    },
+    {
+      "_key": "ui.tree.gpu",
+      "_value": "GPU"
+    },
+    {
+      "_key": "ui.tree.gpuDescription",
+      "_value": "마법 피해 증가"
+    },
+    {
+      "_key": "ui.tree.scrapGain",
+      "_value": "스크랩 획득량"
+    },
+    {
+      "_key": "ui.tree.scrapGainDescription",
+      "_value": "적 처치 시 획득하는 스크랩 증가"
+    },
+    {
+      "_key": "ui.tree.maxHp",
+      "_value": "기본 HP"
+    },
+    {
+      "_key": "ui.tree.maxHpDescription",
+      "_value": "최대 HP 증가"
+    },
+    {
+      "_key": "ui.tree.moveSpeed",
+      "_value": "이동 속도"
+    },
+    {
+      "_key": "ui.tree.moveSpeedDescription",
+      "_value": "플레이어 이동 속도 증가"
+    },
+    {
+      "_key": "ui.tree.level",
+      "_value": "레벨"
+    },
+    {
+      "_key": "ui.tree.nextIncrease",
+      "_value": "다음 상승량"
+    },
+    {
+      "_key": "ui.tree.cost",
+      "_value": "비용"
+    },
+    {
+      "_key": "ui.tree.unlockEffect",
+      "_value": "룬 해금"
+    },
+    {
+      "_key": "ui.tree.pendingEffect",
+      "_value": "효과 추후 적용"
     },
     {
       "_key": "tree.stageLocked",
@@ -1005,28 +1081,12 @@
       "_value": "전투 시간"
     },
     {
-      "_key": "ui.capacityDescription",
-      "_value": "현재 마법에 더 많은 룬 노드를 배치할 수 있습니다"
-    },
-    {
-      "_key": "ui.energyDescription",
-      "_value": "최대 에너지와 초당 회복량을 함께 높입니다"
-    },
-    {
-      "_key": "ui.durationDescription",
-      "_value": "다음 전투에서 더 오래 처치하고 RAM을 획득합니다"
-    },
-    {
       "_key": "ui.regen",
       "_value": "회복"
     },
     {
       "_key": "ui.maxed",
       "_value": "최대 단계"
-    },
-    {
-      "_key": "ui.runeUnlocks",
-      "_value": "새 룬 해금 · 새로운 노드로 현재 마법을 확장하세요"
     },
     {
       "_key": "ui.timedBattle",
@@ -1082,7 +1142,7 @@
     },
     {
       "_key": "ui.improveHint",
-      "_value": "획득한 RAM으로 기반을 강화하고, 현재 마법의 노드를 추가하거나 연결을 바꿔 다음 전투를 준비하세요"
+      "_value": "획득한 스크랩으로 업그레이드 트리를 진행하고, 현재 마법의 노드를 추가하거나 연결을 바꿔 다음 전투를 준비하세요"
     },
     {
       "_key": "ui.improveSpell",
@@ -1334,7 +1394,7 @@
     },
     {
       "_key": "ui.resetSaveMessage",
-      "_value": "모든 진행(조각, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
+      "_value": "모든 진행(스크랩, 해금, 강화, 마법 보관함)을 처음 상태로 되돌립니다. 되돌릴 수 없습니다."
     }
   ]
 }

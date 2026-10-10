@@ -334,7 +334,11 @@ namespace RuneCode
         {
             SpellGrammar.ELEMENT_CATEGORY_ELEMENTAL, SpellGrammar.ELEMENT_CATEGORY_FUNCTIONAL
         };
-        private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "bench", "reward" };
+        private static readonly HashSet<string> STARTER_RUNE_IDS = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "shape.sphere", "shape.box", "shape.cone", "behavior.launch"
+        };
+        private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "tree", "bench" };
 
         private readonly IReadOnlyList<RuneDefinition> _runes;
         private readonly Dictionary<string, RuneDefinition> _byId = new Dictionary<string, RuneDefinition>(StringComparer.Ordinal);
@@ -739,11 +743,17 @@ namespace RuneCode
             if (!UNLOCK_TYPES.Contains(rune.UnlockType)) log.Add(rune.Id, "unlockType", "알 수 없는 해금 방식입니다: " + rune.UnlockType);
             if (rune.Ram < 0) log.Add(rune.Id, "ram", "음수일 수 없습니다.");
             if (rune.Energy < 0f) log.Add(rune.Id, "energy", "음수일 수 없습니다.");
+            if (rune.UnlockCost < 0) log.Add(rune.Id, "unlockCost", "음수일 수 없습니다.");
             foreach (ResourceAmount cost in rune.Costs.Amounts)
                 if (cost.Amount < 0) log.Add(rune.Id, "resourceCosts:" + cost.Resource, "음수일 수 없습니다.");
             if (rune.EnergyMult <= 0f) log.Add(rune.Id, "energyMult", "0보다 커야 합니다.");
-            if (rune.UnlockCost < 0 || (rune.UnlockType == "bench" && rune.UnlockCost == 0))
-                log.Add(rune.Id, "unlockCost", "음수일 수 없으며 bench 해금은 비용이 있어야 합니다.");
+            bool isImplementationRune = rune.Category == SpellGrammar.CATEGORY_CORE || rune.Category == SpellGrammar.CATEGORY_INTERNAL;
+            bool isStarterRune = STARTER_RUNE_IDS.Contains(rune.Id);
+            bool hasValidUnlockType = isImplementationRune || isStarterRune
+                ? rune.UnlockType == "start"
+                : rune.UnlockType == "tree" || rune.UnlockType == "bench";
+            if (!hasValidUnlockType)
+                log.Add(rune.Id, "unlockType", "시작 룬은 start, 그 외 플레이어 룬은 tree 또는 bench로 설정해야 합니다.");
         }
 
         /// <summary>룬의 자원별 기본 비용을 만들고 빈 ID·음수·중복을 검증한다. 기존 energy는 mana 비용으로 읽는다.</summary>

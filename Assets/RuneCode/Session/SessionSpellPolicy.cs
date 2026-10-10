@@ -21,13 +21,16 @@ namespace RuneCode
         /// <summary>현재 해금 룬, 성장 값과 Modifier 소지량으로 컴파일 문맥을 만든다.</summary>
         public SpellCompileContext GetCompileContext()
         {
-            return new SpellCompileContext(_session.Save.UnlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,
+            IEnumerable<string> unlockedRunes = _session.Save.UnlockedRunes.Concat(GameData.Runes.StartRunes);
+            return new SpellCompileContext(unlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,
                 _session.Save.CreateModifierStockMap(), legacyBoxWorldAligned: _session.LegacyBoxWorldAligned);
         }
 
         /// <summary>룬이 세이브의 해금 목록에 있는지 반환한다.</summary>
         public bool IsRuneUnlocked(string runeId)
         {
+            if (GameData.Runes.TryGet(runeId, out RuneDefinition rune) &&
+                (rune.Category == SpellGrammar.CATEGORY_CORE || rune.Category == SpellGrammar.CATEGORY_INTERNAL)) return true;
             return _session.Save.UnlockedRunes.Contains(runeId);
         }
 
