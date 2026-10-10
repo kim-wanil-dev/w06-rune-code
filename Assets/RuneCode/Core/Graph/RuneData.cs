@@ -96,6 +96,7 @@ namespace RuneCode
         private readonly float _coneAngle;
         private readonly float _expandSeconds;
         private readonly float _warnSeconds;
+        private readonly float _beamLength;
 
         public float Damage => _damage;
         public float Speed => _speed;
@@ -133,6 +134,9 @@ namespace RuneCode
         /// <summary>Persist 영역이 활성화되기 전 예고 시간(초)이다. Persist가 아닌 룬은 0이다.</summary>
         public float WarnSeconds => _warnSeconds;
 
+        /// <summary>Beam(Behavior)의 기본 Box 길이(px)다. Beam이 아닌 룬은 0이다.</summary>
+        public float BeamLength => _beamLength;
+
         /// <summary>룬 데이터의 수치 항목으로 효과 수치를 만든다. JSON에 없는 필드는 배율이면 1, 그 외는 0이다.</summary>
         internal RuneStats(RuneStatsData row)
         {
@@ -165,6 +169,7 @@ namespace RuneCode
             _coneAngle = row._coneAngle;
             _expandSeconds = row._expandSeconds;
             _warnSeconds = row._warnSeconds;
+            _beamLength = row._beamLength;
         }
     }
 
@@ -790,7 +795,8 @@ namespace RuneCode
             float[] numbers = { stats.Damage, stats.Speed, stats.Radius, stats.Lifetime, stats.Offset, stats.OrbitRadius,
                 stats.AngularSpeed, stats.HitInterval, stats.TickInterval, stats.DamageMultiplier, stats.RadiusMultiplier,
                 stats.SpeedMultiplier, stats.DurationMultiplier, stats.PierceLoss, stats.HomingTurn, stats.HomingRange, stats.ArcRange, stats.ArcMultiplier,
-                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle, stats.ExpandSeconds, stats.WarnSeconds };
+                stats.LearningMultiplier, stats.SpreadAngle, stats.ShieldAmount, stats.ShieldSeconds, stats.ConeAngle, stats.ExpandSeconds, stats.WarnSeconds,
+                stats.BeamLength };
             foreach (float value in numbers)
             {
                 if (value < 0f)

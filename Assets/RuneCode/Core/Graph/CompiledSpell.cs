@@ -524,7 +524,9 @@ namespace RuneCode
                     ? SpellGrammar.CONE_DISTANCE_PARAM : SpellGrammar.SHAPE_RADIUS_PARAM;
                 float shapeRadius = node.GetNumber(radiusParameter, behaviorRadius);
                 float boxWidth = node.GetNumber(SpellGrammar.BOX_WIDTH_PARAM, behaviorRadius * 2f);
-                float boxLength = node.GetNumber(SpellGrammar.BOX_LENGTH_PARAM, behaviorRadius * 2f);
+                // Beam은 Box 길이 기본값을 형태 데이터의 빔 길이로 쓴다. 그 외 Box는 반경×2.
+                float defaultBoxLength = _form == SpellGrammar.FORM_BEAM && effectForm.Stats.BeamLength > 0f ? effectForm.Stats.BeamLength : behaviorRadius * 2f;
+                float boxLength = node.GetNumber(SpellGrammar.BOX_LENGTH_PARAM, defaultBoxLength);
                 string defaultBoxDirection = _form == SpellGrammar.FORM_BOLT || !legacyBoxWorldAligned ? "aim" : "world";
                 bool isBoxWorldAligned = node.GetText(SpellGrammar.BOX_DIRECTION_PARAM, defaultBoxDirection) == "world";
                 _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades,
@@ -587,6 +589,7 @@ namespace RuneCode
                 case "explosion": return "burst";
                 case "orbit": return "orbit";
                 case "remain": return "zone";
+                case SpellGrammar.FORM_BEAM: return SpellGrammar.FORM_BEAM;
                 default: return "";
             }
         }

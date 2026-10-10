@@ -785,6 +785,10 @@
       "_value": "잔류"
     },
     {
+      "_key": "magicForm.beam",
+      "_value": "빔"
+    },
+    {
       "_key": "trigger.attack",
       "_value": "공격"
     },
@@ -1123,6 +1127,10 @@
     {
       "_key": "ui.mod.expandHint",
       "_value": "등급별 크기 수치가 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
+    },
+    {
+      "_key": "ui.behavior.beamHint",
+      "_value": "실행 시 원점에서 방향으로 뻗은 Box 안의 모든 적을 한 번씩 적중합니다. 첫 벽에서 길이가 잘리고, 회복·보호 속성은 범위 안의 자신에게 적용됩니다. Box 크기 속성은 준비 중입니다"
     },
     {
       "_key": "ui.mod.rangeHint",

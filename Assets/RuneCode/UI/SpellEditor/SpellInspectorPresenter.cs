@@ -67,6 +67,7 @@ namespace RuneCode
             }
             if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
                 _view.AddNote(GameData.L("ui.shapeSizeBounds"), UiTheme.Muted, 34, 6);
+            if (rune.Id == "behavior.beam") _view.AddNote(GameData.L("ui.behavior.beamHint"), UiTheme.Muted, 70, 6);
             if (rune.Params.Count == 0 && rune.Category != SpellGrammar.CATEGORY_MODIFIER)
             {
                 _view.AddNote(GameData.L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + GameData.L("ui.damage") + " "
@@ -238,6 +239,14 @@ namespace RuneCode
             SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
             if (action?.Stats == null) return;
             SpellStats stats = action.Stats;
+            if (action.Form == SpellGrammar.FORM_BEAM)
+            {
+                // Beam의 크기 원본은 RuneSimulation.GetBeamBox 한 곳에만 있다(W1 통합 시 함께 바뀐다).
+                RuneSimulation.GetBeamBox(stats, out double width, out double length);
+                _view.AddNote(GameData.L("ui.spellRange") + " " + length.ToString("0.#") + "px\n"
+                    + GameData.L("ui.spellRadius") + " " + (width * 0.5).ToString("0.#") + "px", UiTheme.Cyan, 70, 6);
+                return;
+            }
             float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
                 : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
             string speed = action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s";

@@ -86,6 +86,7 @@ namespace RuneCode
         public float _coneAngle;
         public float _expandSeconds;
         public float _warnSeconds;
+        public float _beamLength;
     }
 
     /// <summary>유도 Modifier의 하위 유도 단계와 적용 수치다.</summary>

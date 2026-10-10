@@ -18,6 +18,9 @@ namespace RuneCode
         private const string PERSIST_FORM_ID = "form.zone";
         private const double SAME_SPAWN_DISTANCE = 0.5;
         private const string BOLT_RUNE_ID = "form.bolt";
+        private const double BEAM_CLIP_MIN_STEP = 4;
+        private const double BEAM_CLIP_STEP_RATIO = 0.25;
+        private const int BEAM_CLIP_REFINEMENT_STEPS = 6;
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -566,6 +569,8 @@ namespace RuneCode
             foreach (string attachedNodeId in action.AttachedNodeIds) RecordNode(attachedNodeId);
             string element = action.Noise ? context.NoiseElement : action.Element;
             SpellStats stats = action.Stats.Apply(context.Modifiers);
+            // Beam은 이동체를 만들지 않고 즉시 Box 판정과 잔상 표시로 끝난다(백서 v5).
+            if (action.Form == SpellGrammar.FORM_BEAM) { SpawnBeam(action, stats, element, context); return; }
             for (int i = 0; i < action.Count; i++)
             {
                 if (_spellEntities.Count >= _balance.Limits.MaxLiveSpellEntities) return;
@@ -596,6 +601,110 @@ namespace RuneCode
                 if (action.Form == "burst") HitArea(entity, true);
                 else if (action.Form == "zone" && action.SourceElement != "protection" && !entity.IsWarning) HitArea(entity, false);
             }
+        }
+
+        /// <summary>
+        /// Beam의 Box 폭과 길이를 Box Shape 노드의 크기 속성(Expand 반영)으로 반환한다.
+        /// 속성이 없는 노드는 폭 = 형태 반경×2, 길이 = form.beam 데이터의 기본 빔 길이(_beamLength)다.
+        /// </summary>
+        public static void GetBeamBox(SpellStats stats, out double width, out double length)
+        {
+            width = stats.BoxWidth;
+            length = stats.BoxLength;
+        }
+
+        /// <summary>
+        /// Beam을 실행 시점에 한 번 판정하고 잔상만 남긴다. 원점·방향은 실행 문맥(시전은 지팡이 끝과 조준, 이벤트는 사건 위치·방향)을 따르고,
+        /// 첫 벽에서 잘린 길이의 Box 안의 살아 있는 적을 가까운 순서(같으면 ID 순)로 각 한 번 적중하며 대상별 OnHit을 낸다.
+        /// 회복·보호는 적 대신 Box 안의 시전자에게 한 번 적용된다. 판정 후 잔상 개체(판정 없음)만 spellVisualSeconds 동안 남긴다.
+        /// </summary>
+        private void SpawnBeam(SpellAction action, SpellStats stats, string element, SpellContext context)
+        {
+            if (_spellEntities.Count >= _balance.Limits.MaxLiveSpellEntities) return;
+            GetBeamBox(stats, out double width, out double length);
+            SimVector direction = context.Direction.Normalized();
+            double clipped = ClipBeamLength(context.Origin, direction, length);
+            // 잔상 개체는 잘린 Box의 중심에 두고 판정에는 쓰지 않는다.
+            var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, context.Origin + direction * (clipped * 0.5),
+                direction, context.FromEvent, context.Origin, 0, context.NoiseElement, _balance.Sim.SpellVisualSeconds, 0,
+                context.CallEvents, context.Modifiers, context.CostMultiplier, context.Caster, clipped);
+            _spellEntities.Add(entity);
+            _peakSpellEntities = Math.Max(_peakSpellEntities, _spellEntities.Count);
+            if (action.SourceElement == "heal" || action.SourceElement == "protection")
+            {
+                ApplyFunctionalBeam(action, entity, context.Origin, direction, clipped, width);
+                return;
+            }
+            var targets = new List<SimulationEnemy>();
+            foreach (SimulationEnemy enemy in _enemies)
+                if (enemy.IsAlive && IntersectsBeamBox(context.Origin, direction, clipped, width, enemy.Position, enemy.Radius)) targets.Add(enemy);
+            targets.Sort((a, b) =>
+            {
+                int distanceOrder = (a.Position - context.Origin).LengthSquared.CompareTo((b.Position - context.Origin).LengthSquared);
+                return distanceOrder != 0 ? distanceOrder : a.Id.CompareTo(b.Id);
+            });
+            foreach (SimulationEnemy enemy in targets)
+            {
+                if (!enemy.IsAlive) continue;
+                Hit(entity, enemy, stats.Damage, false);
+                RaiseHitEvent(entity, BeamContactPoint(context.Origin, direction, clipped, enemy.Position), enemy);
+            }
+        }
+
+        /// <summary>Beam 원점에서 방향으로 뻗는 중심선을 타일의 1/4 간격으로 검사해 첫 벽(맵 비통과 타일) 앞까지의 길이를 반환한다.</summary>
+        private double ClipBeamLength(SimVector origin, SimVector direction, double length)
+        {
+            double step = Math.Max(BEAM_CLIP_MIN_STEP, _map.TileSize * BEAM_CLIP_STEP_RATIO);
+            double free = 0;
+            double distance = Math.Min(step, length);
+            while (distance <= length + 0.000001)
+            {
+                if (_map.IsWall(origin + direction * distance)) return RefineBeamClip(origin, direction, free, distance);
+                free = distance;
+                distance += step;
+            }
+            return length;
+        }
+
+        /// <summary>벽에 들어간 구간을 절반씩 좁혀 첫 벽 경계 바로 앞까지의 잘린 길이를 반환한다.</summary>
+        private double RefineBeamClip(SimVector origin, SimVector direction, double free, double hit)
+        {
+            for (int i = 0; i < BEAM_CLIP_REFINEMENT_STEPS; i++)
+            {
+                double middle = (free + hit) * 0.5;
+                if (_map.IsWall(origin + direction * middle)) hit = middle;
+                else free = middle;
+            }
+            return free;
+        }
+
+        /// <summary>원점에서 방향으로 길이만큼, 수직으로 폭의 절반만큼 뻗은 Box와 대상 원의 겹침 여부를 반환한다. 대상 반경만큼 여유를 둔다.</summary>
+        private static bool IntersectsBeamBox(SimVector origin, SimVector direction, double length, double width, SimVector target, double targetRadius)
+        {
+            SimVector relative = target - origin;
+            double extent = width * 0.5 + targetRadius;
+            double along = SimVector.Dot(relative, direction);
+            double across = Math.Abs(SimVector.Dot(relative, new SimVector(-direction.Y, direction.X)));
+            return along >= -extent && along <= length + extent && across <= extent;
+        }
+
+        /// <summary>Box 중심선 위에서 대상에 가장 가까운 접촉 위치를 반환한다. 대상이 원점 뒤나 끝 밖이면 해당 끝점이다.</summary>
+        private static SimVector BeamContactPoint(SimVector origin, SimVector direction, double length, SimVector target)
+        {
+            double along = Math.Max(0, Math.Min(length, SimVector.Dot(target - origin, direction)));
+            return origin + direction * along;
+        }
+
+        /// <summary>
+        /// 회복·보호 Beam을 Box 안의 시전자에게 한 번 적용한다(Burst의 기능 속성 규칙과 같다). 적에게는 효과가 없고 Hit 이벤트도 만들지 않는다.
+        /// 회복은 즉시 회복, 보호는 보호막이며 보호막 지속시간은 효과량 파라미터와 수식 배율을 따른다.
+        /// </summary>
+        private void ApplyFunctionalBeam(SpellAction action, SimulationSpellEntity entity, SimVector origin, SimVector direction, double length, double width)
+        {
+            if (!IntersectsBeamBox(origin, direction, length, width, _player.Position, _sector.PlayerRadius)) return;
+            double amount = action.Power * action.ModifierValues.DamageMultiplier * entity.Modifiers.DamageMultiplier;
+            if (action.SourceElement == "heal") _player.Heal(amount);
+            else _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier * entity.Modifiers.DurationMultiplier, Time);
         }
 
         /// <summary>투사체 이동, 유도, 회전 및 지속 범위 피해를 처리하고 소멸 이벤트를 한 번만 발생시킨다.</summary>
@@ -1189,13 +1298,13 @@ namespace RuneCode
 
         /// <summary>
         /// 개체의 자연 소멸(수명·사거리 종료)을 처리하고 OnExpire를 소멸 위치에서 한 번 실행한다.
-        /// Burst는 이벤트 출력이 없고, 직접 충돌한 발사체는 OnExpire를 내지 않는다. 명중 없이 사라지는 발사체만 OnFirstHitOrExpire도 실행한다.
+        /// Burst·Beam은 이벤트 출력이 없고, 직접 충돌한 발사체는 OnExpire를 내지 않는다. 명중 없이 사라지는 발사체만 OnFirstHitOrExpire도 실행한다.
         /// </summary>
         private void Expire(SimulationSpellEntity entity)
         {
             if (entity.HasExpired) return;
             entity.HasExpired = true;
-            if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
+            if (entity.Kind == SpellGrammar.FORM_BURST || entity.Kind == SpellGrammar.FORM_BEAM || entity.HasDirectHit) return;
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();
