@@ -25,6 +25,7 @@ namespace RuneCode
         private const float WARNING_FILL_ALPHA = 0.25f;
 
         private static readonly Color WarningColor = new Color(1f, 0.25f, 0.25f);
+        private static readonly int MainTextureId = Shader.PropertyToID("_MainTex");
 
         [Header("모양")]
         [SerializeField] private Sprite _fireShape;
@@ -54,6 +55,10 @@ namespace RuneCode
             _coneMesh = new Mesh { name = "SpellCone" };
             _coneMesh.MarkDynamic();
             _coneFilter.sharedMesh = _coneMesh;
+            // 스프라이트 셰이더는 렌더러별 텍스처를 받는다. 메시는 지정하지 않으면 앞서 그린 스프라이트 텍스처가 남아 투명하게 그려질 수 있다.
+            var block = new MaterialPropertyBlock();
+            block.SetTexture(MainTextureId, Texture2D.whiteTexture);
+            _coneRenderer.SetPropertyBlock(block);
         }
 
         void OnDestroy()
