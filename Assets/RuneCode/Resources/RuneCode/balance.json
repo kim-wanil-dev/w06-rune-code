@@ -11,7 +11,6 @@
   },
   "_limits": {
     "_maxLiveSpellEntities": 128,
-    "_hitTriggerCap": 3,
     "_maxFrameSteps": 5,
     "_maxGraphNodes": 256,
     "_maxGraphEdges": 1024,

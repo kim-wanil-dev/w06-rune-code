@@ -985,14 +985,12 @@ namespace RuneCode
 
         /// <summary>
         /// 개체의 OnHit 이벤트를 지정 위치·대상(벽이면 null)으로 실행한다. 발사체는 직접 충돌로 기록하고
-        /// 첫 이벤트이면 OnFirstHitOrExpire도 실행한다. 개체당 이벤트 상한을 넘으면 실행하지 않는다.
+        /// 첫 이벤트이면 OnFirstHitOrExpire도 실행한다.
         /// </summary>
         private void RaiseHitEvent(SimulationSpellEntity entity, SimVector position, SimulationEnemy target)
         {
             bool isBolt = entity.Kind == SpellGrammar.FORM_BOLT;
             if (isBolt) entity.HasDirectHit = true;
-            if (entity.TriggerCount >= _balance.Limits.HitTriggerCap) return;
-            entity.TriggerCount++;
             SpellContext context = new SpellContext(position, GetEventDirection(entity, position, target), target, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = isBolt && entity.TryMarkFirstEvent();

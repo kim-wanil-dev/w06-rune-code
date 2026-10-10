@@ -37,7 +37,6 @@ namespace RuneCode
     {
         [Header("제한")]
         [SerializeField] private int _maxLiveSpellEntities;
-        [SerializeField] private int _hitTriggerCap;
         [SerializeField] private int _maxFrameSteps;
         [SerializeField] private int _maxGraphNodes;
         [SerializeField] private int _maxGraphEdges;
@@ -46,7 +45,6 @@ namespace RuneCode
         [SerializeField] private int _maxScheduledExecutions = 2048;
         [SerializeField] private int _maxActionsPerTick = 512;
         public int MaxLiveSpellEntities => _maxLiveSpellEntities;
-        public int HitTriggerCap => _hitTriggerCap;
         public int MaxFrameSteps => _maxFrameSteps;
         public int MaxGraphNodes => _maxGraphNodes;
         public int MaxGraphEdges => _maxGraphEdges;
@@ -269,7 +267,7 @@ namespace RuneCode
 
         /// <summary>문법 엔진(컴파일러)에 전달할 한도·기본값을 이 밸런스 값으로 만들어 반환한다. 처음 요청할 때 한 번 만든다.</summary>
         public GrammarLimits Grammar => _grammar ??= new GrammarLimits(_limits.MaxGraphNodes, _limits.MaxGraphEdges,
-            _limits.HitTriggerCap, _limits.MaxCompiledActions, _limits.MaxLiveSpellEntities, _economy.BaseCapacity,
+            _limits.MaxCompiledActions, _limits.MaxLiveSpellEntities, _economy.BaseCapacity,
             _player.MaxEnergy, _ram.CooldownBase, _ram.CooldownPerRam);
 
         /// <summary>밸런스 JSON을 읽고 필수 설정과 양수 제한값을 검증하여 반환한다.</summary>
@@ -279,7 +277,7 @@ namespace RuneCode
             if (data == null || data.Player == null || data.Limits == null || data.Adaptation == null
                 || data.Combat == null || data.Economy == null || data.Ram == null || data.Sim == null
                 || data.Player.MaxHp <= 0f || data.Player.MaxEnergy <= 0f || data.Sim.TickRate != 60
-                || data.Limits.MaxLiveSpellEntities <= 0 || data.Limits.HitTriggerCap <= 0
+                || data.Limits.MaxLiveSpellEntities <= 0
                 || data.Economy.BaseCapacity <= 0 || data.Economy.CapacityCosts == null || data.Economy.StatCosts == null
                 || (data.Ram.Mode != "shared" && data.Ram.Mode != "perSpell"))
                 throw new FormatException("유효하지 않은 밸런스 데이터입니다.");

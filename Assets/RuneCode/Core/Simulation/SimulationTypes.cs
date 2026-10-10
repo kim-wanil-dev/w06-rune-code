@@ -349,7 +349,6 @@ namespace RuneCode
         private double _age;
         private double _angle;
         private int _hits;
-        private int _triggerCount;
         private bool _hasExpired;
         private bool _hasFiredFirstEvent;
         private bool _hasDirectHit;
@@ -416,7 +415,6 @@ namespace RuneCode
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
-        internal int TriggerCount { get => _triggerCount; set => _triggerCount = value; }
         internal double Angle { get => _angle; set => _angle = value; }
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
 
@@ -495,7 +493,7 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);

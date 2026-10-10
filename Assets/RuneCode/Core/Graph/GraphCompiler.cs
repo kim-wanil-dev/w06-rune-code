@@ -213,10 +213,10 @@ namespace RuneCode
             List<SpellAction> root = BuildBranch(graph, cores[0].Id, "exec", nodes, definitions, warnings, errors, runes, limits, context);
             if (errors.Any(issue => issue.Code == "E11" || issue.Code == "E12" || issue.Code == "E14" || issue.Code == "E15"))
                 return new CompileResult(errors, warnings, null);
-            ResourceCostSet resourceCosts = Cost(root, limits.HitTriggerCap);
-            int entities = EntityCount(root, limits.HitTriggerCap);
+            ResourceCostSet resourceCosts = Cost(root);
+            int entities = EntityCount(root);
             long actionCeiling = limits.MaxCompiledActions;
-            long expandedActions = AddBounded(1L, ActionCount(root, limits.HitTriggerCap, actionCeiling + 1L), actionCeiling + 1L);
+            long expandedActions = AddBounded(1L, ActionCount(root, actionCeiling + 1L), actionCeiling + 1L);
             // 최대 예상 비용은 시전을 막지 않는 정보다(백서 7.2). 실행 수 상한만 안전 제약으로 오류 처리한다.
             if (expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
             foreach (ResourceAmount cost in resourceCosts.Amounts)
@@ -654,19 +654,30 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 개체 하나가 이벤트를 낼 수 있는 최대 OnHit 횟수를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽),
-        /// 공전·Burst는 대상마다 내므로 개체당 이벤트 안전 상한을 쓴다. Burst의 마나 비용은 Cost에서 산정 불가로 따로 다룬다.
+        /// 개체 하나가 낼 수 있는 최대 OnHit 횟수를 구하고 유한하면 true를 반환한다. 발사체는 관통 허용 수 + 1(마지막은 적 또는 벽)이다.
+        /// 무제한 관통 발사체와 대상마다 내는 Burst·공전·잔류는 상한이 없어 false다.
         /// </summary>
-        private static int MaxHitEvents(SpellAction action, int hitCap)
+        private static bool TryGetMaxHitEvents(SpellAction action, out int count)
         {
-            return action.Form == SpellGrammar.FORM_BOLT ? Math.Min(1 + action.Stats.Pierce, hitCap) : hitCap;
+            bool isBounded = action.Form == SpellGrammar.FORM_BOLT && action.Stats.Pierce < SpellGrammar.UNLIMITED_PIERCE_COUNT;
+            count = isBounded ? 1 + action.Stats.Pierce : 0;
+            return isBounded;
         }
 
         /// <summary>
-        /// 최악 분기와 이벤트 상한을 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
-        /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다.
+        /// 실행 수·생성 수 안전 검사에 쓰는 개체당 OnHit 배수를 반환한다. 유한하면 최대 횟수이고, 상한이 없으면 이벤트 분기를 한 번으로 센다.
         /// </summary>
-        private static ResourceCostSet Cost(IReadOnlyList<SpellAction> actions, int hitCap,
+        private static int HitEventMultiplier(SpellAction action) => TryGetMaxHitEvents(action, out int count) ? count : 1;
+
+        /// <summary>상한 없는 이벤트 후속 비용이 있으면 산정 불가로 표시하고, 없으면 빈 비용을 반환한다.</summary>
+        private static ResourceCostSet UnboundedCost(ResourceCostSet chainCost)
+            => HasCosts(chainCost) ? chainCost.MarkUnbounded() : ResourceCostSet.Empty;
+
+        /// <summary>
+        /// 최악 분기와 이벤트 횟수를 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
+        /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다. OnHit 횟수에 상한이 없으면 후속 비용을 산정 불가로 표시한다.
+        /// </summary>
+        private static ResourceCostSet Cost(IReadOnlyList<SpellAction> actions,
             SpellModifierValues inheritedModifiers = null, double costMultiplier = 1d)
         {
             ResourceCostSet sum = ResourceCostSet.Empty;
@@ -677,36 +688,35 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        ResourceCostSet hitChainCost = Cost(action.OnHit, hitCap, inheritedModifiers, costMultiplier);
-                        // Burst.OnHit은 개체당 상한이 없어(대상마다 1회) 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
-                        ResourceCostSet hitCost = action.Form == SpellGrammar.FORM_BURST
-                            ? (HasCosts(hitChainCost) ? hitChainCost.MarkUnbounded() : ResourceCostSet.Empty)
-                            : hitChainCost.Multiply(MaxHitEvents(action, hitCap));
-                        ResourceCostSet expireCost = Cost(action.OnExpire, hitCap, inheritedModifiers, costMultiplier);
+                        ResourceCostSet hitChainCost = Cost(action.OnHit, inheritedModifiers, costMultiplier);
+                        // 대상마다 내는 OnHit은 개체당 상한이 없어 후속 비용이 있으면 최대 비용을 산정할 수 없다(W8).
+                        ResourceCostSet hitCost = TryGetMaxHitEvents(action, out int maxHits)
+                            ? hitChainCost.Multiply(maxHits) : UnboundedCost(hitChainCost);
+                        ResourceCostSet expireCost = Cost(action.OnExpire, inheritedModifiers, costMultiplier);
                         ResourceCostSet eventCost = action.Form == SpellGrammar.FORM_BOLT
                             ? ResourceCostSet.Max(hitCost, expireCost) : hitCost.Add(expireCost);
-                        sum = sum.Add(ownCosts).Add(eventCost.Add(Cost(action.OnFirstHitOrExpire, hitCap,
+                        sum = sum.Add(ownCosts).Add(eventCost.Add(Cost(action.OnFirstHitOrExpire,
                             inheritedModifiers, costMultiplier)).Multiply(action.Count));
                         break;
-                    case "buff": sum = sum.Add(ownCosts).Add(Cost(action.OnFirstHitOrExpire, hitCap,
+                    case "buff": sum = sum.Add(ownCosts).Add(Cost(action.OnFirstHitOrExpire,
                         inheritedModifiers, costMultiplier).Multiply(action.Count)); break;
                     case "call":
                         long eventCount = (long)action.Count * action.CalledSpell.WorstCaseEntities;
                         SpellModifierValues callModifiers = inheritedModifiers.Combine(action.ModifierValues);
                         double callCostMultiplier = costMultiplier * action.EnergyMultiplier;
-                        ResourceCostSet calledCosts = Cost(action.CalledSpell.Root, hitCap, callModifiers, callCostMultiplier)
+                        ResourceCostSet calledCosts = Cost(action.CalledSpell.Root, callModifiers, callCostMultiplier)
                             .Multiply(action.Count);
-                        ResourceCostSet eventCosts = Cost(action.OnHit, hitCap, inheritedModifiers, costMultiplier).Multiply(hitCap)
-                            .Add(Cost(action.OnExpire, hitCap, inheritedModifiers, costMultiplier))
-                            .Add(Cost(action.OnFirstHitOrExpire, hitCap, inheritedModifiers, costMultiplier));
+                        ResourceCostSet eventCosts = UnboundedCost(Cost(action.OnHit, inheritedModifiers, costMultiplier))
+                            .Add(Cost(action.OnExpire, inheritedModifiers, costMultiplier))
+                            .Add(Cost(action.OnFirstHitOrExpire, inheritedModifiers, costMultiplier));
                         sum = sum.Add(ownCosts).Add(calledCosts).Add(eventCosts.Multiply(eventCount));
                         break;
-                    case "delay": sum = sum.Add(Cost(action.Then, hitCap, inheritedModifiers, costMultiplier)); break;
-                    case "repeat": sum = sum.Add(Cost(action.Body, hitCap, inheritedModifiers, costMultiplier).Multiply(action.Times))
-                        .Add(Cost(action.OnComplete, hitCap, inheritedModifiers, costMultiplier)); break;
-                    case "if": sum = sum.Add(ResourceCostSet.Max(Cost(action.Then, hitCap, inheritedModifiers, costMultiplier),
-                        Cost(action.Else, hitCap, inheritedModifiers, costMultiplier))); break;
-                    default: sum = sum.Add(ownCosts).Add(Cost(action.Next, hitCap, inheritedModifiers, costMultiplier)); break;
+                    case "delay": sum = sum.Add(Cost(action.Then, inheritedModifiers, costMultiplier)); break;
+                    case "repeat": sum = sum.Add(Cost(action.Body, inheritedModifiers, costMultiplier).Multiply(action.Times))
+                        .Add(Cost(action.OnComplete, inheritedModifiers, costMultiplier)); break;
+                    case "if": sum = sum.Add(ResourceCostSet.Max(Cost(action.Then, inheritedModifiers, costMultiplier),
+                        Cost(action.Else, inheritedModifiers, costMultiplier))); break;
+                    default: sum = sum.Add(ownCosts).Add(Cost(action.Next, inheritedModifiers, costMultiplier)); break;
                 }
             }
             return sum;
@@ -720,8 +730,8 @@ namespace RuneCode
             return false;
         }
 
-        /// <summary>최악 분기의 생성 수를 이벤트 상한과 반복 횟수에 따라 합산한다.</summary>
-        private static int EntityCount(IReadOnlyList<SpellAction> actions, int hitCap)
+        /// <summary>최악 분기의 생성 수를 이벤트 배수와 반복 횟수에 따라 합산한다. 상한 없는 OnHit 분기는 한 번으로 센다.</summary>
+        private static int EntityCount(IReadOnlyList<SpellAction> actions)
         {
             long sum = 0L;
             const long limit = int.MaxValue;
@@ -731,27 +741,27 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), EntityCount(action.OnHit, hitCap), limit);
-                        long expireWork = EntityCount(action.OnExpire, hitCap);
+                        long hitWork = MultiplyBounded(HitEventMultiplier(action), EntityCount(action.OnHit), limit);
+                        long expireWork = EntityCount(action.OnExpire);
                         long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, limit);
-                        long eventWork = AddBounded(pathWork, EntityCount(action.OnFirstHitOrExpire, hitCap), limit);
+                        long eventWork = AddBounded(pathWork, EntityCount(action.OnFirstHitOrExpire), limit);
                         long perEntityWork = AddBounded(1L, eventWork, limit);
                         count = MultiplyBounded(action.Count, perEntityWork, limit);
                         break;
-                    case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnFirstHitOrExpire, hitCap), limit); break;
+                    case "buff": count = MultiplyBounded(action.Count, EntityCount(action.OnFirstHitOrExpire), limit); break;
                     case "call":
                         long callEntities = MultiplyBounded(action.Count, action.CalledSpell.WorstCaseEntities, limit);
-                        long callEvents = AddBounded(MultiplyBounded(hitCap, EntityCount(action.OnHit, hitCap), limit),
-                            AddBounded(EntityCount(action.OnExpire, hitCap), EntityCount(action.OnFirstHitOrExpire, hitCap), limit), limit);
+                        long callEvents = AddBounded(EntityCount(action.OnHit),
+                            AddBounded(EntityCount(action.OnExpire), EntityCount(action.OnFirstHitOrExpire), limit), limit);
                         count = AddBounded(callEntities, MultiplyBounded(callEntities, callEvents, limit), limit);
                         break;
-                    case "delay": count = EntityCount(action.Then, hitCap); break;
+                    case "delay": count = EntityCount(action.Then); break;
                     case "repeat":
-                        count = AddBounded(MultiplyBounded(action.Times, EntityCount(action.Body, hitCap), limit),
-                            EntityCount(action.OnComplete, hitCap), limit);
+                        count = AddBounded(MultiplyBounded(action.Times, EntityCount(action.Body), limit),
+                            EntityCount(action.OnComplete), limit);
                         break;
-                    case "if": count = Math.Max(EntityCount(action.Then, hitCap), EntityCount(action.Else, hitCap)); break;
-                    default: count = EntityCount(action.Next, hitCap); break;
+                    case "if": count = Math.Max(EntityCount(action.Then), EntityCount(action.Else)); break;
+                    default: count = EntityCount(action.Next); break;
                 }
                 sum = AddBounded(sum, count, limit);
                 if (sum == limit) return int.MaxValue;
@@ -759,8 +769,8 @@ namespace RuneCode
             return (int)sum;
         }
 
-        /// <summary>반복·최악 분기·형태 이벤트를 펼친 실행 명령 수를 계산하고 지정 상한에서 포화한다.</summary>
-        private static long ActionCount(IReadOnlyList<SpellAction> actions, int hitCap, long saturation)
+        /// <summary>반복·최악 분기·형태 이벤트를 펼친 실행 명령 수를 계산하고 지정 상한에서 포화한다. 상한 없는 OnHit 분기는 한 번으로 센다.</summary>
+        private static long ActionCount(IReadOnlyList<SpellAction> actions, long saturation)
         {
             long sum = 0L;
             foreach (SpellAction action in actions)
@@ -769,32 +779,32 @@ namespace RuneCode
                 switch (action.Kind)
                 {
                     case "spawn":
-                        long hitWork = MultiplyBounded(MaxHitEvents(action, hitCap), ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long expireWork = ActionCount(action.OnExpire, hitCap, saturation);
+                        long hitWork = MultiplyBounded(HitEventMultiplier(action), ActionCount(action.OnHit, saturation), saturation);
+                        long expireWork = ActionCount(action.OnExpire, saturation);
                         long pathWork = action.Form == SpellGrammar.FORM_BOLT ? Math.Max(hitWork, expireWork) : AddBounded(hitWork, expireWork, saturation);
-                        long eventWork = AddBounded(pathWork, ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
+                        long eventWork = AddBounded(pathWork, ActionCount(action.OnFirstHitOrExpire, saturation), saturation);
                         count = AddBounded(count, MultiplyBounded(action.Count, eventWork, saturation), saturation);
                         break;
                     case "buff": count = AddBounded(count, MultiplyBounded(action.Count,
-                        ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation), saturation); break;
+                        ActionCount(action.OnFirstHitOrExpire, saturation), saturation), saturation); break;
                     case "call":
-                        long calleeActions = ActionCount(action.CalledSpell.Root, hitCap, saturation);
+                        long calleeActions = ActionCount(action.CalledSpell.Root, saturation);
                         long invocationWork = MultiplyBounded(action.Count, calleeActions, saturation);
-                        long callHitWork = MultiplyBounded(hitCap, ActionCount(action.OnHit, hitCap, saturation), saturation);
-                        long callExpireWork = AddBounded(ActionCount(action.OnExpire, hitCap, saturation),
-                            ActionCount(action.OnFirstHitOrExpire, hitCap, saturation), saturation);
+                        long callHitWork = ActionCount(action.OnHit, saturation);
+                        long callExpireWork = AddBounded(ActionCount(action.OnExpire, saturation),
+                            ActionCount(action.OnFirstHitOrExpire, saturation), saturation);
                         long callEvents = MultiplyBounded((long)action.Count * action.CalledSpell.WorstCaseEntities,
                             AddBounded(callHitWork, callExpireWork, saturation), saturation);
                         count = AddBounded(count, AddBounded(invocationWork, callEvents, saturation), saturation);
                         break;
-                    case "delay": count = AddBounded(count, ActionCount(action.Then, hitCap, saturation), saturation); break;
+                    case "delay": count = AddBounded(count, ActionCount(action.Then, saturation), saturation); break;
                     case "repeat":
-                        long repeatWork = AddBounded(MultiplyBounded(action.Times, ActionCount(action.Body, hitCap, saturation), saturation),
-                            ActionCount(action.OnComplete, hitCap, saturation), saturation);
+                        long repeatWork = AddBounded(MultiplyBounded(action.Times, ActionCount(action.Body, saturation), saturation),
+                            ActionCount(action.OnComplete, saturation), saturation);
                         count = AddBounded(count, repeatWork, saturation);
                         break;
-                    case "if": count = AddBounded(count, Math.Max(ActionCount(action.Then, hitCap, saturation), ActionCount(action.Else, hitCap, saturation)), saturation); break;
-                    default: count = AddBounded(count, ActionCount(action.Next, hitCap, saturation), saturation); break;
+                    case "if": count = AddBounded(count, Math.Max(ActionCount(action.Then, saturation), ActionCount(action.Else, saturation)), saturation); break;
+                    default: count = AddBounded(count, ActionCount(action.Next, saturation), saturation); break;
                 }
                 sum = AddBounded(sum, count, saturation);
                 if (sum == saturation) return sum;
