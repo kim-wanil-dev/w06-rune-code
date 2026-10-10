@@ -35,6 +35,15 @@ namespace RuneCode
             target.color = color;
         }
 
+        /// <summary>정사각 스프라이트를 부모 기준 위치에 지정 폭·길이(px)로 늘여 배치한다.</summary>
+        public static void Place(SpriteRenderer target, Vector2 localPixels, Vector2 dimensionsPixels, Color color)
+        {
+            target.transform.localPosition = localPixels / PIXELS_PER_UNIT;
+            target.transform.localScale = new Vector3(dimensionsPixels.x / PIXELS_PER_UNIT,
+                dimensionsPixels.y / PIXELS_PER_UNIT, 1);
+            target.color = color;
+        }
+
         /// <summary>정사각 스프라이트를 부모 기준 두 점(px) 사이의 지정 두께(px) 선분으로 늘여 둔다.</summary>
         public static void PlaceLine(SpriteRenderer target, Vector2 fromPixels, Vector2 toPixels, float widthPixels, Color color)
         {

@@ -14,6 +14,8 @@ namespace RuneCode
     {
         private const float SHAKE_SECONDS = 0.08f;
         private const float HIT_STOP_SECONDS = 0.025f;
+        // 히트 스톱 시작 후 이 시간 동안은 다시 시작하지 않는다. 폭발 확장처럼 피해가 연속될 때 화면이 계속 멈추지 않게 한다.
+        private const float HIT_STOP_COOLDOWN_SECONDS = 0.15f;
         private const double DAMAGE_EPSILON = 0.000001;
         private const int MAX_DAMAGE_NUMBERS = 64;
         private const int DAMAGE_NUMBER_TICKS = 40;
@@ -36,6 +38,7 @@ namespace RuneCode
         [SerializeField] private SpellEntityView _spellPrefab;
         [SerializeField] private HostileProjectileView _projectilePrefab;
         [SerializeField] private OrbView _orbPrefab;
+        [SerializeField] private ItemDropView _itemDropPrefab;
         [SerializeField] private DamageNumberView _damageNumberPrefab;
 
         [Header("맵")]
@@ -47,7 +50,7 @@ namespace RuneCode
         private readonly List<SpellEntityView> _spellViews = new List<SpellEntityView>();
         private readonly List<HostileProjectileView> _projectileViews = new List<HostileProjectileView>();
         private readonly List<OrbView> _orbViews = new List<OrbView>();
-        private readonly List<ItemDropVisual> _itemDropViews = new List<ItemDropVisual>();
+        private readonly List<ItemDropView> _itemDropViews = new List<ItemDropView>();
         private readonly List<DamageNumberView> _damageNumberViews = new List<DamageNumberView>();
         private Func<RuneSimulation> _simulation;
         private Func<bool> _isShakeEnabled;
@@ -57,8 +60,10 @@ namespace RuneCode
         private PlayerView _playerView;
         private double _lastDamage;
         private double _lastStatusDamage;
+        private double _lastPersistDamage;
         private double _lastHp;
         private float _hitStopUntil;
+        private float _hitStopReadyAt;
 
         /// <summary>월드를 따라가는 미션 카메라다. 화면 View가 조준 좌표 변환에 쓴다.</summary>
         public MissionCamera Camera => _camera;
@@ -85,7 +90,7 @@ namespace RuneCode
             foreach (SimulationEnemy enemy in sim.Enemies) GetView(_enemyViews, _enemyPrefab, count++).Apply(enemy, sim, origin);
             HideFrom(_enemyViews, count);
             count = 0;
-            foreach (SimulationSpellEntity spell in sim.SpellEntities) GetView(_spellViews, _spellPrefab, count++).Apply(spell, sim.IsAreaBoxUpright, origin);
+            foreach (SimulationSpellEntity spell in sim.SpellEntities) GetView(_spellViews, _spellPrefab, count++).Apply(spell, origin);
             HideFrom(_spellViews, count);
             count = 0;
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles) GetView(_projectileViews, _projectilePrefab, count++).Apply(projectile, origin);
@@ -94,8 +99,8 @@ namespace RuneCode
             foreach (FragmentOrb orb in sim.Orbs) GetView(_orbViews, _orbPrefab, count++).Apply(orb, origin);
             HideFrom(_orbViews, count);
             count = 0;
-            foreach (SimulationItemDrop drop in sim.ItemDrops) GetItemDropView(count++).Apply(drop, origin);
-            HideItemDropViews(count);
+            foreach (SimulationItemDrop drop in sim.ItemDrops) GetView(_itemDropViews, _itemDropPrefab, count++).Apply(drop, origin);
+            HideFrom(_itemDropViews, count);
             count = 0;
             foreach (DamageNumber number in sim.DamageNumbers)
             {
@@ -112,22 +117,30 @@ namespace RuneCode
             _observedSimulation = sim;
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
+            _lastPersistDamage = sim.PersistDamage;
             _lastHp = sim.Player.Hp;
             BuildMap(sim.Map, sim.MapCenter);
         }
 
         /// <summary>
         /// 적에게 준 직접 피해나 플레이어 체력 감소가 있으면 설정에 따라 카메라를 흔들고 히트 스톱을 시작한다.
-        /// 상태 이상 피해(화염)만으로는 카메라가 흔들리지 않고 히트 스톱도 시작하지 않는다.
+        /// 상태 이상 피해(화염)나 잔류(Persist) 피해만으로는 카메라가 흔들리지 않고 히트 스톱도 시작하지 않는다.
+        /// 히트 스톱은 시작 후 재발동 간격 동안 다시 시작하지 않는다.
         /// </summary>
         private void DetectImpact(RuneSimulation sim)
         {
             bool isHpLost = sim.Player.Hp < _lastHp;
-            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
-            if ((directDelta > DAMAGE_EPSILON || isHpLost) && (_isShakeEnabled?.Invoke() ?? false)) _camera.Shake(SHAKE_SECONDS);
-            if (directDelta > DAMAGE_EPSILON || isHpLost) _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage) - (sim.PersistDamage - _lastPersistDamage);
+            bool isImpact = directDelta > DAMAGE_EPSILON || isHpLost;
+            if (isImpact && (_isShakeEnabled?.Invoke() ?? false)) _camera.Shake(SHAKE_SECONDS);
+            if (isImpact && Time.unscaledTime >= _hitStopReadyAt)
+            {
+                _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+                _hitStopReadyAt = Time.unscaledTime + HIT_STOP_COOLDOWN_SECONDS;
+            }
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
+            _lastPersistDamage = sim.PersistDamage;
             _lastHp = sim.Player.Hp;
         }
 
@@ -186,66 +199,6 @@ namespace RuneCode
         private static void HideFrom<T>(List<T> views, int count) where T : Component
         {
             for (int i = count; i < views.Count; i++) MissionWorldSpace.SetVisible(views[i], false);
-        }
-
-        /// <summary>index번째 바닥 Modifier 드롭 표시를 반환하고 없으면 런타임으로 만든다. 드롭은 Prefab 없이 스프라이트 두 장으로 구성한다.</summary>
-        private ItemDropVisual GetItemDropView(int index)
-        {
-            if (index == _itemDropViews.Count) _itemDropViews.Add(new ItemDropVisual(_squareSprite, _spriteMaterial, transform));
-            return _itemDropViews[index];
-        }
-
-        /// <summary>count번째 이후의 바닥 Modifier 드롭 표시를 숨긴다.</summary>
-        private void HideItemDropViews(int count)
-        {
-            for (int i = count; i < _itemDropViews.Count; i++) _itemDropViews[i].SetVisible(false);
-        }
-
-        /// <summary>바닥에 떨어진 Modifier 드롭을 마름모 코어와 흐린 링 스프라이트로 표시한다. Prefab 없이 런타임에 만든다.</summary>
-        private sealed class ItemDropVisual
-        {
-            private const float CORE_RADIUS = 7f;
-            private const float RING_RADIUS = 10f;
-            private const int RING_ORDER = 3;
-            private const int CORE_ORDER = 4;
-
-            private static readonly Color CoreColor = new Color(0.78f, 0.55f, 1f);
-            private static readonly Color RingColor = new Color(0.62f, 0.4f, 0.95f, 0.35f);
-
-            private readonly Transform _root;
-            private readonly SpriteRenderer _core;
-            private readonly SpriteRenderer _ring;
-
-            /// <summary>맵 뷰 자식으로 코어와 링 스프라이트를 만든다. 스프라이트와 머티리얼은 맵 뷰의 것을 재사용한다.</summary>
-            internal ItemDropVisual(Sprite sprite, Material material, Transform parent)
-            {
-                _root = new GameObject("ItemDrop").transform;
-                _root.SetParent(parent, false);
-                _ring = CreateSprite("Ring", sprite, material, _root, RING_ORDER);
-                _core = CreateSprite("Core", sprite, material, _root, CORE_ORDER);
-            }
-
-            /// <summary>드롭 위치를 맵 중앙(origin) 기준 월드 위치로 옮기고 스프라이트 크기와 색을 갱신한다.</summary>
-            internal void Apply(SimulationItemDrop drop, SimVector origin)
-            {
-                _root.localPosition = MissionWorldSpace.ToWorld(drop.Position, origin);
-                MissionWorldSpace.Place(_core, Vector2.zero, CORE_RADIUS * 2, CoreColor);
-                MissionWorldSpace.Place(_ring, Vector2.zero, RING_RADIUS * 2, RingColor);
-            }
-
-            /// <summary>드롭 표시의 활성 상태를 변경한다.</summary>
-            internal void SetVisible(bool isVisible) { MissionWorldSpace.SetVisible(_root, isVisible); }
-
-            /// <summary>정사각 스프라이트를 지정 정렬 순번의 자식 렌더러로 만들어 반환한다.</summary>
-            private static SpriteRenderer CreateSprite(string objectName, Sprite sprite, Material material, Transform parent, int order)
-            {
-                SpriteRenderer renderer = new GameObject(objectName, typeof(SpriteRenderer)).GetComponent<SpriteRenderer>();
-                renderer.transform.SetParent(parent, false);
-                renderer.sprite = sprite;
-                renderer.sharedMaterial = material;
-                renderer.sortingOrder = order;
-                return renderer;
-            }
         }
     }
 }

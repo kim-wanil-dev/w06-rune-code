@@ -23,7 +23,7 @@ namespace RuneCode
         {
             IEnumerable<string> unlockedRunes = _session.Save.UnlockedRunes.Concat(GameData.Runes.StartRunes);
             return new SpellCompileContext(unlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,
-                _session.Save.CreateModifierStockMap());
+                _session.Save.CreateModifierStockMap(), legacyBoxWorldAligned: _session.LegacyBoxWorldAligned);
         }
 
         /// <summary>룬이 세이브의 해금 목록에 있는지 반환한다.</summary>

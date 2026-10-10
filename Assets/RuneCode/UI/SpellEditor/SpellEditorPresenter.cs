@@ -131,7 +131,7 @@ namespace RuneCode
             RefreshAll();
         }
 
-        /// <summary>장착 RAM·그래프 RAM과 최대 비용·쿨다운·예상 동시 개체 수(컴파일 실패 시 주의)를 표시한다.</summary>
+        /// <summary>장착 RAM·그래프 RAM과 최대 비용·쿨다운·실행 시간·예상 동시 개체 수(컴파일 실패 시 주의)를 표시한다.</summary>
         private void RefreshMetrics()
         {
             CompiledSpell spell = _editor.CompileResult.Spell;
@@ -140,8 +140,11 @@ namespace RuneCode
             string text = GameData.L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM";
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
-                : "  ·  " + GameData.L("ui.cost") + " " + (float.IsInfinity(spell.EnergyCost) ? GameData.L("ui.costUnbounded") : spell.EnergyCost.ToString("0.#")) + "  ·  " + GameData.L("ui.cooldown") + " "
-                    + spell.Cooldown.ToString("0.00") + "s  ·  " + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
+                : "  ·  " + GameData.L("ui.cost") + " " + (HasUnboundedCost(spell.ResourceCosts)
+                    ? GameData.L("ui.costUnbounded") : FormatCosts(spell.ResourceCosts, false)) + "  ·  " + GameData.L("ui.cooldown") + " "
+                    + spell.Cooldown.ToString("0.00") + "s  ·  " + GameData.L("ui.executionTime") + " "
+                    + spell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  "
+                    + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
             _view.SetMetrics(text);
         }
 
@@ -155,8 +158,37 @@ namespace RuneCode
             }
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
+            ResourceCostSet costs = action?.OwnCosts ?? rune.Costs;
+            bool isManaOnly = costs.Amounts.Count == 0 || costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana";
+            string costText = costs.Amounts.Count == 0 ? "0" : isManaOnly
+                ? costs.Amounts[0].Amount.ToString("0.#") : FormatCosts(costs, false);
             _view.SetTooltip(rune.Name + "  ·  " + GameData.L("ui.damage") + " " + (action?.Stats?.Damage ?? rune.Stats.Damage).ToString("0.#")
-                + "  ·  " + GameData.L("ui.energy") + " " + (action?.OwnEnergy ?? rune.Energy).ToString("0.#"));
+                + "  ·  " + (isManaOnly ? GameData.L("ui.energy") : GameData.L("ui.cost")) + " " + costText);
+        }
+
+        /// <summary>자원 비용 목록에 무한 또는 NaN 비용이 있는지 반환한다.</summary>
+        private static bool HasUnboundedCost(ResourceCostSet costs)
+        {
+            foreach (ResourceAmount amount in costs.Amounts)
+                if (double.IsInfinity(amount.Amount) || double.IsNaN(amount.Amount)) return true;
+            return false;
+        }
+
+        /// <summary>마나 단독 비용은 기존 숫자로, 여러 자원은 이름을 붙여 표시한다.</summary>
+        private static string FormatCosts(ResourceCostSet costs, bool includeManaUnit)
+        {
+            if (costs.Amounts.Count == 0) return "0";
+            if (costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana")
+                return costs.Amounts[0].Amount.ToString("0.#") + (includeManaUnit ? " EN" : "");
+            return costs.Format(ResourceName);
+        }
+
+        /// <summary>자원 ID의 현지화 이름을 반환하고 번역이 없으면 ID를 반환한다.</summary>
+        private static string ResourceName(string resource)
+        {
+            string key = "resource." + resource;
+            string value = GameData.L(key);
+            return value == key ? resource : value;
         }
 
         /// <summary>튜토리얼 안내 팝업을 열고 현재 시험 실행 수를 완료 판정 기준으로 저장한다.</summary>

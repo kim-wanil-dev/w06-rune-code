@@ -65,6 +65,9 @@ namespace RuneCode
                 ShowModifierGrade(node, rune);
                 if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), UiTheme.Muted, 52, 6);
             }
+            if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
+                _view.AddNote(GameData.L("ui.shapeSizeBounds"), UiTheme.Muted, 34, 6);
+            if (rune.Id == "behavior.beam") _view.AddNote(GameData.L("ui.behavior.beamHint"), UiTheme.Muted, 70, 6);
             if (rune.Params.Count == 0 && rune.Category != SpellGrammar.CATEGORY_MODIFIER)
             {
                 _view.AddNote(GameData.L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + GameData.L("ui.damage") + " "
@@ -161,7 +164,7 @@ namespace RuneCode
             if (parameter.Kind == "number")
             {
                 bool isScale = rune.Category == SpellGrammar.CATEGORY_MODIFIER;
-                _view.AddNumberRow(label, node.GetNumber(parameter.Id, parameter.DefaultNumber).ToString("0.###"), isScale,
+                _view.AddNumberRow(label, GetParameterNumber(node, rune, parameter).ToString("0.###"), isScale,
                     text => { if (float.TryParse(text, out float amount)) _editor.SetNodeNumber(nodeId, parameter.Id, Mathf.Clamp(amount, parameter.Min, parameter.Max)); },
                     () => StepNumber(nodeId, parameter, -1), () => StepNumber(nodeId, parameter, 1));
             }
@@ -175,9 +178,59 @@ namespace RuneCode
             }
             else
             {
-                string current = node.GetText(parameter.Id, parameter.DefaultText);
+                string current = GetParameterText(node, rune, parameter);
                 _view.AddEnumRow(label, OptionLabel(parameter.Id, current), () => _editor.SetNodeText(nodeId, parameter.Id, NextOption(parameter, current)));
             }
+        }
+
+        /// <summary>Shape 노드에 저장된 값을 우선하고, 값이 없으면 연결된 Behavior 크기를 기본으로 반환한다.</summary>
+        private float GetParameterNumber(GraphNode node, RuneDefinition rune, ParameterDefinition parameter)
+        {
+            if (HasParameter(node, parameter.Id)) return node.GetNumber(parameter.Id, parameter.DefaultNumber);
+            if (rune.Category != SpellGrammar.CATEGORY_SHAPE) return parameter.DefaultNumber;
+            RuneDefinition behavior = GetConnectedBehavior(node);
+            float radius = behavior == null ? parameter.DefaultNumber : behavior.Stats.Radius;
+            switch (parameter.Id)
+            {
+                case SpellGrammar.SHAPE_RADIUS_PARAM:
+                case SpellGrammar.CONE_DISTANCE_PARAM: return radius;
+                case SpellGrammar.BOX_WIDTH_PARAM:
+                case SpellGrammar.BOX_HEIGHT_PARAM:
+                case SpellGrammar.BOX_LENGTH_PARAM: return radius * 2f;
+                case SpellGrammar.CONE_ANGLE_PARAM: return rune.Stats.ConeAngle > 0f ? rune.Stats.ConeAngle : parameter.DefaultNumber;
+                default: return parameter.DefaultNumber;
+            }
+        }
+
+        /// <summary>Shape 방향이 저장되지 않았으면 컴파일된 레거시 기본값을, 그 외에는 테이블 기본값을 반환한다.</summary>
+        private string GetParameterText(GraphNode node, RuneDefinition rune, ParameterDefinition parameter)
+        {
+            if (HasParameter(node, parameter.Id)) return node.GetText(parameter.Id, parameter.DefaultText);
+            if (rune.Category == SpellGrammar.CATEGORY_SHAPE && parameter.Id == SpellGrammar.BOX_DIRECTION_PARAM)
+            {
+                RuneDefinition behavior = GetConnectedBehavior(node);
+                SpellAction action = behavior == null ? null : _editor.CompileResult.Spell?.FindAction(behavior.Id);
+                if (action != null) return action.Stats?.IsBoxWorldAligned == true ? "world" : "aim";
+                return behavior == null || behavior.Id == "behavior.launch" ? "aim" : "world";
+            }
+            return parameter.DefaultText;
+        }
+
+        /// <summary>Shape 체인의 다음 Behavior 룬을 반환하고 연결이 없으면 null을 반환한다.</summary>
+        private RuneDefinition GetConnectedBehavior(GraphNode shape)
+        {
+            GraphEdge edge = _editor.Graph.Edges.FirstOrDefault(item => item.FromNode == shape.Id && item.FromPort == SpellGrammar.CHAIN_OUT);
+            GraphNode behavior = edge == null ? null : _editor.Graph.FindNode(edge.ToNode);
+            return behavior != null && GameData.Runes.TryGet(behavior.RuneId, out RuneDefinition rune)
+                && rune.Category == SpellGrammar.CATEGORY_BEHAVIOR ? rune : null;
+        }
+
+        /// <summary>노드에 지정 파라미터가 저장되어 있는지 반환한다.</summary>
+        private static bool HasParameter(GraphNode node, string key)
+        {
+            foreach (NodeParameter parameter in node.Params)
+                if (parameter.Key == key) return true;
+            return false;
         }
 
         /// <summary>컴파일된 행동의 사거리·반경·속도를 표시한다. 컴파일 결과가 없으면 표시하지 않는다.</summary>
@@ -186,6 +239,14 @@ namespace RuneCode
             SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
             if (action?.Stats == null) return;
             SpellStats stats = action.Stats;
+            if (action.Form == SpellGrammar.FORM_BEAM)
+            {
+                // Beam의 크기 원본은 RuneSimulation.GetBeamBox 한 곳에만 있다(W1 통합 시 함께 바뀐다).
+                RuneSimulation.GetBeamBox(stats, out double width, out double length);
+                _view.AddNote(GameData.L("ui.spellRange") + " " + length.ToString("0.#") + "px\n"
+                    + GameData.L("ui.spellRadius") + " " + (width * 0.5).ToString("0.#") + "px", UiTheme.Cyan, 70, 6);
+                return;
+            }
             float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
                 : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
             string speed = action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s";
@@ -217,7 +278,7 @@ namespace RuneCode
         {
             GraphNode node = _editor.Graph.FindNode(nodeId);
             if (node == null) return;
-            float value = node.GetNumber(parameter.Id, parameter.DefaultNumber) + parameter.Step * direction;
+            float value = GetParameterNumber(node, GameData.Runes.Get(node.RuneId), parameter) + parameter.Step * direction;
             _editor.SetNodeNumber(nodeId, parameter.Id, Mathf.Clamp(value, parameter.Min, parameter.Max));
             Refresh();
         }
@@ -235,6 +296,7 @@ namespace RuneCode
         /// </summary>
         private static bool IsParameterVisible(GraphNode node, ParameterDefinition parameter)
         {
+            if (parameter.Id == SpellGrammar.BOX_HEIGHT_PARAM) return false;
             if (parameter.Id != SpellGrammar.POWER_PARAM && parameter.Id != SpellGrammar.BUFF_DURATION_PARAM) return true;
             return GameData.Runes.TryGetNodeElement(node, out ElementDefinition element) && element.IsFunctional;
         }
@@ -264,6 +326,7 @@ namespace RuneCode
         {
             string prefix = parameter == "trigger" ? "trigger." : parameter == "magicType" ? "magicType."
                 : parameter == "element" ? "element." : parameter == "form" ? "magicForm."
+                : parameter == SpellGrammar.BOX_DIRECTION_PARAM ? "boxDirection."
                 : parameter == "status" ? "status." : "condition.";
             string localized = GameData.L(prefix + value);
             return localized == prefix + value ? value : localized;

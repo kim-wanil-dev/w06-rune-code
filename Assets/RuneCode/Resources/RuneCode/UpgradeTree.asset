@@ -417,3 +417,15 @@ MonoBehaviour:
     _levels:
     - _cost: 25
       _amount: 0
+  - _id: unlock.behavior.beam
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: behavior.beam
+    _prerequisites: []
+    _levels:
+    - _cost: 0
+      _amount: 0

@@ -9,26 +9,11 @@
   <component name="ChangeListManager">
     <list default="true" id="1e05dadf-7cfa-4551-bfb4-13a93fa3b3c9" name="변경" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.w06-rune-code/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.w06-rune-code/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Boot/RuneCodeApp.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Boot/RuneCodeApp.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Boot/SimulationCli.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Boot/SimulationCli.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Mission/MissionData.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Mission/MissionData.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/SimulationTypes.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/SimulationTypes.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Editor/RuneCodeBuild.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Editor/RuneCodeBuild.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Features/Mission/MissionRun.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Features/Mission/MissionRun.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/incremental.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/incremental.json.meta" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/strings.ko.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/strings.ko.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Session/RuneCodeSession.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Session/RuneCodeSession.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Editor/Layouts/MissionLayout.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Editor/Layouts/MissionLayout.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/MissionHud.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/MissionHud.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/MissionScreen.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/MissionScreen.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/enemies.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/enemies.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/stages.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/stages.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/World/MissionWorldView.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/World/MissionWorldView.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Shared/RuneArenaGraphic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Shared/RuneArenaGraphic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/Mission.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/Mission.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/DECISIONS.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/DECISIONS.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/PROGRESS.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/PROGRESS.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,22 +48,22 @@
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
       <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0002981121646264" />
-      <entry key="S2" value="1.1505696795871556" />
-      <entry key="S5" value="1.8534442911120534" />
-      <entry key="S10" value="2.950750289409749" />
-      <entry key="S30" value="5.316661694230654" />
-      <entry key="S60" value="7.464974354319285" />
-      <entry key="M2" value="9.910279616441896" />
-      <entry key="M5" value="12.896422808658114" />
-      <entry key="M10" value="18.09300987537374" />
-      <entry key="M15" value="24.01792093134099" />
-      <entry key="M30" value="36.94426661273691" />
-      <entry key="H1" value="48.534806427563" />
-      <entry key="H2" value="56.370580636209596" />
-      <entry key="H4" value="60.93677162563538" />
-      <entry key="D1" value="65.11932935864272" />
-      <entry key="W1" value="65.87325733163725" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0000000000030311" />
+      <entry key="S5" value="1.0000258791253462" />
+      <entry key="S10" value="1.006355043911344" />
+      <entry key="S30" value="1.560399126074154" />
+      <entry key="S60" value="3.606424591630262" />
+      <entry key="M2" value="7.505023421002905" />
+      <entry key="M5" value="13.405297240973374" />
+      <entry key="M10" value="19.892500534365304" />
+      <entry key="M15" value="26.220598127805147" />
+      <entry key="M30" value="39.82752326245956" />
+      <entry key="H1" value="52.152881470109406" />
+      <entry key="H2" value="60.569692852151356" />
+      <entry key="H4" value="65.50420093059718" />
+      <entry key="D1" value="70.0423196485543" />
+      <entry key="W1" value="70.86212924968879" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -100,23 +85,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9330329915368074" />
-      <entry key="MS500" value="0.9865263052008507" />
-      <entry key="S2" value="1.146543141380187" />
-      <entry key="S5" value="1.8507904450647155" />
-      <entry key="S10" value="2.9486110214365673" />
-      <entry key="S30" value="5.315380609733503" />
-      <entry key="S60" value="7.464023357323954" />
-      <entry key="M2" value="9.909582848729826" />
-      <entry key="M5" value="12.896027441130423" />
-      <entry key="M10" value="18.092746744672557" />
-      <entry key="M15" value="24.017705477910336" />
-      <entry key="M30" value="36.944119047733814" />
-      <entry key="H1" value="48.53471568161916" />
-      <entry key="H2" value="56.37052965973155" />
-      <entry key="H4" value="60.93674452247282" />
-      <entry key="D1" value="65.11932459651476" />
-      <entry key="W1" value="65.8732566450474" />
+      <entry key="MS100" value="0.9395227492140118" />
+      <entry key="MS500" value="0.9876008614453725" />
+      <entry key="S2" value="0.9968856972233975" />
+      <entry key="S5" value="0.9987789591531521" />
+      <entry key="S10" value="1.0057259583021312" />
+      <entry key="S30" value="1.5598031237218954" />
+      <entry key="S60" value="3.6053544107009077" />
+      <entry key="M2" value="7.503812957126266" />
+      <entry key="M5" value="13.404446441443751" />
+      <entry key="M10" value="19.891947818664914" />
+      <entry key="M15" value="26.22017395274329" />
+      <entry key="M30" value="39.82726200674143" />
+      <entry key="H1" value="52.15273084003614" />
+      <entry key="H2" value="60.56961100582927" />
+      <entry key="H4" value="65.50415813133138" />
+      <entry key="D1" value="70.04231223115312" />
+      <entry key="W1" value="70.86212818277012" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{

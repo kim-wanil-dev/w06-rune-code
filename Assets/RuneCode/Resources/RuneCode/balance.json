@@ -51,7 +51,10 @@
     "_aegisAngle": 120,
     "_aegisReduction": 0.7,
     "_relayRadius": 200,
-    "_relayReduction": 0.2
+    "_relayReduction": 0.2,
+    "_separationAllowance": 0.8,
+    "_separationStrength": 0.5,
+    "_separationMaxStep": 4
   },
   "_economy": {
     "_slotCost": 120,
@@ -84,6 +87,7 @@
     "_hitFlashSeconds": 0.1,
     "_damageNumberSeconds": 1,
     "_wandOffset": 8,
-    "_itemPickupRadius": 24
+    "_itemPickupRadius": 24,
+    "_executionTimeScale": 1
   }
 }

@@ -48,7 +48,6 @@ namespace RuneCode
             _dock.ResetBench(scenario);
             _dock.SetAdaptationEnabled(_session.DockAdaptation || scenario == "adapt_loop");
             _dock.SetUnlockedElements(_session.GetUnlockedElements());
-            _dock.SetAreaBoxUpright(_session.IsAreaBoxUpright);
             ApplyLoadout();
             _accumulator = 0;
             _telemetryCount = 0;

@@ -7,6 +7,7 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -56,6 +57,7 @@
           ]
         }
       ]
+
     },
     {
       "_id": "form.bolt",
@@ -178,6 +180,54 @@
         {
           "_order": 0,
           "_tag": "burst"
+        }
+      ]
+    },
+    {
+      "_id": "form.beam",
+      "_name": "빔",
+      "_category": "internal",
+      "_ram": 1,
+      "_energy": 10,
+      "_energyMult": 1,
+      "_unlockType": "start",
+      "_unlockCost": 0,
+      "_stats": {
+        "_beamLength": 400,
+        "_damage": 12,
+        "_radius": 24,
+        "_count": 1,
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "exec",
+          "_kind": "exec",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_order": 1,
+          "_portId": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_order": 2,
+          "_portId": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ],
+      "_tags": [
+        {
+          "_order": 0,
+          "_tag": "beam"
         }
       ]
     },
@@ -406,7 +456,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.4,
+      "_executionSeconds": 0,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1.5,
         "_radiusMultiplier": 1,
@@ -427,8 +479,10 @@
         "behavior.orbit",
         "behavior.persist",
         "behavior.apply",
+        "behavior.beam",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.multi",
@@ -437,7 +491,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.8,
+      "_executionSeconds": 0,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_count": 3,
         "_orbitCount": 4,
@@ -462,6 +518,7 @@
         "behavior.persist",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.pierce",
@@ -470,7 +527,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 30,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -491,6 +550,7 @@
         "behavior.launch",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.homing",
@@ -499,7 +559,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 50,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -532,6 +594,7 @@
         "behavior.launch",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.expand",
@@ -540,7 +603,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.2,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 30,
       "_stats": {
         "_damageMultiplier": 0.85,
         "_radiusMultiplier": 1.5,
@@ -560,8 +625,10 @@
         "behavior.burst",
         "behavior.orbit",
         "behavior.persist",
+        "behavior.beam",
         "spell.call"
       ]
+
     },
     {
       "_id": "mod.speed",
@@ -570,7 +637,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1.15,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 20,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -591,6 +660,7 @@
         "behavior.orbit",
         "spell.call"
       ]
+
     },
     {
       "_id": "flow.delay",
@@ -599,7 +669,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -632,6 +704,7 @@
           "_defaultNumber": 0.5
         }
       ]
+
     },
     {
       "_id": "flow.repeat",
@@ -640,7 +713,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 40,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -689,6 +764,7 @@
           "_defaultNumber": 0.15
         }
       ]
+
     },
     {
       "_id": "flow.if",
@@ -697,7 +773,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "tree",
+      "_executionSeconds": 0,
+      "_unlockType": "bench",
+      "_unlockCost": 60,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -803,6 +881,7 @@
           "_defaultNumber": 160
         }
       ]
+
     },
     {
       "_id": "magic.inline",
@@ -811,6 +890,7 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -952,6 +1032,10 @@
             {
               "_order": 3,
               "_option": "remain"
+            },
+            {
+              "_order": 4,
+              "_option": "beam"
             }
           ]
         },
@@ -972,6 +1056,80 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
+        },
+        {
+          "_order": 5,
+          "_paramId": "radius",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 6
+        },
+        {
+          "_order": 6,
+          "_paramId": "coneDistance",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 6
+        },
+        {
+          "_order": 7,
+          "_paramId": "boxWidth",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 8,
+          "_paramId": "boxHeight",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 9,
+          "_paramId": "boxLength",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 10,
+          "_paramId": "boxDirection",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "aim",
+          "_options": [
+            {
+              "_order": 0,
+              "_option": "aim"
+            },
+            {
+              "_order": 1,
+              "_option": "world"
+            }
+          ]
+        },
+        {
+          "_order": 11,
+          "_paramId": "coneAngle",
+          "_kind": "number",
+          "_min": 10,
+          "_max": 180,
+          "_step": 1,
+          "_defaultNumber": 60
         }
       ],
       "_tags": [
@@ -980,6 +1138,7 @@
           "_tag": "magic"
         }
       ]
+
     },
     {
       "_id": "spell.call",
@@ -988,7 +1147,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1056,6 +1217,7 @@
           "_tag": "call"
         }
       ]
+
     },
     {
       "_id": "mod.duration",
@@ -1064,7 +1226,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1093,6 +1257,7 @@
         "behavior.apply",
         "spell.call"
       ]
+
     },
     {
       "_id": "shape.sphere",
@@ -1101,6 +1266,14 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
+      "_shapeCostRates": [
+        {
+          "_resource": "mana",
+          "_rate": 0
+        }
+      ],
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -1177,8 +1350,18 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
+        },
+        {
+          "_order": 3,
+          "_paramId": "radius",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 6
         }
       ]
+
     },
     {
       "_id": "shape.box",
@@ -1187,6 +1370,14 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
+      "_shapeCostRates": [
+        {
+          "_resource": "mana",
+          "_rate": 0
+        }
+      ],
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -1263,8 +1454,56 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
+        },
+        {
+          "_order": 3,
+          "_paramId": "boxWidth",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 4,
+          "_paramId": "boxHeight",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 5,
+          "_paramId": "boxLength",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 12
+        },
+        {
+          "_order": 6,
+          "_paramId": "boxDirection",
+          "_kind": "enum",
+          "_min": 0,
+          "_max": 0,
+          "_step": 0,
+          "_defaultNumber": 0,
+          "_defaultText": "aim",
+          "_options": [
+            {
+              "_order": 0,
+              "_option": "aim"
+            },
+            {
+              "_order": 1,
+              "_option": "world"
+            }
+          ]
         }
       ]
+
     },
     {
       "_id": "shape.cone",
@@ -1273,6 +1512,14 @@
       "_ram": 0,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_executionSecondsPerArea": 0.000009744,
+      "_shapeCostRates": [
+        {
+          "_resource": "mana",
+          "_rate": 0
+        }
+      ],
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -1350,8 +1597,27 @@
           "_max": 30,
           "_step": 0.5,
           "_defaultNumber": 5
+        },
+        {
+          "_order": 3,
+          "_paramId": "coneDistance",
+          "_kind": "number",
+          "_min": 4,
+          "_max": 800,
+          "_step": 1,
+          "_defaultNumber": 6
+        },
+        {
+          "_order": 4,
+          "_paramId": "coneAngle",
+          "_kind": "number",
+          "_min": 10,
+          "_max": 180,
+          "_step": 1,
+          "_defaultNumber": 60
         }
       ]
+
     },
     {
       "_id": "element.neutral",
@@ -1478,6 +1744,7 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "start",
       "_stats": {
         "_damageMultiplier": 1,
@@ -1529,6 +1796,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.burst",
@@ -1537,7 +1805,9 @@
       "_ram": 1,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1590,6 +1860,47 @@
           "_status": "deprecated"
         }
       ]
+
+    },
+    {
+      "_id": "behavior.beam",
+      "_name": "빔",
+      "_category": "behavior",
+      "_ram": 1,
+      "_energy": 0,
+      "_energyMult": 1,
+      "_executionSeconds": 0.05,
+      "_unlockType": "tree",
+      "_unlockCost": 0,
+      "_stats": {
+        "_damageMultiplier": 1,
+        "_radiusMultiplier": 1,
+        "_learningMultiplier": 1
+      },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "in",
+          "_kind": "chain",
+          "_direction": "in",
+          "_max": 1
+        },
+        {
+          "_order": 1,
+          "_portId": "mod",
+          "_kind": "mod",
+          "_direction": "in",
+          "_max": 0
+        },
+        {
+          "_order": 2,
+          "_portId": "onHit",
+          "_kind": "exec",
+          "_direction": "out",
+          "_max": 0
+        }
+      ]
+
     },
     {
       "_id": "behavior.orbit",
@@ -1598,7 +1909,9 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "tree",
+      "_unlockCost": 0,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1650,6 +1963,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.persist",
@@ -1658,7 +1972,9 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
+      "_executionSeconds": 0.05,
       "_unlockType": "tree",
+      "_unlockCost": 35,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1711,6 +2027,7 @@
           "_status": "deprecated"
         }
       ]
+
     },
     {
       "_id": "behavior.apply",
@@ -1719,7 +2036,9 @@
       "_ram": 2,
       "_energy": 0,
       "_energyMult": 1,
-      "_unlockType": "tree",
+      "_executionSeconds": 0.05,
+      "_unlockType": "bench",
+      "_unlockCost": 35,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
@@ -1817,6 +2136,7 @@
           "_defaultNumber": 5
         }
       ]
+
     }
   ]
 }

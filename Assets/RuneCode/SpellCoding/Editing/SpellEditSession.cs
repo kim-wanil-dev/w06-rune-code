@@ -91,7 +91,8 @@ namespace RuneCode
         {
             var context = _policy.GetCompileContext();
             _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance.Grammar,
-                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock);
+                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock,
+                context.MaxResourceCosts, context.LegacyBoxWorldAligned);
             RaiseCompiled();
         }
 
@@ -193,7 +194,7 @@ namespace RuneCode
             RaiseSpellSwitched();
         }
 
-        /// <summary>Core 중복, 공유 RAM 한도와 Modifier 등급별 소지량 초과를 막고 지정 좌표에 룬을 배치한다.</summary>
+        /// <summary>Core 중복, 공유 RAM 한도와 Modifier 소지량 초과를 막고 기본 속성을 가진 룬을 지정 좌표에 배치한다.</summary>
         public void AddRune(string runeId, float x, float y, string grade = null)
         {
             if (!_isEditable || !_policy.IsRuneUnlocked(runeId)) return;
@@ -210,6 +211,8 @@ namespace RuneCode
             var candidate = _editingGraph.Clone();
             var node = new GraphNode(NewId("node"), runeId, x, y);
             if (isModifier) node.SetText(SpellGrammar.MODIFIER_GRADE_PARAM, grade);
+            if (runeId == SpellGrammar.ShapeRune(SpellGrammar.MAGIC_TYPE_BOX))
+                node.SetText(SpellGrammar.BOX_DIRECTION_PARAM, "aim");
             candidate.AddNode(node);
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return; }
             if (!_policy.IsWithinModifierStock(_editingGraph, candidate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
@@ -232,7 +235,8 @@ namespace RuneCode
             candidate.AddEdge(edge);
             var context = _policy.GetCompileContext();
             CompileResult result = GraphCompiler.Compile(candidate, GameData.Runes, GameData.Balance.Grammar,
-                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock);
+                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock,
+                context.MaxResourceCosts, context.LegacyBoxWorldAligned);
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             _editingGraph.AddEdge(edge);

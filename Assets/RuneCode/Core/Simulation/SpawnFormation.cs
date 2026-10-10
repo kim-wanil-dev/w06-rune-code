@@ -112,6 +112,55 @@ namespace RuneCode
         }
     }
 
+    internal sealed class RingDoubleFormation : SpawnFormation
+    {
+        /// <summary>기준 슬롯을 쓰지 않으므로 -1을 반환한다.</summary>
+        public override int ChooseAnchor(SpawnSlots slots, in FormationSettings settings) => -1;
+
+        /// <summary>
+        /// 기체를 안쪽 원(앞 절반, 홀수면 1기 더)과 바깥 원으로 나눈다(이중 포위). 안쪽 원은 짝수 슬롯, 바깥 원은 홀수 슬롯에 고르게
+        /// 나눠 엇갈리게 두고, 바깥 원은 간격만큼 바깥쪽으로 민다. 해당 짝수·홀수 슬롯이 맵 안에 없으면 맵 안 슬롯 전체를 쓴다.
+        /// </summary>
+        public override SpawnPlacement Place(int index, int count, int anchor, SpawnSlots slots, in FormationSettings settings)
+        {
+            if (slots.ValidCount == 0) return SpawnPlacement.None;
+            int innerCount = (count + 1) / 2;
+            bool isOuter = index >= innerCount;
+            int ringIndex = isOuter ? index - innerCount : index;
+            int ringCount = isOuter ? count - innerCount : innerCount;
+            int parity = isOuter ? 1 : 0;
+            int matching = CountParity(slots, parity);
+            int slot;
+            if (matching == 0)
+            {
+                int valid = slots.ValidCount;
+                slot = slots.GetValid(ringCount <= valid ? (int)((long)ringIndex * valid / ringCount) : ringIndex % valid);
+            }
+            else slot = GetParitySlot(slots, parity, ringCount <= matching ? (int)((long)ringIndex * matching / ringCount) : ringIndex % matching);
+            return new SpawnPlacement(slot, isOuter ? settings.Spacing : 0);
+        }
+
+        /// <summary>맵 안 슬롯 중 번호의 짝수·홀수가 parity와 같은 슬롯 수를 반환한다.</summary>
+        private static int CountParity(SpawnSlots slots, int parity)
+        {
+            int total = 0;
+            for (int i = 0; i < slots.ValidCount; i++) if (slots.GetValid(i) % 2 == parity) total++;
+            return total;
+        }
+
+        /// <summary>맵 안 슬롯 중 번호의 짝수·홀수가 parity와 같은 order번째 슬롯을 반환한다. 호출부가 order를 개수보다 작게 맞춘다.</summary>
+        private static int GetParitySlot(SpawnSlots slots, int parity, int order)
+        {
+            for (int i = 0; i < slots.ValidCount; i++)
+            {
+                int slot = slots.GetValid(i);
+                if (slot % 2 != parity) continue;
+                if (order-- == 0) return slot;
+            }
+            return slots.GetValid(0);
+        }
+    }
+
     internal sealed class PointSequenceFormation : SpawnFormation
     {
         /// <summary>
@@ -138,6 +187,7 @@ namespace RuneCode
         {
             { "ringRandomSlot", new RingRandomSlotFormation() },
             { "ringAllSlots", new RingAllSlotsFormation() },
+            { "ringDouble", new RingDoubleFormation() },
             { "pointSequence", new PointSequenceFormation() }
         };
 

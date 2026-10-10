@@ -152,10 +152,10 @@ namespace RuneCode
                 bool isPlayerRune = IsPlayerRune(rune);
                 bool isStarterRune = _starterRuneIds.Contains(rune.Id);
                 if ((isPlayerRune && isStarterRune && rune.UnlockType != "start") ||
-                    (isPlayerRune && !isStarterRune && rune.UnlockType != "tree") ||
+                    (isPlayerRune && !isStarterRune && rune.UnlockType != "tree" && rune.UnlockType != "bench") ||
                     (!isPlayerRune && rune.UnlockType != "start"))
                 {
-                    error = "룬 시작·트리 해금 분류가 지정된 시작 룬과 일치하지 않습니다: " + rune.Id;
+                    error = "룬 시작·트리·작업대 해금 분류가 지정된 시작 룬과 일치하지 않습니다: " + rune.Id;
                     return false;
                 }
                 if (isPlayerRune && !isStarterRune && !runeIds.Contains(rune.Id))
@@ -227,7 +227,7 @@ namespace RuneCode
                     }
             if (node.EffectType == UpgradeEffectType.RuneUnlock &&
                 (node.Levels.Count != 1 || !GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune) ||
-                    !IsPlayerRune(rune) || rune.UnlockType != "tree" || !runeIds.Add(node.RuneId)))
+                    !IsPlayerRune(rune) || (rune.UnlockType != "tree" && rune.UnlockType != "bench") || !runeIds.Add(node.RuneId)))
             {
                 error = "룬 해금 노드의 룬 참조가 없거나 중복되었습니다: " + node.Id;
                 return false;

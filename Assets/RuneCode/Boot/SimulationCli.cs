@@ -91,6 +91,7 @@ namespace RuneCode
             }
             var aim = nearest == null ? simulation.Player.AimDirection : nearest.Position - simulation.Player.Position;
             var reach = castRange + (nearest == null ? 0 : nearest.Radius);
+            // 실행 중·쿨다운이면 TryCast가 시전을 거부하므로 여기서 미리 거르지 않는다(같은 틱에 쿨다운이 끝나는 경우를 놓치지 않기 위함).
             return new SimulationInput(SimVector.Zero, aim, nearest != null && distanceSquared <= reach * reach);
         }
 

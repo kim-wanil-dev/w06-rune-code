@@ -203,6 +203,10 @@ namespace RuneCode
         private readonly float _damage;
         private readonly float _speed;
         private readonly float _radius;
+        private readonly float _shapeRadius;
+        private readonly float _boxWidth;
+        private readonly float _boxLength;
+        private readonly bool _isBoxWorldAligned;
         private readonly float _lifetime;
         private readonly float _offset;
         private readonly float _orbitRadius;
@@ -221,6 +225,10 @@ namespace RuneCode
         public float Damage => _damage;
         public float Speed => _speed;
         public float Radius => _radius;
+        public float ShapeRadius => _shapeRadius;
+        public float BoxWidth => _boxWidth;
+        public float BoxLength => _boxLength;
+        public bool IsBoxWorldAligned => _isBoxWorldAligned;
         public float Lifetime => _lifetime;
         public float Offset => _offset;
         public float OrbitRadius => _orbitRadius;
@@ -239,7 +247,9 @@ namespace RuneCode
 
         /// <summary>형태·속성·수식 정의와 개별 수식 노드의 배율을 결합하여 읽기 전용 효과 수치를 만든다.</summary>
         public SpellStats(RuneStats form, RuneStats element, IReadOnlyList<RuneDefinition> mods, string formKind,
-            IReadOnlyList<GraphNode> modifierNodes = null, ModifierGradeTable modifierGrades = null)
+            IReadOnlyList<GraphNode> modifierNodes = null, ModifierGradeTable modifierGrades = null,
+            string magicType = SpellGrammar.MAGIC_TYPE_SPHERE, float shapeRadius = -1f, float boxWidth = -1f,
+            float boxLength = -1f, bool isBoxWorldAligned = false)
         {
             float damageMult = 1f;
             float radiusMult = 1f;
@@ -284,7 +294,12 @@ namespace RuneCode
             }
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
-            _radius = form.Radius * radiusMult;
+            _shapeRadius = (shapeRadius >= 0f ? shapeRadius : form.Radius) * radiusMult;
+            _boxWidth = (boxWidth >= 0f ? boxWidth : form.Radius * 2f) * radiusMult;
+            _boxLength = (boxLength >= 0f ? boxLength : form.Radius * 2f) * radiusMult;
+            _isBoxWorldAligned = isBoxWorldAligned;
+            _radius = magicType == SpellGrammar.MAGIC_TYPE_SPHERE || magicType == SpellGrammar.MAGIC_TYPE_CONE
+                ? _shapeRadius : form.Radius * radiusMult;
             _lifetime = (formKind == "bolt" ? form.Lifetime * rangeMult / speedMult : form.Lifetime) * durationMult;
             _offset = form.Offset * rangeMult;
             _orbitRadius = form.OrbitRadius * radiusMult * rangeMult;
@@ -307,6 +322,10 @@ namespace RuneCode
         {
             _damage = source._damage * modifiers.DamageMultiplier;
             _speed = source._speed * modifiers.SpeedMultiplier;
+            _shapeRadius = source._shapeRadius * modifiers.RadiusMultiplier;
+            _boxWidth = source._boxWidth * modifiers.RadiusMultiplier;
+            _boxLength = source._boxLength * modifiers.RadiusMultiplier;
+            _isBoxWorldAligned = source._isBoxWorldAligned;
             _radius = source._radius * modifiers.RadiusMultiplier;
             _lifetime = source._lifetime * modifiers.DurationMultiplier * modifiers.RangeMultiplier;
             _offset = source._offset * modifiers.RangeMultiplier;
@@ -376,8 +395,11 @@ namespace RuneCode
         private readonly float _shieldSeconds;
         private readonly float _power;
         private readonly float _buffDuration;
-        private readonly float _ownEnergy;
-        private readonly float _nodeEnergy;
+        private readonly float _executionSeconds;
+        private readonly RuneDefinition _shapeDefinition;
+        private readonly ResourceCostSet _baseNodeCosts;
+        private readonly ResourceCostSet _ownCosts;
+        private readonly ResourceCostSet _nodeCosts;
         private readonly float _energyMultiplier;
         private readonly float _coneAngle;
         private readonly SpellModifierValues _modifierValues;
@@ -412,11 +434,18 @@ namespace RuneCode
         public float ShieldSeconds => _shieldSeconds;
         public float Power => _power;
         public float BuffDuration => _buffDuration;
-        /// <summary>이 명령의 최대 비용 계산용 자체 비용이다. 프리셋 호출은 호출 대상 비용 × 개수 × 효과 배율을 포함한다.</summary>
-        public float OwnEnergy => _ownEnergy;
+        public float ExecutionSeconds => _executionSeconds;
+        /// <summary>이 명령의 최대 비용 계산용 자원별 비용이다. 프리셋 호출은 호출 대상 비용 × 개수 × 효과 배율을 포함한다.</summary>
+        public ResourceCostSet OwnCosts => _ownCosts;
 
-        /// <summary>실행 중 이 노드에 도달했을 때 차감하는 비용이다. 프리셋 호출은 호출 대상 노드가 도달할 때 각자 차감하므로 포함하지 않는다.</summary>
-        public float NodeEnergy => _nodeEnergy;
+        /// <summary>실행 중 이 노드에 도달했을 때 차감하는 자원별 비용이다. 프리셋 호출 대상 비용은 포함하지 않는다.</summary>
+        public ResourceCostSet NodeCosts => _nodeCosts;
+
+        /// <summary>기존 마나 표시와 호출부를 위한 자체 마나 비용이다.</summary>
+        public float OwnEnergy => (float)_ownCosts.GetAmount("mana");
+
+        /// <summary>기존 마나 표시와 호출부를 위한 노드 마나 비용이다.</summary>
+        public float NodeEnergy => (float)_nodeCosts.GetAmount("mana");
 
         /// <summary>부착된 유효 효과들의 비용 배율 곱이다. 프리셋 호출에서는 호출된 노드의 비용에 곱한다.</summary>
         public float EnergyMultiplier => _energyMultiplier;
@@ -453,15 +482,20 @@ namespace RuneCode
         }
         public IReadOnlyList<string> AttachedNodeIds => _attachedNodeIds;
 
-        /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상·연결 수식, 부채꼴 각도(도)로 실행 명령을 초기화한다.</summary>
+        /// <summary>원본 노드와 효과·Shape·Behavior 정의, 호출 대상, 연결 수식 및 레거시 Box 기본 방향으로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
             IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null,
-            float coneAngle = 0f, ModifierGradeTable modifierGrades = null)
+            RuneDefinition shape = null, float coneAngle = 0f, ModifierGradeTable modifierGrades = null,
+            bool legacyBoxWorldAligned = true, RuneDefinition behavior = null)
         {
             _nodeId = node.Id;
-            _coneAngle = coneAngle;
+            _shapeDefinition = shape;
+            float behaviorSeconds = behavior == null || behavior == rune ? 0f : behavior.ExecutionSeconds;
+            _executionSeconds = rune.ExecutionSeconds + behaviorSeconds + (shape?.ExecutionSeconds ?? 0f);
             _magicType = rune.Id == "magic.inline" ? node.GetText("magicType", "sphere") : rune.Category == "form" ? "sphere" : "";
             _form = rune.Id == "magic.inline" ? MapForm(node.GetText("form", "launch")) : rune.Category == "form" ? rune.Id.Substring(5) : "";
+            _coneAngle = _magicType == SpellGrammar.MAGIC_TYPE_CONE
+                ? node.GetNumber(SpellGrammar.CONE_ANGLE_PARAM, shape?.Stats.ConeAngle ?? coneAngle) : 0f;
             _sourceElement = rune.Id == "magic.inline" ? node.GetText("element", "normal") : element == null ? "normal" : SourceElementFromRune(element.Id);
             _element = rune.Id == "magic.inline" ? RuntimeElement(_sourceElement) : element == null ? "raw" : element.Id.Substring(5);
             _calledSpellId = rune.Id == "spell.call" ? node.GetText("spellId").Trim() : "";
@@ -486,12 +520,31 @@ namespace RuneCode
             }
             _mods = ids;
             _energyMultiplier = energyMultiplier;
-            _nodeEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)) * energyMultiplier;
-            if (element != null) _nodeEnergy += element.Energy;
-            _ownEnergy = _nodeEnergy + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count * energyMultiplier : 0f);
             _modifierValues = SpellModifierValues.From(mods, modifierNodes, modifierGrades);
             if (_kind == "spawn" || _kind == "buff")
-                _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades);
+            {
+                float behaviorRadius = effectForm.Stats.Radius;
+                string radiusParameter = _magicType == SpellGrammar.MAGIC_TYPE_CONE
+                    ? SpellGrammar.CONE_DISTANCE_PARAM : SpellGrammar.SHAPE_RADIUS_PARAM;
+                float shapeRadius = node.GetNumber(radiusParameter, behaviorRadius);
+                float boxWidth = node.GetNumber(SpellGrammar.BOX_WIDTH_PARAM, behaviorRadius * 2f);
+                // Beam은 Box 길이 기본값을 형태 데이터의 빔 길이로 쓴다. 그 외 Box는 반경×2.
+                float defaultBoxLength = _form == SpellGrammar.FORM_BEAM && effectForm.Stats.BeamLength > 0f ? effectForm.Stats.BeamLength : behaviorRadius * 2f;
+                float boxLength = node.GetNumber(SpellGrammar.BOX_LENGTH_PARAM, defaultBoxLength);
+                string defaultBoxDirection = _form == SpellGrammar.FORM_BOLT || !legacyBoxWorldAligned ? "aim" : "world";
+                bool isBoxWorldAligned = node.GetText(SpellGrammar.BOX_DIRECTION_PARAM, defaultBoxDirection) == "world";
+                _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades,
+                    _magicType, shapeRadius, boxWidth, boxLength, isBoxWorldAligned);
+            }
+            ResourceCostSet baseCosts = rune.Costs;
+            if (rune.Id == "magic.inline") baseCosts = baseCosts.Add(effectForm.Costs);
+            baseCosts = baseCosts.Multiply(energyMultiplier);
+            if (element != null) baseCosts = baseCosts.Add(element.Costs);
+            _baseNodeCosts = baseCosts;
+            ResourceCostSet shapeCosts = _kind == "spawn" && shape != null ? CalculateShapeCosts(shape, _magicType, _stats, _coneAngle) : ResourceCostSet.Empty;
+            _nodeCosts = baseCosts.Add(shapeCosts);
+            _ownCosts = _nodeCosts.Add(rune.Id == "spell.call" && calledSpell != null
+                ? calledSpell.ResourceCosts.Multiply(_count * energyMultiplier) : ResourceCostSet.Empty);
             _seconds = node.GetNumber("seconds", DefaultNumber(rune, "seconds"));
             _times = (int)node.GetNumber("times", DefaultNumber(rune, "times"));
             _interval = node.GetNumber("interval", DefaultNumber(rune, "interval"));
@@ -503,6 +556,54 @@ namespace RuneCode
             if (_kind == "if") _condition = new SpellCondition(node, rune);
         }
 
+        /// <summary>Shape의 effective 넓이에 자원별 단가를 곱해 자원 비용을 소수 첫째 자리로 반올림한다.</summary>
+        private static ResourceCostSet CalculateShapeCosts(RuneDefinition shape, string magicType, SpellStats stats, float coneAngle)
+        {
+            double measure;
+            if (magicType == SpellGrammar.MAGIC_TYPE_BOX)
+                measure = stats.BoxWidth * stats.BoxLength;
+            else if (magicType == SpellGrammar.MAGIC_TYPE_CONE)
+                measure = 0.5d * stats.ShapeRadius * stats.ShapeRadius * coneAngle * Math.PI / 180d;
+            else
+                measure = Math.PI * stats.ShapeRadius * stats.ShapeRadius;
+            measure = Math.Round(measure, 1, MidpointRounding.AwayFromZero);
+            var costs = new List<ResourceAmount>();
+            foreach (ShapeCostRateDefinition rate in shape.ShapeCostRates)
+            {
+                double amount = Math.Round(rate.Rate * measure, 1, MidpointRounding.AwayFromZero);
+                costs.Add(new ResourceAmount(rate.Resource, amount));
+            }
+            return new ResourceCostSet(costs);
+        }
+
+        /// <summary>호출 문맥의 추가 Modifier를 Shape에 적용해 이번 실행 노드의 자원별 비용을 반환한다.</summary>
+        public ResourceCostSet GetNodeCosts(SpellModifierValues inheritedModifiers)
+        {
+            if (_shapeDefinition == null || _shapeDefinition.ShapeCostRates.Count == 0 || _stats == null) return _baseNodeCosts;
+            SpellStats effectiveStats = _stats.Apply(inheritedModifiers ?? SpellModifierValues.None);
+            return _baseNodeCosts.Add(CalculateShapeCosts(_shapeDefinition, _magicType, effectiveStats, _coneAngle));
+        }
+
+        /// <summary>연결 수식까지 반영한 이 노드의 기본·면적 실행 시간을 반환한다.</summary>
+        public double GetExecutionSeconds(SpellModifierValues inheritedModifiers)
+        {
+            if (_shapeDefinition == null || _shapeDefinition.ExecutionSecondsPerArea <= 0f || _stats == null)
+                return _executionSeconds;
+            SpellStats effectiveStats = _stats.Apply(inheritedModifiers ?? SpellModifierValues.None);
+            double area = MeasureShape(_magicType, effectiveStats, _coneAngle);
+            return _executionSeconds + _shapeDefinition.ExecutionSecondsPerArea * area;
+        }
+
+        /// <summary>Sphere·Cone 넓이 또는 Box 폭×길이를 W1의 Shape 비용과 같은 기준으로 반환한다.</summary>
+        private static double MeasureShape(string magicType, SpellStats stats, float coneAngle)
+        {
+            double area = magicType == SpellGrammar.MAGIC_TYPE_BOX ? stats.BoxWidth * stats.BoxLength
+                : magicType == SpellGrammar.MAGIC_TYPE_CONE
+                    ? 0.5d * stats.ShapeRadius * stats.ShapeRadius * coneAngle * Math.PI / 180d
+                    : Math.PI * stats.ShapeRadius * stats.ShapeRadius;
+            return Math.Round(area, 1, MidpointRounding.AwayFromZero);
+        }
+
         /// <summary>마법 문법의 Form 이름을 기존 런타임 Form ID에 연결한다.</summary>
         private static string MapForm(string form)
         {
@@ -512,6 +613,7 @@ namespace RuneCode
                 case "explosion": return "burst";
                 case "orbit": return "orbit";
                 case "remain": return "zone";
+                case SpellGrammar.FORM_BEAM: return SpellGrammar.FORM_BEAM;
                 default: return "";
             }
         }
@@ -576,7 +678,7 @@ namespace RuneCode
         private readonly string _coreNodeId;
         private readonly string _trigger;
         private readonly int _ramUsed;
-        private readonly float _energyCost;
+        private readonly ResourceCostSet _resourceCosts;
         private readonly float _cooldown;
         private readonly int _worstCaseEntities;
         private readonly IReadOnlyList<string> _tags;
@@ -587,14 +689,22 @@ namespace RuneCode
         public string CoreNodeId => _coreNodeId;
         public string Trigger => _trigger;
         public int RamUsed => _ramUsed;
-        public float EnergyCost => _energyCost;
+        public ResourceCostSet ResourceCosts => _resourceCosts;
+        public float EnergyCost => (float)_resourceCosts.GetAmount("mana");
         public float Cooldown => _cooldown;
+        public double EstimatedExecutionSeconds => GetEstimatedExecutionSeconds(1f);
         public int WorstCaseEntities => _worstCaseEntities;
         public IReadOnlyList<string> Tags => _tags;
         public IReadOnlyList<SpellAction> Root => _root;
 
-        /// <summary>검증된 그래프의 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
-        public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, float energyCost,
+        /// <summary>현재 전역 시간 배율에서 루트 체인의 최대 경과 시간을 계산한다. 같은 출력 분기는 동시에 실행된다.</summary>
+        public double GetEstimatedExecutionSeconds(float executionTimeScale, SpellModifierValues inheritedModifiers = null)
+        {
+            return EstimateExecutionSeconds(_root, Math.Max(0f, executionTimeScale), inheritedModifiers ?? SpellModifierValues.None);
+        }
+
+        /// <summary>검증된 그래프의 자원별 최대 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
+        public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, ResourceCostSet resourceCosts,
             float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
             string id = "", string trigger = SpellGrammar.TRIGGER_ON_ATTACK)
         {
@@ -604,11 +714,52 @@ namespace RuneCode
             _coreNodeId = coreNodeId;
             _trigger = trigger;
             _ramUsed = ramUsed;
-            _energyCost = energyCost;
+            _resourceCosts = resourceCosts ?? ResourceCostSet.Empty;
             _cooldown = cooldown;
             _worstCaseEntities = worstCaseEntities;
             _tags = tags;
             _root = root;
+        }
+
+        /// <summary>병렬 출력 분기 중 가장 늦게 끝나는 경로의 예상 시간을 반환한다.</summary>
+        private static double EstimateExecutionSeconds(IReadOnlyList<SpellAction> actions, float executionTimeScale,
+            SpellModifierValues inheritedModifiers)
+        {
+            double longest = 0;
+            foreach (SpellAction action in actions)
+                longest = Math.Max(longest, EstimateActionSeconds(action, executionTimeScale, inheritedModifiers));
+            return longest;
+        }
+
+        /// <summary>노드 시간과 순차 후속 경로를 합산하고 Condition 분기는 더 긴 쪽을 선택한다.</summary>
+        private static double EstimateActionSeconds(SpellAction action, float executionTimeScale,
+            SpellModifierValues inheritedModifiers)
+        {
+            double nodeSeconds = action.Kind == "delay" ? action.Seconds : action.GetExecutionSeconds(inheritedModifiers);
+            double duration = nodeSeconds * executionTimeScale;
+            switch (action.Kind)
+            {
+                case "call":
+                    SpellModifierValues callModifiers = inheritedModifiers.Combine(action.ModifierValues);
+                    return duration + (action.CalledSpell == null ? 0
+                        : action.CalledSpell.GetEstimatedExecutionSeconds(executionTimeScale, callModifiers));
+                case "delay":
+                    return duration + EstimateExecutionSeconds(action.Then, executionTimeScale, inheritedModifiers);
+                case "repeat":
+                    return duration + Math.Max(0, action.Times - 1) * action.Interval * executionTimeScale
+                        + EstimateExecutionSeconds(action.Body, executionTimeScale, inheritedModifiers)
+                        + EstimateExecutionSeconds(action.OnComplete, executionTimeScale, inheritedModifiers);
+                case "if":
+                    return duration + Math.Max(EstimateExecutionSeconds(action.Then, executionTimeScale, inheritedModifiers),
+                        EstimateExecutionSeconds(action.Else, executionTimeScale, inheritedModifiers));
+                case "buff":
+                    return duration + EstimateExecutionSeconds(action.OnFirstHitOrExpire, executionTimeScale, inheritedModifiers);
+                case "blink":
+                case "shield":
+                    return duration + EstimateExecutionSeconds(action.Next, executionTimeScale, inheritedModifiers);
+                default:
+                    return duration + EstimateExecutionSeconds(action.Next, executionTimeScale, inheritedModifiers);
+            }
         }
 
         /// <summary>실행 트리 전체에서 지정 노드 ID로 컴파일된 첫 명령을 찾아 반환하며 없으면 null을 반환한다.</summary>

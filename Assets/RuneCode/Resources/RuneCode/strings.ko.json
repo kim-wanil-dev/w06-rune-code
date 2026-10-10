@@ -161,6 +161,10 @@
       "_value": "전력"
     },
     {
+      "_key": "resource.mana",
+      "_value": "마나"
+    },
+    {
       "_key": "ui.peak",
       "_value": "최대 엔티티"
     },
@@ -171,6 +175,14 @@
     {
       "_key": "ui.cooldown",
       "_value": "쿨다운"
+    },
+    {
+      "_key": "ui.executing",
+      "_value": "실행 중"
+    },
+    {
+      "_key": "ui.executionTime",
+      "_value": "예상 실행"
     },
     {
       "_key": "ui.undo",
@@ -681,6 +693,42 @@
       "_value": "점멸 거리"
     },
     {
+      "_key": "param.radius",
+      "_value": "반경 (px)"
+    },
+    {
+      "_key": "param.boxWidth",
+      "_value": "폭 (px)"
+    },
+    {
+      "_key": "param.boxHeight",
+      "_value": "높이 (px)"
+    },
+    {
+      "_key": "param.boxLength",
+      "_value": "길이 (px)"
+    },
+    {
+      "_key": "param.coneDistance",
+      "_value": "거리 (px)"
+    },
+    {
+      "_key": "param.coneAngle",
+      "_value": "각도 (°)"
+    },
+    {
+      "_key": "param.boxDirection",
+      "_value": "방향"
+    },
+    {
+      "_key": "boxDirection.aim",
+      "_value": "진행 방향"
+    },
+    {
+      "_key": "boxDirection.world",
+      "_value": "월드 축"
+    },
+    {
       "_key": "condition.targetHpBelow",
       "_value": "대상 HP 미만"
     },
@@ -759,6 +807,10 @@
     {
       "_key": "magicForm.remain",
       "_value": "잔류"
+    },
+    {
+      "_key": "magicForm.beam",
+      "_value": "빔"
     },
     {
       "_key": "trigger.attack",
@@ -1145,6 +1197,10 @@
       "_value": "등급별 크기 수치가 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
     },
     {
+      "_key": "ui.behavior.beamHint",
+      "_value": "실행 시 원점에서 방향으로 뻗은 Box 안의 모든 적을 한 번씩 적중합니다. 첫 벽에서 길이가 잘리고, 회복·보호 속성은 범위 안의 자신에게 적용됩니다. Box 크기 속성은 준비 중입니다"
+    },
+    {
       "_key": "ui.mod.rangeHint",
       "_value": "볼트의 비행 거리, 버스트·존의 생성 거리, 오비트의 궤도 거리를 조절합니다"
     },
@@ -1159,6 +1215,10 @@
     {
       "_key": "ui.spellRadius",
       "_value": "충돌 반경"
+    },
+    {
+      "_key": "ui.shapeSizeBounds",
+      "_value": "크기 4~800px · 각도 10~180° · Expand가 크기에 적용됩니다"
     },
     {
       "_key": "ui.spellSpeed",
@@ -1230,11 +1290,11 @@
     },
     {
       "_key": "issue.W7",
-      "_value": "최대 예상 마나 비용이 최대 마나보다 큽니다. 시전은 되지만 마나가 부족한 경로는 중단됩니다"
+      "_value": "자원별 최대 예상 비용이 보유 한도보다 큽니다. 시전은 되지만 자원이 부족한 경로는 중단됩니다"
     },
     {
       "_key": "issue.W8",
-      "_value": "최대 마나 비용을 산정할 수 없습니다"
+      "_value": "자원별 최대 비용을 산정할 수 없습니다"
     },
     {
       "_key": "issue.W9",

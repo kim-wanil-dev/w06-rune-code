@@ -41,6 +41,7 @@ namespace RuneCode
         public const string FORM_BURST = "burst";
         public const string FORM_ORBIT = "orbit";
         public const string FORM_ZONE = "zone";
+        public const string FORM_BEAM = "beam";
 
         public const string MAGIC_TYPE_SPHERE = "sphere";
         public const string MAGIC_TYPE_BOX = "box";
@@ -57,6 +58,13 @@ namespace RuneCode
         public const string TRIGGER_PARAM = "trigger";
         public const string POWER_PARAM = "power";
         public const string BUFF_DURATION_PARAM = "buffDuration";
+        public const string SHAPE_RADIUS_PARAM = "radius";
+        public const string BOX_WIDTH_PARAM = "boxWidth";
+        public const string BOX_HEIGHT_PARAM = "boxHeight";
+        public const string BOX_LENGTH_PARAM = "boxLength";
+        public const string CONE_DISTANCE_PARAM = "coneDistance";
+        public const string CONE_ANGLE_PARAM = "coneAngle";
+        public const string BOX_DIRECTION_PARAM = "boxDirection";
         public const string MODIFIER_GRADE_PARAM = "grade";
         public const int UNLIMITED_PIERCE_COUNT = int.MaxValue;
 
@@ -77,12 +85,26 @@ namespace RuneCode
         /// <summary>Inline Magic의 magicType 값(sphere 등)에 해당하는 Shape 룬 ID(shape.sphere 등)를 반환한다.</summary>
         public static string ShapeRune(string magicType) => SHAPE_PREFIX + magicType;
 
+        /// <summary>Inline Magic의 form 값에 해당하는 Behavior 룬 ID를 반환한다.</summary>
+        public static string BehaviorRune(string form)
+        {
+            switch (form)
+            {
+                case "launch": return "behavior.launch";
+                case "explosion": return "behavior.burst";
+                case "orbit": return "behavior.orbit";
+                case "remain": return "behavior.persist";
+                case FORM_BEAM: return "behavior.beam";
+                default: return "";
+            }
+        }
+
         /// <summary>Shape 블록(shape.sphere 등)이면 Inline Magic의 magicType 값(sphere 등)을, 아니면 null을 반환한다.</summary>
         public static string MagicTypeOf(string runeId) => ValueOf(runeId, SHAPE_PREFIX);
 
         /// <summary>
         /// Behavior 블록이면 Inline Magic의 form 값을 반환한다. 내부 값은 이전 문법을 유지한다
-        /// (Launch=launch, Burst=explosion, Orbit=orbit, Persist·Apply=remain). Behavior가 아니면 null을 반환한다.
+        /// (Launch=launch, Burst=explosion, Orbit=orbit, Persist·Apply=remain, Beam=beam). Behavior가 아니면 null을 반환한다.
         /// </summary>
         public static string FormOf(string runeId)
         {
@@ -93,6 +115,7 @@ namespace RuneCode
                 case "orbit": return "orbit";
                 case "persist": return "remain";
                 case "apply": return "remain";
+                case "beam": return FORM_BEAM;
                 default: return null;
             }
         }

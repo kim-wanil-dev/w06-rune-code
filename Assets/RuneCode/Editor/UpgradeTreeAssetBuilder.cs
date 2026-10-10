@@ -62,8 +62,19 @@ namespace RuneCode
                 definition = ScriptableObject.CreateInstance<UpgradeTreeDefinition>();
                 AssetDatabase.CreateAsset(definition, ASSET_PATH);
             }
-            if (definition.LayoutVersion < BASE_TOPOLOGY_VERSION) CreateDefaultNodes(definition);
-            if (definition.LayoutVersion < TOPOLOGY_VERSION) SeparateUnplacedNodes(definition);
+            bool hasChanges = false;
+            if (definition.LayoutVersion < BASE_TOPOLOGY_VERSION)
+            {
+                CreateDefaultNodes(definition);
+                hasChanges = true;
+            }
+            if (definition.LayoutVersion < TOPOLOGY_VERSION)
+            {
+                SeparateUnplacedNodes(definition);
+                hasChanges = true;
+            }
+            if (AddMissingUnplacedRuneNodes(definition)) hasChanges = true;
+            if (hasChanges) ValidateAndSave(definition);
         }
 
         /// <summary>기존 노드를 새 하드웨어 트리·레벨별 비용·효과량·선행 관계로 교체하고 검증한 뒤 저장한다.</summary>
@@ -103,7 +114,6 @@ namespace RuneCode
 
             serialized.FindProperty("_layoutVersion").intValue = BASE_TOPOLOGY_VERSION;
             serialized.ApplyModifiedPropertiesWithoutUndo();
-            ValidateAndSave(definition);
         }
 
         /// <summary>기존 노드의 비용·아이콘·레벨을 보존하면서 지정된 12개만 배치 목록에 남기고 나머지 선행 조건을 비운다.</summary>
@@ -129,7 +139,31 @@ namespace RuneCode
             }
             serialized.FindProperty("_layoutVersion").intValue = TOPOLOGY_VERSION;
             serialized.ApplyModifiedPropertiesWithoutUndo();
-            ValidateAndSave(definition);
+        }
+
+        /// <summary>배치 여부가 아직 지정되지 않은 트리 해금 룬을 선행 조건 없는 비배치 노드로 등록한다.</summary>
+        private static bool AddMissingUnplacedRuneNodes(UpgradeTreeDefinition definition)
+        {
+            HashSet<string> existingRuneIds = new HashSet<string>();
+            foreach (UpgradeTreeNodeDefinition node in definition.Nodes)
+                if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock) existingRuneIds.Add(node.RuneId);
+            foreach (UpgradeTreeNodeDefinition node in definition.UnplacedNodes)
+                if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock) existingRuneIds.Add(node.RuneId);
+
+            SerializedObject serialized = new SerializedObject(definition);
+            SerializedProperty unplaced = serialized.FindProperty("_unplacedNodes");
+            bool hasChanges = false;
+            foreach (RuneDefinition rune in GameData.Runes.All)
+            {
+                if ((rune.UnlockType != "tree" && rune.UnlockType != "bench") || !existingRuneIds.Add(rune.Id)) continue;
+                AddNode(unplaced, RuneNodeId(rune.Id), "ui.tree.unlockRune", "ui.tree.unlockRuneDescription",
+                    Vector2.zero, UpgradeEffectType.RuneUnlock, rune.Id, null,
+                    new[] { rune.UnlockCost }, new[] { 0f });
+                hasChanges = true;
+            }
+            if (!hasChanges) return false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return true;
         }
 
         /// <summary>룬 카탈로그의 해금 대상 룬과 지정한 부모·위치·비용으로 1회 구매 노드를 추가한다.</summary>
