@@ -69,6 +69,8 @@ namespace RuneCode
     public sealed class SimulationPlayer
     {
         private readonly double[] _cooldowns = new double[3];
+        private readonly bool[] _isSpellRunning = new bool[3];
+        private readonly double[] _executionRemaining = new double[3];
         private readonly Dictionary<string, double> _otherResources = new Dictionary<string, double>(StringComparer.Ordinal);
         private readonly Dictionary<string, double> _otherResourceCaps = new Dictionary<string, double>(StringComparer.Ordinal);
         private SimVector _position;
@@ -96,6 +98,12 @@ namespace RuneCode
         public double DashRemaining => _dashRemaining;
         public IReadOnlyList<double> Cooldowns => _cooldowns;
 
+        /// <summary>지정 슬롯의 루트 체인이 아직 실행 중인지 반환한다.</summary>
+        public bool IsSpellRunning(int slot) => _isSpellRunning[slot];
+
+        /// <summary>지정 슬롯 루트 체인의 예상 남은 시간을 반환한다.</summary>
+        public double ExecutionRemaining(int slot) => _executionRemaining[slot];
+
         /// <summary>최대 체력과 에너지 및 시작 위치로 플레이어의 전투 상태를 초기화한다.</summary>
         internal SimulationPlayer(double hp, double energy, SimVector position) { _maxHp = hp; _hp = hp; _maxEnergy = energy; _energy = energy; _position = position; }
 
@@ -105,9 +113,32 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>슬롯 쿨다운이 끝났으면 쿨다운을 시작하고 true를 반환한다. 자원은 실행 노드에 도달할 때 차감한다.</summary>
-        internal bool TryStartCooldown(CompiledSpell spell, int slot)
-        { if (_cooldowns[slot] > 0.000001) return false; _cooldowns[slot] = spell.Cooldown; return true; }
+        /// <summary>쿨다운 중이 아니고 루트 체인이 없으면 실행 상태와 예상 시간을 시작한다.</summary>
+        internal bool TryBeginSpell(int slot, double executionSeconds)
+        {
+            if (_cooldowns[slot] > 0.000001 || _isSpellRunning[slot]) return false;
+            _isSpellRunning[slot] = true;
+            _executionRemaining[slot] = Math.Max(0, executionSeconds);
+            return true;
+        }
+
+        /// <summary>루트 체인이 끝난 슬롯의 실행 상태를 지우고 쿨다운을 시작한다.</summary>
+        internal void FinishSpell(int slot, double cooldown)
+        {
+            _isSpellRunning[slot] = false;
+            _executionRemaining[slot] = 0;
+            _cooldowns[slot] = cooldown;
+        }
+
+        /// <summary>전투가 끝나거나 취소될 때 진행 중 루트 시전을 중단하고 환급 없이 상태를 지운다.</summary>
+        internal void CancelSpellExecutions()
+        {
+            for (int slot = 0; slot < _isSpellRunning.Length; slot++)
+            {
+                _isSpellRunning[slot] = false;
+                _executionRemaining[slot] = 0;
+            }
+        }
 
         /// <summary>모든 비용 자원이 충분할 때만 함께 차감하고 하나라도 부족하면 상태를 바꾸지 않은 채 false를 반환한다.</summary>
         internal bool TrySpend(ResourceCostSet costs)
@@ -143,7 +174,7 @@ namespace RuneCode
 
         /// <summary>시간 경과에 따라 에너지를 회복하고 쿨다운, 보호막 및 대시 지속 상태를 갱신한다.</summary>
         internal void Advance(double dt, double time, double regen)
-        { _energy = Math.Min(_maxEnergy, _energy + dt * regen); for (int i = 0; i < _cooldowns.Length; i++) _cooldowns[i] = Math.Max(0, _cooldowns[i] - dt); _dashCooldown = Math.Max(0, _dashCooldown - dt); _dashRemaining = Math.Max(0, _dashRemaining - dt); if (time >= _shieldUntil) _shield = 0; }
+        { _energy = Math.Min(_maxEnergy, _energy + dt * regen); for (int i = 0; i < _cooldowns.Length; i++) { _cooldowns[i] = Math.Max(0, _cooldowns[i] - dt); _executionRemaining[i] = Math.Max(0, _executionRemaining[i] - dt); } _dashCooldown = Math.Max(0, _dashCooldown - dt); _dashRemaining = Math.Max(0, _dashRemaining - dt); if (time >= _shieldUntil) _shield = 0; }
 
         /// <summary>대시가 가능한 경우 방향, 지속 시간, 무적 및 쿨다운을 설정한다.</summary>
         internal bool StartDash(SimVector direction, double seconds, double cooldown, double time)
@@ -193,6 +224,8 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_aimDirection.X:R}|{_aimDirection.Y:R}|{_dashDirection.X:R}|{_dashDirection.Y:R}|{_hp:R}|{_maxHp:R}|{_energy:R}|{_maxEnergy:R}|{_shield:R}|{_shieldUntil:R}|{_dashCooldown:R}|{_dashRemaining:R}|{_invulnerableUntil:R}|{_burnUntil:R}|{_burnNextTick:R}"));
+            for (int slot = 0; slot < _isSpellRunning.Length; slot++)
+                if (_isSpellRunning[slot]) state.Append(FormattableString.Invariant($"|running:{slot}:{_executionRemaining[slot]:R}"));
             var resources = new List<string>(_otherResources.Keys);
             resources.Sort(StringComparer.Ordinal);
             foreach (string resource in resources)

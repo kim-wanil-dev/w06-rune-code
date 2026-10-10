@@ -182,6 +182,7 @@ namespace RuneCode
         {
             if (_settled) return;
             _settled = true;
+            _simulation.CancelPendingSpellExecutions();
             var fragments = (int)Math.Round(_simulation.EarnedFragments * GameData.Balance.Economy.DeathRetention, MidpointRounding.AwayFromZero);
             _session.SettleMission(_simulation.StageNumber, fragments, false, _simulation.KillCounts);
             _lastResult = GameData.L("result.retreat") + "\n" + GameData.L("result.fragments") + " " + fragments;

@@ -210,6 +210,7 @@ namespace RuneCode
         [SerializeField] private float _damageNumberSeconds;
         [SerializeField] private float _wandOffset;
         [SerializeField] private float _itemPickupRadius = 24f;
+        [SerializeField] private float _executionTimeScale = 1f;
         public int TickRate => _tickRate;
         public float MultiOffset => _multiOffset;
         public float TelemetryHighlightSeconds => _telemetryHighlightSeconds;
@@ -234,6 +235,9 @@ namespace RuneCode
 
         /// <summary>바닥에 떨어진 Modifier 드롭을 줍는 반경이다.</summary>
         public float ItemPickupRadius => _itemPickupRadius;
+
+        /// <summary>룬 실행 시간 기여분의 전역 배율이며 0이면 Shape·Behavior 노드 시간 기여를 끈다.</summary>
+        public float ExecutionTimeScale => _executionTimeScale;
     }
 
     [Serializable]
@@ -286,6 +290,7 @@ namespace RuneCode
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
                 data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius,
+                data.Sim.ExecutionTimeScale,
                 data.Economy.DurationStep, data.Economy.EnergyRegenStep, data.Economy.GrowthCostMultiplier };
             foreach (float value in values)
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
