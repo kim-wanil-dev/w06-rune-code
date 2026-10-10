@@ -32,6 +32,7 @@ namespace RuneCode
         public List<RuneTagData> _tags;
         public RuneElementData _element;
         public List<string> _modifierTargets;
+        public List<RuneHomingTierData> _homingTiers;
     }
 
     /// <summary>룬의 전투 수치다. JSON에 없는 배율 필드는 1, 나머지는 0이 기본값이다.</summary>
@@ -51,6 +52,8 @@ namespace RuneCode
         public float _tickInterval;
         public float _damageMultiplier = 1f;
         public float _radiusMultiplier = 1f;
+        public float _speedMultiplier = 1f;
+        public float _durationMultiplier = 1f;
         public int _pierce;
         public float _pierceLoss;
         public float _homingTurn;
@@ -65,6 +68,15 @@ namespace RuneCode
         public float _coneAngle;
         public float _expandSeconds;
         public float _warnSeconds;
+    }
+
+    /// <summary>유도 Modifier의 하위 유도 단계와 적용 수치다.</summary>
+    [Serializable]
+    public sealed class RuneHomingTierData
+    {
+        public string _tier;
+        public float _homingTurn;
+        public float _homingRange;
     }
 
     /// <summary>룬 포트 하나의 데이터다. status는 빈 문자열이면 active다.</summary>

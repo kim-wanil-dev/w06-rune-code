@@ -1,0 +1,23 @@
+{
+  "_bosses": [
+    {
+      "_enemyId": "boss.governor",
+      "_pattern": "governor",
+      "_phaseTwoThreshold": 0.67,
+      "_phaseThreeThreshold": 0.34,
+      "_patchSeconds": 2.5,
+      "_radialInterval": 3,
+      "_radialCount": 8,
+      "_aimInterval": 2.4,
+      "_hazardInterval": 4,
+      "_hazardWarning": 1,
+      "_hazardLifetime": 3,
+      "_hazardRadius": 68,
+      "_hazardDamage": 12,
+      "_phaseThreeMultiplier": 1.3,
+      "_preferredDistance": 190,
+      "_reinforcement": { "_enemyId": "enemy.scout", "_count": 4, "_interval": 12, "_formation": "surround" },
+      "_dropTable": ""
+    }
+  ]
+}

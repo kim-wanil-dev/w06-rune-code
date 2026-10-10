@@ -116,7 +116,7 @@ namespace RuneCode
         public Vector2 SuggestPlacement(string runeId) => _placement.Suggest(runeId);
 
         /// <summary>그래프 좌표에 룬을 배치하고 문법에 맞는 가까운 노드에 자동 연결한다.</summary>
-        public void PlaceRune(string runeId, Vector2 position) => _placement.Place(runeId, position);
+        public void PlaceRune(string runeId, Vector2 position, string grade = null) => _placement.Place(runeId, position, grade);
 
         void Update()
         {

@@ -129,14 +129,14 @@ namespace RuneCode
         /// <summary>팔레트 목록을 비운다. 이어서 AddPaletteRow로 채운다.</summary>
         public void ClearPalette() => _paletteRows.ReleaseAll();
 
-        /// <summary>팔레트 행을 하나 추가하고 클릭 동작과 그래프로 끌어 놓기(해금된 룬만)를 연결한다.</summary>
-        public void AddPaletteRow(string label, Color accent, float height, Action onClick, string runeId, bool canPlace)
+        /// <summary>팔레트 행을 추가하고 클릭·드래그 배치를 룬 등급과 연결한다.</summary>
+        public void AddPaletteRow(string label, Color accent, float height, Action onClick, string runeId, string grade, bool canPlace)
         {
             UiRow row = _paletteRows.Get();
             row.Configure(label, accent, height, onClick, 12);
             RunePaletteDrag drag = row.GetComponent<RunePaletteDrag>();
             if (drag == null) drag = row.gameObject.AddComponent<RunePaletteDrag>();
-            drag.Initialize(_graphCanvas, runeId, canPlace);
+            drag.Initialize(_graphCanvas, runeId, grade, canPlace);
         }
 
         void Update()

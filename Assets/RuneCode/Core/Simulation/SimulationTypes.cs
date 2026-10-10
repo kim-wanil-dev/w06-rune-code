@@ -172,6 +172,7 @@ namespace RuneCode
         private readonly int _id;
         private readonly EnemyDefinition _definition;
         private readonly EnemyMovementType _movementType;
+        private readonly BossDefinition _boss;
         private readonly bool _isDummy;
         private readonly bool _isElite;
         private readonly bool _isKillTarget;
@@ -217,7 +218,8 @@ namespace RuneCode
         public bool IsPatching => _observedTime < _patchUntil;
         public string LastDamageElement => _lastDamageElement;
         public string LastDamageForm => _lastDamageForm;
-        internal EnemyDefinition Definition => _definition;
+        public EnemyDefinition Definition => _definition;
+        public BossDefinition Boss => _boss;
         internal EnemyMovementType MovementType => _movementType;
         internal double DamageMultiplier => _damageMultiplier;
         internal EliteSpawnDefinition Elite => _elite;
@@ -228,9 +230,9 @@ namespace RuneCode
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
 
-        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격, 엘리트 여부와 엘리트 정의, 목표 처치 수 집계 대상 여부로 실행 상태를 생성한다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1, EliteSpawnDefinition elite = null, bool isKillTarget = false)
-        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _isElite = isElite; _isKillTarget = isKillTarget; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; _elite = elite; }
+        /// <summary>공유 적 설정과 보스 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격, 엘리트 여부와 엘리트 정의, 목표 처치 수 집계 대상 여부로 실행 상태를 생성한다. 보스가 아니면 보스 설정은 null이다.</summary>
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, BossDefinition boss, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1, EliteSpawnDefinition elite = null, bool isKillTarget = false)
+        { _id = id; _definition = definition; _movementType = movementType; _boss = boss; _position = position; _isDummy = isDummy; _isElite = isElite; _isKillTarget = isKillTarget; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; _elite = elite; }
 
         /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
         internal void Observe(double time) { _observedTime = time; }
@@ -464,6 +466,23 @@ namespace RuneCode
         public int Amount => _amount;
         /// <summary>처치 위치와 조각 개수로 회수 가능한 오브를 생성한다.</summary>
         internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; }
+    }
+
+    /// <summary>바닥에 떨어져 플레이어가 줍기를 기다리는 Modifier 드롭 개체다. 등급은 C·B·A·S 문자열이며 등급 없이 드롭된 항목은 null이다.</summary>
+    public sealed class SimulationItemDrop
+    {
+        private readonly string _runeId;
+        private readonly string _grade;
+        private readonly int _count;
+        private readonly SimVector _position;
+        public string RuneId => _runeId;
+        public string Grade => _grade;
+        public int Count => _count;
+        public SimVector Position => _position;
+
+        /// <summary>Modifier 룬 ID, 등급 문자, 수량과 바닥 위치로 드롭 개체를 생성한다.</summary>
+        internal SimulationItemDrop(string runeId, string grade, int count, SimVector position)
+        { _runeId = runeId; _grade = grade; _count = count; _position = position; }
     }
 
     public readonly struct DamageNumber

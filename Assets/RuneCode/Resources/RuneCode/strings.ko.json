@@ -1082,7 +1082,7 @@
     },
     {
       "_key": "ui.mod.expandHint",
-      "_value": "크기를 조절합니다. 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
+      "_value": "등급별 크기 수치가 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
     },
     {
       "_key": "ui.mod.rangeHint",
@@ -1201,8 +1201,72 @@
       "_value": "Modifier 획득"
     },
     {
+      "_key": "result.modifierPickup",
+      "_value": "주운 Modifier"
+    },
+    {
+      "_key": "result.clearModifierChoice",
+      "_value": "클리어 보상 · Modifier 1개 선택"
+    },
+    {
       "_key": "ui.modifierStock",
       "_value": "보유"
+    },
+    {
+      "_key": "ui.modifierGrade",
+      "_value": "등급"
+    },
+    {
+      "_key": "ui.gradeStats",
+      "_value": "수치"
+    },
+    {
+      "_key": "ui.gradeDamage",
+      "_value": "피해"
+    },
+    {
+      "_key": "ui.gradeRadius",
+      "_value": "크기"
+    },
+    {
+      "_key": "ui.gradeSpeed",
+      "_value": "속도"
+    },
+    {
+      "_key": "ui.gradeDuration",
+      "_value": "지속시간"
+    },
+    {
+      "_key": "ui.gradeCount",
+      "_value": "발사 수"
+    },
+    {
+      "_key": "ui.gradeOrbitCount",
+      "_value": "궤도 수"
+    },
+    {
+      "_key": "ui.gradePierce",
+      "_value": "관통"
+    },
+    {
+      "_key": "ui.gradePierceLoss",
+      "_value": "관통 피해 감소"
+    },
+    {
+      "_key": "ui.gradeHomingTurn",
+      "_value": "유도 회전"
+    },
+    {
+      "_key": "ui.gradeHomingRange",
+      "_value": "유도 거리"
+    },
+    {
+      "_key": "ui.gradeSpread",
+      "_value": "확산 각도"
+    },
+    {
+      "_key": "ui.gradeLearning",
+      "_value": "학습"
     },
     {
       "_key": "magicType.cone",

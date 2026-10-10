@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using UnityEngine;
@@ -59,19 +60,97 @@ namespace RuneCode
             {
                 if (IsParameterVisible(node, parameter)) ShowParameter(node, rune, parameter);
             }
-            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER && rune.Params.Count > 0)
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
-                ParameterDefinition scale = rune.Params[0];
-                _view.AddNote(GameData.L("ui.scaleBounds") + " " + scale.Min.ToString("0.#") + "–" + scale.Max.ToString("0.#") + "×", UiTheme.Cyan, 26, 4);
-                _view.AddNote(GameData.L("ui." + rune.Id + "Hint"), UiTheme.Muted, 72, 6);
+                ShowModifierGrade(node, rune);
+                if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), UiTheme.Muted, 52, 6);
             }
-            if (rune.Params.Count == 0)
+            if (rune.Params.Count == 0 && rune.Category != SpellGrammar.CATEGORY_MODIFIER)
             {
                 _view.AddNote(GameData.L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + GameData.L("ui.damage") + " "
                     + rune.Stats.Damage.ToString("0.#"), UiTheme.Muted, 34, 8);
             }
             if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) ShowBehaviorStats(node);
             if (rune.Category != SpellGrammar.CATEGORY_CORE) _view.AddButton(GameData.L("ui.delete"), DELETE_TINT, () => _editor.RemoveNode(node.Id));
+        }
+
+        /// <summary>Modifier 등급 선택 버튼과 현재 등급의 고정 수치 안내를 표시한다.</summary>
+        private void ShowModifierGrade(GraphNode node, RuneDefinition rune)
+        {
+            string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
+            _editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned);
+            string label = GameData.L("ui.modifierGrade") + " " + grade + " · " + GameData.L("ui.modifierStock")
+                + " " + Math.Max(0, owned - used) + "/" + owned;
+            _view.AddButton(label, UiTheme.Cyan, () => SelectNextModifierGrade(node.Id, rune));
+            _view.AddNote(GameData.L("ui.gradeStats") + " " + FormatModifierStats(rune, grade), UiTheme.Cyan, 70, 6);
+        }
+
+        /// <summary>소지량이 있는 다음 등급을 찾아 선택 노드에 저장한다.</summary>
+        private void SelectNextModifierGrade(string nodeId, RuneDefinition rune)
+        {
+            GraphNode node = _editor.Graph.FindNode(nodeId);
+            IReadOnlyList<string> grades = GameData.ModifierGrades.GetAvailableGrades(rune.Id);
+            if (node == null || grades.Count < 2) return;
+            string currentGrade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
+            int currentIndex = -1;
+            for (int index = 0; index < grades.Count; index++)
+            {
+                if (grades[index] == currentGrade) { currentIndex = index; break; }
+            }
+            for (int step = 1; step < grades.Count; step++)
+            {
+                string grade = grades[(currentIndex + step + grades.Count) % grades.Count];
+                if (!_editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned) || owned <= used) continue;
+                _editor.SetNodeText(nodeId, SpellGrammar.MODIFIER_GRADE_PARAM, grade);
+                Refresh();
+                return;
+            }
+        }
+
+        /// <summary>등급 고정값과 Modifier의 보조 고정 수치를 안내 문자열로 반환한다.</summary>
+        private static string FormatModifierStats(RuneDefinition rune, string grade)
+        {
+            var values = new List<string>();
+            ModifierGradeTable grades = GameData.ModifierGrades;
+            string effectType = grades.GetEffectType(rune.Id);
+            object gradeValue = grades.GetGradeValue(rune.Id, grade);
+            switch (effectType)
+            {
+                case "effectMultiplier": AddMultiplier(values, "ui.gradeDamage", gradeValue); break;
+                case "multipleCount": values.Add(GameData.L("ui.gradeCount") + " " + gradeValue); break;
+                case "pierceCount": values.Add(GameData.L("ui.gradePierce") + " " + gradeValue); break;
+                case "radiusMultiplier": AddMultiplier(values, "ui.gradeRadius", gradeValue); break;
+                case "durationMultiplier": AddMultiplier(values, "ui.gradeDuration", gradeValue); break;
+                case "speedMultiplier": AddMultiplier(values, "ui.gradeSpeed", gradeValue); break;
+                case "homingTier":
+                    string tier = gradeValue as string;
+                    HomingTierDefinition homing = rune.FindHomingTier(tier);
+                    values.Add(tier);
+                    if (homing != null)
+                    {
+                        values.Add(GameData.L("ui.gradeHomingTurn") + " " + homing.HomingTurn.ToString("0.#") + "°");
+                        values.Add(GameData.L("ui.gradeHomingRange") + " " + homing.HomingRange.ToString("0.#"));
+                    }
+                    break;
+            }
+            RuneStats stats = rune.Stats;
+            if (rune.Id == "mod.multi")
+            {
+                if (stats.OrbitCount > 0) values.Add(GameData.L("ui.gradeOrbitCount") + " " + stats.OrbitCount);
+                if (stats.DamageMultiplier != 1f) values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));
+                if (stats.SpreadAngle > 0f) values.Add(GameData.L("ui.gradeSpread") + " " + stats.SpreadAngle.ToString("0.#") + "°");
+            }
+            if (rune.Id == "mod.expand" && stats.DamageMultiplier != 1f)
+                values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));
+            if (rune.Id == "mod.pierce" && stats.PierceLoss > 0f)
+                values.Add(GameData.L("ui.gradePierceLoss") + " " + stats.PierceLoss.ToString("0.##"));
+            return string.Join(" · ", values);
+        }
+
+        /// <summary>숫자 등급 값에 번역된 효과 라벨과 배율 기호를 붙인다.</summary>
+        private static void AddMultiplier(List<string> values, string labelKey, object value)
+        {
+            values.Add(GameData.L(labelKey) + " ×" + Convert.ToSingle(value).ToString("0.##"));
         }
 
         /// <summary>파라미터 종류(숫자·프리셋 대상·문자·선택지)에 맞는 행을 표시하고 입력을 편집 세션 저장으로 연결한다.</summary>

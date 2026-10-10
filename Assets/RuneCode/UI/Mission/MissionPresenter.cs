@@ -44,6 +44,7 @@ namespace RuneCode
             _result.Bind();
             _result.ImproveClicked += () => _session.RequestScreen(AppScreen.Workshop);
             _result.RetryClicked += RetryStage;
+            _result.ClearModifierChoiceClicked += ChooseClearModifier;
         }
 
         /// <summary>미션 화면에 들어올 때 새 미션을 시작한다. 마법 준비에 실패하면 작업실 전환을 요청한다.</summary>
@@ -178,16 +179,38 @@ namespace RuneCode
             StartRun();
         }
 
-        /// <summary>정산이 끝난 미션의 결과 문구를 채워 결과 View를 한 번 표시하고 열린 팝업을 닫는다.</summary>
+        /// <summary>정산이 끝난 미션의 결과 문구를 채워 결과 View를 한 번 표시하고 열린 팝업을 닫는다. 클리어 Modifier 선택 후보가 있으면 함께 표시한다.</summary>
         private void ShowResult()
         {
             _isResultShown = true;
             _ui.CloseAllPopups();
+            SetResultSummary();
+            if (_run.HasClearModifierChoices)
+            {
+                var labels = new System.Collections.Generic.List<string>();
+                foreach (string runeId in _run.ClearModifierChoices)
+                    labels.Add(GameData.Runes.Get(runeId).Name + " (" + _run.ClearModifierGrade + ")");
+                _result.ShowClearModifierChoices(labels);
+            }
+            else _result.HideClearModifierChoices();
+            _result.Show();
+        }
+
+        /// <summary>결과 View에 정산 문구와 스테이지·진행 정보를 채운다.</summary>
+        private void SetResultSummary()
+        {
             RuneSimulation sim = _run.Simulation;
             _result.SetContent(_run.LastResult,
                 GameData.L("ui.stage") + " " + sim.StageNumber + "  ·  " + GameData.L("ui.kills") + " " + sim.KillCount,
                 GameData.L("ui.highestStage") + " " + _session.HighestClearedStage + "  ·  " + GameData.L("ui.nextStage") + " " + (_session.HighestClearedStage + 1));
-            _result.Show();
+        }
+
+        /// <summary>클리어 Modifier 후보를 지급하고 선택 확정 상태와 결과 문구를 갱신한다. 유효한 선택이 아니면 무시한다.</summary>
+        private void ChooseClearModifier(int index)
+        {
+            if (_run == null || !_run.ChooseClearModifier(index)) return;
+            _result.MarkClearModifierChosen();
+            SetResultSummary();
         }
 
         /// <summary>세션에서 시전 마법을 준비받아 새 미션을 만들고 HUD·결과 View를 시작 상태로 되돌린다. 실패하면 false를 반환한다.</summary>

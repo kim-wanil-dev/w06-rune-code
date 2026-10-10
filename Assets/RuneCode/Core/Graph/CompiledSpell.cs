@@ -86,12 +86,13 @@ namespace RuneCode
             return new SpellModifierValues(_damageMultiplier * other._damageMultiplier,
                 _radiusMultiplier * other._radiusMultiplier, _speedMultiplier * other._speedMultiplier,
                 _durationMultiplier * other._durationMultiplier, _rangeMultiplier * other._rangeMultiplier,
-                _pierce + other._pierce, Math.Max(_homingTurn, other._homingTurn), Math.Max(_homingRange, other._homingRange),
+                AddPierce(_pierce, other._pierce), Math.Max(_homingTurn, other._homingTurn), Math.Max(_homingRange, other._homingRange),
                 Math.Max(_spreadAngle, other._spreadAngle));
         }
 
-        /// <summary>연결된 수식 룬과 노드별 숫자 파라미터로 호출부 수식 효과를 계산한다.</summary>
-        public static SpellModifierValues From(IReadOnlyList<RuneDefinition> modifiers, IReadOnlyList<GraphNode> modifierNodes)
+        /// <summary>연결된 Modifier와 문자열 등급 수치로 호출부 수식 효과를 계산한다.</summary>
+        public static SpellModifierValues From(IReadOnlyList<RuneDefinition> modifiers, IReadOnlyList<GraphNode> modifierNodes,
+            ModifierGradeTable modifierGrades = null)
         {
             float damage = 1f;
             float radius = 1f;
@@ -106,26 +107,48 @@ namespace RuneCode
             {
                 RuneDefinition modifier = modifiers[index];
                 GraphNode node = modifierNodes == null ? null : modifierNodes[index];
-                damage *= modifier.Stats.DamageMultiplier;
-                if (modifier.Id == "mod.expand") radius *= ReadNumber(modifier, node, "sizeScale", modifier.Stats.RadiusMultiplier);
-                else radius *= modifier.Stats.RadiusMultiplier;
-                if (modifier.Id == "mod.speed") speed *= ReadNumber(modifier, node, "speedScale", 1f);
-                if (modifier.Id == "mod.duration") duration *= ReadNumber(modifier, node, "durationScale", 1f);
-                if (modifier.Id == "mod.range") range *= ReadNumber(modifier, node, "rangeScale", 1f);
-                pierce += modifier.Stats.Pierce;
-                homingTurn = Math.Max(homingTurn, modifier.Stats.HomingTurn);
-                homingRange = Math.Max(homingRange, modifier.Stats.HomingRange);
-                spreadAngle = Math.Max(spreadAngle, modifier.Stats.SpreadAngle);
+                RuneStats stats = modifier.Stats;
+                string grade = SpellGrammar.GetModifierGrade(modifier, node, modifierGrades);
+                damage *= GradeNumber(modifierGrades, modifier.Id, grade, "effectMultiplier", stats.DamageMultiplier);
+                radius *= GradeNumber(modifierGrades, modifier.Id, grade, "radiusMultiplier", stats.RadiusMultiplier);
+                speed *= GradeNumber(modifierGrades, modifier.Id, grade, "speedMultiplier", stats.SpeedMultiplier);
+                duration *= GradeNumber(modifierGrades, modifier.Id, grade, "durationMultiplier", stats.DurationMultiplier);
+                int pierceCount = modifierGrades != null && modifierGrades.GetEffectType(modifier.Id) == "pierceCount"
+                    ? modifierGrades.GetPierceCount(modifier.Id, grade, stats.Pierce) : stats.Pierce;
+                pierce = AddPierce(pierce, pierceCount);
+                if (modifierGrades != null && modifierGrades.GetEffectType(modifier.Id) == "homingTier")
+                {
+                    string tier = modifierGrades.GetGradeValue(modifier.Id, grade) as string;
+                    HomingTierDefinition homing = modifier.FindHomingTier(tier);
+                    if (homing != null)
+                    {
+                        homingTurn = Math.Max(homingTurn, homing.HomingTurn);
+                        homingRange = Math.Max(homingRange, homing.HomingRange);
+                    }
+                }
+                else
+                {
+                    homingTurn = Math.Max(homingTurn, stats.HomingTurn);
+                    homingRange = Math.Max(homingRange, stats.HomingRange);
+                }
+                spreadAngle = Math.Max(spreadAngle, stats.SpreadAngle);
             }
             return new SpellModifierValues(damage, radius, speed, duration, range, pierce, homingTurn, homingRange, spreadAngle);
         }
 
-        /// <summary>수식 룬의 사용자 값 또는 정의 기본값을 반환한다.</summary>
-        private static float ReadNumber(RuneDefinition rune, GraphNode node, string parameter, float fallback)
+        /// <summary>해당 효과 종류의 등급 숫자를 가져오거나 Modifier의 고정 기본값을 반환한다.</summary>
+        internal static float GradeNumber(ModifierGradeTable modifierGrades, string modifierId, string grade,
+            string effectType, float fallback)
         {
-            foreach (ParameterDefinition definition in rune.Params)
-                if (definition.Id == parameter) return node == null ? definition.DefaultNumber : node.GetNumber(parameter, definition.DefaultNumber);
-            return fallback;
+            return modifierGrades != null && modifierGrades.GetEffectType(modifierId) == effectType
+                && modifierGrades.TryGetNumberValue(modifierId, grade, out float value) ? value : fallback;
+        }
+
+        /// <summary>관통 수를 합산하고 무제한 상한보다 커지면 상한에서 멈춘다.</summary>
+        internal static int AddPierce(int left, int right)
+        {
+            if (right > 0 && left > SpellGrammar.UNLIMITED_PIERCE_COUNT - right) return SpellGrammar.UNLIMITED_PIERCE_COUNT;
+            return left + right;
         }
     }
 
@@ -215,7 +238,8 @@ namespace RuneCode
         public float SpreadAngle => _spreadAngle;
 
         /// <summary>형태·속성·수식 정의와 개별 수식 노드의 배율을 결합하여 읽기 전용 효과 수치를 만든다.</summary>
-        public SpellStats(RuneStats form, RuneStats element, IReadOnlyList<RuneDefinition> mods, string formKind, IReadOnlyList<GraphNode> modifierNodes = null)
+        public SpellStats(RuneStats form, RuneStats element, IReadOnlyList<RuneDefinition> mods, string formKind,
+            IReadOnlyList<GraphNode> modifierNodes = null, ModifierGradeTable modifierGrades = null)
         {
             float damageMult = 1f;
             float radiusMult = 1f;
@@ -227,20 +251,36 @@ namespace RuneCode
             {
                 RuneDefinition mod = mods[index];
                 GraphNode modifierNode = modifierNodes == null ? null : modifierNodes[index];
-                damageMult *= mod.Stats.DamageMultiplier;
-                radiusMult *= mod.Id == "mod.expand" ? ReadModifierNumber(mod, modifierNode, "sizeScale") : mod.Stats.RadiusMultiplier;
-                if (mod.Id == "mod.range") rangeMult *= ReadModifierNumber(mod, modifierNode, "rangeScale");
-                if (mod.Id == "mod.speed") speedMult *= ReadModifierNumber(mod, modifierNode, "speedScale");
-                if (mod.Id == "mod.duration") durationMult *= ReadModifierNumber(mod, modifierNode, "durationScale");
+                RuneStats stats = mod.Stats;
+                string grade = SpellGrammar.GetModifierGrade(mod, modifierNode, modifierGrades);
+                damageMult *= SpellModifierValues.GradeNumber(modifierGrades, mod.Id, grade, "effectMultiplier", stats.DamageMultiplier);
+                radiusMult *= SpellModifierValues.GradeNumber(modifierGrades, mod.Id, grade, "radiusMultiplier", stats.RadiusMultiplier);
+                speedMult *= SpellModifierValues.GradeNumber(modifierGrades, mod.Id, grade, "speedMultiplier", stats.SpeedMultiplier);
+                durationMult *= SpellModifierValues.GradeNumber(modifierGrades, mod.Id, grade, "durationMultiplier", stats.DurationMultiplier);
                 if (formKind == "bolt")
                 {
-                    _pierce += mod.Stats.Pierce;
-                    if (mod.Stats.PierceLoss > 0f) _pierceLoss = mod.Stats.PierceLoss;
-                    if (mod.Stats.HomingTurn > 0f) _homingTurn = mod.Stats.HomingTurn;
-                    if (mod.Stats.HomingRange > 0f) _homingRange = mod.Stats.HomingRange;
+                    int pierceCount = modifierGrades != null && modifierGrades.GetEffectType(mod.Id) == "pierceCount"
+                        ? modifierGrades.GetPierceCount(mod.Id, grade, stats.Pierce) : stats.Pierce;
+                    _pierce = SpellModifierValues.AddPierce(_pierce, pierceCount);
+                    if (stats.PierceLoss > 0f) _pierceLoss = stats.PierceLoss;
+                    if (modifierGrades != null && modifierGrades.GetEffectType(mod.Id) == "homingTier")
+                    {
+                        string tier = modifierGrades.GetGradeValue(mod.Id, grade) as string;
+                        HomingTierDefinition homing = mod.FindHomingTier(tier);
+                        if (homing != null)
+                        {
+                            _homingTurn = homing.HomingTurn;
+                            _homingRange = homing.HomingRange;
+                        }
+                    }
+                    else
+                    {
+                        if (stats.HomingTurn > 0f) _homingTurn = stats.HomingTurn;
+                        if (stats.HomingRange > 0f) _homingRange = stats.HomingRange;
+                    }
                 }
-                _learningMultiplier *= mod.Stats.LearningMultiplier;
-                if (mod.Stats.SpreadAngle > 0f) _spreadAngle = mod.Stats.SpreadAngle;
+                _learningMultiplier *= stats.LearningMultiplier;
+                if (stats.SpreadAngle > 0f) _spreadAngle = stats.SpreadAngle;
             }
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
@@ -285,13 +325,6 @@ namespace RuneCode
             _spreadAngle = source._spreadAngle;
         }
 
-        /// <summary>수식 노드에 저장한 숫자 배율을 반환하며 이전 설계에는 해당 파라미터의 데이터 기본값을 사용한다.</summary>
-        private static float ReadModifierNumber(RuneDefinition rune, GraphNode node, string parameter)
-        {
-            foreach (ParameterDefinition definition in rune.Params)
-                if (definition.Id == parameter) return node == null ? definition.DefaultNumber : node.GetNumber(parameter, definition.DefaultNumber);
-            return 1f;
-        }
     }
 
     public sealed class SpellCondition
@@ -423,7 +456,7 @@ namespace RuneCode
         /// <summary>원본 노드와 컴파일된 효과 정의·호출 대상·연결 수식, 부채꼴 각도(도)로 실행 명령을 초기화한다.</summary>
         public SpellAction(GraphNode node, RuneDefinition rune, RuneDefinition effectForm, RuneDefinition element,
             IReadOnlyList<RuneDefinition> mods, IReadOnlyList<GraphNode> modifierNodes = null, CompiledSpell calledSpell = null,
-            float coneAngle = 0f)
+            float coneAngle = 0f, ModifierGradeTable modifierGrades = null)
         {
             _nodeId = node.Id;
             _coneAngle = coneAngle;
@@ -438,11 +471,17 @@ namespace RuneCode
             _count = rune.Category == "form" ? rune.Stats.Count : rune.Id == "magic.inline" ? effectForm.Stats.Count : rune.Id == "spell.call" ? 1 : 0;
             float energyMultiplier = 1f;
             List<string> ids = new List<string>();
-            foreach (RuneDefinition mod in mods)
+            for (int index = 0; index < mods.Count; index++)
             {
+                RuneDefinition mod = mods[index];
+                GraphNode modifierNode = modifierNodes == null ? null : modifierNodes[index];
+                RuneStats modifierStats = mod.Stats;
+                string grade = SpellGrammar.GetModifierGrade(mod, modifierNode, modifierGrades);
                 ids.Add(mod.Id);
                 energyMultiplier *= mod.EnergyMult;
-                if (mod.Id == "mod.multi") _count = _form == "orbit" ? mod.Stats.OrbitCount : mod.Stats.Count;
+                if (mod.Id == "mod.multi")
+                    _count = _form == "orbit" ? modifierStats.OrbitCount
+                        : modifierGrades != null && modifierGrades.TryGetIntegerValue(mod.Id, grade, out int count) ? count : modifierStats.Count;
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;
@@ -450,8 +489,9 @@ namespace RuneCode
             _nodeEnergy = (rune.Energy + (rune.Id == "magic.inline" ? effectForm.Energy : 0f)) * energyMultiplier;
             if (element != null) _nodeEnergy += element.Energy;
             _ownEnergy = _nodeEnergy + (rune.Id == "spell.call" && calledSpell != null ? calledSpell.EnergyCost * _count * energyMultiplier : 0f);
-            _modifierValues = SpellModifierValues.From(mods, modifierNodes);
-            if (_kind == "spawn" || _kind == "buff") _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes);
+            _modifierValues = SpellModifierValues.From(mods, modifierNodes, modifierGrades);
+            if (_kind == "spawn" || _kind == "buff")
+                _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades);
             _seconds = node.GetNumber("seconds", DefaultNumber(rune, "seconds"));
             _times = (int)node.GetNumber("times", DefaultNumber(rune, "times"));
             _interval = node.GetNumber("interval", DefaultNumber(rune, "interval"));

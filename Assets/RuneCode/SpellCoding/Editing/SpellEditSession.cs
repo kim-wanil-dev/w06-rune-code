@@ -80,10 +80,10 @@ namespace RuneCode
             return _policy.IsRuneUnlocked(runeId);
         }
 
-        /// <summary>편집 중인 마법을 포함한 보관함 전체의 Modifier 배치 수와 소지량을 구한다. Modifier가 아니면 false를 반환한다.</summary>
-        public bool TryGetModifierUsage(string runeId, out int used, out int owned)
+        /// <summary>편집 중인 마법을 포함한 보관함 전체에서 지정 등급 Modifier 배치 수와 소지량을 구한다.</summary>
+        public bool TryGetModifierUsage(string runeId, string grade, out int used, out int owned)
         {
-            return _policy.TryGetModifierUsage(runeId, _editingGraph, out used, out owned);
+            return _policy.TryGetModifierUsage(runeId, grade, _editingGraph, out used, out owned);
         }
 
         /// <summary>현재 진행 상태로 편집 마법을 다시 컴파일하고 결과를 알린다.</summary>
@@ -193,16 +193,24 @@ namespace RuneCode
             RaiseSpellSwitched();
         }
 
-        /// <summary>Core 중복, 공유 RAM 한도와 Modifier 소지량 초과를 막고 지정 좌표에 룬을 배치한다.</summary>
-        public void AddRune(string runeId, float x, float y)
+        /// <summary>Core 중복, 공유 RAM 한도와 Modifier 등급별 소지량 초과를 막고 지정 좌표에 룬을 배치한다.</summary>
+        public void AddRune(string runeId, float x, float y, string grade = null)
         {
             if (!_isEditable || !_policy.IsRuneUnlocked(runeId)) return;
             var rune = GameData.Runes.Get(runeId);
             if (rune == null || runeId == "core.cast") return;
+            bool isModifier = rune.Category == SpellGrammar.CATEGORY_MODIFIER;
+            if (isModifier)
+            {
+                grade = string.IsNullOrEmpty(grade) ? GameData.ModifierGrades.GetLowestAvailableGrade(runeId) : grade;
+                if (!GameData.ModifierGrades.IsGradeAvailable(runeId, grade)) return;
+            }
             if (_editingGraph.Nodes.Count >= GameData.Balance.Limits.MaxGraphNodes)
             { _policy.ReportStatus("editor.graphLimit"); return; }
             var candidate = _editingGraph.Clone();
-            candidate.AddNode(new GraphNode(NewId("node"), runeId, x, y));
+            var node = new GraphNode(NewId("node"), runeId, x, y);
+            if (isModifier) node.SetText(SpellGrammar.MODIFIER_GRADE_PARAM, grade);
+            candidate.AddNode(node);
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return; }
             if (!_policy.IsWithinModifierStock(_editingGraph, candidate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
             _editingGraph = candidate;
@@ -257,22 +265,42 @@ namespace RuneCode
             MarkChanged(); RaiseGraphChanged();
         }
 
-        /// <summary>숫자 파라미터를 선택 노드에 저장하고 검증을 예약한다.</summary>
+        /// <summary>숫자 파라미터를 노드에 저장한다.</summary>
         public void SetNodeNumber(string nodeId, string key, float value)
         {
             if (!_isEditable) return;
             var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == nodeId);
             if (node == null) return;
+            if (key == SpellGrammar.MODIFIER_GRADE_PARAM && GameData.Runes.TryGet(node.RuneId, out RuneDefinition gradeRune)
+                && gradeRune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                _policy.ReportStatus("editor.modifierStockBlocked");
+                return;
+            }
             node.SetNumber(key, value);
             MarkChanged();
         }
 
-        /// <summary>열거 파라미터를 선택 노드에 저장하고 검증을 예약한다.</summary>
+        /// <summary>문자열 파라미터를 선택 노드에 저장하고 Modifier 등급 소지량을 검증한다.</summary>
         public void SetNodeText(string nodeId, string key, string value)
         {
             if (!_isEditable) return;
             var node = _editingGraph.Nodes.FirstOrDefault(item => item.Id == nodeId);
             if (node == null) return;
+            if (key == SpellGrammar.MODIFIER_GRADE_PARAM && GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune)
+                && rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                if (!GameData.ModifierGrades.IsGradeAvailable(rune.Id, value))
+                { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
+                if (node.GetText(key, null) == value) return;
+                SpellGraph candidate = _editingGraph.Clone();
+                candidate.FindNode(nodeId).SetText(key, value);
+                if (!_policy.IsWithinModifierStock(_editingGraph, candidate))
+                { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
+                _editingGraph = candidate;
+                MarkChanged();
+                return;
+            }
             node.SetText(key, value);
             if (key == SpellGrammar.ELEMENT_PARAM) _policy.OnElementSelected(value);
             MarkChanged();
