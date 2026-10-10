@@ -3,14 +3,14 @@
     {
       "_id": "drop.elite.basic",
       "_rolls": 1,
-      "_guaranteed": [],
-      "_entries": [
+      "_guaranteed": [
         {
           "_type": "modifier",
           "_id": "eliteModifier",
-           "_count": 1,
-          "_weight": 10
-        },
+          "_count": 1
+        }
+      ],
+      "_entries": [
         {
           "_type": "fragments",
           "_min": 6,
@@ -19,7 +19,7 @@
         },
         {
           "_type": "none",
-          "_weight": 60
+          "_weight": 70
         }
       ]
     }

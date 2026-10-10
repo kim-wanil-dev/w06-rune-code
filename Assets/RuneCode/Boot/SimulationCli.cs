@@ -77,7 +77,7 @@ namespace RuneCode
             return JsonUtility.ToJson(new SimulationReport(simulation, simulation.Tick, seed, scenario, compiled.Spell, timer.Elapsed.TotalMilliseconds), true);
         }
 
-        /// <summary>살아 있는 가장 가까운 적을 조준하고 사거리 안에서만 단일 마법을 시전하는 자동 전투 입력을 반환한다.</summary>
+        /// <summary>살아 있는 가장 가까운 적을 조준하고 사거리 안에서 단일 마법을 시전하는 자동 전투 입력을 반환한다.</summary>
         public static SimulationInput CreateAutomaticInput(RuneSimulation simulation, double castRange)
         {
             SimulationEnemy nearest = null;

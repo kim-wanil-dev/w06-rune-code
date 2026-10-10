@@ -15,7 +15,8 @@ namespace RuneCode
         ScrapGain,
         MaxHp,
         MoveSpeed,
-        RuneUnlock
+        RuneUnlock,
+        ScrapPickupRange
     }
 
     [Serializable]
@@ -92,7 +93,7 @@ namespace RuneCode
         private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
         private static readonly HashSet<string> _starterRuneIds = new HashSet<string>
         {
-            "shape.sphere", "shape.box", "shape.cone", "behavior.launch"
+            "shape.sphere", "shape.box", "shape.cone", "behavior.launch", "element.neutral"
         };
 
         [SerializeField, HideInInspector] private int _layoutVersion = 1;

@@ -232,9 +232,17 @@ namespace RuneCode
         internal double RawSpeedMultiplier => _speedMultiplier;
         internal double RawRadiusMultiplier => _radiusMultiplier;
 
-        /// <summary>엘리트 종족과 배율로 실행 상태를 만든다. JSON 역직렬화가 아닌 디버그 스폰용이다.</summary>
-        internal EliteSpawnDefinition(string enemyId, double hpMultiplier, double rewardMultiplier, double speedMultiplier, double radiusMultiplier)
-        { _enemyId = enemyId; _hpMultiplier = hpMultiplier; _rewardMultiplier = rewardMultiplier; _speedMultiplier = speedMultiplier; _radiusMultiplier = radiusMultiplier; }
+        /// <summary>엘리트 종족과 체력·보상·속도·반경 배율 및 드롭 테이블 ID로 디버그 스폰용 실행 상태를 만든다.</summary>
+        internal EliteSpawnDefinition(string enemyId, double hpMultiplier, double rewardMultiplier, double speedMultiplier,
+            double radiusMultiplier, string dropTable = null)
+        {
+            _enemyId = enemyId;
+            _hpMultiplier = hpMultiplier;
+            _rewardMultiplier = rewardMultiplier;
+            _speedMultiplier = speedMultiplier;
+            _radiusMultiplier = radiusMultiplier;
+            _dropTable = dropTable;
+        }
     }
 
     [Serializable]
