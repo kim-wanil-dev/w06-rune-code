@@ -34,6 +34,8 @@ namespace RuneCode
         private static readonly Color HOSTILE_TRAIL_COLOR = new Color(1, 0.25f, 0.3f, 0.25f);
         private static readonly Color ORB_COLOR = new Color(0.43f, 1f, 0.82f);
         private static readonly Color ORB_RING_COLOR = new Color(0.3f, 0.9f, 0.7f, 0.3f);
+        private static readonly Color ITEM_DROP_COLOR = new Color(0.78f, 0.55f, 1f);
+        private static readonly Color ITEM_DROP_RING_COLOR = new Color(0.62f, 0.4f, 0.95f, 0.35f);
         private static readonly Color PLAYER_COLOR = new Color(0.35f, 0.91f, 0.99f);
         private static readonly Color PLAYER_DASH_COLOR = new Color(0.75f, 1, 1);
         private static readonly Color PLAYER_DASH_TRAIL_COLOR = new Color(0.3f, 0.9f, 1, 0.25f);
@@ -115,6 +117,7 @@ namespace RuneCode
             foreach (SimulationSpellEntity spell in sim.SpellEntities) DrawSpell(mesh, spell, sim.IsAreaBoxUpright);
             foreach (SimulationProjectile projectile in sim.EnemyProjectiles) DrawHostileProjectile(mesh, projectile);
             foreach (FragmentOrb orb in sim.Orbs) DrawOrb(mesh, orb);
+            foreach (SimulationItemDrop drop in sim.ItemDrops) DrawItemDrop(mesh, drop);
             foreach (SimulationEnemy enemy in sim.Enemies) DrawEnemy(mesh, enemy, sim);
             DrawPlayer(mesh, sim);
         }
@@ -318,6 +321,14 @@ namespace RuneCode
             Vector2 point = Point(orb.Position);
             RuneMesh.Polygon(mesh, point, 6 * _scale, ORB_COLOR, 4);
             RuneMesh.Ring(mesh, point, 9 * _scale, _scale, ORB_RING_COLOR, 4);
+        }
+
+        /// <summary>바닥에 떨어진 Modifier 드롭을 마름모와 고리로 그린다.</summary>
+        private void DrawItemDrop(UnityEngine.UI.VertexHelper mesh, SimulationItemDrop drop)
+        {
+            Vector2 point = Point(drop.Position);
+            RuneMesh.Polygon(mesh, point, 7 * _scale, ITEM_DROP_COLOR, 4);
+            RuneMesh.Ring(mesh, point, 11 * _scale, _scale, ITEM_DROP_RING_COLOR, 4);
         }
 
         /// <summary>적 종류에 따른 도형과 엘리트 링, 공격 예고·종류별 표시·상태 아이콘·체력 막대를 그린다.</summary>
