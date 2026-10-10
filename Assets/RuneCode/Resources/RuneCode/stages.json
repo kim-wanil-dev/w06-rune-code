@@ -59,11 +59,6 @@
       "_killTarget": 10,
       "_stream": {
         "_candidates": [
-          { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
-          { "_enemyId": "enemy.clock_sniper", "_firstStage": 3, "_weight": 0.4 },
-          { "_enemyId": "enemy.shield_melee", "_firstStage": 4, "_weight": 0.5 },
-          { "_enemyId": "enemy.shield_ranged", "_firstStage": 6, "_weight": 0.4 },
-          { "_enemyId": "enemy.carrier", "_firstStage": 7, "_weight": 0.25 },
           {
             "_enemyId": "enemy.scout",
             "_firstStage": 1,
@@ -271,7 +266,6 @@
       "_killTarget": 15,
       "_stream": {
         "_candidates": [
-          { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
           {
             "_enemyId": "enemy.scout",
             "_firstStage": 1,
@@ -400,8 +394,6 @@
       "_killTarget": 20,
       "_stream": {
         "_candidates": [
-          { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
-          { "_enemyId": "enemy.clock_sniper", "_firstStage": 3, "_weight": 0.4 },
           {
             "_enemyId": "enemy.scout",
             "_firstStage": 1,
@@ -494,9 +486,6 @@
       "_killTarget": 30,
       "_stream": {
         "_candidates": [
-          { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
-          { "_enemyId": "enemy.clock_sniper", "_firstStage": 3, "_weight": 0.4 },
-          { "_enemyId": "enemy.shield_melee", "_firstStage": 4, "_weight": 0.5 },
           {
             "_enemyId": "enemy.scout",
             "_firstStage": 1,
