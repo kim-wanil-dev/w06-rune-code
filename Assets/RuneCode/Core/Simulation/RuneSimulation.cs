@@ -58,6 +58,8 @@ namespace RuneCode
         private readonly List<string> _unlockedElements = new List<string> { "fire" };
         private readonly List<SimVector> _tickSpawnPositions = new List<SimVector>();
         private readonly SpawnSlots _spawnSlots;
+        private readonly EnemySeparation _separation = new EnemySeparation();
+        private readonly Func<SimulationEnemy, bool> _isSeparationFixed;
         private readonly int _initialSeed;
         private uint _rngState;
         private SimulationPlayer _player;
@@ -84,6 +86,7 @@ namespace RuneCode
         private int _collectedFragments;
         private double _totalDamage;
         private double _statusDamage;
+        private double _persistDamage;
         private double _rollingDamage;
         private readonly Dictionary<string, double> _resourceCostsSpent = new Dictionary<string, double>(StringComparer.Ordinal);
         private int _peakSpellEntities;
@@ -142,6 +145,8 @@ namespace RuneCode
 
         /// <summary>상태 이상(화염) 틱으로 입힌 실제 피해의 누적값이며 TotalDamage에 포함된다.</summary>
         public double StatusDamage => _statusDamage;
+        /// <summary>잔류(Persist) 판정 틱으로 입힌 실제 피해의 누적값이며 연쇄 전격을 포함하고 TotalDamage에 포함된다.</summary>
+        public double PersistDamage => _persistDamage;
         public double RollingDps => _rollingDamage / Math.Min(5, Math.Max(STEP_SECONDS, Time));
         public double EnergySpent => _resourceCostsSpent.TryGetValue("mana", out double amount) ? amount : 0;
         public IReadOnlyDictionary<string, double> ResourceCostsSpent => _resourceCostsSpent;
@@ -174,6 +179,7 @@ namespace RuneCode
             _burstExpandSeconds = GameData.Runes.Get(BURST_FORM_ID).Stats.ExpandSeconds;
             _persistWarnSeconds = GameData.Runes.Get(PERSIST_FORM_ID).Stats.WarnSeconds;
             _spawnSlots = new SpawnSlots(NextRandom);
+            _isSeparationFixed = IsSeparationFixed;
             Adaptation = new AdaptationNet(_balance);
             if (isMission) BeginTimedBattle();
             else ResetBench("dummy_single");
@@ -280,6 +286,7 @@ namespace RuneCode
             if (input.CastC) TryCastTriggered(_loadout[2], SpellGrammar.TRIGGER_ON_ATTACK, 2);
             AdvanceStatuses();
             AdvanceEnemies();
+            if (_isMission) _separation.Apply(_enemies, _map, _balance.Combat, _isSeparationFixed);
             RunEnemyShots();
             AdvanceSpellEntities();
             AdvanceHostileProjectiles();
@@ -316,7 +323,7 @@ namespace RuneCode
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
             _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
-            _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
+            _totalDamage = 0; _statusDamage = 0; _persistDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
             _map = new MissionMap(_sector.Rooms[0].Tiles, _sector.TileSize); _player = new SimulationPlayer(_maxHp, _maxEnergy, new SimVector(bench.BenchPlayerX, bench.BenchPlayerY));
             Adaptation.Clear(); Adaptation.SetEnabled(scenario == "adapt_loop");
@@ -1050,10 +1057,10 @@ namespace RuneCode
             else _player.GiveShield(amount, action.BuffDuration * action.ModifierValues.DurationMultiplier * entity.Modifiers.DurationMultiplier, Time);
         }
 
-        /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄를 처리한다. 이벤트 실행은 호출부가 RaiseHitEvent로 따로 처리한다.</summary>
+        /// <summary>스펠 피해와 상태를 적용하고 전격 연쇄를 처리한다. 잔류 개체의 실제 피해는 PersistDamage에도 누적한다. 이벤트 실행은 호출부가 RaiseHitEvent로 따로 처리한다.</summary>
         private void Hit(SimulationSpellEntity entity, SimulationEnemy enemy, double damage, bool isDot)
         {
-            ApplyDamage(enemy, damage, entity.Element, entity.Kind, entity.Action.Noise, isDot, entity.Direction, true);
+            double actual = ApplyDamage(enemy, damage, entity.Element, entity.Kind, entity.Action.Noise, isDot, entity.Direction, true);
             if (entity.Element == "arc")
             {
                 RuneStats arc = GameData.Runes.Get("elem.arc").Stats;
@@ -1065,8 +1072,9 @@ namespace RuneCode
                     int distanceOrder = (a.Position - enemy.Position).LengthSquared.CompareTo((b.Position - enemy.Position).LengthSquared);
                     return distanceOrder != 0 ? distanceOrder : a.Id.CompareTo(b.Id);
                 });
-                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++) ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
+                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++) actual += ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
             }
+            if (entity.Kind == SpellGrammar.FORM_ZONE) _persistDamage += actual;
         }
 
         /// <summary>
@@ -1314,6 +1322,9 @@ namespace RuneCode
         private void MoveEnemy(SimulationEnemy enemy, SimVector direction, double speed)
         { double slow = Math.Max(0, 1 - _balance.Combat.ChillSlow * GetChillStacks(enemy)); enemy.Move(_map.Move(enemy.Position, direction * (speed * enemy.SpeedMultiplier * slow * STEP_SECONDS), enemy.Radius), direction); }
 
+        /// <summary>적 분리에서 밀리지 않는 고정 대상인지 반환한다. 보스, 빙결 중인 적, 돌진 중인 적은 자리를 지키고 상대만 밀어낸다.</summary>
+        private bool IsSeparationFixed(SimulationEnemy enemy) => enemy.Boss != null || HasEnemyStatus(enemy, EnemyStatusType.Freeze) || Time < enemy.DashUntil;
+
         /// <summary>적과 플레이어가 겹치면 피해를 적용하고 접촉 여부를 반환한다.</summary>
         private bool HurtByContact(SimulationEnemy enemy)
         { if (!_isMission || SimVector.Distance(enemy.Position, _player.Position) > enemy.Radius + _sector.PlayerRadius) return false; HurtPlayer(enemy.Damage); return true; }
@@ -1553,6 +1564,7 @@ namespace RuneCode
         /// <summary>
         /// 스테이지 편성으로 외곽 벽만 있는 맵, 맵 중앙의 플레이어, 스폰 반경, 목표 처치 수와 스폰 진행을 준비하고 0틱 예약을 바로 스폰한다.
         /// 스폰 반경 = 기본 발사 사거리 + 가장 큰 적 반경 + 여유이며 막 스폰된 적에게 기본 발사체가 닿지 않게 한다.
+        /// 적 분리 격자를 맵 크기와 적 상한, 가장 큰 적 반경의 2배 칸 크기로 준비한다.
         /// </summary>
         private void BeginTimedBattle()
         {
@@ -1564,6 +1576,7 @@ namespace RuneCode
             RuneStats bolt = GameData.Runes.Get(BOLT_RUNE_ID).Stats;
             double largestRadius = 0;
             foreach (EnemyDefinition enemy in _enemyCatalog.Enemies) largestRadius = Math.Max(largestRadius, enemy.Radius);
+            _separation.Resize(_map.Width, _map.Height, EnemyLimit, largestRadius * 2);
             _spawnRadius = (double)bolt.Speed * bolt.Lifetime + largestRadius + _stages.Spawn.RingMargin;
             _killTarget = _stageDefinition.IsBoss ? 0 : _stages.Growth.GetKillTarget(_stageDefinition.KillTarget, _stageNumber);
             _targetKills = 0; _isBossDefeated = false;

@@ -19,6 +19,8 @@ namespace RuneCode
         private const float TILE_SIZE = 32;
         private const float SHAKE_SECONDS = 0.08f;
         private const float HIT_STOP_SECONDS = 0.025f;
+        // 히트 스톱 시작 후 이 시간 동안은 다시 시작하지 않는다. 폭발 확장처럼 피해가 연속될 때 화면이 계속 멈추지 않게 한다.
+        private const float HIT_STOP_COOLDOWN_SECONDS = 0.25f;
         private const double DAMAGE_EPSILON = 0.000001;
         private const int DAMAGE_NUMBER_TICKS = 40;
         private const int MAX_DAMAGE_NUMBERS = 64;
@@ -69,9 +71,11 @@ namespace RuneCode
         private RuneSimulation _observedSimulation;
         private double _lastDamage;
         private double _lastStatusDamage;
+        private double _lastPersistDamage;
         private double _lastHp;
         private float _shakeUntil;
         private float _hitStopUntil;
+        private float _hitStopReadyAt;
 
         /// <summary>렌더링할 시뮬레이션 조회 함수, 피해 숫자 글꼴과 화면 흔들림·히트스톱 설정 조회 함수를 연결한다.</summary>
         public void Initialize(Func<RuneSimulation> simulation, TMP_FontAsset font, Func<bool> screenShake = null, Func<bool> hitStop = null)
@@ -140,7 +144,8 @@ namespace RuneCode
 
         /// <summary>
         /// 적에게 준 직접 피해가 늘거나 플레이어 체력이 줄었으면 화면 흔들림·히트스톱 시간을 시작한다. 시뮬레이션이 바뀌면 기준값을 다시 잡는다.
-        /// 적의 상태 이상 피해(화염)만으로는 시작하지 않으며, 플레이어 자기 화상은 체력 감소로 보아 시작한다.
+        /// 적의 상태 이상 피해(화염)나 잔류(Persist) 피해만으로는 시작하지 않으며, 플레이어 자기 화상은 체력 감소로 보아 시작한다.
+        /// 히트스톱은 시작 후 재발동 간격 동안 다시 시작하지 않는다.
         /// </summary>
         private void DetectImpact(RuneSimulation sim)
         {
@@ -149,16 +154,22 @@ namespace RuneCode
                 _observedSimulation = sim;
                 _lastDamage = sim.TotalDamage;
                 _lastStatusDamage = sim.StatusDamage;
+                _lastPersistDamage = sim.PersistDamage;
                 _lastHp = sim.Player.Hp;
             }
-            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage);
+            double directDelta = (sim.TotalDamage - _lastDamage) - (sim.StatusDamage - _lastStatusDamage) - (sim.PersistDamage - _lastPersistDamage);
             if (directDelta > DAMAGE_EPSILON || sim.Player.Hp < _lastHp)
             {
                 _shakeUntil = Time.unscaledTime + SHAKE_SECONDS;
-                _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+                if (Time.unscaledTime >= _hitStopReadyAt)
+                {
+                    _hitStopUntil = Time.unscaledTime + HIT_STOP_SECONDS;
+                    _hitStopReadyAt = Time.unscaledTime + HIT_STOP_COOLDOWN_SECONDS;
+                }
             }
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
+            _lastPersistDamage = sim.PersistDamage;
             _lastHp = sim.Player.Hp;
         }
 

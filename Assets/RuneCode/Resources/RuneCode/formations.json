@@ -2,6 +2,7 @@
   "_formations": [
     { "_id": "scatter", "_shape": "ringRandomSlot", "_angle": "random", "_spacing": 0, "_interval": 0, "_slots": 0 },
     { "_id": "surround", "_shape": "ringAllSlots", "_angle": "random", "_spacing": 0, "_interval": 0, "_slots": 0 },
-    { "_id": "line", "_shape": "pointSequence", "_angle": "random", "_spacing": 0, "_interval": 0.3, "_slots": 0 }
+    { "_id": "line", "_shape": "pointSequence", "_angle": "random", "_spacing": 0, "_interval": 0.3, "_slots": 0 },
+    { "_id": "doubleSurround", "_shape": "ringDouble", "_angle": "random", "_spacing": 80, "_interval": 0, "_slots": 0 }
   ]
 }

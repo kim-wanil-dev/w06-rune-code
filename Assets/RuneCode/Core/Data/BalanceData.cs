@@ -100,6 +100,9 @@ namespace RuneCode
         [SerializeField] private float _aegisReduction;
         [SerializeField] private float _relayRadius;
         [SerializeField] private float _relayReduction;
+        [SerializeField] private float _separationAllowance;
+        [SerializeField] private float _separationStrength;
+        [SerializeField] private float _separationMaxStep;
         public float BurnDps => _burnDps;
         public float BurnInterval => _burnInterval;
         public float BurnSeconds => _burnSeconds;
@@ -116,6 +119,9 @@ namespace RuneCode
         public float AegisReduction => _aegisReduction;
         public float RelayRadius => _relayRadius;
         public float RelayReduction => _relayReduction;
+        public float SeparationAllowance => _separationAllowance;
+        public float SeparationStrength => _separationStrength;
+        public float SeparationMaxStep => _separationMaxStep;
     }
 
     [Serializable]
@@ -291,7 +297,8 @@ namespace RuneCode
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
                 data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius,
                 data.Sim.ExecutionTimeScale,
-                data.Economy.DurationStep, data.Economy.EnergyRegenStep, data.Economy.GrowthCostMultiplier };
+                data.Economy.DurationStep, data.Economy.EnergyRegenStep, data.Economy.GrowthCostMultiplier,
+                data.Combat.SeparationAllowance, data.Combat.SeparationStrength, data.Combat.SeparationMaxStep };
             foreach (float value in values)
                 if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
                     throw new FormatException("밸런스 값은 유한한 0 이상이어야 합니다.");
@@ -300,6 +307,9 @@ namespace RuneCode
                 || data.Combat.ChillImmuneMaxStacks >= data.Combat.ChillMaxStacks
                 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
+                || data.Combat.SeparationAllowance <= 0f || data.Combat.SeparationAllowance > 1f
+                || data.Combat.SeparationStrength <= 0f || data.Combat.SeparationStrength > 1f
+                || data.Combat.SeparationMaxStep <= 0f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.CapacityStep <= 0
                 || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0
                 || data.Limits.MaxFrameSteps <= 0 || data.Limits.MaxGraphNodes <= 0 || data.Limits.MaxGraphEdges <= 0
