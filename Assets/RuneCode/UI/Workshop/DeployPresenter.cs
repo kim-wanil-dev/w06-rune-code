@@ -19,6 +19,20 @@ namespace RuneCode
         /// <summary>해금 최고 단계, 선택 스테이지, 제한시간과 현재 마법 문구를 다시 표시한다.</summary>
         public void Refresh()
         {
+            if (_session.IsPuzzleBattle)
+            {
+                PuzzleBattleDefinition puzzle = _session.Puzzle;
+                _view.SetContent(GameData.L("ui.puzzle") + " · P" + _session.SelectedPuzzle + " / " + GameData.Puzzles.Count,
+                    "P" + _session.SelectedPuzzle + ": " + puzzle.Name,
+                    GameData.L("puzzle.mana") + " " + puzzle.MaxEnergy.ToString("0.#") + " · "
+                    + GameData.L("puzzle.regen") + " " + puzzle.EnergyRegen.ToString("0.#") + "/s\n"
+                    + (puzzle.TimeLimit > 0 ? puzzle.TimeLimit.ToString("0.#") + "s" : GameData.L("puzzle.noTimeLimit"))
+                    + " · " + GameData.L("ui.kills") + " " + puzzle.KillTarget + " / " + puzzle.EnemyCount,
+                    GameData.L("ui.singleSpell") + " " + _session.Spells.SpellName + " · RAM " + _session.EquippedRam + "/" + puzzle.Capacity);
+                _view.SetPuzzleMode(true);
+                return;
+            }
+            _view.SetPuzzleMode(false);
             _view.SetContent(
                 GameData.L("ui.highestStage") + "  " + _session.HighestClearedStage,
                 GameData.L("ui.stage") + " " + _session.SelectedStage,
@@ -30,7 +44,8 @@ namespace RuneCode
         /// <summary>해금 범위 안에서 선택 스테이지를 이동하고 표시를 갱신한다.</summary>
         private void ChangeStage(int direction)
         {
-            _session.SelectStage(_session.SelectedStage + direction);
+            if (_session.IsPuzzleBattle) _session.SelectPuzzle(_session.SelectedPuzzle + direction);
+            else _session.SelectStage(_session.SelectedStage + direction);
             Refresh();
         }
 

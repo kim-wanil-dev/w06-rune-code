@@ -46,6 +46,7 @@ namespace RuneCode
             if (save.Version == 1) save.MigrateToIncremental();
             else if (save.Version != 2) throw new FormatException("지원하지 않는 룬 코드 저장 버전입니다.");
             save.MigrateSpellGrammar();
+            save.MigratePuzzleLibrary();
             return save;
         }
 

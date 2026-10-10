@@ -33,6 +33,12 @@ namespace RuneCode
         private readonly double _maxHp;
         private readonly double _maxEnergy;
         private readonly double _energyRegen;
+        private readonly PuzzleBattleDefinition _puzzle;
+        private readonly Dictionary<string, double> _energyFailures = new Dictionary<string, double>();
+        private int _nextPuzzleWave;
+        private int _nextPuzzleEnemy;
+        private SimVector _puzzleOrigin;
+        private bool _isStopped;
         private readonly double _burstExpandSeconds;
         private readonly double _persistWarnSeconds;
         private readonly List<SimulationEnemy> _enemies = new List<SimulationEnemy>();
@@ -116,8 +122,10 @@ namespace RuneCode
         public bool IsTimedBattle => _isMission;
         public int StageNumber => _stageNumber;
         public bool IsBossStage => _stageDefinition != null && _stageDefinition.IsBoss;
-        public double TimeLimit => _stageDefinition?.TimeLimit ?? 0;
-        public double RemainingTime => IsBossStage ? Math.Max(0, TimeLimit - Time) : 0;
+        public bool IsPuzzleBattle => _puzzle != null;
+        public IReadOnlyDictionary<string, double> EnergyFailures => _energyFailures;
+        public double TimeLimit => _puzzle != null ? _puzzle.TimeLimit : _stageDefinition?.TimeLimit ?? 0;
+        public double RemainingTime => (IsPuzzleBattle || IsBossStage) && TimeLimit > 0 ? Math.Max(0, TimeLimit - Time) : 0;
         public int KillTarget => _killTarget;
         public int TargetKills => _targetKills;
         public SimVector MapCenter => new SimVector(_map.Width * 0.5, _map.Height * 0.5);
@@ -134,7 +142,7 @@ namespace RuneCode
         {
             get { int total = _collectedFragments; foreach (FragmentOrb orb in _orbs) total += orb.Amount; return total; }
         }
-        public int ClearReward => Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
+        public int ClearReward => !IsPuzzleBattle && Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
         public int SettlementFragments => IsFailed ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments + ClearReward;
         public double TotalDamage => _totalDamage;
 
@@ -161,8 +169,8 @@ namespace RuneCode
         /// <summary>명시적으로 열린 디버그 기능에서 플레이어 무적 상태를 변경한다.</summary>
         public void SetDebugInvulnerable(bool isInvulnerable) { _debugInvulnerable = isInvulnerable; }
 
-        /// <summary>검증된 데이터, 시드, 스테이지 번호와 영구 능력치로 독립된 전투 또는 시험 도크를 생성한다.</summary>
-        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0)
+        /// <summary>시드·스테이지·능력치 또는 퍼즐 설정으로 전투·도크를 생성한다. 회복량을 생략하면 기본값, 0이면 회복 없음을 적용한다.</summary>
+        public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double? energyRegen = null, PuzzleBattleDefinition puzzle = null)
         {
             GameData.Load();
             _balance = GameData.Balance;
@@ -173,9 +181,14 @@ namespace RuneCode
             _drops = DropCatalog.FromJson(LoadJson("drops"));
             _eliteDrops = new ModifierGradeDropSource(GameData.ModifierGrades);
             _stages = StageCatalog.FromJson(LoadJson("stages"), _enemyCatalog, _formations, _drops);
-            _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
+            _puzzle = puzzle;
+            if (puzzle != null && !isMission) throw new ArgumentException("퍼즐 설정은 미션 전투에서만 사용합니다.", nameof(puzzle));
+            _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed;
+            _maxHp = puzzle != null ? puzzle.MaxHp : maxHp > 0 ? maxHp : _balance.Player.Hp;
+            _maxEnergy = puzzle != null ? puzzle.MaxEnergy : maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
             _stageNumber = Math.Max(1, stageNumber);
-            _energyRegen = energyRegen > 0 ? energyRegen : _balance.Player.EnergyRegen;
+            _energyRegen = puzzle != null ? puzzle.EnergyRegen
+                : energyRegen.HasValue && energyRegen.Value >= 0 ? energyRegen.Value : _balance.Player.EnergyRegen;
             _burstExpandSeconds = GameData.Runes.Get(BURST_FORM_ID).Stats.ExpandSeconds;
             _persistWarnSeconds = GameData.Runes.Get(PERSIST_FORM_ID).Stats.WarnSeconds;
             _spawnSlots = new SpawnSlots(NextRandom);
@@ -239,7 +252,7 @@ namespace RuneCode
         /// </summary>
         public bool TryCast(CompiledSpell spell, int slot = 0)
         {
-            if (spell == null || slot < 0 || slot >= _loadout.Length || (_stage != MissionStage.Bench && _stage != MissionStage.Combat)) return false;
+            if (_isStopped || spell == null || slot < 0 || slot >= _loadout.Length || (_stage != MissionStage.Bench && _stage != MissionStage.Combat)) return false;
             if (_isMission && slot != 0) return false;
             if (!_player.TryStartCooldown(spell, slot)) return false;
             RecordNode(spell.CoreNodeId);
@@ -262,7 +275,7 @@ namespace RuneCode
         /// <summary>입력, 예약된 적 스폰, 전투, 적응 및 전투 종료(전부 처치·사망·보스 제한시간)를 정확히 한 60Hz 틱만큼 갱신한다.</summary>
         public void Step(SimulationInput input)
         {
-            if (Completed || IsFailed) return;
+            if (_isStopped || Completed || IsFailed) return;
             bool wasDashing = _player.DashRemaining > 0.000001;
             _player.Aim(input.AimDirection);
             _player.Advance(STEP_SECONDS, Time, _energyRegen);
@@ -303,6 +316,8 @@ namespace RuneCode
             if (_isMission) throw new InvalidOperationException("미션은 시험 도크로 초기화할 수 없습니다.");
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
+            _isStopped = false;
+            _energyFailures.Clear();
             _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
             _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
@@ -492,7 +507,11 @@ namespace RuneCode
             if (action.Kind == "delay" || action.Kind == "repeat" || action.Kind == "if") return true;
             double cost = action.NodeEnergy * context.CostMultiplier;
             if (cost <= 0) return true;
-            if (!_player.TrySpend(cost)) return false;
+            if (!_player.TrySpend(cost))
+            {
+                if (IsPuzzleBattle) _energyFailures[action.NodeId] = cost;
+                return false;
+            }
             _energySpent += cost;
             return true;
         }
@@ -1312,7 +1331,7 @@ namespace RuneCode
         private void CheckBattleEnd()
         {
             if (IsBossStage ? _isBossDefeated : _targetKills >= _killTarget) _stage = MissionStage.Cleared;
-            else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
+            else if ((IsPuzzleBattle || IsBossStage) && TimeLimit > 0 && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
             else return;
             CollectAllOrbs(); CancelCombat();
             if (_stage != MissionStage.Cleared) return;
@@ -1330,6 +1349,14 @@ namespace RuneCode
             _map = MissionMap.CreateOpen(_stages.Map.Columns, _stages.Map.Rows, _sector.TileSize);
             _player = new SimulationPlayer(_maxHp, _maxEnergy, MapCenter);
             Adaptation.SetEnabled(false);
+            if (IsPuzzleBattle)
+            {
+                _stageDefinition = null;
+                _killTarget = _puzzle.KillTarget;
+                _puzzleOrigin = _player.Position;
+                AdvancePuzzleSpawns();
+                return;
+            }
             RuneStats bolt = GameData.Runes.Get(BOLT_RUNE_ID).Stats;
             double largestRadius = 0;
             foreach (EnemyDefinition enemy in _enemyCatalog.Enemies) largestRadius = Math.Max(largestRadius, enemy.Radius);
@@ -1343,6 +1370,7 @@ namespace RuneCode
         /// <summary>현재 틱까지 도달한 스폰을 순서대로 처리한다. 기본 흐름 스폰 순번이 엘리트 주기와 일치하면 그 종족을 엘리트로 생성한다. 적 수가 상한이면 이번 틱 처리를 멈춘다.</summary>
         private void AdvanceSpawns()
         {
+            if (IsPuzzleBattle) { AdvancePuzzleSpawns(); return; }
             while (_director.TryPeek(_tick, out SpawnOrder order))
             {
                 if (_enemies.Count >= EnemyLimit) return;
@@ -1351,6 +1379,24 @@ namespace RuneCode
                 EliteSpawnDefinition elite = null;
                 if (isStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
                 SpawnByFormation(order, elite != null ? elite.EnemyId : (isStream ? PickStreamEnemy() : order.EnemyId), elite, isStream);
+            }
+        }
+
+        /// <summary>시작 위치를 기준으로 퍼즐의 도달한 유한 스폰을 생성하고 모든 적을 목표 집계 대상으로 지정한다.</summary>
+        private void AdvancePuzzleSpawns()
+        {
+            while (_nextPuzzleWave < _puzzle.Waves.Count)
+            {
+                PuzzleWave wave = _puzzle.Waves[_nextPuzzleWave];
+                if (Time + 0.000001 < wave.At) return;
+                while (_nextPuzzleEnemy < wave.Positions.Count)
+                {
+                    if (_enemies.Count >= EnemyLimit) return;
+                    SpawnEnemy(_puzzle.EnemyId, _puzzleOrigin + wave.Positions[_nextPuzzleEnemy].Offset, isKillTarget: true);
+                    _nextPuzzleEnemy++;
+                }
+                _nextPuzzleWave++;
+                _nextPuzzleEnemy = 0;
             }
         }
 
@@ -1475,12 +1521,12 @@ namespace RuneCode
         /// <summary>설정 ID와 개별 위치, 더미 여부, 체력, 엘리트 정의 및 목표 처치 수 집계 대상 여부로 적을 생성하고 상대 시간 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도에 배율을 곱한다.</summary>
         public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0, EliteSpawnDefinition elite = null, bool isKillTarget = false)
         {
-            if (Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
+            if (_isStopped || Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
             EnemyDefinition definition = _enemyCatalog.Get(id);
-            double hpMultiplier = _isMission ? _stages.Growth.GetHpMultiplier(_stageNumber) : 1;
+            double hpMultiplier = _isMission && !IsPuzzleBattle ? _stages.Growth.GetHpMultiplier(_stageNumber) : 1;
             if (elite != null) hpMultiplier *= elite.HpMultiplier;
-            double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
-            int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
+            double damageMultiplier = _isMission && !IsPuzzleBattle ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
+            int reward = IsPuzzleBattle ? 0 : _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
             _bosses.TryGet(id, out BossDefinition boss);
             var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(definition.Movement), boss, _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget);
@@ -1490,7 +1536,18 @@ namespace RuneCode
         }
 
         /// <summary>사망, 클리어 및 시간 초과 시 지속 개체, 예약 실행과 분열 대기를 취소한다.</summary>
-        private void CancelCombat() { _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); _pendingSplits.Clear(); }
+        private void CancelCombat()
+        {
+            _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); _pendingSplits.Clear();
+            if (IsPuzzleBattle) { _enemies.Clear(); _enemyStatuses.Clear(); _statusIndex.Clear(); _orbs.Clear(); _itemDrops.Clear(); }
+        }
+
+        /// <summary>화면 퇴장·중단 시 추가 입력과 스폰을 막고 진행 중인 전투 개체·상태·예약을 정리한다.</summary>
+        public void StopCombat()
+        {
+            _isStopped = true;
+            CancelCombat();
+        }
 
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>
         private void RecordNode(string nodeId) { _nodeEvents.Add(new NodeExecutionEvent(nodeId, _tick)); _nodeExecutionCount++; }

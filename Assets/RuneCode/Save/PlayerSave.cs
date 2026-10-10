@@ -32,12 +32,17 @@ namespace RuneCode
         [SerializeField] private List<UpgradeNodeProgress> _upgradeNodeProgress = new List<UpgradeNodeProgress>();
         [SerializeField] private List<ModifierStock> _modifierStock = new List<ModifierStock>();
 
+        [Header("이전 퍼즐 마법 저장 호환")]
+        [SerializeField] private string _puzzleActiveSpellId;
+        [SerializeField] private List<SpellGraphData> _puzzleLibrary = new List<SpellGraphData>();
+
         [Header("피드백 설정")]
         [SerializeField] private bool _screenShake = true;
         [SerializeField] private bool _hitStop = true;
         [SerializeField] private int _tutorialStep;
 
         private List<SpellGraph> _graphs = new List<SpellGraph>();
+        private List<SpellGraph> _puzzleGraphs = new List<SpellGraph>();
 
         public int Version => _version;
         public int Currency => _currency;
@@ -52,6 +57,8 @@ namespace RuneCode
         public bool SectorCleared => _sectorCleared;
         public IReadOnlyList<string> UnlockedRunes => _unlockedRunes;
         public IReadOnlyList<SpellGraph> Library => _graphs;
+        public string PuzzleActiveSpellId => _puzzleActiveSpellId;
+        public IReadOnlyList<SpellGraph> PuzzleLibrary => _puzzleGraphs;
         public IReadOnlyList<string> Loadout => _loadout;
         public IReadOnlyList<KillRecord> KillCounts => _killCounts;
         public bool ScreenShake => _screenShake;
@@ -134,7 +141,7 @@ namespace RuneCode
             return 0;
         }
 
-        /// <summary>JSON 저장 직전에 실행 중 보관함 그래프를 직렬화 형식(_library)으로 옮긴다. JSON 키는 기존과 같다.</summary>
+        /// <summary>JSON 저장 직전에 일반·퍼즐 보관함 그래프를 각각의 직렬화 목록으로 옮긴다.</summary>
         public void OnBeforeSerialize()
         {
             _library = new List<SpellGraphData>(_graphs.Count);
@@ -142,13 +149,19 @@ namespace RuneCode
             {
                 _library.Add(SpellGraphData.From(graph));
             }
+            _puzzleLibrary = new List<SpellGraphData>(_puzzleGraphs.Count);
+            foreach (SpellGraph graph in _puzzleGraphs)
+                _puzzleLibrary.Add(SpellGraphData.From(graph));
         }
 
-        /// <summary>JSON을 읽은 직후 직렬화 형식(_library)을 실행 중 보관함 그래프로 되돌린다. 검증은 Validate가 수행한다.</summary>
+        /// <summary>JSON의 일반·퍼즐 목록을 실행 중 보관함 그래프로 복원한다. 퍼즐 목록이 없는 이전 세이브는 빈 퍼즐 보관함으로 연다.</summary>
         public void OnAfterDeserialize()
         {
             if (_upgradeNodeProgress == null) _upgradeNodeProgress = new List<UpgradeNodeProgress>();
             _graphs = new List<SpellGraph>();
+            _puzzleGraphs = new List<SpellGraph>();
+            if (_puzzleLibrary != null)
+                foreach (SpellGraphData data in _puzzleLibrary) _puzzleGraphs.Add(data?.ToGraph());
             if (_library == null)
             {
                 return;
@@ -183,6 +196,7 @@ namespace RuneCode
         {
             if (_graphs == null || _unlockedRunes == null) return;
             foreach (var graph in _graphs) SpellGraphMigration.Migrate(graph, GameData.ModifierGrades);
+            foreach (var graph in _puzzleGraphs) SpellGraphMigration.Migrate(graph, GameData.ModifierGrades);
             var unlocked = new List<string>();
             foreach (var runeId in _unlockedRunes)
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
@@ -192,6 +206,26 @@ namespace RuneCode
             _unlockedRunes = unlocked;
             AddDefaultMethods();
             EnsureModifierStock();
+        }
+
+        /// <summary>이전 퍼즐 설계를 일반 보관함으로 옮긴다. 한도나 다른 설계의 ID 충돌로 옮기지 못한 항목은 원본에 유지한다.</summary>
+        public void MigratePuzzleLibrary()
+        {
+            for (int index = _puzzleGraphs.Count - 1; index >= 0; index--)
+            {
+                SpellGraph graph = _puzzleGraphs[index];
+                if (graph == null) continue;
+                SpellGraph existing = FindGraph(graph.Id);
+                if (existing != null)
+                {
+                    if (ShareCodec.Serialize(existing) != ShareCodec.Serialize(graph)) continue;
+                }
+                else if (!StoreGraph(graph)) continue;
+                _puzzleGraphs.RemoveAt(index);
+            }
+            if (_puzzleGraphs.Count == 0) _puzzleActiveSpellId = null;
+            else if (!_puzzleGraphs.Exists(graph => graph != null && graph.Id == _puzzleActiveSpellId))
+                _puzzleActiveSpellId = _puzzleGraphs[0]?.Id;
         }
 
         /// <summary>기본 마법 메소드 템플릿 중 보관함에 없는 것을 한도 안에서 추가한다.</summary>
@@ -223,28 +257,18 @@ namespace RuneCode
                 return false;
             }
             if (_graphs == null || _graphs.Count == 0 || _graphs.Count > economy.MaxLibrary ||
+                _puzzleGraphs == null || _puzzleGraphs.Count > economy.MaxLibrary ||
                 _loadout == null || _loadout.Count != 3 || _unlockedRunes == null || _killCounts == null || _upgradeNodeProgress == null)
             {
                 error = "save.invalidStructure";
                 return false;
             }
-            var ids = new HashSet<string>();
-            foreach (var graph in _graphs)
+            if (!ValidateGraphs(_graphs, out var ids) || !ValidateGraphs(_puzzleGraphs, out var puzzleIds)
+                || (_puzzleGraphs.Count > 0 && (string.IsNullOrEmpty(_puzzleActiveSpellId) || !puzzleIds.Contains(_puzzleActiveSpellId)))
+                || (_puzzleGraphs.Count == 0 && !string.IsNullOrEmpty(_puzzleActiveSpellId)))
             {
-                if (graph == null || string.IsNullOrWhiteSpace(graph.Id) || !ids.Add(graph.Id))
-                {
-                    error = "save.invalidStructure";
-                    return false;
-                }
-                try
-                {
-                    ShareCodec.Deserialize(ShareCodec.Serialize(graph));
-                    foreach (var node in graph.Nodes)
-                        if (!GameData.Runes.TryGet(node.RuneId, out _))
-                        { error = "save.invalidStructure"; return false; }
-                }
-                catch (Exception exception) when (exception is FormatException || exception is ArgumentException)
-                { error = "save.invalidStructure"; return false; }
+                error = "save.invalidStructure";
+                return false;
             }
             foreach (var runeId in _unlockedRunes)
                 if (!GameData.Runes.TryGet(runeId, out _))
@@ -269,6 +293,25 @@ namespace RuneCode
                 }
             if (string.IsNullOrEmpty(_activeSpellId) || !ids.Contains(_activeSpellId) || _loadout[0] != _activeSpellId)
             { error = "save.invalidStructure"; return false; }
+            return true;
+        }
+
+        /// <summary>지정한 보관함의 마법 ID·직렬화 구조·룬 참조를 검사하고 고유 ID 집합과 유효 여부를 반환한다.</summary>
+        private static bool ValidateGraphs(IReadOnlyList<SpellGraph> graphs, out HashSet<string> ids)
+        {
+            ids = new HashSet<string>();
+            foreach (SpellGraph graph in graphs)
+            {
+                if (graph == null || string.IsNullOrWhiteSpace(graph.Id) || !ids.Add(graph.Id)) return false;
+                try
+                {
+                    ShareCodec.Deserialize(ShareCodec.Serialize(graph));
+                    foreach (GraphNode node in graph.Nodes)
+                        if (!GameData.Runes.TryGet(node.RuneId, out _)) return false;
+                }
+                catch (Exception exception) when (exception is FormatException || exception is ArgumentException)
+                { return false; }
+            }
             return true;
         }
 
@@ -303,37 +346,44 @@ namespace RuneCode
             _selectedStage = _highestClearedStage + 1;
         }
 
-        /// <summary>ID와 일치하는 보관함 마법을 반환하며 없으면 null을 반환한다.</summary>
-        public SpellGraph FindGraph(string id)
+        /// <summary>일반 또는 퍼즐 보관함에서 ID가 일치하는 마법을 반환하며 없으면 null을 반환한다.</summary>
+        public SpellGraph FindGraph(string id, bool isPuzzle = false)
         {
-            return _graphs.FirstOrDefault(graph => graph.Id == id);
+            return (isPuzzle ? _puzzleGraphs : _graphs).FirstOrDefault(graph => graph.Id == id);
         }
 
-        /// <summary>라이브러리에 존재하는 Spell ID를 활성 편집·첫 슬롯 참조로 설정한다.</summary>
-        public bool SetActiveGraph(string id)
+        /// <summary>지정 보관함에 존재하는 마법 ID를 활성 편집 참조로 설정한다. 일반 마법은 첫 슬롯도 갱신하며 성공 여부를 반환한다.</summary>
+        public bool SetActiveGraph(string id, bool isPuzzle = false)
         {
-            if (FindGraph(id) == null) return false;
+            if (FindGraph(id, isPuzzle) == null) return false;
+            if (isPuzzle) { _puzzleActiveSpellId = id; return true; }
             _activeSpellId = id;
             _loadout[0] = id;
             return true;
         }
 
-        /// <summary>마법을 복사하여 보관함에 추가하거나 같은 ID의 저장본을 갱신한다.</summary>
-        public bool StoreGraph(SpellGraph graph)
+        /// <summary>마법 사본을 일반 또는 퍼즐 보관함에 추가하거나 같은 ID의 저장본을 갱신하고 한도 내 저장 성공 여부를 반환한다.</summary>
+        public bool StoreGraph(SpellGraph graph, bool isPuzzle = false)
         {
-            var index = _graphs.FindIndex(item => item.Id == graph.Id);
+            List<SpellGraph> graphs = isPuzzle ? _puzzleGraphs : _graphs;
+            var index = graphs.FindIndex(item => item.Id == graph.Id);
             if (index < 0)
             {
-                if (_graphs.Count >= GameData.Balance.Economy.MaxLibrary) return false;
-                _graphs.Add(graph.Clone());
+                if (graphs.Count >= GameData.Balance.Economy.MaxLibrary) return false;
+                graphs.Add(graph.Clone());
             }
-            else _graphs[index] = graph.Clone();
+            else graphs[index] = graph.Clone();
             return true;
         }
 
-        /// <summary>ID의 마법을 삭제하고 해당 마법을 참조하는 장착 슬롯을 비운다.</summary>
-        public void RemoveGraph(string id)
+        /// <summary>지정 보관함에서 비활성 마법 ID를 삭제한다. 일반 마법을 참조하는 장착 슬롯은 비운다.</summary>
+        public void RemoveGraph(string id, bool isPuzzle = false)
         {
+            if (isPuzzle)
+            {
+                if (id != _puzzleActiveSpellId) _puzzleGraphs.RemoveAll(graph => graph.Id == id);
+                return;
+            }
             if (id == _activeSpellId) return;
             _graphs.RemoveAll(graph => graph.Id == id);
             for (var slot = 0; slot < _loadout.Count; slot++)

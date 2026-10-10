@@ -56,6 +56,7 @@ namespace RuneCode
         /// <summary>미션 화면을 떠날 때 진행 중인 미션을 놓는다.</summary>
         public void End()
         {
+            _run?.Simulation.StopCombat();
             _run = null;
         }
 
@@ -200,6 +201,12 @@ namespace RuneCode
         private void SetResultSummary()
         {
             RuneSimulation sim = _run.Simulation;
+            if (sim.IsPuzzleBattle)
+            {
+                _result.SetContent(_run.LastResult, "P" + _session.SelectedPuzzle + " · " + _session.Puzzle.Name,
+                    GameData.L("puzzle.redesign"), true);
+                return;
+            }
             _result.SetContent(_run.LastResult,
                 GameData.L("ui.stage") + " " + sim.StageNumber + "  ·  " + GameData.L("ui.kills") + " " + sim.KillCount,
                 GameData.L("ui.highestStage") + " " + _session.HighestClearedStage + "  ·  " + GameData.L("ui.nextStage") + " " + (_session.HighestClearedStage + 1));
@@ -224,7 +231,8 @@ namespace RuneCode
             _lastFragments = _run.Simulation.EarnedFragments;
             _toastUntil = 0f;
             _hud.SetToast("");
-            _hud.SetStage(GameData.L("ui.stage") + " " + _run.Simulation.StageNumber);
+            _hud.SetStage(_session.IsPuzzleBattle ? "P" + _session.SelectedPuzzle + " · " + _session.Puzzle.Name
+                : GameData.L("ui.stage") + " " + _run.Simulation.StageNumber);
             RenderHud();
             return true;
         }
@@ -237,12 +245,17 @@ namespace RuneCode
         {
             RuneSimulation sim = _run.Simulation;
             _hud.SetBars(sim.Player.Hp, sim.Player.MaxHp, sim.Player.Energy, sim.Player.MaxEnergy);
-            _hud.SetStats(GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments);
+            _hud.SetStats(sim.IsPuzzleBattle
+                ? GameData.L("puzzle.remaining") + " " + Math.Max(0, _session.Puzzle.EnemyCount - sim.TargetKills)
+                    + " · " + GameData.L("puzzle.mana") + " " + sim.Player.Energy.ToString("0.#")
+                : GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments);
             string objective = sim.IsBossStage
                 ? GameData.L("ui.bossObjective") + " · " + sim.RemainingTime.ToString("0.0") + "s"
                 : GameData.L("ui.killProgress") + " " + sim.TargetKills + " / " + sim.KillTarget;
+            if (sim.IsPuzzleBattle)
+                objective += " · " + (sim.TimeLimit > 0 ? sim.RemainingTime.ToString("0.0") + "s" : GameData.L("puzzle.noTimeLimit"));
             _hud.SetTimer(objective,
-                sim.IsBossStage && sim.RemainingTime <= TIMER_WARNING_SECONDS);
+                (sim.IsBossStage || sim.IsPuzzleBattle) && sim.TimeLimit > 0 && sim.RemainingTime <= TIMER_WARNING_SECONDS);
             _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + GameData.L("ui.cooldown") + " "
                 + sim.Player.Cooldowns[0].ToString("0.0") + "s  ·  " + GameData.L("ui.cost") + " " + (float.IsInfinity(_run.SpellCost) ? GameData.L("ui.costUnbounded") : _run.SpellCost.ToString("0.#") + " EN"));
             if (sim.EarnedFragments > _lastFragments)

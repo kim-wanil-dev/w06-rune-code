@@ -31,6 +31,11 @@ namespace RuneCode
 
         private readonly List<Button> _clearChoiceButtons = new List<Button>();
         private bool _isBound;
+        private Vector2 _summarySize;
+        private float _summaryFontSize;
+        private float _summaryMinFontSize;
+        private float _summaryMaxFontSize;
+        private bool _hasSummaryAutoSizing;
 
         /// <summary>마법 개선(작업실로 이동)을 눌렀을 때 알린다.</summary>
         public event Action ImproveClicked;
@@ -45,14 +50,24 @@ namespace RuneCode
         public void Bind()
         {
             if (_isBound) return;
+            _summarySize = _summaryLabel.rectTransform.sizeDelta;
+            _summaryFontSize = _summaryLabel.fontSize;
+            _summaryMinFontSize = _summaryLabel.fontSizeMin;
+            _summaryMaxFontSize = _summaryLabel.fontSizeMax;
+            _hasSummaryAutoSizing = _summaryLabel.enableAutoSizing;
             _improveButton.onClick.AddListener(() => ImproveClicked?.Invoke());
             _retryButton.onClick.AddListener(() => RetryClicked?.Invoke());
             _isBound = true;
         }
 
-        /// <summary>결과 문구와 스테이지·진행 문구를 채운다. 표시는 Show로 한다.</summary>
-        public void SetContent(string summary, string stage, string progress)
+        /// <summary>결과·스테이지·진행 문구를 채우고 퍼즐 결과의 추가 진단 문구는 기존 요약 영역에 맞춰 표시한다.</summary>
+        public void SetContent(string summary, string stage, string progress, bool isPuzzle = false)
         {
+            _summaryLabel.rectTransform.sizeDelta = isPuzzle ? new Vector2(_summarySize.x, 136) : _summarySize;
+            _summaryLabel.enableAutoSizing = isPuzzle || _hasSummaryAutoSizing;
+            _summaryLabel.fontSize = _summaryFontSize;
+            _summaryLabel.fontSizeMin = isPuzzle ? 10 : _summaryMinFontSize;
+            _summaryLabel.fontSizeMax = isPuzzle ? Mathf.Min(20, _summaryFontSize) : _summaryMaxFontSize;
             _summaryLabel.text = summary;
             _stageLabel.text = stage;
             _progressLabel.text = progress;

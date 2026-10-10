@@ -18,7 +18,7 @@ namespace RuneCode
             _session = session;
         }
 
-        /// <summary>현재 해금 룬, 성장 값과 Modifier 소지량으로 컴파일 문맥을 만든다.</summary>
+        /// <summary>전투 선택과 무관하게 작업실의 해금·성장·소지량으로 편집용 컴파일 문맥을 만든다.</summary>
         public SpellCompileContext GetCompileContext()
         {
             return new SpellCompileContext(_session.Save.UnlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,

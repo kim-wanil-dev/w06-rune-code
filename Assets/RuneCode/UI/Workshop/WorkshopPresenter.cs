@@ -86,6 +86,11 @@ namespace RuneCode
         /// <summary>탭을 바꾸고 진입한 탭의 내용과 헤더를 갱신한다. 에디터 탭을 떠나면 편집 패널을 닫고 도크를 멈춘다.</summary>
         private void SetTab(string tab)
         {
+            if (tab == WorkshopScreen.TAB_DEPLOY || tab == WorkshopScreen.TAB_PUZZLE)
+            {
+                _view.SpellEditor.Hide();
+                _session.SelectBattleMode(tab == WorkshopScreen.TAB_PUZZLE);
+            }
             _selectedTab = tab;
             _view.ShowTab(tab);
             if (tab == WorkshopScreen.TAB_EDITOR) _view.SpellEditor.Show();
@@ -96,7 +101,7 @@ namespace RuneCode
             }
             if (tab == WorkshopScreen.TAB_BENCH) _bench.Refresh();
             if (tab == WorkshopScreen.TAB_TREE) _upgradeTree.Refresh();
-            if (tab == WorkshopScreen.TAB_DEPLOY) _deploy.Refresh();
+            if (tab == WorkshopScreen.TAB_DEPLOY || tab == WorkshopScreen.TAB_PUZZLE) _deploy.Refresh();
             if (tab == WorkshopScreen.TAB_SETTINGS) _settings.Refresh();
             RefreshHeader();
         }

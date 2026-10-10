@@ -20,6 +20,7 @@ namespace RuneCode
         private readonly CompiledSpell _spell;
         private readonly string _spellName;
         private readonly RuneSimulation _simulation;
+        private readonly PuzzleBattleDefinition _puzzle;
 
         private double _accumulator;
         private int _telemetryCount;
@@ -68,11 +69,13 @@ namespace RuneCode
             _session = session;
             _spell = spell;
             _spellName = spellName;
-            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen);
+            _puzzle = session.IsPuzzleBattle ? session.Puzzle : null;
+            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen, _puzzle);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             _simulation.SetAreaBoxUpright(session.IsAreaBoxUpright);
-            LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
+            LocalTelemetry.Record(0, _puzzle != null ? "puzzle.start" : "mission.start",
+                (_puzzle != null ? _puzzle.Id : session.SelectedStage.ToString()) + ":" + spell.Signature);
         }
 
         /// <summary>미션의 고정 시뮬레이션 갱신을 일시정지하거나 재개한다.</summary>
@@ -112,6 +115,7 @@ namespace RuneCode
         /// <summary>이번 프레임에 새로 주운 Modifier 드롭을 세션에 넘겨 즉시 지급하고 결과 문구용 목록에 쌓는다.</summary>
         private void GrantPickedItems()
         {
+            if (_puzzle != null) return;
             foreach (SimulationItemDrop drop in _simulation.TakeNewPickedItems())
             {
                 _session.GrantModifier(drop.RuneId, drop.Grade, drop.Count);
@@ -135,6 +139,11 @@ namespace RuneCode
         {
             if (_settled) return;
             _settled = true;
+            if (_puzzle != null)
+            {
+                FinishPuzzle(_simulation.Completed ? "puzzle.cleared" : _simulation.IsTimedOut ? "result.timeout" : "result.dead");
+                return;
+            }
             var cleared = _simulation.Completed;
             // 첫 클리어만 지급하는 규칙으로 바꿀 때를 대비해 정산 기록 전에 판정한다.
             bool isFirstClear = _session.HighestClearedStage < _simulation.StageNumber;
@@ -180,11 +189,32 @@ namespace RuneCode
         {
             if (_settled) return;
             _settled = true;
+            if (_puzzle != null) { FinishPuzzle("result.retreat"); return; }
             var fragments = (int)Math.Round(_simulation.EarnedFragments * GameData.Balance.Economy.DeathRetention, MidpointRounding.AwayFromZero);
             _session.SettleMission(_simulation.StageNumber, fragments, false, _simulation.KillCounts);
             _lastResult = GameData.L("result.retreat") + "\n" + GameData.L("result.fragments") + " " + fragments;
             AppendPickedModifiers();
             _isPaused = false;
+        }
+
+        /// <summary>퍼즐 목표·마나·RAM·시간과 실행하지 못한 노드 비용을 결과로 확정하고 보상 없이 전투를 정리한다.</summary>
+        private void FinishPuzzle(string resultKey)
+        {
+            _lastResult = GameData.L(resultKey) + " · " + _puzzle.Name
+                + "\n" + GameData.L("ui.kills") + " " + _simulation.TargetKills + " / " + _puzzle.KillTarget
+                + " · " + GameData.L("puzzle.shortfall") + " " + Math.Max(0, _puzzle.KillTarget - _simulation.TargetKills)
+                + "\n" + GameData.L("puzzle.energySpent") + " " + _simulation.EnergySpent.ToString("0.#")
+                + " · RAM " + _spell.RamUsed + " / " + _puzzle.Capacity
+                + " · " + _simulation.Time.ToString("0.00") + "s";
+            foreach (KeyValuePair<string, double> failure in _simulation.EnergyFailures)
+            {
+                GraphNode node = _session.Spells.Graph.FindNode(failure.Key);
+                string name = node != null ? GameData.Runes.Get(node.RuneId).Name : failure.Key;
+                _lastResult += "\n" + GameData.L("puzzle.energyBlocked") + " " + name + " (" + failure.Key + ") · " + failure.Value.ToString("0.#");
+            }
+            _simulation.StopCombat();
+            _isPaused = false;
+            LocalTelemetry.Record(_simulation.Tick, "puzzle.result", _puzzle.Id + ":" + resultKey);
         }
 
         /// <summary>디버그 실행에서만 미션 플레이어 무적을 토글한다.</summary>
@@ -197,7 +227,7 @@ namespace RuneCode
         /// <summary>디버그 실행에서만 지정한 종류의 적을 미션에 생성한다. 엘리트 지정 시 엘리트 배율로 생성한다.</summary>
         public void DebugSpawn(string kind = "enemy.scout", bool isElite = false)
         {
-            if (!_session.IsDebugEnabled) return;
+            if (!_session.IsDebugEnabled || _puzzle != null) return;
             _simulation.DebugSpawn(kind, isElite);
         }
 

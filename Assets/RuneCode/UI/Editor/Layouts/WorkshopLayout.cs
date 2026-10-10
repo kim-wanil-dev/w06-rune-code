@@ -8,14 +8,14 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>작업실 화면 Prefab의 헤더, 5개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
+    /// <summary>작업실 화면 Prefab의 헤더, 공유 전투 패널을 포함한 6개 탭과 상태줄을 생성하고 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
         private const string UPGRADE_CARD_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeCard.prefab";
         private const string UPGRADE_TREE_NODE_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeTreeNode.prefab";
         private const string UPGRADE_TREE_ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
         private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
-        private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "settings" };
+        private static readonly string[] TABS = { "editor", "bench", "tree", "deploy", "puzzle", "settings" };
 
         /// <summary>작업실 헤더·탭 패널과 화면 컴포넌트를 만들고 모든 직렬화 참조를 연결해 WorkshopScreen Prefab으로 저장한다.</summary>
         public static void Build()
@@ -31,7 +31,7 @@ namespace RuneCode
             TextMeshProUGUI[] tabLabels = new TextMeshProUGUI[TABS.Length];
             for (int i = 0; i < TABS.Length; i++)
             {
-                tabButtons[i] = ui.Button(page, 220 + i * 112, 18, 104, 34, GameData.L("ui." + TABS[i]), null, UiTheme.Muted, 13, TABS[i] + "TabButton");
+                tabButtons[i] = ui.Button(page, 220 + i * 96, 18, 90, 34, GameData.L("ui." + TABS[i]), null, UiTheme.Muted, 13, TABS[i] + "TabButton");
                 tabLabels[i] = tabButtons[i].GetComponentInChildren<TextMeshProUGUI>();
             }
             TextMeshProUGUI headerStats = ui.Text(page, 816, 23, 440, 30, "", 16, UiTheme.Cyan, FontStyles.Normal, "HeaderStats");
@@ -236,19 +236,22 @@ namespace RuneCode
         private static DeployPanel BuildDeploy(UiFactory ui, RectTransform parent)
         {
             RectTransform card = ui.Panel(parent, 64, 122, 1152, 498, UiTheme.Panel, "DeployCard");
-            ui.Text(card, 38, 32, 1070, 46, GameData.L("ui.timedBattle"), 32, Color.white, FontStyles.Bold, "BattleTitle");
-            ui.Text(card, 38, 98, 1010, 72, GameData.L("ui.battleDescription"), 20, UiTheme.Muted, FontStyles.Normal, "BattleDescription");
+            TextMeshProUGUI title = ui.Text(card, 38, 32, 1070, 46, GameData.L("ui.timedBattle"), 32, Color.white, FontStyles.Bold, "BattleTitle");
+            TextMeshProUGUI description = ui.Text(card, 38, 98, 1010, 72, GameData.L("ui.battleDescription"), 20, UiTheme.Muted, FontStyles.Normal, "BattleDescription");
             TextMeshProUGUI highest = ui.Text(card, 38, 202, 480, 30, "", 16, UiTheme.Muted, FontStyles.Normal, "HighestStage");
             TextMeshProUGUI stage = ui.Text(card, 38, 246, 238, 36, "", 28, UiTheme.Cyan, FontStyles.Bold, "Stage");
             Button stageDown = ui.Button(card, 292, 240, 52, 44, "−", null, UiTheme.Muted, 22, "StageDownButton");
             Button stageUp = ui.Button(card, 358, 240, 52, 44, "+", null, UiTheme.Cyan, 22, "StageUpButton");
             TextMeshProUGUI duration = ui.Text(card, 510, 202, 560, 40, "", 27, Color.white, FontStyles.Normal, "Duration");
-            ui.Text(card, 510, 253, 560, 35, GameData.L("ui.manualBattle"), 18, UiTheme.Cyan, FontStyles.Normal, "BattleMode");
+            TextMeshProUGUI battleMode = ui.Text(card, 510, 253, 560, 35, GameData.L("ui.manualBattle"), 18, UiTheme.Cyan, FontStyles.Normal, "BattleMode");
             TextMeshProUGUI spell = ui.Text(card, 38, 310, 1032, 52, "", 18, Color.white, FontStyles.Normal, "SpellSummary");
             Button launch = ui.Button(card, 38, 386, 320, 60, GameData.L("ui.launch"), null, UiTheme.Cyan, 22, "LaunchButton");
             ui.Text(card, 406, 390, 680, 56, GameData.L("ui.manualBattleControls"), 14, UiTheme.Muted, FontStyles.Normal, "BattleControls");
 
             DeployPanel deployPanel = parent.gameObject.AddComponent<DeployPanel>();
+            LayoutUtility.SetReference(deployPanel, "_titleText", title);
+            LayoutUtility.SetReference(deployPanel, "_descriptionText", description);
+            LayoutUtility.SetReference(deployPanel, "_battleModeText", battleMode);
             LayoutUtility.SetReference(deployPanel, "_highestText", highest);
             LayoutUtility.SetReference(deployPanel, "_stageText", stage);
             LayoutUtility.SetReference(deployPanel, "_durationText", duration);

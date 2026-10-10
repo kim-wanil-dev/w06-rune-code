@@ -17,9 +17,10 @@ namespace RuneCode
         public const string TAB_BENCH = "bench";
         public const string TAB_TREE = "tree";
         public const string TAB_DEPLOY = "deploy";
+        public const string TAB_PUZZLE = "puzzle";
         public const string TAB_SETTINGS = "settings";
 
-        private static readonly string[] TABS = { TAB_EDITOR, TAB_BENCH, TAB_TREE, TAB_DEPLOY, TAB_SETTINGS };
+        private static readonly string[] TABS = { TAB_EDITOR, TAB_BENCH, TAB_TREE, TAB_DEPLOY, TAB_PUZZLE, TAB_SETTINGS };
 
         [Header("탭 구성")]
         [SerializeField] private RectTransform _editorRoot;
@@ -72,7 +73,7 @@ namespace RuneCode
             _editorRoot.gameObject.SetActive(tab == TAB_EDITOR);
             _benchRoot.gameObject.SetActive(tab == TAB_BENCH);
             _treeRoot.gameObject.SetActive(tab == TAB_TREE);
-            _deployRoot.gameObject.SetActive(tab == TAB_DEPLOY);
+            _deployRoot.gameObject.SetActive(tab == TAB_DEPLOY || tab == TAB_PUZZLE);
             _settingsRoot.gameObject.SetActive(tab == TAB_SETTINGS);
             for (int i = 0; i < TABS.Length; i++)
             {

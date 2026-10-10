@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace RuneCode
 {
     /// <summary>
-    /// 세이브 객체와 저장 파일 위에서 마법 보관함 읽기·쓰기를 제공한다.
+    /// 전투 종류와 무관하게 같은 마법 보관함과 활성 마법을 세이브에서 읽고 쓴다.
     /// 세이브 참조를 Func으로 받아 진행 초기화로 객체가 교체돼도 항상 최신 세이브를 사용한다.
     /// </summary>
     public sealed class SessionSpellStorage : ISpellStorage
@@ -44,7 +44,7 @@ namespace RuneCode
             _getSave().RemoveGraph(spellId);
         }
 
-        /// <summary>현재 세이브를 저장 파일에 기록하고 실패 시 경고 문구를 반환한다.</summary>
+        /// <summary>일반·퍼즐 보관함을 포함한 세이브를 파일에 기록하고 실패 경고를 반환한다.</summary>
         public bool Persist(out string warning)
         {
             if (SaveStore.Write(_getSave()))

@@ -18,6 +18,9 @@ namespace RuneCode
         private readonly bool _isDebugEnabled;
         private readonly bool _isAreaBoxUpright;
         private readonly SpellEditSession _spells;
+        private readonly SessionSpellStorage _spellStorage;
+        private bool _isPuzzleBattle;
+        private int _selectedPuzzle = 1;
         private string _statusMessage;
 
         private string _dockScenario = "dummy_single";
@@ -29,6 +32,10 @@ namespace RuneCode
         public ISpellEditor Spells => _spells;
         public bool IsDebugEnabled => _isDebugEnabled;
         public bool IsAreaBoxUpright => _isAreaBoxUpright;
+        public bool IsPuzzleBattle => _isPuzzleBattle;
+        public int SelectedPuzzle => _selectedPuzzle;
+        public PuzzleBattleDefinition Puzzle => GameData.Puzzles.Get(_selectedPuzzle);
+        public IReadOnlyList<SpellGraph> SpellLibrary => _spellStorage.Library;
         public string StatusMessage => _statusMessage;
 
         public string DockScenario => _dockScenario;
@@ -60,9 +67,25 @@ namespace RuneCode
             _isDebugEnabled = isDebugEnabled;
             _isAreaBoxUpright = isAreaBoxUpright;
             _statusMessage = initialStatus;
-            var storage = new SessionSpellStorage(() => _save);
+            _spellStorage = new SessionSpellStorage(() => _save);
             var policy = new SessionSpellPolicy(this);
-            _spells = new SpellEditSession(storage, policy);
+            _spells = new SpellEditSession(_spellStorage, policy);
+        }
+
+        /// <summary>현재 설계를 저장하고 출격할 전투 종류만 선택한다. 보관함·활성 마법·편집 이력은 유지한다.</summary>
+        public void SelectBattleMode(bool isPuzzleBattle)
+        {
+            if (_isPuzzleBattle == isPuzzleBattle) return;
+            _spells.Save();
+            _isPuzzleBattle = isPuzzleBattle;
+            SetStatus(isPuzzleBattle ? "ui.puzzle" : "ui.deploy");
+        }
+
+        /// <summary>범위 안의 출격할 퍼즐 번호만 변경한다. 현재 마법과 편집 규칙은 변경하지 않는다.</summary>
+        public void SelectPuzzle(int number)
+        {
+            if (!_isPuzzleBattle || number < 1 || number > GameData.Puzzles.Count || number == _selectedPuzzle) return;
+            _selectedPuzzle = number;
         }
 
         /// <summary>등록된 전환 콜백으로 지정 화면 전환을 요청한다.</summary>
@@ -243,6 +266,7 @@ namespace RuneCode
         /// <summary>진행을 초기화하고 새 시작 마법으로 편집 세션을 다시 연다.</summary>
         public void ResetSave()
         {
+            SelectBattleMode(false);
             _save = PlayerSave.CreateNew();
             _spells.Reload();
             SaveStore.Write(_save);
@@ -255,18 +279,36 @@ namespace RuneCode
             SaveStore.Write(_save);
         }
 
-        /// <summary>마법을 저장·컴파일하고 장착 가능하면 시전할 마법을 반환한다. 불가하면 상태 문구를 남기고 false를 반환한다.</summary>
+        /// <summary>현재 마법을 저장하고 선택 전투의 문법·RAM 조건으로 출격을 검사한다. 편집 컴파일 결과는 유지하며 실패 시 이유와 null을 반환한다.</summary>
         public bool TryPrepareMission(out CompiledSpell spell)
         {
             _spells.Save();
             _spells.Recompile();
-            if (!_spells.CompileResult.Ok || EquippedRam > Capacity)
+            if (TryValidateMission(out spell, out string reason)) return true;
+            SetStatusText(reason);
+            return false;
+        }
+
+        /// <summary>현재 마법을 선택 전투 조건으로 검사하고 실행 마법 또는 출격 불가 이유를 반환한다. 저장·편집 상태는 변경하지 않는다.</summary>
+        public bool TryValidateMission(out CompiledSpell spell, out string reason)
+        {
+            int capacity = _isPuzzleBattle ? Puzzle.Capacity : Capacity;
+            float maxEnergy = _isPuzzleBattle ? (float)Puzzle.MaxEnergy : MaxEnergy;
+            CompileResult result = GraphCompiler.Compile(_spells.Graph, GameData.Runes, GameData.Balance.Grammar,
+                _save.UnlockedRunes, capacity, maxEnergy, _save.Library, _save.CreateModifierStockMap());
+            int ramUsed = result.Spell != null ? result.Spell.RamUsed : GetGraphRam(_spells.Graph);
+            if (!result.Ok || (!_isPuzzleBattle && EquippedRam > capacity))
             {
-                SetStatus("editor.invalidEquip");
+                if (_isPuzzleBattle && ramUsed > capacity)
+                    reason = GameData.L("puzzle.ramBlocked") + " " + ramUsed + " / " + capacity + " (+" + (ramUsed - capacity) + ")";
+                else if (_isPuzzleBattle && result.Errors.Count > 0)
+                    reason = CompileIssueText.Format(result.Errors[0]);
+                else reason = GameData.L("editor.invalidEquip");
                 spell = null;
                 return false;
             }
-            spell = _spells.CompileResult.Spell;
+            reason = null;
+            spell = result.Spell;
             return true;
         }
 
