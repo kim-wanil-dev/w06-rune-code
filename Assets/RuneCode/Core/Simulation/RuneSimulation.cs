@@ -41,6 +41,7 @@ namespace RuneCode
         private readonly List<NodeExecutionEvent> _nodeEvents = new List<NodeExecutionEvent>();
         private readonly List<ScheduledExecution> _scheduled = new List<ScheduledExecution>();
         private readonly List<PendingEnemyShot> _pendingEnemyShots = new List<PendingEnemyShot>();
+        private readonly List<PendingSplit> _pendingSplits = new List<PendingSplit>();
         private readonly List<EnemyStatusEffect> _enemyStatuses = new List<EnemyStatusEffect>();
         private readonly Dictionary<int, EnemyStatusEffect> _statusIndex = new Dictionary<int, EnemyStatusEffect>();
         private readonly Queue<DamageSample> _damageWindow = new Queue<DamageSample>();
@@ -103,8 +104,8 @@ namespace RuneCode
         public bool IsBossStage => _stageDefinition != null && _stageDefinition.IsBoss;
         public double TimeLimit => _stageDefinition?.TimeLimit ?? 0;
         public double RemainingTime => IsBossStage ? Math.Max(0, TimeLimit - Time) : 0;
-        public int RemainingEnemies => (_director?.PendingCount ?? 0) + CountAliveEnemies();
-        public int TotalEnemies => _spawnedEnemies + (_director?.PendingCount ?? 0);
+        public int RemainingEnemies => (_director?.PendingCount ?? 0) + CountAliveEnemies() + _pendingSplits.Count;
+        public int TotalEnemies => _spawnedEnemies + (_director?.PendingCount ?? 0) + _pendingSplits.Count;
         public SimVector MapCenter => new SimVector(_map.Width * 0.5, _map.Height * 0.5);
         public double EnergyRegen => _energyRegen;
         public int SpawnedEnemies => _spawnedEnemies;
@@ -228,7 +229,7 @@ namespace RuneCode
             if (startedDash) TryCastTrigger(SpellGrammar.TRIGGER_ON_DASH_START);
             else if (wasDashing && _player.DashRemaining <= 0.000001) TryCastTrigger(SpellGrammar.TRIGGER_ON_DASH_END);
             if (input.Movement.LengthSquared > 0.000001) TryCastTrigger(SpellGrammar.TRIGGER_ON_MOVE);
-            if (_isMission) AdvanceSpawns();
+            if (_isMission) { AdvanceSpawns(); AdvanceSplits(); }
             RunScheduled();
             if (input.CastA) TryCastTriggered(_loadout[0], SpellGrammar.TRIGGER_ON_ATTACK, 0);
             if (input.CastB) TryCastTriggered(_loadout[1], SpellGrammar.TRIGGER_ON_ATTACK, 1);
@@ -276,9 +277,9 @@ namespace RuneCode
         /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트 지정 시 스테이지 데이터와 무관하게 현재 기본 배율(체력·보상 2배, 속도 1배)을 적용한다.</summary>
         public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 0, 2, 2, 1) : null);
 
-        /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다.</summary>
+        /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다. 처치로 생긴 분열 대기도 함께 비운다.</summary>
         public void DebugDefeatRoom()
-        { if (_isMission && _stage != MissionStage.Combat) return; foreach (SimulationEnemy enemy in _enemies) enemy.Hurt(enemy.Hp, Time); CleanupEnemies(); if (_isMission) CollectAllOrbs(); }
+        { if (_isMission && _stage != MissionStage.Combat) return; foreach (SimulationEnemy enemy in _enemies) enemy.Hurt(enemy.Hp, Time); CleanupEnemies(); _pendingSplits.Clear(); if (_isMission) CollectAllOrbs(); }
 
         /// <summary>현재 시뮬레이션의 핵심 상태를 안정적으로 해시하여 동일 입력 실행의 결정성을 비교한다.</summary>
         public string StateHash()
@@ -312,6 +313,14 @@ namespace RuneCode
             foreach (CompiledSpell spell in _loadout) state.Append('|').Append(spell?.Signature);
             foreach (string element in _unlockedElements) state.Append('|').Append(element);
             foreach (PendingEnemyShot shot in _pendingEnemyShots) { state.Append(shot.Tick).Append('|').Append(shot.Owner.Id); AppendNumber(state, shot.Direction.X); AppendNumber(state, shot.Direction.Y); AppendNumber(state, shot.SpeedMultiplier); }
+            foreach (PendingSplit split in _pendingSplits)
+            {
+                state.Append('|').Append(split.Tick).Append('|').Append(split.EnemyId).Append('|').Append(split.Elite != null);
+                AppendNumber(state, split.Position.X); AppendNumber(state, split.Position.Y);
+                AppendNumber(state, split.Elite != null ? split.Elite.RawHpMultiplier : 0);
+                AppendNumber(state, split.Elite != null ? split.Elite.RawRewardMultiplier : 0);
+                AppendNumber(state, split.Elite != null ? split.Elite.RawSpeedMultiplier : 0);
+            }
             AppendNumber(state, _totalDamage); state.Append(_collectedFragments).Append(_nodeExecutionCount);
             if (_director != null)
             { _director.WriteState(state); AppendNumber(state, _moveDirection.X); AppendNumber(state, _moveDirection.Y); state.Append(_hasMoveDirection); }
@@ -1139,15 +1148,33 @@ namespace RuneCode
             ExecuteCallEvent(entity, false, isFirstEvent, entity.Position, null);
         }
 
-        /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다.</summary>
+        /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계와 RAM 오브를 생성한다. 분열형은 미션 중 처치되면 자식 생성을 예약한다.</summary>
         private void CleanupEnemies()
         {
             for (int i = _enemies.Count - 1; i >= 0; i--)
             {
                 SimulationEnemy enemy = _enemies[i]; if (enemy.IsAlive) continue;
                 if (_isMission)
-                { _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward)); _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++; }
+                {
+                    if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
+                    if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward));
+                    _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
+                }
                 RemoveEnemyStatuses(enemy.Id); _enemies.RemoveAt(i);
+            }
+        }
+
+        /// <summary>분열형 적이 미션 중 처치되면 자식 수만큼 대기 항목을 만든다. 위치는 부모 진행 방향의 수직선 위에서 자식 반경 간격으로 균등 분배하고, 엘리트 정의는 그대로 물려준다.</summary>
+        private void EnqueueSplits(SimulationEnemy parent)
+        {
+            EnemyDefinition definition = parent.Definition;
+            int delayTicks = Math.Max(1, (int)Math.Round(definition.SplitDelay * TICK_RATE));
+            SimVector side = new SimVector(-parent.Facing.Y, parent.Facing.X);
+            double childRadius = _enemyCatalog.Get(definition.SplitInto).Radius;
+            for (int i = 0; i < definition.SplitCount; i++)
+            {
+                double offsetRatio = definition.SplitCount == 1 ? 0 : i / (double)(definition.SplitCount - 1) * 2 - 1;
+                _pendingSplits.Add(new PendingSplit(_tick + delayTicks, definition.SplitInto, parent.Position + side * (childRadius * offsetRatio), parent.Elite));
             }
         }
 
@@ -1159,12 +1186,12 @@ namespace RuneCode
         private void CollectAllOrbs() { foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount; _orbs.Clear(); }
 
         /// <summary>
-        /// 남은 스폰 예약과 살아 있는 적이 모두 없으면 클리어, 보스 스테이지 제한시간이 지나면 시간 초과 실패로 전투를 끝내고 남은 보상을 회수한다.
+        /// 남은 스폰 예약, 살아 있는 적과 분열 대기가 모두 없으면 클리어, 보스 스테이지 제한시간이 지나면 시간 초과 실패로 전투를 끝내고 남은 보상을 회수한다.
         /// 같은 틱에 두 조건이 겹치면 클리어를 우선한다.
         /// </summary>
         private void CheckBattleEnd()
         {
-            if (_director.PendingCount == 0 && CountAliveEnemies() == 0) _stage = MissionStage.Cleared;
+            if (_director.PendingCount == 0 && CountAliveEnemies() == 0 && _pendingSplits.Count == 0) _stage = MissionStage.Cleared;
             else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
             else return;
             CollectAllOrbs(); CancelCombat();
@@ -1203,6 +1230,19 @@ namespace RuneCode
                 EliteSpawnDefinition elite = null;
                 if (order.IsStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
                 SpawnByFormation(order, elite != null ? elite.EnemyId : (order.IsStream ? PickStreamEnemy() : order.EnemyId), elite);
+            }
+        }
+
+        /// <summary>분열 대기 항목 중 생성 틱에 도달한 것을 목록 순서대로 생성한다. 적 수가 상한이면 남은 항목을 다음 틱에 다시 시도한다.</summary>
+        private void AdvanceSplits()
+        {
+            for (int i = 0; i < _pendingSplits.Count;)
+            {
+                if (_enemies.Count >= EnemyLimit) return;
+                PendingSplit split = _pendingSplits[i];
+                if (split.Tick > _tick) { i++; continue; }
+                _pendingSplits.RemoveAt(i);
+                SpawnEnemy(split.EnemyId, split.Position, false, 0, split.Elite);
             }
         }
 
@@ -1320,14 +1360,14 @@ namespace RuneCode
             double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite);
             enemy.AttackAt = Time + definition.AttackInterval;
             if (id == "boss.governor") { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;
         }
 
-        /// <summary>사망, 클리어 및 시간 초과 시 지속 개체와 예약 실행을 취소한다.</summary>
-        private void CancelCombat() { _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); }
+        /// <summary>사망, 클리어 및 시간 초과 시 지속 개체, 예약 실행과 분열 대기를 취소한다.</summary>
+        private void CancelCombat() { _spellEntities.Clear(); _enemyProjectiles.Clear(); _scheduled.Clear(); _pendingEnemyShots.Clear(); _pendingSplits.Clear(); }
 
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>
         private void RecordNode(string nodeId) { _nodeEvents.Add(new NodeExecutionEvent(nodeId, _tick)); _nodeExecutionCount++; }
@@ -1501,6 +1541,21 @@ namespace RuneCode
 
             /// <summary>연사 탄환의 발사 틱, 소유 적, 방향 및 속도 배율을 보관한다.</summary>
             public PendingEnemyShot(int tick, SimulationEnemy owner, SimVector direction, double speedMultiplier) { _tick = tick; _owner = owner; _direction = direction; _speedMultiplier = speedMultiplier; }
+        }
+
+        private readonly struct PendingSplit
+        {
+            private readonly int _tick;
+            private readonly string _enemyId;
+            private readonly SimVector _position;
+            private readonly EliteSpawnDefinition _elite;
+            public int Tick => _tick;
+            public string EnemyId => _enemyId;
+            public SimVector Position => _position;
+            public EliteSpawnDefinition Elite => _elite;
+
+            /// <summary>분열 자식의 생성 틱, 적 ID, 생성 위치와 부모에게서 물려받은 엘리트 정의를 보관한다.</summary>
+            public PendingSplit(int tick, string enemyId, SimVector position, EliteSpawnDefinition elite) { _tick = tick; _enemyId = enemyId; _position = position; _elite = elite; }
         }
     }
 }

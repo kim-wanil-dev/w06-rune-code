@@ -654,6 +654,15 @@ MonoBehaviour:
   - _enemyId: boss.governor
     _shape: {fileID: 21300000, guid: 5b723bbbe2965e0469fb773b091ea451, type: 3}
     _tint: {r: 0.89, g: 0.35, b: 0.92, a: 1}
+  - _enemyId: enemy.splitter
+    _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
+    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
+  - _enemyId: enemy.splitter_mid
+    _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
+    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
+  - _enemyId: enemy.splitter_small
+    _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
+    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
   _defaultShape: {fileID: 21300000, guid: 5b723bbbe2965e0469fb773b091ea451, type: 3}
   _defaultTint: {r: 0.94, g: 0.34, b: 0.4, a: 1}
   _rotator: {fileID: 8850041539441466761}

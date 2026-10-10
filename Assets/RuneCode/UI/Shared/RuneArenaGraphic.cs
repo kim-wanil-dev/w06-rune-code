@@ -46,6 +46,7 @@ namespace RuneCode
         private static readonly Color AEGIS_COLOR = new Color(0.96f, 0.69f, 0.29f);
         private static readonly Color AEGIS_SHIELD_COLOR = new Color(0.95f, 0.77f, 0.40f);
         private static readonly Color BOSS_COLOR = new Color(0.89f, 0.35f, 0.92f);
+        private static readonly Color SPLITTER_COLOR = new Color(0.36f, 0.84f, 0.44f);
         private static readonly Color DUMMY_COLOR = new Color(0.52f, 0.69f, 0.74f);
         private static readonly Color ENEMY_CORE_COLOR = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color WARNING_COLOR = new Color(1, 0.78f, 0.23f);
@@ -349,6 +350,9 @@ namespace RuneCode
                 case "enemy.relay": return RELAY_COLOR;
                 case "enemy.aegis": return AEGIS_COLOR;
                 case "boss.governor": return BOSS_COLOR;
+                case "enemy.splitter":
+                case "enemy.splitter_mid":
+                case "enemy.splitter_small": return SPLITTER_COLOR;
                 default: return ENEMY_COLOR;
             }
         }
@@ -362,6 +366,9 @@ namespace RuneCode
                 case "enemy.sentry":
                 case "enemy.hunter": return 4;
                 case "enemy.relay": return 8;
+                case "enemy.splitter":
+                case "enemy.splitter_mid":
+                case "enemy.splitter_small": return 12;
                 default: return 6;
             }
         }
