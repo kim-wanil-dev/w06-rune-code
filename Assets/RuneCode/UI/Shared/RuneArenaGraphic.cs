@@ -15,6 +15,7 @@ namespace RuneCode
     public sealed class RuneArenaGraphic : UnityEngine.UI.MaskableGraphic
     {
         private const float WORLD_WIDTH = 1280;
+        private const int SNIPER_BLINK_TICKS = 6;
         private const float WORLD_HEIGHT = 704;
         private const float TILE_SIZE = 32;
         private const float SHAKE_SECONDS = 0.08f;
@@ -366,6 +367,11 @@ namespace RuneCode
             if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA)) RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, RELAY_AURA_COLOR);
             if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp)) DrawAegisShield(mesh, point, radius, facing);
             if (enemy.IsPatching) RuneMesh.Ring(mesh, point, radius + 12 * _scale, 3 * _scale, PATCH_COLOR, 12);
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_CIRCLE_SHIELD))
+                RuneMesh.Ring(mesh, point, (float)enemy.Definition.ShieldRadius * _scale, 2 * _scale, new Color(0.3f, 0.95f, 0.85f, 0.7f));
+            if (enemy.IsAiming)
+                RuneMesh.Line(mesh, Point(enemy.AttackOrigin), Point(sim.GetSniperEnd(enemy)), 2 * _scale,
+                    new Color(1, 0.12f, 0.2f, (sim.Tick / SNIPER_BLINK_TICKS) % 2 == 0 ? 0.6f : 0.2f));
             DrawEnemyStatuses(mesh, enemy, sim, point, radius);
             DrawEnemyHp(mesh, enemy, point, radius, tint);
         }
@@ -380,6 +386,12 @@ namespace RuneCode
             if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD)) return AEGIS_COLOR;
             switch (enemy.Kind)
             {
+                case "enemy.bomb_seed": return new Color(1f, 0.55f, 0.2f);
+                case "enemy.clock_sniper": return new Color(0.8f, 0.15f, 0.24f);
+                case "enemy.shield_melee":
+                case "enemy.shield_ranged": return new Color(0.3f, 0.95f, 0.85f);
+                case "enemy.carrier": return new Color(0.3f, 0.4f, 0.8f);
+                case "enemy.interceptor": return new Color(1f, 0.45f, 0.5f);
                 case "enemy.splitter":
                 case "enemy.splitter_mid":
                 case "enemy.splitter_small": return SPLITTER_COLOR;

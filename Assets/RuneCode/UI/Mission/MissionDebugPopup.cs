@@ -18,7 +18,13 @@ namespace RuneCode
         [SerializeField] private Button _splitterSpawnButton;
         [SerializeField] private Button _splitterEliteSpawnButton;
 
+        [Header("추가 적 생성")]
+        [SerializeField] private Button[] _additionalSpawnButtons;
+        [SerializeField] private string[] _additionalEnemyIds;
+
         private bool _isBound;
+        /// <summary>추가 적 소환 버튼을 눌렀을 때 해당 적 ID를 알린다.</summary>
+        public event Action<string> AdditionalSpawnClicked;
 
         /// <summary>조각 지급을 눌렀을 때 알린다.</summary>
         public event Action GrantClicked;
@@ -52,6 +58,12 @@ namespace RuneCode
             _eliteSpawnButton.onClick.AddListener(() => EliteSpawnClicked?.Invoke());
             _splitterSpawnButton.onClick.AddListener(() => SplitterSpawnClicked?.Invoke());
             _splitterEliteSpawnButton.onClick.AddListener(() => SplitterEliteSpawnClicked?.Invoke());
+            if (_additionalSpawnButtons != null)
+                for (int i = 0; i < _additionalSpawnButtons.Length; i++)
+                {
+                    string id = _additionalEnemyIds[i];
+                    _additionalSpawnButtons[i].onClick.AddListener(() => AdditionalSpawnClicked?.Invoke(id));
+                }
             _isBound = true;
         }
     }

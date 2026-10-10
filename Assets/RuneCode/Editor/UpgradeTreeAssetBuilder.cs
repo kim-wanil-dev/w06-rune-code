@@ -11,7 +11,7 @@ namespace RuneCode
     {
         private const string ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
         private const int BASE_TOPOLOGY_VERSION = 5;
-        private const int TOPOLOGY_VERSION = 6;
+        private const int TOPOLOGY_VERSION = 7;
         private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
         private const string RAM_NODE_ID = "upgrade.ram";
         private const string POWER_NODE_ID = "upgrade.maxEnergy";
@@ -21,36 +21,27 @@ namespace RuneCode
         private const string HP_NODE_ID = "upgrade.maxHp";
         private const string MOVE_SPEED_NODE_ID = "upgrade.moveSpeed";
         private const string SCRAP_PICKUP_RANGE_NODE_ID = "upgrade.scrapPickupRange";
+        private const string SECOND_MAINBOARD_NODE_ID = "upgrade.mainboard.secondary";
+        private const string FINAL_MAINBOARD_NODE_ID = "upgrade.mainboard.final";
+        private const string FINAL_GPU_NODE_ID = "upgrade.gpu.final";
 
         private static readonly HashSet<string> _placedNodeIds = new HashSet<string>
         {
             MAINBOARD_NODE_ID, RAM_NODE_ID, POWER_NODE_ID, CPU_NODE_ID, GPU_NODE_ID,
-            SCRAP_NODE_ID, HP_NODE_ID, MOVE_SPEED_NODE_ID,
-            "unlock.element.fire", "unlock.element.ice", "unlock.behavior.burst", "unlock.behavior.persist"
+            SCRAP_NODE_ID, HP_NODE_ID, MOVE_SPEED_NODE_ID, SCRAP_PICKUP_RANGE_NODE_ID,
+            SECOND_MAINBOARD_NODE_ID, FINAL_MAINBOARD_NODE_ID, FINAL_GPU_NODE_ID,
+            "unlock.element.fire", "unlock.element.ice", "unlock.behavior.burst", "unlock.behavior.persist",
+            "unlock.shape.cone", "unlock.shape.box"
         };
 
         private static readonly RuneNodeSeed[] _runeNodeSeeds =
         {
-            new RuneNodeSeed("element.fire", MAINBOARD_NODE_ID, new Vector2(650, 220), 0),
-            new RuneNodeSeed("element.ice", MAINBOARD_NODE_ID, new Vector2(1350, 220), 15),
-            new RuneNodeSeed("element.healing", "unlock.element.fire", new Vector2(610, 410), 20),
-            new RuneNodeSeed("element.lightning", "unlock.element.ice", new Vector2(1390, 410), 35),
-            new RuneNodeSeed("element.protection", "unlock.element.ice", new Vector2(1570, 410), 25),
-            new RuneNodeSeed("behavior.burst", GPU_NODE_ID, new Vector2(900, 600), 15),
-            new RuneNodeSeed("behavior.persist", GPU_NODE_ID, new Vector2(1170, 600), 20),
-            new RuneNodeSeed("behavior.orbit", "unlock.behavior.persist", new Vector2(1710, 800), 25),
-            new RuneNodeSeed("behavior.apply", "unlock.behavior.persist", new Vector2(1890, 800), 35),
-            new RuneNodeSeed("mod.amplify", "unlock.behavior.burst", new Vector2(510, 800), 20),
-            new RuneNodeSeed("mod.multi", "unlock.behavior.burst", new Vector2(690, 800), 30),
-            new RuneNodeSeed("mod.pierce", "unlock.behavior.burst", new Vector2(870, 800), 30),
-            new RuneNodeSeed("mod.expand", "unlock.behavior.burst", new Vector2(1050, 800), 30),
-            new RuneNodeSeed("mod.duration", "unlock.behavior.burst", new Vector2(1230, 800), 25),
-            new RuneNodeSeed("mod.speed", "unlock.behavior.persist", new Vector2(2070, 800), 20),
-            new RuneNodeSeed("mod.homing", "unlock.behavior.persist", new Vector2(2250, 800), 50),
-            new RuneNodeSeed("flow.delay", CPU_NODE_ID, new Vector2(260, 600), 10),
-            new RuneNodeSeed("flow.repeat", CPU_NODE_ID, new Vector2(440, 600), 40),
-            new RuneNodeSeed("flow.if", CPU_NODE_ID, new Vector2(620, 600), 60),
-            new RuneNodeSeed("spell.call", CPU_NODE_ID, new Vector2(800, 600), 25)
+            new RuneNodeSeed("element.fire", MAINBOARD_NODE_ID, new Vector2(800, 220), 100),
+            new RuneNodeSeed("shape.cone", RAM_NODE_ID, new Vector2(1000, 410), 200),
+            new RuneNodeSeed("behavior.burst", GPU_NODE_ID, new Vector2(1000, 600), 200),
+            new RuneNodeSeed("element.ice", CPU_NODE_ID, new Vector2(1200, 790), 150),
+            new RuneNodeSeed("behavior.persist", SCRAP_PICKUP_RANGE_NODE_ID, new Vector2(1400, 980), 250),
+            new RuneNodeSeed("shape.box", SCRAP_NODE_ID, new Vector2(1600, 1170), 300)
         };
 
         /// <summary>트리 자산이 없으면 기본 데이터를 만들고 구버전이면 배치·미배치 목록으로 한 번 이전한다.</summary>
@@ -63,13 +54,9 @@ namespace RuneCode
                 AssetDatabase.CreateAsset(definition, ASSET_PATH);
             }
             bool hasChanges = false;
-            if (definition.LayoutVersion < BASE_TOPOLOGY_VERSION)
-            {
-                CreateDefaultNodes(definition);
-                hasChanges = true;
-            }
             if (definition.LayoutVersion < TOPOLOGY_VERSION)
             {
+                CreateDefaultNodes(definition);
                 SeparateUnplacedNodes(definition);
                 hasChanges = true;
             }
@@ -88,28 +75,40 @@ namespace RuneCode
 
             AddUpgradeNode(nodes, MAINBOARD_NODE_ID, "ui.tree.mainboard", "ui.tree.mainboardDescription",
                 new Vector2(1000, 40), UpgradeEffectType.EnergyRegen, null,
-                new[] { 0, 10, 20 }, new[] { 0.5f, 0.5f, 0.5f });
+                new[] { 10, 20, 40 }, new[] { 0.5f, 0.5f, 0.5f });
             AddUpgradeNode(nodes, RAM_NODE_ID, "ui.tree.ramCapacity", "ui.tree.ramDescription",
                 new Vector2(1000, 220), UpgradeEffectType.RamCapacity, MAINBOARD_NODE_ID,
-                new[] { 10, 20, 40 }, new[] { 1f, 1f, 1f });
+                new[] { 20, 40, 80 }, new[] { 1f, 1f, 1f });
             AddUpgradeNode(nodes, POWER_NODE_ID, "ui.tree.maxEnergy", "ui.tree.maxEnergyDescription",
-                new Vector2(830, 410), UpgradeEffectType.MaxEnergy, RAM_NODE_ID,
-                new[] { 8, 16, 32 }, new[] { 5f, 5f, 5f });
-            AddUpgradeNode(nodes, CPU_NODE_ID, "ui.tree.cpu", "ui.tree.cpuDescription",
-                new Vector2(1000, 410), UpgradeEffectType.CastSpeed, RAM_NODE_ID,
-                new[] { 10, 20, 40 }, new[] { 0f, 0f, 0f });
+                new Vector2(800, 410), UpgradeEffectType.MaxEnergy, RAM_NODE_ID,
+                new[] { 30, 60, 120 }, new[] { 5f, 5f, 5f });
             AddUpgradeNode(nodes, GPU_NODE_ID, "ui.tree.gpu", "ui.tree.gpuDescription",
-                new Vector2(1170, 410), UpgradeEffectType.Damage, RAM_NODE_ID,
-                new[] { 12, 24, 48 }, new[] { 0.1f, 0.1f, 0.1f });
-            AddUpgradeNode(nodes, SCRAP_NODE_ID, "ui.tree.scrapGain", "ui.tree.scrapGainDescription",
-                new Vector2(1440, 600), UpgradeEffectType.ScrapGain, GPU_NODE_ID,
-                new[] { 15, 30, 60 }, new[] { 0.1f, 0.1f, 0.1f });
+                new Vector2(1200, 410), UpgradeEffectType.Damage, RAM_NODE_ID,
+                new[] { 30, 60, 120 }, new[] { 0.1f, 0.1f, 0.1f });
+            AddUpgradeNode(nodes, SECOND_MAINBOARD_NODE_ID, "ui.tree.mainboard", "ui.tree.mainboardDescription",
+                new Vector2(1200, 600), UpgradeEffectType.EnergyRegen, GPU_NODE_ID,
+                new[] { 40, 80, 160 }, new[] { 0.5f, 0.5f, 0.5f });
+            AddUpgradeNode(nodes, CPU_NODE_ID, "ui.tree.cpu", "ui.tree.cpuDescription",
+                new Vector2(1400, 600), UpgradeEffectType.CastSpeed, GPU_NODE_ID,
+                new[] { 40, 80, 160 }, new[] { 0f, 0f, 0f });
             AddUpgradeNode(nodes, HP_NODE_ID, "ui.tree.maxHp", "ui.tree.maxHpDescription",
-                new Vector2(1350, 800), UpgradeEffectType.MaxHp, SCRAP_NODE_ID,
-                new[] { 10, 20, 40 }, new[] { 10f, 10f, 10f });
+                new Vector2(1400, 790), UpgradeEffectType.MaxHp, CPU_NODE_ID,
+                new[] { 50, 100, 200 }, new[] { 10f, 10f, 10f });
+            AddUpgradeNode(nodes, SCRAP_PICKUP_RANGE_NODE_ID, "ui.tree.scrapPickupRange", "ui.tree.scrapPickupRangeDescription",
+                new Vector2(1600, 790), UpgradeEffectType.ScrapPickupRange, CPU_NODE_ID,
+                new[] { 50, 100, 200 }, new[] { 0.1f, 0.1f, 0.1f });
             AddUpgradeNode(nodes, MOVE_SPEED_NODE_ID, "ui.tree.moveSpeed", "ui.tree.moveSpeedDescription",
-                new Vector2(1530, 800), UpgradeEffectType.MoveSpeed, SCRAP_NODE_ID,
-                new[] { 15, 30, 60 }, new[] { 0.05f, 0.05f, 0.05f });
+                new Vector2(1600, 980), UpgradeEffectType.MoveSpeed, SCRAP_PICKUP_RANGE_NODE_ID,
+                new[] { 60, 120, 240 }, new[] { 0.05f, 0.05f, 0.05f });
+            AddUpgradeNode(nodes, SCRAP_NODE_ID, "ui.tree.scrapGain", "ui.tree.scrapGainDescription",
+                new Vector2(1800, 980), UpgradeEffectType.ScrapGain, SCRAP_PICKUP_RANGE_NODE_ID,
+                new[] { 60, 120, 240 }, new[] { 0.1f, 0.1f, 0.1f });
+            AddUpgradeNode(nodes, FINAL_MAINBOARD_NODE_ID, "ui.tree.mainboard", "ui.tree.mainboardDescription",
+                new Vector2(1800, 1170), UpgradeEffectType.EnergyRegen, SCRAP_NODE_ID,
+                new[] { 70, 140, 280 }, new[] { 0.5f, 0.5f, 0.5f });
+            AddUpgradeNode(nodes, FINAL_GPU_NODE_ID, "ui.tree.gpu", "ui.tree.gpuDescription",
+                new Vector2(2000, 1170), UpgradeEffectType.Damage, SCRAP_NODE_ID,
+                new[] { 70, 140, 280 }, new[] { 0.1f, 0.1f, 0.1f });
 
             foreach (RuneNodeSeed seed in _runeNodeSeeds) AddRuneNode(nodes, seed);
 

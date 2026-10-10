@@ -341,7 +341,7 @@ namespace RuneCode
         };
         private static readonly HashSet<string> STARTER_RUNE_IDS = new HashSet<string>(StringComparer.Ordinal)
         {
-            "shape.sphere", "shape.box", "shape.cone", "behavior.launch", "element.neutral"
+            "shape.sphere", "behavior.launch", "element.neutral"
         };
         private static readonly HashSet<string> UNLOCK_TYPES = new HashSet<string>(StringComparer.Ordinal) { "start", "tree", "bench" };
 

@@ -1,5 +1,11 @@
 {
   "_entries": [
+    { "_key": "enemy.bomb_seed", "_value": "자폭 씨앗" },
+    { "_key": "enemy.clock_sniper", "_value": "초침 저격수" },
+    { "_key": "enemy.shield_melee", "_value": "보호막 근접형" },
+    { "_key": "enemy.shield_ranged", "_value": "보호막 원거리형" },
+    { "_key": "enemy.carrier", "_value": "캐리어" },
+    { "_key": "enemy.interceptor", "_value": "인터셉터" },
     {
       "_key": "ui.title",
       "_value": "RUNE CODE"

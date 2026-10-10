@@ -205,6 +205,45 @@
       "_reward": 0,
       "_damage": 4,
       "_burstInterval": 0.12
+    },
+    {
+      "_id": "enemy.bomb_seed", "_hp": 20, "_speed": 110, "_radius": 13,
+      "_movement": "chase", "_attack": "contact", "_damage": 6,
+      "_attackInterval": 1, "_reward": 3, "_sides": 16,
+      "_traits": ["deathExplosion"], "_explosionRadius": 100, "_explosionDamage": 20
+    },
+    {
+      "_id": "enemy.clock_sniper", "_hp": 50, "_speed": 0, "_radius": 17,
+      "_movement": "sniper", "_attack": "sniper", "_damage": 20,
+      "_attackInterval": 3, "_attackRange": 1200, "_aimSeconds": 1, "_lockSeconds": 0.1,
+      "_projectileSpeed": 1600, "_projectileRadius": 3, "_projectileLifetime": 0.75,
+      "_reward": 5, "_sides": 4
+    },
+    {
+      "_id": "enemy.shield_melee", "_hp": 50, "_speed": 110, "_radius": 16,
+      "_movement": "chase", "_attack": "contact", "_damage": 8,
+      "_attackInterval": 1, "_reward": 4, "_sides": 3,
+      "_traits": ["circleShield"], "_shieldRadius": 72
+    },
+    {
+      "_id": "enemy.shield_ranged", "_hp": 70, "_speed": 0, "_radius": 20,
+      "_movement": "turret", "_attack": "burst", "_damage": 8,
+      "_attackInterval": 2, "_warningSeconds": 0.5, "_attackRange": 1200,
+      "_projectileSpeed": 240, "_projectileRadius": 5, "_projectileLifetime": 6,
+      "_burstInterval": 0.12, "_reward": 6, "_sides": 4,
+      "_traits": ["circleShield"], "_shieldRadius": 96
+    },
+    {
+      "_id": "enemy.carrier", "_hp": 120, "_speed": 0, "_radius": 26,
+      "_movement": "anchor", "_attack": "none", "_damage": 0,
+      "_reward": 8, "_sides": 8, "_traits": ["carrier"]
+    },
+    {
+      "_id": "enemy.interceptor", "_hp": 18, "_speed": 180, "_radius": 11,
+      "_movement": "interceptor", "_attack": "interceptor", "_damage": 6,
+      "_moveSeconds": 1, "_stopSeconds": 0.2, "_preferredDistance": 180,
+      "_projectileSpeed": 160, "_projectileRadius": 4, "_projectileLifetime": 6,
+      "_reward": 0, "_sides": 3
     }
   ]
 }

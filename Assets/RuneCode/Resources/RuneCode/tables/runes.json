@@ -68,7 +68,7 @@
       "_energyMult": 1,
       "_unlockType": "start",
       "_stats": {
-        "_damage": 10,
+        "_damage": 17,
         "_speed": 480,
         "_radius": 6,
         "_lifetime": 1.4,
@@ -1241,7 +1241,8 @@
           "_rate": 0
         }
       ],
-      "_unlockType": "start",
+      "_unlockType": "tree",
+      "_unlockCost": 300,
       "_stats": {
         "_beamWidth": 48,
         "_beamLength": 400,
@@ -1338,7 +1339,8 @@
           "_rate": 0
         }
       ],
-      "_unlockType": "start",
+      "_unlockType": "tree",
+      "_unlockCost": 200,
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,

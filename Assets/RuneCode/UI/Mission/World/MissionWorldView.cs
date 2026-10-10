@@ -47,6 +47,9 @@ namespace RuneCode
         [SerializeField] private float _gridSpacing = 64f;
 
         private readonly List<EnemyView> _enemyViews = new List<EnemyView>();
+        private readonly Dictionary<string, List<EnemyView>> _additionalEnemyViews = new Dictionary<string, List<EnemyView>>();
+        private readonly Dictionary<string, EnemyView> _additionalEnemyPrefabs = new Dictionary<string, EnemyView>();
+        private readonly Dictionary<string, int> _additionalEnemyCounts = new Dictionary<string, int>();
         private readonly List<SpellEntityView> _spellViews = new List<SpellEntityView>();
         private readonly List<HostileProjectileView> _projectileViews = new List<HostileProjectileView>();
         private readonly List<OrbView> _orbViews = new List<OrbView>();
@@ -87,8 +90,18 @@ namespace RuneCode
             if (_playerView == null) _playerView = Instantiate(_playerPrefab, transform);
             _playerView.Apply(sim.Player, origin);
             int count = 0;
-            foreach (SimulationEnemy enemy in sim.Enemies) GetView(_enemyViews, _enemyPrefab, count++).Apply(enemy, sim, origin);
+            foreach (string id in _additionalEnemyPrefabs.Keys) _additionalEnemyCounts[id] = 0;
+            foreach (SimulationEnemy enemy in sim.Enemies)
+            {
+                if (_additionalEnemyPrefabs.TryGetValue(enemy.Kind, out EnemyView prefab))
+                {
+                    int index = _additionalEnemyCounts[enemy.Kind]++;
+                    GetView(_additionalEnemyViews[enemy.Kind], prefab, index).Apply(enemy, sim, origin);
+                }
+                else GetView(_enemyViews, _enemyPrefab, count++).Apply(enemy, sim, origin);
+            }
             HideFrom(_enemyViews, count);
+            foreach (string id in _additionalEnemyPrefabs.Keys) HideFrom(_additionalEnemyViews[id], _additionalEnemyCounts[id]);
             count = 0;
             foreach (SimulationSpellEntity spell in sim.SpellEntities) GetView(_spellViews, _spellPrefab, count++).Apply(spell, origin);
             HideFrom(_spellViews, count);
@@ -115,6 +128,9 @@ namespace RuneCode
         private void BeginSimulation(RuneSimulation sim)
         {
             _observedSimulation = sim;
+            if (_additionalEnemyPrefabs.Count == 0)
+            foreach (EnemyView prefab in Resources.LoadAll<EnemyView>("RuneCode/enemies"))
+                { _additionalEnemyPrefabs.Add(prefab.EnemyId, prefab); _additionalEnemyViews.Add(prefab.EnemyId, new List<EnemyView>()); _additionalEnemyCounts.Add(prefab.EnemyId, 0); }
             _lastDamage = sim.TotalDamage;
             _lastStatusDamage = sim.StatusDamage;
             _lastPersistDamage = sim.PersistDamage;

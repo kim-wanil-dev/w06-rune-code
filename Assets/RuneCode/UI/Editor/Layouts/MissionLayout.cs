@@ -39,6 +39,39 @@ namespace RuneCode
             BuildScreen(ui);
             BuildPausePopup(ui);
             BuildDebugPopup(ui);
+            MissionWorldAssets.PrepareAdditionalEnemies();
+        }
+
+        /// <summary>기존 디버그 팝업의 빈 하단 공간에 새 적 6종 생성 버튼을 연결한다. 기존 버튼·배치는 유지한다.</summary>
+        public static void PrepareAdditionalDebugPopup()
+        {
+            string path = LayoutUtility.VIEW_FOLDER + nameof(MissionDebugPopup) + ".prefab";
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(path) == null) return;
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                MissionDebugPopup popup = root.GetComponent<MissionDebugPopup>();
+                var serialized = new SerializedObject(popup);
+                SerializedProperty buttons = serialized.FindProperty("_additionalSpawnButtons");
+                if (buttons.arraySize != 0) return;
+                string[] ids = { "enemy.bomb_seed", "enemy.clock_sniper", "enemy.shield_melee", "enemy.shield_ranged", "enemy.carrier", "enemy.interceptor" };
+                Transform card = serialized.FindProperty("_spawnButton").objectReferenceValue is Button button ? button.transform.parent : null;
+                if (card == null) throw new System.InvalidOperationException("디버그 소환 버튼의 부모가 없습니다.");
+                UiFactory ui = LayoutUtility.CreateFactory();
+                GameData.Load();
+                buttons.arraySize = ids.Length;
+                SerializedProperty idList = serialized.FindProperty("_additionalEnemyIds");
+                idList.arraySize = ids.Length;
+                for (int i = 0; i < ids.Length; i++)
+                {
+                    Button spawn = ui.Button(card, 24 + i % 2 * 226, 535 + i / 2 * 24, 218, 22, GameData.L(ids[i]), null, UiTheme.Muted, 11, "AdditionalSpawn" + i);
+                    buttons.GetArrayElementAtIndex(i).objectReferenceValue = spawn;
+                    idList.GetArrayElementAtIndex(i).stringValue = ids[i];
+                }
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
         /// <summary>HUD·결과 패널로 미션 화면을 만들고 미션 월드 Prefab을 연결해 MissionScreen Prefab으로 저장한다.</summary>

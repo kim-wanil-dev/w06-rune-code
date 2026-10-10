@@ -273,6 +273,33 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - 룬 카탈로그는 `unlockCost`와 자원 비용을 읽고 `tree`/`bench` 분류를 허용한다. 문법 v7에서 빔은 고정 크기의 `shape.box`로 전환되어 `behavior.beam` 룬과 비배치 해금 노드를 제외했다. Builder는 남은 `tree`/`bench` 룬을 자동 등록하며 현재 트리는 배치 12개·비배치 17개다.
 - 모든 충돌 마커를 제거했다. Unity 재컴파일, 룬 JSON 로드, `UpgradeTreeDefinition.Validate`, 트리 SO 자산의 노드 수 검증을 통과했다. 실제 Play 화면은 확인하지 않았다. Git CLI를 사용하지 않아 병합 상태 표시는 확인하지 않았다.
 
+## 추가 적 6종 구현 — 2026-10-10
+
+- `docs/ADDITIONAL_ENEMY.md`의 제작 순서에 따라 자폭 씨앗, 초침 저격수, 보호막 근접형·원거리형, 캐리어, 인터셉터를 구현했다. 보호막은 통과하는 플레이어 발사체만 차단하며 폭발·잔류·빔은 허용한다. 캐리어가 사망하면 이후 생성만 중단하고 자식은 남는다.
+- 변경 코드: `Core/Mission/MissionData.cs`, 신규 `CarrierDefinition.cs`, `Core/Simulation/{EnemyMovement,SimulationTypes,RuneSimulation}.cs`, 신규 `Features/Mission/CarrierSpawnSettings.cs`, `MissionRun.cs`, `Features/Workshop/DockRun.cs`, `Boot/SimulationCli.cs`.
+- 변경 표시·생성기: `UI/Mission/World/{EnemyView,MissionWorldView}.cs`, `UI/Shared/RuneArenaGraphic.cs`, `UI/Mission/{MissionDebugPopup,MissionPresenter}.cs`, `UI/Editor/Layouts/{MissionWorldAssets,MissionLayout}.cs`. 기존 표시와 디버그 팝업을 확장하고 종류별 Variant를 재사용한다.
+- 변경 데이터·자산: `Resources/RuneCode/{enemies,stages,strings.ko}.json`, 공통 `Prefabs/Mission/MissionEnemy.prefab`, 기존 `Resources/RuneCode/UI/MissionDebugPopup.prefab`, `Resources/RuneCode/enemies/`의 6개 신규 Prefab Variant와 `.meta`. Scene 배치는 수정하지 않았다.
+- 캐리어 Inspector의 생성 대상은 Interceptor로 연결했다. 기본값은 주기 4초·회당 2기·거리 120px·최대 6기다. 추가 연결 작업은 없으며 대상 목록·수치를 Carrier Prefab에서 바꿀 수 있다. 생성 자식은 목표 처치·스크랩·아이템 드롭에 포함하지 않는다.
+- Unity 재컴파일과 필수 Prefab 참조·상속·Missing Script 검사를 통과했다. Play에서 6종 외형·보호막·저격선을 표시했고, 디버그 버튼 6개와 팝업 재사용 시 단일 소환을 확인했다. 일반 저장을 변경하는 구매·전투 정산은 수행하지 않았고 검증은 메모리 디버그 세션에서 진행했다.
+- 보호막의 외부 차단·내부 적중과 허용 공격·이벤트 억제, 자폭 연쇄 피해와 GPU·DPS 분리, 저격·인터셉터 시간, 빙결 후 조준 재시작, 고속 적 탄환 적중, 캐리어 주기·상한·대상 순환·보류 생성·부모 사망·자식 보상 0, 도크 초기화와 900틱 혼합 결정성을 확인했다. 일반 등장 단계에서도 신규 6종을 확인했다.
+- Windows Player와 Editor의 스테이지 7·10 CLI는 실행 시간 외 결과가 일치했다. 해시는 각각 `b06fad3c`, `6529df19`이며 둘 다 사망 종료였다. 최종 `Builds/RuneCodePoC-AdditionalEnemies/RuneCodePoC.exe` 빌드는 성공했고 오류 0개·기존 RuntimePipelineConfig 미설정 경고 1개다. 상세 검증 기록은 `docs/ADDITIONAL_ENEMY.md` 10절에 남긴다.
+- 장시간 밸런스, 기존 적·보스와의 전체 조합 및 보스 클리어·화면 크기별 가독성은 추가 플레이 확인 대상이다. 테스트 코드·테스트 자산·프레임워크는 추가하지 않았다. Git CLI·커밋·push는 수행하지 않았고 저장소 변경 상태는 미확인이다.
+
+## 스테이지 6~10 편성·다중 보스 — 2026-10-10
+
+- 사용자 지정 컨셉으로 `stages.json`에 6~9 개별 정의를 추가했다. 6은 씨앗·슬라임 동시 웨이브, 7은 보호막 근접·원거리형 임시안, 8은 저격수, 9는 캐리어 확정 웨이브다. 목표 처치 수는 초기 조정값 40·45·45·50이며 10은 120초에 거버너 2마리와 앞선 테마 적을 편성했다. 상세 수치와 시간표는 `docs/STAGE_6_10.md`에 기록했다.
+- `StageData.cs`, `RuneSimulation.cs`에서 전체 웨이브의 목표 보스 수와 생성된 목표 개체 ID·처치 수를 관리한다. 첫 보스만 처치하거나 다음 보스가 아직 예약 중이면 클리어하지 않으며 디버그 보스도 집계하지 않는다. `MissionPresenter.cs`는 HUD에 보스 처치 진행도를 표시한다.
+- 보상 연결은 요청에 따라 제외했다. 공통 설정·기존 보상표·공통 범위 편성·1~5가 유지된 것을 JSON 비교로 확인했다. 새 엘리트·드롭·Modifier 보상은 편성하지 않았고 기존 정산 코드는 유지한다.
+- Unity 컴파일과 메모리 실행으로 6~10 테마 적 등장, 10의 1/2 유지·2/2 클리어, 5의 단일 보스 클리어, 제한시간 경계·지연 보스·디버그 보스 제외, 분열·캐리어 자식 목표 제외와 부모 사망 후 자식 생존을 확인했다. 600틱 결정성 해시는 `8dcca195`였다.
+- 6~9의 실제 스폰 주기로 목표 처치 수 도달과 클리어 정리를 확인했다. 메모리에서 즉시 처치하는 검증이므로 플레이 밸런스 측정은 아니다. 재사용하는 신규 6개 EnemyView Prefab의 존재·Missing Script 없음도 확인했다.
+- 추가 Inspector 연결은 없다. 실제 HUD 화면·수동 플레이 밸런스·이번 데이터의 Windows Player 빌드는 미검증이다. 테스트 파일·Git CLI·커밋·push는 사용하지 않았고 저장소 변경 상태는 미확인이다.
+
+## 스테이지 10 단일 보스 정정·코드 복원 — 2026-10-10
+
+- 사용자 후속 요청으로 `stages.json`의 10스테이지 거버너 수만 2에서 1로 정정했다. 6~9와 10의 보조 적 편성·제한시간 120초는 유지했다.
+- `StageData.cs`, `RuneSimulation.cs`, `MissionPresenter.cs`는 현재 커밋 `106ced153d55de6a888f619e37972039b51b5779`의 원본 바이트로 복원했다. Git CLI 대신 저장된 커밋 객체를 읽었으며 저장소 메타데이터·스테이징·커밋은 변경하지 않았다. 다중 보스 확장은 제거되었고 기존 단일 보스 판정을 사용한다.
+- 편성표를 단일 보스 기준으로 정정했다. Unity 컴파일과 메모리 실행으로 6~10 정의 로드, 10의 보스 1마리와 테마 적 등장, 5·10의 단일 보스 처치 클리어와 10의 120초 시간 초과를 확인했다.
+- Inspector 추가 작업은 없다. 실제 수동 플레이·빌드는 미검증이며 Git 화면의 변경 상태 표시는 미확인이다.
 ## 일반 속성 기본 해금 수정 — 2026-10-10
 
 - `element.neutral`을 `start` 룬으로 분류하고 신규 세이브의 시작 룬 목록 및 기존 세이브 마이그레이션 목록에 포함했다. 시작 룬 검증과 트리 시작 룬 분류도 맞췄다.
@@ -290,3 +317,11 @@ Unity 6000.3.22f1의 연결된 Editor에서 공개 API를 일회성 평가하고
 - `develop`의 업그레이드 트리·일반/디버그 진행·스크랩 자동 획득·드롭 변경을 로컬 문법 v3~v7 작업과 통합했다. 스테이지 반경 배율과 문법 v6의 명중 이벤트 상한 제거를 함께 유지했다.
 - 충돌은 `BalanceData`, `RuneCodeSession`, `SessionSpellPolicy`, `runes.json`, `StageData`, `RuneSimulation`, 이력 문서에서 정리했다. 오래된 `behavior.beam` 해금은 새 Beam Shape 규칙과 맞지 않아 카탈로그와 트리에서 제거했다.
 - 충돌 마커·오래된 API 참조를 정적으로 확인했다. Unity 컴파일·Play는 이번 병합에서 실행하지 않았다. 변경은 로컬에만 반영했고 push하지 않았다.
+
+## 추가 적·develop 병합 충돌 해결 — 2026-10-10
+
+- `RuneSimulation.cs`, `MissionRun.cs`, 이 문서의 충돌을 해결했다. 추가 적 쪽의 캐리어 설정·보호막 통과 차단·고속 발사체 경로 판정·디버그 처치 시 자폭 억제와 develop 쪽의 스크랩 줍기 배율·미획득 드롭 보존·사각형 발사체 앞면 기준 벽 판정을 함께 유지했다. 양측 진행 기록도 보존했다.
+- 미션 생성 시 캐리어 설정과 스크랩 줍기 배율을 모두 전달한다. 자동 병합에서 남은 이전 사각형 방향 API 참조를 제거하고, 초침 저격수가 사용하는 예고선 벽 절단 메서드를 복구했다. 이전 `behavior.beam` 실행 방식은 복구하지 않았다.
+- Unity 재컴파일을 통과했다. Editor의 독립 메모리 시뮬레이션에서 캐리어의 자식 2마리 생성, 기본 반경 80 밖 미획득과 +10% 반경 안 흡인, 디버그 처치 시 HP 유지·드롭 잔존·미획득 스크랩 0·분열 예약 제거를 확인했다.
+- 원형·사각형·부채꼴 발사체가 보호막 밖에서 진입할 때 차단되고 안에서 시작하면 적중하는 것을 확인했다. 긴 사각형 발사체의 폭·앞면 기준 벽 판정, 고속 이동의 벽 차단, 저격 예고선 벽 절단도 통과했다. 스테이지 10은 기존 보스 1마리와 처치 후 클리어 판정을 유지한다.
+- 이번 해결에서 스테이지 편성 데이터는 수정하지 않았다. Inspector 추가 작업은 없으며 실제 화면 수동 플레이와 Player 빌드는 미검증이다. 테스트 파일·Git CLI·스테이징·커밋·push는 사용하지 않았고 Git 화면의 병합 상태는 미확인이다.
