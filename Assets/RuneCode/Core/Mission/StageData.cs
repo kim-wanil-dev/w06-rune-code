@@ -216,11 +216,15 @@ namespace RuneCode
         [SerializeField] private double _hpMultiplier;
         [SerializeField] private double _rewardMultiplier;
         [SerializeField] private double _speedMultiplier;
+        [SerializeField] private string _dropTable;
         public string EnemyId => _enemyId;
         // 배율 0은 데이터에 기재하지 않은 것으로 보고 1을 쓴다. 이후 강화 특징도 같은 방식으로 필드를 확장한다.
         public double HpMultiplier => _hpMultiplier > 0 ? _hpMultiplier : 1;
         public double RewardMultiplier => _rewardMultiplier > 0 ? _rewardMultiplier : 1;
         public double SpeedMultiplier => _speedMultiplier > 0 ? _speedMultiplier : 1;
+
+        /// <summary>엘리트 처치 시 추첨할 드롭 테이블 ID다. 데이터에 기재하지 않으면 드롭이 없다.</summary>
+        public string DropTable => _dropTable;
         internal double RawHpMultiplier => _hpMultiplier;
         internal double RawRewardMultiplier => _rewardMultiplier;
         internal double RawSpeedMultiplier => _speedMultiplier;
@@ -357,8 +361,8 @@ namespace RuneCode
             return fallback;
         }
 
-        /// <summary>JSON 스테이지 설정을 읽어 맵, 성장, 스폰, 보상, 스테이지 범위, 스트림, 웨이브, 엘리트 주기를 검증한다.</summary>
-        public static StageCatalog FromJson(string json, EnemyCatalog enemies, FormationCatalog formations)
+        /// <summary>JSON 스테이지 설정을 읽어 맵, 성장, 스폰, 보상, 스테이지 범위, 스트림, 웨이브, 엘리트 주기와 드롭 테이블 참조를 검증한다.</summary>
+        public static StageCatalog FromJson(string json, EnemyCatalog enemies, FormationCatalog formations, DropCatalog drops)
         {
             var catalog = JsonUtility.FromJson<StageCatalog>(json);
             if (catalog == null || catalog._map == null || catalog._growth == null || catalog._spawn == null
@@ -367,7 +371,7 @@ namespace RuneCode
             ValidateRoot(catalog);
             ValidateRewards(catalog._rewards, enemies);
             var singleStages = new HashSet<int>();
-            foreach (StageDefinition stage in catalog._stages) ValidateStage(stage, enemies, formations, singleStages);
+            foreach (StageDefinition stage in catalog._stages) ValidateStage(stage, enemies, formations, drops, singleStages);
             catalog.Get(1); // 1스테이지를 담는 항목이 반드시 있어야 한다.
             return catalog;
         }
@@ -402,7 +406,7 @@ namespace RuneCode
         }
 
         /// <summary>스테이지 항목의 번호 범위, 종류, 제한시간, 클리어 보상, 목표 처치 수, 단일 항목 중복과 스트림·웨이브를 확인한다.</summary>
-        private static void ValidateStage(StageDefinition stage, EnemyCatalog enemies, FormationCatalog formations, HashSet<int> singleStages)
+        private static void ValidateStage(StageDefinition stage, EnemyCatalog enemies, FormationCatalog formations, DropCatalog drops, HashSet<int> singleStages)
         {
             if (stage.FromStage < 1) throw new FormatException("시작 스테이지는 1 이상이어야 합니다: 스테이지 " + stage.FromStage);
             if (stage.ToStage != 0 && stage.ToStage < stage.FromStage) throw new FormatException("종료 스테이지가 시작보다 앞섭니다: 스테이지 " + stage.FromStage);
@@ -416,7 +420,7 @@ namespace RuneCode
             if (stage.IsSingle && !singleStages.Add(stage.FromStage)) throw new FormatException("같은 번호의 단일 스테이지 항목이 중복됩니다: 스테이지 " + stage.FromStage);
             ValidateStream(stage, enemies, formations);
             ValidateWaves(stage, enemies, formations);
-            ValidateElites(stage, enemies);
+            ValidateElites(stage, enemies, drops);
             ValidateModifierRewards(stage);
         }
 
@@ -484,8 +488,8 @@ namespace RuneCode
             }
         }
 
-        /// <summary>엘리트 주기와 순회 타입의 대상 적, 배율, 보스 종족 제외를 확인한다. 주기가 0이면 타입 확인을 생략한다.</summary>
-        private static void ValidateElites(StageDefinition stage, EnemyCatalog enemies)
+        /// <summary>엘리트 주기와 순회 타입의 대상 적, 배율, 보스 종족 제외, 드롭 테이블 참조를 확인한다. 주기가 0이면 타입 확인을 생략한다.</summary>
+        private static void ValidateElites(StageDefinition stage, EnemyCatalog enemies, DropCatalog drops)
         {
             if (stage.EliteEvery < 0) throw new FormatException("엘리트 주기는 0 이상이어야 합니다: 스테이지 " + stage.FromStage);
             if (stage.EliteEvery > 0 && stage.EliteTypes.Count == 0)
@@ -497,6 +501,8 @@ namespace RuneCode
                 if (!IsFinite(elite.RawHpMultiplier) || !IsFinite(elite.RawRewardMultiplier) || !IsFinite(elite.RawSpeedMultiplier)
                     || elite.RawHpMultiplier < 0 || elite.RawRewardMultiplier < 0 || elite.RawSpeedMultiplier < 0)
                     throw new FormatException("엘리트 배율은 0 이상의 유한값이어야 합니다: " + elite.EnemyId + " (스테이지 " + stage.FromStage + ")");
+                if (!string.IsNullOrEmpty(elite.DropTable) && !drops.Has(elite.DropTable))
+                    throw new FormatException("등록되지 않은 엘리트 드롭 테이블입니다: " + elite.DropTable + " (" + elite.EnemyId + ", 스테이지 " + stage.FromStage + ")");
             }
         }
 

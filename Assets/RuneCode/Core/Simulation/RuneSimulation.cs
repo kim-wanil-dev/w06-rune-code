@@ -26,6 +26,10 @@ namespace RuneCode
         private readonly SectorDefinition _sector;
         private readonly GovernorDefinition _governor;
         private readonly FormationCatalog _formations;
+        private readonly DropCatalog _drops;
+
+        /// <summary>엘리트 Modifier 등급표 조회 창구다. B 워커의 정식 로더로 교체할 지점은 생성자다.</summary>
+        private readonly IEliteModifierDropSource _eliteDrops;
         private readonly StageCatalog _stages;
         private readonly bool _isMission;
         private readonly int _stageNumber;
@@ -38,6 +42,9 @@ namespace RuneCode
         private readonly List<SimulationSpellEntity> _spellEntities = new List<SimulationSpellEntity>();
         private readonly List<SimulationProjectile> _enemyProjectiles = new List<SimulationProjectile>();
         private readonly List<FragmentOrb> _orbs = new List<FragmentOrb>();
+        private readonly List<SimulationItemDrop> _itemDrops = new List<SimulationItemDrop>();
+        private readonly List<SimulationItemDrop> _pickedUpItems = new List<SimulationItemDrop>();
+        private readonly List<SimulationItemDrop> _newPickedItems = new List<SimulationItemDrop>();
         private readonly List<DamageNumber> _damageNumbers = new List<DamageNumber>();
         private readonly List<NodeExecutionEvent> _nodeEvents = new List<NodeExecutionEvent>();
         private readonly List<ScheduledExecution> _scheduled = new List<ScheduledExecution>();
@@ -92,6 +99,12 @@ namespace RuneCode
         public IReadOnlyList<SimulationSpellEntity> SpellEntities => _spellEntities;
         public IReadOnlyList<SimulationProjectile> EnemyProjectiles => _enemyProjectiles;
         public IReadOnlyList<FragmentOrb> Orbs => _orbs;
+
+        /// <summary>바닥에 떨어져 줍기를 기다리는 Modifier 드롭 목록이다.</summary>
+        public IReadOnlyList<SimulationItemDrop> ItemDrops => _itemDrops;
+
+        /// <summary>이번 전투에서 주워 확정한 Modifier 드롭의 누적 목록이다.</summary>
+        public IReadOnlyList<SimulationItemDrop> PickedUpItems => _pickedUpItems;
         public IReadOnlyList<DamageNumber> DamageNumbers => _damageNumbers;
         public IReadOnlyList<NodeExecutionEvent> NodeEvents => _nodeEvents;
         public IReadOnlyDictionary<string, int> KillCounts => _killCounts;
@@ -160,7 +173,10 @@ namespace RuneCode
             _sector = SectorDefinition.FromJson(LoadJson("sector1"), _enemyCatalog);
             _governor = GovernorDefinition.FromJson(LoadJson("governor"));
             _formations = FormationCatalog.FromJson(LoadJson("formations"));
-            _stages = StageCatalog.FromJson(LoadJson("stages"), _enemyCatalog, _formations);
+            _drops = DropCatalog.FromJson(LoadJson("drops"));
+            // B 워커의 엘리트 Modifier 로더로 교체할 생성 지점이다.
+            _eliteDrops = EliteModifierDropTable.FromJson(LoadJson("tables/elite_modifier_drops"));
+            _stages = StageCatalog.FromJson(LoadJson("stages"), _enemyCatalog, _formations, _drops);
             _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
             _stageNumber = Math.Max(1, stageNumber);
             _energyRegen = energyRegen > 0 ? energyRegen : _balance.Player.EnergyRegen;
@@ -172,12 +188,13 @@ namespace RuneCode
             else ResetBench("dummy_single");
         }
 
-        /// <summary>스테이지·진형 JSON을 읽고 검증한 스테이지 목록을 반환한다. 앱의 출격 정보 표시에 쓴다.</summary>
+        /// <summary>스테이지·진형·드롭 JSON을 읽고 검증한 스테이지 목록을 반환한다. 앱의 출격 정보 표시에 쓴다.</summary>
         public static StageCatalog LoadStageCatalog()
         {
             GameData.Load();
             EnemyCatalog enemies = EnemyCatalog.FromJson(LoadJson("enemies"));
-            return StageCatalog.FromJson(LoadJson("stages"), enemies, FormationCatalog.FromJson(LoadJson("formations")));
+            DropCatalog drops = DropCatalog.FromJson(LoadJson("drops"));
+            return StageCatalog.FromJson(LoadJson("stages"), enemies, FormationCatalog.FromJson(LoadJson("formations")), drops);
         }
 
         /// <summary>Resources에 포함된 JSON 텍스트를 읽고 누락된 필수 데이터 오류를 보고한다.</summary>
@@ -195,6 +212,30 @@ namespace RuneCode
             for (int i = 0; i < elements.Count; i++)
             { string tag = elements[i].StartsWith("elem.", StringComparison.Ordinal) ? elements[i].Substring(5) : elements[i]; if ((tag == "fire" || tag == "ice" || tag == "arc") && !_unlockedElements.Contains(tag)) _unlockedElements.Add(tag); }
             if (_unlockedElements.Count == 0) _unlockedElements.Add("fire");
+        }
+
+        /// <summary>아직 지급하지 않은 새로 주운 Modifier 드롭 목록을 반환하고 미지급 목록을 비운다.</summary>
+        public List<SimulationItemDrop> TakeNewPickedItems()
+        {
+            var items = new List<SimulationItemDrop>(_newPickedItems);
+            _newPickedItems.Clear();
+            return items;
+        }
+
+        /// <summary>보스 스테이지 클리어 Modifier 선택 정보와 결정적 난수로 중복 없이 뽑은 후보를 반환한다. 선택 보상이 없으면 false를 반환한다.</summary>
+        public bool TryDrawClearModifierChoices(out EliteModifierClearChoice choice, out List<string> candidates)
+        {
+            choice = _eliteDrops.GetClearChoice(_stageNumber);
+            candidates = new List<string>();
+            if (choice == null || choice.ChoiceCount <= 0) return false;
+            var pool = new List<string>(_eliteDrops.GetModifiersWithGrade(choice.Grade));
+            for (int i = 0; i < choice.ChoiceCount && pool.Count > 0; i++)
+            {
+                int index = Math.Min(pool.Count - 1, (int)(NextRandom() * pool.Count));
+                candidates.Add(pool[index]);
+                pool.RemoveAt(index);
+            }
+            return candidates.Count > 0;
         }
 
         /// <summary>
@@ -245,6 +286,7 @@ namespace RuneCode
             AdvanceHostileProjectiles();
             CleanupEnemies();
             CollectNearbyOrbs();
+            CollectNearbyItemDrops();
             if (_isMission && _player.Hp <= 0) { _stage = MissionStage.Dead; CollectAllOrbs(); CancelCombat(); }
             else if (!_isMission && _scenario == "adapt_loop" && _enemies.Count == 0) SpawnBenchDummy(new SimVector(_balance.Sim.BenchDummyX, _balance.Sim.BenchDummyY), _balance.Sim.BenchHp);
             Adaptation.Advance(Time, Time + STEP_SECONDS);
@@ -265,7 +307,7 @@ namespace RuneCode
             if (_isMission) throw new InvalidOperationException("미션은 시험 도크로 초기화할 수 없습니다.");
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
-            _enemies.Clear(); _orbs.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
+            _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
             _totalDamage = 0; _statusDamage = 0; _rollingDamage = 0; _energySpent = 0; _peakSpellEntities = 0; _nodeExecutionCount = 0; _collectedFragments = 0; _killCount = 0; _spawnedEnemies = 0; _actionBudgetTick = -1; _actionsThisTick = 0; _droppedExecutions = 0;
             SimulationBalance bench = _balance.Sim;
@@ -314,6 +356,8 @@ namespace RuneCode
                 if (pending.Context.Target != null && !pending.Context.Target.IsAlive) pending.Context.Target.WriteState(state);
             }
             foreach (FragmentOrb orb in _orbs) { AppendNumber(state, orb.Position.X); AppendNumber(state, orb.Position.Y); state.Append(orb.Amount); }
+            foreach (SimulationItemDrop drop in _itemDrops) AppendItemDropState(state, drop);
+            foreach (SimulationItemDrop drop in _pickedUpItems) AppendItemDropState(state, drop);
             foreach (CompiledSpell spell in _loadout) state.Append('|').Append(spell?.Signature);
             foreach (string element in _unlockedElements) state.Append('|').Append(element);
             foreach (PendingEnemyShot shot in _pendingEnemyShots) { state.Append(shot.Tick).Append('|').Append(shot.Owner.Id); AppendNumber(state, shot.Direction.X); AppendNumber(state, shot.Direction.Y); AppendNumber(state, shot.SpeedMultiplier); }
@@ -335,6 +379,13 @@ namespace RuneCode
 
         /// <summary>불변 문화권 숫자 표기를 상태 해시 버퍼에 추가한다.</summary>
         private static void AppendNumber(StringBuilder state, double value) { state.Append(value.ToString("R", CultureInfo.InvariantCulture)).Append('|'); }
+
+        /// <summary>바닥 드롭 또는 주운 Modifier 아이템의 종류, 등급, 수량, 위치를 결정성 해시 버퍼에 기록한다.</summary>
+        private static void AppendItemDropState(StringBuilder state, SimulationItemDrop drop)
+        {
+            state.Append('|').Append(drop.RuneId).Append('|').Append(drop.Grade).Append('|').Append(drop.Count);
+            AppendNumber(state, drop.Position.X); AppendNumber(state, drop.Position.Y);
+        }
 
         /// <summary>대시와 일반 이동을 처리하고 이번 입력으로 대시가 시작됐는지 반환한다.</summary>
         private bool MovePlayer(SimulationInput input)
@@ -1164,6 +1215,8 @@ namespace RuneCode
                     if (enemy.Kind == BOSS_GOVERNOR_ID) _isBossDefeated = true;
                     if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
                     if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward));
+                    string dropTableId = GetDropTableId(enemy);
+                    if (dropTableId != null) RollDropTable(_drops.Get(dropTableId), enemy.Position);
                     _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
                 }
                 RemoveEnemyStatuses(enemy.Id); _enemies.RemoveAt(i);
@@ -1190,6 +1243,69 @@ namespace RuneCode
 
         /// <summary>전투 종료 시 남아 있는 모든 처치 조각 오브를 회수한다.</summary>
         private void CollectAllOrbs() { foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount; _orbs.Clear(); }
+
+        /// <summary>처치된 적의 드롭 테이블 ID를 반환하고 없으면 null을 반환한다. 적·보스 드롭 연결 시 이 메서드에 분기를 모은다.</summary>
+        private string GetDropTableId(SimulationEnemy enemy)
+        {
+            string dropTable = enemy.Elite?.DropTable;
+            return string.IsNullOrEmpty(dropTable) ? null : dropTable;
+        }
+
+        /// <summary>드롭 테이블을 결정적 난수로 추첨해 fragments는 조각 오브로, modifier는 바닥 드롭 개체로 처치 위치에 떨군다.</summary>
+        private void RollDropTable(DropTableDefinition table, SimVector position)
+        {
+            foreach (DropRoll roll in table.Roll(NextRandom))
+            {
+                if (roll.Type == DropCatalog.TYPE_FRAGMENTS) _orbs.Add(new FragmentOrb(position, roll.Fragments));
+                else if (roll.Type == DropCatalog.TYPE_MODIFIER) DropModifier(roll, position);
+            }
+        }
+
+        /// <summary>Modifier 추첨 결과를 바닥 드롭 개체로 만든다. eliteModifier 항목은 등급과 종족을 등급표로 따로 정한다.</summary>
+        private void DropModifier(DropRoll roll, SimVector position)
+        {
+            bool isEliteEntry = roll.RuneId == DropCatalog.ELITE_MODIFIER_ENTRY_ID;
+            string grade = isEliteEntry ? RollEliteModifierGrade() : null;
+            if (isEliteEntry && grade == null) return;
+            string runeId = isEliteEntry ? PickEliteModifier(grade) : roll.RuneId;
+            if (runeId == null) return;
+            _itemDrops.Add(new SimulationItemDrop(runeId, grade, roll.Count, position));
+        }
+
+        /// <summary>현재 스테이지의 등급 확률표(C→S 순서)로 엘리트 Modifier 등급을 1회 추첨한다. 보스 스테이지처럼 등급표가 없으면 null을 반환하고 난수를 쓰지 않는다.</summary>
+        private string RollEliteModifierGrade()
+        {
+            IReadOnlyList<EliteModifierGradeChance> chances = _eliteDrops.GetGradeChances(_stageNumber);
+            if (chances == null || chances.Count == 0) return null;
+            double choice = NextRandom() * 100;
+            foreach (EliteModifierGradeChance chance in chances)
+            {
+                choice -= chance.Percent;
+                if (choice <= 0) return chance.Grade;
+            }
+            return chances[chances.Count - 1].Grade;
+        }
+
+        /// <summary>등급 값이 null이 아닌 Modifier 중 균등 추첨으로 하나를 고른다. 후보가 없으면 null을 반환한다.</summary>
+        private string PickEliteModifier(string grade)
+        {
+            IReadOnlyList<string> candidates = _eliteDrops.GetModifiersWithGrade(grade);
+            if (candidates.Count == 0) return null;
+            return candidates[(int)(NextRandom() * candidates.Count)];
+        }
+
+        /// <summary>플레이어의 줍기 반경 내 바닥 Modifier 드롭을 회수해 누적 목록과 미지급 목록에 넣는다.</summary>
+        private void CollectNearbyItemDrops()
+        {
+            for (int i = _itemDrops.Count - 1; i >= 0; i--)
+            {
+                if (SimVector.Distance(_player.Position, _itemDrops[i].Position) > _balance.Sim.ItemPickupRadius) continue;
+                SimulationItemDrop drop = _itemDrops[i];
+                _itemDrops.RemoveAt(i);
+                _pickedUpItems.Add(drop);
+                _newPickedItems.Add(drop);
+            }
+        }
 
         /// <summary>
         /// 일반 스테이지는 목표 처치 수에 도달하면 클리어, 보스 스테이지는 보스 처치 시 클리어와 제한시간 초과 시 실패로 전투를 끝내고 남은 보상을 회수한다.

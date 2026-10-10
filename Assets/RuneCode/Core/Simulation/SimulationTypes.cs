@@ -466,6 +466,23 @@ namespace RuneCode
         internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; }
     }
 
+    /// <summary>바닥에 떨어져 플레이어가 줍기를 기다리는 Modifier 드롭 개체다. 등급은 C·B·A·S 문자열이며 등급 없이 드롭된 항목은 null이다.</summary>
+    public sealed class SimulationItemDrop
+    {
+        private readonly string _runeId;
+        private readonly string _grade;
+        private readonly int _count;
+        private readonly SimVector _position;
+        public string RuneId => _runeId;
+        public string Grade => _grade;
+        public int Count => _count;
+        public SimVector Position => _position;
+
+        /// <summary>Modifier 룬 ID, 등급 문자, 수량과 바닥 위치로 드롭 개체를 생성한다.</summary>
+        internal SimulationItemDrop(string runeId, string grade, int count, SimVector position)
+        { _runeId = runeId; _grade = grade; _count = count; _position = position; }
+    }
+
     public readonly struct DamageNumber
     {
         private readonly SimVector _position;
