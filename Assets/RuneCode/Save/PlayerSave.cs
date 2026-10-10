@@ -9,7 +9,7 @@ namespace RuneCode
     [Serializable]
     public sealed class PlayerSave : ISerializationCallbackReceiver
     {
-        private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "shape.box", "shape.cone", "behavior.launch", "element.neutral" };
+        private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "behavior.launch", "element.neutral" };
         private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
 
         [Header("저장 버전")]
@@ -187,8 +187,11 @@ namespace RuneCode
             foreach (var graph in _graphs) SpellGraphMigration.Migrate(graph, GameData.ModifierGrades);
             var unlocked = new List<string>();
             foreach (var runeId in _unlockedRunes)
+            {
+                if (runeId == "shape.box" || runeId == "shape.cone") continue;
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
                     if (GameData.Runes.TryGet(mapped, out var rune) && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(mapped)) unlocked.Add(mapped);
+            }
             foreach (string runeId in STARTER_RUNE_IDS)
                 if (GameData.Runes.TryGet(runeId, out RuneDefinition rune)
                     && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(runeId)) unlocked.Add(runeId);
