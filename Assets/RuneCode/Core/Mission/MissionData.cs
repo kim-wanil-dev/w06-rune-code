@@ -8,6 +8,22 @@ namespace RuneCode
     [Serializable]
     public sealed class EnemyDefinition
     {
+        public const string MOVEMENT_CHASE = "chase";
+        public const string MOVEMENT_TURRET = "turret";
+        public const string MOVEMENT_ANCHOR = "anchor";
+        public const string MOVEMENT_DASH_CHASE = "dashChase";
+        public const string MOVEMENT_KEEP_DISTANCE = "keepDistance";
+        public const string ATTACK_NONE = "none";
+        public const string ATTACK_CONTACT = "contact";
+        public const string ATTACK_BURST = "burst";
+        public const string ATTACK_DASH_CONTACT = "dashContact";
+        public const string TRAIT_AEGIS_SHIELD = "aegisShield";
+        public const string TRAIT_RELAY_AURA = "relayAura";
+
+        private static readonly string[] MOVEMENT_TYPES = { MOVEMENT_CHASE, MOVEMENT_TURRET, MOVEMENT_ANCHOR, MOVEMENT_DASH_CHASE, MOVEMENT_KEEP_DISTANCE };
+        private static readonly string[] ATTACK_TYPES = { ATTACK_NONE, ATTACK_CONTACT, ATTACK_BURST, ATTACK_DASH_CONTACT };
+        private static readonly string[] TRAIT_TYPES = { TRAIT_AEGIS_SHIELD, TRAIT_RELAY_AURA };
+
         [Header("적 설정")]
         [SerializeField] private string _id;
         [SerializeField] private double _hp;
@@ -28,6 +44,11 @@ namespace RuneCode
         [SerializeField] private string _splitInto;
         [SerializeField] private int _splitCount;
         [SerializeField] private double _splitDelay;
+        [SerializeField] private string _movement;
+        [SerializeField] private string[] _traits;
+        [SerializeField] private string _attack;
+        [SerializeField] private string _dropTable;
+        [SerializeField] private int _sides;
         public string Id => _id;
         public double Hp => _hp;
         public double Speed => _speed;
@@ -48,6 +69,28 @@ namespace RuneCode
         public int SplitCount => _splitCount;
         public double SplitDelay => _splitDelay;
         public bool CanSplit => !string.IsNullOrEmpty(_splitInto) && _splitCount > 0;
+        public string Movement => _movement;
+        public string DropTable => _dropTable;
+        public int Sides => _sides;
+        public string Attack => string.IsNullOrEmpty(_attack) ? ATTACK_CONTACT : _attack;
+
+        /// <summary>이 적이 지정 특수 능력을 정의에 포함하는지 반환한다.</summary>
+        public bool HasTrait(string trait)
+        {
+            if (_traits == null) return false;
+            for (int i = 0; i < _traits.Length; i++) if (_traits[i] == trait) return true;
+            return false;
+        }
+
+        /// <summary>이동·공격 방식과 특수 능력 값이 정의된 어휘 안에 있는지 검사하고 모르는 값에는 데이터 오류를 발생시킨다.</summary>
+        public void Validate()
+        {
+            if (Array.IndexOf(MOVEMENT_TYPES, _movement) < 0) throw new FormatException("알 수 없는 적 이동 방식입니다: " + _id + ", " + _movement);
+            if (Array.IndexOf(ATTACK_TYPES, Attack) < 0) throw new FormatException("알 수 없는 적 공격 방식입니다: " + _id + ", " + _attack);
+            if (_traits == null) return;
+            foreach (string trait in _traits)
+                if (Array.IndexOf(TRAIT_TYPES, trait) < 0) throw new FormatException("알 수 없는 적 특수 능력입니다: " + _id + ", " + trait);
+        }
     }
 
     [Serializable]
@@ -61,14 +104,15 @@ namespace RuneCode
         public EnemyDefinition Get(string id)
         { for (int i = 0; i < _enemies.Length; i++) if (_enemies[i].Id == id) return _enemies[i]; throw new FormatException("등록되지 않은 적: " + id); }
 
-        /// <summary>JSON 적 설정을 읽고 고유 ID, 체력, 크기, 보상 범위, 분열 대상과 순환 분열을 검증한다.</summary>
+        /// <summary>JSON 적 설정을 읽고 배열 구성, 고유 ID, 체력, 크기, 보상 범위, 행동 어휘, 분열 대상과 순환 분열을 검증한다.</summary>
         public static EnemyCatalog FromJson(string json)
         {
             var catalog = JsonUtility.FromJson<EnemyCatalog>(json);
-            if (catalog == null || catalog._enemies == null || catalog._enemies.Length != 9) throw new FormatException("적 설정은 9종이어야 합니다.");
+            if (catalog == null || catalog._enemies == null || catalog._enemies.Length == 0) throw new FormatException("적 설정이 비어 있습니다.");
             var ids = new HashSet<string>();
             foreach (EnemyDefinition enemy in catalog._enemies)
                 if (!ids.Add(enemy.Id) || enemy.Hp <= 0 || enemy.Radius <= 0 || enemy.Reward < 0) throw new FormatException("적 설정 값이 유효하지 않습니다.");
+            foreach (EnemyDefinition enemy in catalog._enemies) enemy.Validate();
             foreach (EnemyDefinition enemy in catalog._enemies)
                 if (enemy.CanSplit && (enemy.SplitInto == enemy.Id || enemy.SplitCount < 0 || enemy.SplitDelay < 0 || !ids.Contains(enemy.SplitInto))) throw new FormatException("적 분열 설정이 유효하지 않습니다: " + enemy.Id);
             foreach (EnemyDefinition enemy in catalog._enemies)
@@ -143,9 +187,27 @@ namespace RuneCode
     }
 
     [Serializable]
-    public sealed class GovernorDefinition
+    public sealed class BossReinforcement
     {
-        [Header("거버너 패턴")]
+        [Header("보스 증원")]
+        [SerializeField] private string _enemyId;
+        [SerializeField] private int _count;
+        [SerializeField] private double _interval;
+        [SerializeField] private string _formation;
+        public string EnemyId => _enemyId;
+        public int Count => _count;
+        public double Interval => _interval;
+        public string Formation => _formation;
+    }
+
+    [Serializable]
+    public sealed class BossDefinition
+    {
+        public const string GOVERNOR_PATTERN = "governor";
+
+        [Header("보스 패턴")]
+        [SerializeField] private string _enemyId;
+        [SerializeField] private string _pattern;
         [SerializeField] private double _phaseTwoThreshold;
         [SerializeField] private double _phaseThreeThreshold;
         [SerializeField] private double _patchSeconds;
@@ -157,10 +219,12 @@ namespace RuneCode
         [SerializeField] private double _hazardLifetime;
         [SerializeField] private double _hazardRadius;
         [SerializeField] private double _hazardDamage;
-        [SerializeField] private double _reinforcementInterval;
-        [SerializeField] private int _reinforcementCount;
         [SerializeField] private double _phaseThreeMultiplier;
         [SerializeField] private double _preferredDistance;
+        [SerializeField] private BossReinforcement _reinforcement;
+        [SerializeField] private string _dropTable;
+        public string EnemyId => _enemyId;
+        public string Pattern => _pattern;
         public double PhaseTwoThreshold => _phaseTwoThreshold;
         public double PhaseThreeThreshold => _phaseThreeThreshold;
         public double PatchSeconds => _patchSeconds;
@@ -172,14 +236,57 @@ namespace RuneCode
         public double HazardLifetime => _hazardLifetime;
         public double HazardRadius => _hazardRadius;
         public double HazardDamage => _hazardDamage;
-        public double ReinforcementInterval => _reinforcementInterval;
-        public int ReinforcementCount => _reinforcementCount;
         public double PhaseThreeMultiplier => _phaseThreeMultiplier;
         public double PreferredDistance => _preferredDistance;
+        public BossReinforcement Reinforcement => _reinforcement;
+        public string DropTable => _dropTable;
+        public bool IsGovernorPattern => _pattern == GOVERNOR_PATTERN;
 
-        /// <summary>보스의 페이즈 문턱, 패치 및 공격 주기를 검증하여 JSON 설정을 반환한다.</summary>
-        public static GovernorDefinition FromJson(string json)
-        { var data = JsonUtility.FromJson<GovernorDefinition>(json); if (data == null || data.PhaseTwoThreshold <= data.PhaseThreeThreshold || data.PatchSeconds <= 0 || data.RadialCount < 1 || data.RadialInterval <= 0 || data.ReinforcementInterval <= 0) throw new FormatException("보스 패턴 설정 오류입니다."); return data; }
+        /// <summary>패턴 이름, 페이즈 문턱, 공격 주기와 증원의 적·진형 참조를 검증하고 모르는 값에는 데이터 오류를 발생시킨다.</summary>
+        public void Validate(EnemyCatalog enemies, FormationCatalog formations)
+        {
+            if (_pattern != GOVERNOR_PATTERN) throw new FormatException("알 수 없는 보스 패턴입니다: " + _enemyId + ", " + _pattern);
+            if (_phaseTwoThreshold <= _phaseThreeThreshold || _patchSeconds <= 0 || _radialCount < 1 || _radialInterval <= 0) throw new FormatException("보스 패턴 설정 오류입니다: " + _enemyId);
+            if (_reinforcement == null || _reinforcement.Count < 1 || _reinforcement.Interval <= 0) throw new FormatException("보스 증원 설정 오류입니다: " + _enemyId);
+            enemies.Get(_reinforcement.EnemyId);
+            formations.Get(_reinforcement.Formation);
+        }
+    }
+
+    [Serializable]
+    public sealed class BossCatalog
+    {
+        [Header("보스 목록")]
+        [SerializeField] private BossDefinition[] _bosses;
+        public IReadOnlyList<BossDefinition> Bosses => _bosses;
+
+        /// <summary>보스 적 ID에 해당하는 설정을 반환하고 누락된 ID에는 데이터 오류를 발생시킨다.</summary>
+        public BossDefinition Get(string enemyId)
+        { for (int i = 0; i < _bosses.Length; i++) if (_bosses[i].EnemyId == enemyId) return _bosses[i]; throw new FormatException("등록되지 않은 보스: " + enemyId); }
+
+        /// <summary>보스 적 ID의 존재 여부를 반환하고 존재하면 설정을 내보낸다.</summary>
+        public bool TryGet(string enemyId, out BossDefinition boss)
+        {
+            boss = null;
+            for (int i = 0; i < _bosses.Length; i++)
+                if (_bosses[i].EnemyId == enemyId) { boss = _bosses[i]; return true; }
+            return false;
+        }
+
+        /// <summary>JSON 보스 설정을 읽고 배열 구성, ID 중복, 적·진형 참조와 패턴 값을 검증하여 반환한다.</summary>
+        public static BossCatalog FromJson(string json, EnemyCatalog enemies, FormationCatalog formations)
+        {
+            var catalog = JsonUtility.FromJson<BossCatalog>(json);
+            if (catalog == null || catalog._bosses == null || catalog._bosses.Length == 0) throw new FormatException("보스 설정이 비어 있습니다.");
+            var ids = new HashSet<string>();
+            foreach (BossDefinition boss in catalog._bosses)
+            {
+                if (string.IsNullOrEmpty(boss.EnemyId) || !ids.Add(boss.EnemyId)) throw new FormatException("보스 ID가 비었거나 중복입니다: " + boss.EnemyId);
+                enemies.Get(boss.EnemyId);
+                boss.Validate(enemies, formations);
+            }
+            return catalog;
+        }
     }
 
     public sealed class MissionMap

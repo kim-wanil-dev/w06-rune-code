@@ -21,8 +21,6 @@ namespace RuneCode
         private const float ICON_RADIUS = 4f;
         private const float HP_BAR_MIN_WIDTH = 28f;
         private const float HP_BAR_HEIGHT = 3f;
-        private const string RELAY_ID = "enemy.relay";
-        private const string AEGIS_ID = "enemy.aegis";
 
         private static readonly Color CoreColor = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color DummyColor = new Color(0.52f, 0.69f, 0.74f);
@@ -77,10 +75,10 @@ namespace RuneCode
             MissionWorldSpace.SetVisible(_warningRing, enemy.IsWarning);
             if (enemy.IsWarning)
                 MissionWorldSpace.Place(_warningRing, Vector2.zero, (radius + WARNING_GAP + Mathf.Sin(Time.unscaledTime * WARNING_PULSE_SPEED) * WARNING_PULSE) * 2, WarningColor);
-            bool isRelay = enemy.Kind == RELAY_ID;
+            bool isRelay = enemy.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA);
             MissionWorldSpace.SetVisible(_auraRing, isRelay);
             if (isRelay) MissionWorldSpace.Place(_auraRing, Vector2.zero, (float)GameData.Balance.Combat.RelayRadius * 2, AuraColor);
-            bool hasShield = enemy.Kind == AEGIS_ID && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp);
+            bool hasShield = enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp);
             MissionWorldSpace.SetVisible(_shieldArc, hasShield);
             if (hasShield) MissionWorldSpace.Place(_shieldArc, Vector2.zero, (radius + SHIELD_GAP) * 2, ShieldColor);
             MissionWorldSpace.SetVisible(_patchRing, enemy.IsPatching);
