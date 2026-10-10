@@ -53,15 +53,12 @@ namespace RuneCode
             return _viewport.GraphPoint(local);
         }
 
-        /// <summary>
-        /// 그래프 좌표에 룬을 배치한다. 효과는 가까운 Behavior·프리셋 호출의 효과 입력에,
-        /// Behavior 블록(Apply 제외)은 가까운 Shape의 열린 체인 끝에 자동으로 연결한다.
-        /// </summary>
-        public void Place(string runeId, Vector2 position)
+        /// <summary>그래프 좌표에 룬을 지정 등급으로 배치하고 효과·Behavior를 가까운 대상에 자동 연결한다.</summary>
+        public void Place(string runeId, Vector2 position, string grade = null)
         {
             ISpellEditor editor = _editor();
             int oldCount = editor.Graph.Nodes.Count;
-            editor.AddRune(runeId, position.x, position.y);
+            editor.AddRune(runeId, position.x, position.y, grade);
             if (editor.Graph.Nodes.Count == oldCount) return;
 
             RuneDefinition rune = GameData.Runes.Get(runeId);

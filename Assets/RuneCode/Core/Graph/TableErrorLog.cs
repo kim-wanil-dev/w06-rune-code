@@ -4,22 +4,27 @@ using System.Collections.Generic;
 namespace RuneCode
 {
     /// <summary>
-    /// 룬 테이블 검증 중 발견한 오류를 "runes.json:룬ID:필드 메시지" 형식으로 모은다.
+    /// 테이블 검증 중 발견한 오류를 "파일명:ID:필드 메시지" 형식으로 모은다.
     /// 첫 오류에서 멈추지 않고 전부 모은 뒤 ThrowIfAny로 한 번에 보고한다.
     /// </summary>
     public sealed class TableErrorLog
     {
-        private const string TABLE_FILE = "runes.json";
-
+        private readonly string _tableFile;
         private readonly List<string> _errors = new List<string>();
 
         public bool HasErrors => _errors.Count > 0;
         public IReadOnlyList<string> Errors => _errors;
 
+        /// <summary>오류 위치에 표시할 테이블 파일명을 보관한다.</summary>
+        public TableErrorLog(string tableFile = "runes.json")
+        {
+            _tableFile = tableFile;
+        }
+
         /// <summary>오류 룬 ID(카탈로그 전체 오류면 null), 필드 경로(없으면 null)와 메시지로 오류를 추가한다.</summary>
         public void Add(string runeId, string field, string message)
         {
-            string location = TABLE_FILE;
+            string location = _tableFile;
             if (!string.IsNullOrEmpty(runeId))
             {
                 location += ":" + runeId;

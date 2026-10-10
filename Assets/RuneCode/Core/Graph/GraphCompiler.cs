@@ -27,7 +27,7 @@ namespace RuneCode
             return new CompileResult(result.Errors.Concat(stockErrors).ToList(), result.Warnings, result.Spell);
         }
 
-        /// <summary>그래프에 배치된 Modifier 노드 수를 룬 ID별로 세어 반환한다.</summary>
+        /// <summary>그래프에 배치된 Modifier 노드 수를 룬 ID와 등급별로 세어 반환한다.</summary>
         public static Dictionary<string, int> CountModifiers(SpellGraph graph, RuneCatalog runes)
         {
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -35,14 +35,16 @@ namespace RuneCode
             foreach (GraphNode node in graph.Nodes)
             {
                 if (node == null || !runes.TryGet(node.RuneId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) continue;
-                counts.TryGetValue(node.RuneId, out int count);
-                counts[node.RuneId] = count + 1;
+                string grade = SpellGrammar.GetModifierGrade(rune, node, runes.ModifierGrades);
+                string key = SpellGrammar.ModifierStockKey(node.RuneId, grade);
+                counts.TryGetValue(key, out int count);
+                counts[key] = count + 1;
             }
             return counts;
         }
 
         /// <summary>
-        /// 보관함 전체에서 Modifier별 배치 수를 세어 소지량을 넘는 Modifier마다 이 그래프의 첫 초과 노드에 E21 오류를 만든다.
+        /// 보관함 전체에서 Modifier 종류·등급별 배치 수를 세어 소지량을 넘는 등급마다 이 그래프의 첫 초과 노드에 E21 오류를 만든다.
         /// 보관함의 같은 ID 그래프는 이 그래프로 대체해 센다. 소지량에 없는 Modifier의 소지량은 0이다.
         /// </summary>
         private static List<CompileIssue> FindModifierStockIssues(SpellGraph graph, RuneCatalog runes, IEnumerable<SpellGraph> library,
@@ -66,8 +68,13 @@ namespace RuneCode
             {
                 modifierStock.TryGetValue(pair.Key, out int stock);
                 if (pair.Value <= stock) continue;
-                GraphNode node = graph.Nodes.FirstOrDefault(item => item != null && item.RuneId == pair.Key);
-                if (node != null) issues.Add(new CompileIssue("E21", node.Id, runes.Get(pair.Key).Name + " " + pair.Value + "/" + stock));
+                int separator = pair.Key.LastIndexOf('#');
+                string runeId = pair.Key.Substring(0, separator);
+                string grade = pair.Key.Substring(separator + 1);
+                GraphNode node = graph.Nodes.FirstOrDefault(item => item != null && item.RuneId == runeId
+                    && runes.TryGet(item.RuneId, out RuneDefinition rune)
+                    && SpellGrammar.GetModifierGrade(rune, item, runes.ModifierGrades) == grade);
+                if (node != null) issues.Add(new CompileIssue("E21", node.Id, runes.Get(runeId).Name + " " + grade + " " + pair.Value + "/" + stock));
             }
             return issues;
         }
@@ -177,7 +184,7 @@ namespace RuneCode
                 ramUsed += rune.Ram;
                 if (rune.Category == "core") cores.Add(node);
                 if (!context.UnlockedIds.Contains(rune.Id)) errors.Add(new CompileIssue("E10", node.Id));
-                ValidateParameters(node, rune, errors);
+                ValidateParameters(node, rune, runes.ModifierGrades, errors);
                 ValidateMagicNode(node, rune, graph.Edges, errors);
             }
             if (cores.Count != 1) errors.Add(new CompileIssue("E1"));
@@ -400,8 +407,8 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>각 노드의 숫자·열거 파라미터 및 중복 키가 정의 범위를 지키는지 검증한다.</summary>
-        private static void ValidateParameters(GraphNode node, RuneDefinition rune, List<CompileIssue> errors)
+        /// <summary>각 노드의 숫자·열거 파라미터, Modifier 등급 범위와 중복 키를 검증한다.</summary>
+        private static void ValidateParameters(GraphNode node, RuneDefinition rune, ModifierGradeTable modifierGrades, List<CompileIssue> errors)
         {
             if (node.Params == null)
             {
@@ -417,15 +424,20 @@ namespace RuneCode
                     continue;
                 }
                 ParameterDefinition definition = rune.Params.FirstOrDefault(param => param.Id == value.Key);
-                bool isInvalid = !seen.Add(value.Key) || definition == null;
-                if (!isInvalid && definition.Kind == "number")
+                bool isModifierGrade = value.Key == SpellGrammar.MODIFIER_GRADE_PARAM && rune.Category == SpellGrammar.CATEGORY_MODIFIER;
+                bool isInvalid = !seen.Add(value.Key) || (!isModifierGrade && definition == null);
+                if (!isInvalid && isModifierGrade)
+                {
+                    isInvalid = value.Text == null || modifierGrades == null || !modifierGrades.IsGradeAvailable(rune.Id, value.Text);
+                }
+                else if (!isInvalid && definition.Kind == "number")
                 {
                     isInvalid = float.IsNaN(value.Number) || float.IsInfinity(value.Number)
                         || value.Number < definition.Min || value.Number > definition.Max;
                     if (value.Key == "times" && value.Number != (int)value.Number) isInvalid = true;
                 }
-                if (!isInvalid && definition.Kind == "enum") isInvalid = !definition.Options.Contains(value.Text);
-                if (!isInvalid && definition.Kind == "text") isInvalid = value.Text != null && value.Text.Length > 80;
+                if (!isInvalid && !isModifierGrade && definition.Kind == "enum") isInvalid = !definition.Options.Contains(value.Text);
+                if (!isInvalid && !isModifierGrade && definition.Kind == "text") isInvalid = value.Text != null && value.Text.Length > 80;
                 if (isInvalid) errors.Add(new CompileIssue("E9", node.Id, value.Key));
             }
         }
@@ -597,7 +609,7 @@ namespace RuneCode
                 float coneAngle = rune.Id == SpellGrammar.INLINE_RUNE
                     && runes.TryGet(SpellGrammar.ShapeRune(node.GetText("magicType", SpellGrammar.MAGIC_TYPE_SPHERE)), out RuneDefinition shape)
                     ? shape.Stats.ConeAngle : 0f;
-                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell, coneAngle);
+                SpellAction action = new SpellAction(node, rune, effectForm, element, mods, modifierNodes, calledSpell, coneAngle, runes.ModifierGrades);
                 action.SetAttachedNodes(attachedNodeIds);
                 foreach (PortDefinition output in rune.Ports)
                 {

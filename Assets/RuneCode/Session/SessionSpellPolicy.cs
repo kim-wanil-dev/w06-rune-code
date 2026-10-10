@@ -63,26 +63,28 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>편집 그래프와 보관함의 다른 마법에 배치된 Modifier 수(used)와 소지량(owned)을 구한다. Modifier가 아니면 false를 반환한다.</summary>
-        public bool TryGetModifierUsage(string runeId, SpellGraph editing, out int used, out int owned)
+        /// <summary>편집 그래프와 보관함의 다른 마법에서 지정 등급 Modifier 배치 수와 소지량을 구한다.</summary>
+        public bool TryGetModifierUsage(string runeId, string grade, SpellGraph editing, out int used, out int owned)
         {
             used = 0;
             owned = 0;
-            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return false;
-            GraphCompiler.CountModifiers(editing, GameData.Runes).TryGetValue(runeId, out used);
-            used += CountInOtherSpells(runeId, editing?.Id);
-            owned = _session.Save.GetModifierStock(runeId);
+            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER
+                || !GameData.ModifierGrades.IsGradeAvailable(runeId, grade)) return false;
+            string key = SpellGrammar.ModifierStockKey(runeId, grade);
+            GraphCompiler.CountModifiers(editing, GameData.Runes).TryGetValue(key, out used);
+            used += CountInOtherSpells(key, editing?.Id);
+            owned = _session.Save.GetModifierStock(runeId, grade);
             return true;
         }
 
-        /// <summary>보관함에서 지정 ID를 제외한 마법들에 배치된 Modifier 수를 반환한다.</summary>
-        private int CountInOtherSpells(string runeId, string excludedSpellId)
+        /// <summary>보관함에서 지정 ID를 제외한 마법들에 배치된 Modifier 키별 수를 반환한다.</summary>
+        private int CountInOtherSpells(string key, string excludedSpellId)
         {
             var count = 0;
             foreach (SpellGraph graph in _session.Save.Library)
             {
                 if (graph == null || graph.Id == excludedSpellId) continue;
-                if (GraphCompiler.CountModifiers(graph, GameData.Runes).TryGetValue(runeId, out int placed)) count += placed;
+                if (GraphCompiler.CountModifiers(graph, GameData.Runes).TryGetValue(key, out int placed)) count += placed;
             }
             return count;
         }

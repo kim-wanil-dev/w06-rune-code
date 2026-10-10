@@ -57,6 +57,8 @@ namespace RuneCode
         public const string TRIGGER_PARAM = "trigger";
         public const string POWER_PARAM = "power";
         public const string BUFF_DURATION_PARAM = "buffDuration";
+        public const string MODIFIER_GRADE_PARAM = "grade";
+        public const int UNLIMITED_PIERCE_COUNT = int.MaxValue;
 
         public const string TRIGGER_ON_ATTACK = "onAttack";
         public const string TRIGGER_ON_MOVE = "onMove";
@@ -97,6 +99,19 @@ namespace RuneCode
 
         /// <summary>속성 식별자(neutral, fire 등)에 해당하는 속성 정의 룬 ID(element.neutral 등)를 반환한다.</summary>
         public static string ElementRune(string elementId) => ELEMENT_PREFIX + elementId;
+
+        /// <summary>Modifier 소지량 표에서 runeId와 문자열 등급을 결합한 키를 반환한다.</summary>
+        public static string ModifierStockKey(string runeId, string grade)
+        {
+            return runeId + "#" + grade;
+        }
+
+        /// <summary>노드의 문자열 등급을 읽고 없으면 원본 표에서 해당 Modifier의 최저 등급을 반환한다.</summary>
+        public static string GetModifierGrade(RuneDefinition rune, GraphNode node, ModifierGradeTable modifierGrades)
+        {
+            string grade = node == null ? null : node.GetText(MODIFIER_GRADE_PARAM, null);
+            return string.IsNullOrEmpty(grade) ? modifierGrades?.GetLowestAvailableGrade(rune.Id) ?? string.Empty : grade;
+        }
 
         /// <summary>Shape의 체인 출력에서 Apply를 제외한 Behavior의 체인 입력으로 가는 연결인지 반환한다.</summary>
         public static bool IsValidChainLink(RuneDefinition from, RuneDefinition to)

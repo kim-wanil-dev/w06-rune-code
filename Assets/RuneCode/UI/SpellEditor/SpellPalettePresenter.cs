@@ -43,15 +43,11 @@ namespace RuneCode
             {
                 if (!IsPaletteRune(rune) || (_category != "all" && rune.Category != _category) || !MatchesSearch(rune, query)) continue;
                 bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
-                string runeId = rune.Id;
-                string label = rune.Name + "   " + rune.Ram + " RAM";
-                if (_editor.TryGetModifierUsage(rune.Id, out int used, out int owned))
-                    label += "  ·  " + GameData.L("ui.modifierStock") + " " + Math.Max(0, owned - used) + "/" + owned;
-                if (!isUnlocked) label += "\n" + GameData.L("ui.locked") + " · " + UnlockCondition(rune);
-                _view.AddPaletteRow(label, isUnlocked ? RuneMesh.CategoryColor(rune.Category) : LOCKED_TINT,
-                    isUnlocked ? UNLOCKED_ROW_HEIGHT : LOCKED_ROW_HEIGHT,
-                    () => { if (isUnlocked) _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId)); },
-                    runeId, isUnlocked);
+                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+                {
+                    foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id)) AddPaletteRune(rune, grade, isUnlocked);
+                }
+                else AddPaletteRune(rune, null, isUnlocked);
             }
         }
 
@@ -73,13 +69,53 @@ namespace RuneCode
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
                 if (!IsPaletteRune(rune) || !_editor.IsRuneUnlocked(rune.Id) || !MatchesSearch(rune, query)) continue;
-                string runeId = rune.Id;
-                popup.AddResult(rune.Name + " · " + rune.Ram + " RAM", RuneMesh.CategoryColor(rune.Category), () =>
+                if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
                 {
-                    popup.Close();
-                    _view.GraphCanvas.PlaceRune(runeId, graphPosition);
-                });
+                    foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
+                    {
+                        if (!_editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned) || owned <= used) continue;
+                        AddQuickRune(popup, rune, grade, graphPosition, owned - used, owned);
+                    }
+                }
+                else AddQuickRune(popup, rune, null, graphPosition, 0, 0);
             }
+        }
+
+        /// <summary>지정 Modifier 등급의 보유량을 표시하고 배치 가능한 팔레트 행을 만든다.</summary>
+        private void AddPaletteRune(RuneDefinition rune, string grade, bool isUnlocked)
+        {
+            bool canPlace = isUnlocked;
+            string label = rune.Name;
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                bool hasUsage = _editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned);
+                if (!hasUsage) { used = 0; owned = 0; }
+                int remaining = Math.Max(0, owned - used);
+                label += " " + grade + " · " + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
+                canPlace &= hasUsage && remaining > 0;
+            }
+            else label += "   " + rune.Ram + " RAM";
+            if (!isUnlocked) label += "\n" + GameData.L("ui.locked") + " · " + UnlockCondition(rune);
+            string runeId = rune.Id;
+            Color accent = canPlace ? RuneMesh.CategoryColor(rune.Category) : LOCKED_TINT;
+            _view.AddPaletteRow(label, accent, isUnlocked ? UNLOCKED_ROW_HEIGHT : LOCKED_ROW_HEIGHT,
+                () => { if (canPlace) _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade); },
+                runeId, grade, canPlace);
+        }
+
+        /// <summary>빠른 검색에 등급과 남은 소지량을 표시하고 지정 등급으로 배치하는 결과를 추가한다.</summary>
+        private void AddQuickRune(QuickPalettePopup popup, RuneDefinition rune, string grade, Vector2 graphPosition, int remaining, int owned)
+        {
+            string label = rune.Name;
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+                label += " " + grade + " · " + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
+            else label += " · " + rune.Ram + " RAM";
+            string runeId = rune.Id;
+            popup.AddResult(label, RuneMesh.CategoryColor(rune.Category), () =>
+            {
+                popup.Close();
+                _view.GraphCanvas.PlaceRune(runeId, graphPosition, grade);
+            });
         }
 
         /// <summary>팔레트에 놓을 수 있는 룬인지 반환한다. 시전 코어·내부 룬·속성(드롭다운 값)은 제외한다.</summary>
@@ -102,5 +138,6 @@ namespace RuneCode
         {
             return rune.UnlockType == "reward" ? GameData.L("ui.reward") : rune.UnlockCost + " " + GameData.L("ui.fragments");
         }
+
     }
 }

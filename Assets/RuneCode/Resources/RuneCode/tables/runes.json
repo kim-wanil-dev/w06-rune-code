@@ -519,6 +519,18 @@
         "_homingRange": 300,
         "_learningMultiplier": 1
       },
+      "_homingTiers": [
+        {
+          "_tier": "하급",
+          "_homingTurn": 140,
+          "_homingRange": 300
+        },
+        {
+          "_tier": "상급",
+          "_homingTurn": 220,
+          "_homingRange": 420
+        }
+      ],
       "_ports": [
         {
           "_order": 0,
@@ -556,17 +568,6 @@
           "_max": 1
         }
       ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "sizeScale",
-          "_kind": "number",
-          "_min": 0.5,
-          "_max": 3,
-          "_step": 0.1,
-          "_defaultNumber": 1.5
-        }
-      ],
       "_modifierTargets": [
         "behavior.launch",
         "behavior.burst",
@@ -587,7 +588,8 @@
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
-        "_learningMultiplier": 1
+        "_learningMultiplier": 1,
+        "_speedMultiplier": 1.5
       },
       "_ports": [
         {
@@ -596,17 +598,6 @@
           "_kind": "mod",
           "_direction": "out",
           "_max": 1
-        }
-      ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "speedScale",
-          "_kind": "number",
-          "_min": 0.5,
-          "_max": 3,
-          "_step": 0.1,
-          "_defaultNumber": 1.5
         }
       ],
       "_modifierTargets": [
@@ -1097,7 +1088,8 @@
       "_stats": {
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
-        "_learningMultiplier": 1
+        "_learningMultiplier": 1,
+        "_durationMultiplier": 1.5
       },
       "_ports": [
         {
@@ -1106,17 +1098,6 @@
           "_kind": "mod",
           "_direction": "out",
           "_max": 1
-        }
-      ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "durationScale",
-          "_kind": "number",
-          "_min": 0.5,
-          "_max": 3,
-          "_step": 0.1,
-          "_defaultNumber": 1.5
         }
       ],
       "_tags": [
