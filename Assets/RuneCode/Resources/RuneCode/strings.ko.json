@@ -1201,6 +1201,14 @@
       "_value": "Modifier 획득"
     },
     {
+      "_key": "result.modifierPickup",
+      "_value": "주운 Modifier"
+    },
+    {
+      "_key": "result.clearModifierChoice",
+      "_value": "클리어 보상 · Modifier 1개 선택"
+    },
+    {
       "_key": "ui.modifierStock",
       "_value": "보유"
     },
