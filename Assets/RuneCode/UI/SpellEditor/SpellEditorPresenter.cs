@@ -113,11 +113,12 @@ namespace RuneCode
             _inspector.Refresh();
         }
 
-        /// <summary>그래프 표시·제목·지표·인스펙터를 다시 그린다. GraphChanged 구독자다.</summary>
+        /// <summary>그래프 표시·제목·팔레트(Modifier 남은 소지량)·지표·인스펙터를 다시 그린다. GraphChanged 구독자다.</summary>
         private void OnGraphChanged()
         {
             _view.GraphCanvas.RefreshGraph();
             _view.SetTitle(_editor.Graph.Name);
+            _palette.Refresh();
             RefreshMetrics();
             _inspector.Refresh();
         }

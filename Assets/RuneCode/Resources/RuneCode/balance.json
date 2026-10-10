@@ -77,6 +77,7 @@
     "_baseCapacity": 6,
     "_capacityStep": 2,
     "_maxLibrary": 30,
+    "_modifierStartStock": 1,
     "_statStep": 10,
     "_orbAbsorbRadius": 160,
     "_terminalHeal": 0.3,

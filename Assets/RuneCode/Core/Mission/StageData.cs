@@ -237,6 +237,16 @@ namespace RuneCode
     }
 
     [Serializable]
+    public sealed class ModifierRewardDefinition
+    {
+        [Header("Modifier 보상")]
+        [SerializeField] private string _runeId;
+        [SerializeField] private int _count;
+        public string RuneId => _runeId;
+        public int Count => _count;
+    }
+
+    [Serializable]
     public sealed class StageDefinition
     {
         [Header("스테이지")]
@@ -248,6 +258,7 @@ namespace RuneCode
         [SerializeField] private StreamDefinition _stream;
         [SerializeField] private WaveDefinition[] _waves;
         [SerializeField] private EliteSpawnDefinition[] _elites;
+        [SerializeField] private ModifierRewardDefinition[] _modifierRewards;
         public int FromStage => _fromStage;
         public int ToStage => _toStage;
         public string Kind => _kind;
@@ -256,6 +267,9 @@ namespace RuneCode
         public StreamDefinition Stream => _stream;
         public IReadOnlyList<WaveDefinition> Waves => _waves ?? Array.Empty<WaveDefinition>();
         public IReadOnlyList<EliteSpawnDefinition> Elites => _elites ?? Array.Empty<EliteSpawnDefinition>();
+
+        /// <summary>이 항목의 스테이지를 처음 클리어할 때 주는 Modifier 소지량 보상이다. 없으면 빈 목록이다.</summary>
+        public IReadOnlyList<ModifierRewardDefinition> ModifierRewards => _modifierRewards ?? Array.Empty<ModifierRewardDefinition>();
         public bool IsBoss => _kind == "boss";
         public bool IsSingle => _toStage == _fromStage;
 
@@ -402,6 +416,7 @@ namespace RuneCode
             ValidateStream(stage, enemies, formations);
             ValidateWaves(stage, enemies, formations);
             ValidateElites(stage, enemies);
+            ValidateModifierRewards(stage);
         }
 
         /// <summary>스트림의 후보 적, 시작 스테이지, 가중치, 간격 공식, 종료 시각, 진형 참조를 확인한다.</summary>
@@ -446,6 +461,16 @@ namespace RuneCode
                     enemies.Get(unit.EnemyId); // 없는 적 ID면 여기서 오류가 난다.
                     if (unit.Count < 1) throw new FormatException("웨이브 유닛 수는 1 이상이어야 합니다: " + unit.EnemyId + " (스테이지 " + stage.FromStage + ")");
                 }
+            }
+        }
+
+        /// <summary>Modifier 보상의 룬 ID가 비어 있지 않고 수량이 1 이상인지 확인한다. 룬 존재 여부는 지급 시 확인한다.</summary>
+        private static void ValidateModifierRewards(StageDefinition stage)
+        {
+            foreach (ModifierRewardDefinition reward in stage.ModifierRewards)
+            {
+                if (reward == null || string.IsNullOrEmpty(reward.RuneId) || reward.Count < 1)
+                    throw new FormatException("Modifier 보상은 룬 ID와 1 이상의 수량이 필요합니다 (스테이지 " + stage.FromStage + ")");
             }
         }
 

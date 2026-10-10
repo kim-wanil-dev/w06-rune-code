@@ -129,6 +129,7 @@ namespace RuneCode
         [SerializeField] private int _baseCapacity;
         [SerializeField] private int _capacityStep;
         [SerializeField] private int _maxLibrary;
+        [SerializeField] private int _modifierStartStock;
         [SerializeField] private int _statStep;
         [SerializeField] private float _orbAbsorbRadius;
         [SerializeField] private float _terminalHeal;
@@ -149,6 +150,9 @@ namespace RuneCode
         public int BaseCapacity => _baseCapacity;
         public int CapacityStep => _capacityStep;
         public int MaxLibrary => _maxLibrary;
+
+        /// <summary>새 세이브(또는 소지량 기록이 없는 세이브)에서 Modifier 종류마다 주는 시작 소지량이다.</summary>
+        public int ModifierStartStock => _modifierStartStock;
         public int StatStep => _statStep;
         public float OrbAbsorbRadius => _orbAbsorbRadius;
         public float TerminalHeal => _terminalHeal;
@@ -288,7 +292,7 @@ namespace RuneCode
                 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.CapacityStep <= 0
-                || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.SlotCost <= 0
+                || data.Economy.StatStep <= 0 || data.Economy.MaxLibrary <= 0 || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0
                 || data.Limits.MaxFrameSteps <= 0 || data.Limits.MaxGraphNodes <= 0 || data.Limits.MaxGraphEdges <= 0
                 || data.Economy.CapacityCosts.Count == 0 || data.Economy.StatCosts.Count == 0 || data.Sim.BenchHp <= 0f
                 || data.Sim.BenchLineCount <= 0 || data.Sim.BenchSwarmColumns <= 0 || data.Sim.BenchSwarmRows <= 0

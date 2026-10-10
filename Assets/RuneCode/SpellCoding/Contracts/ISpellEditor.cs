@@ -29,6 +29,9 @@ namespace RuneCode
         /// <summary>룬이 해금되어 팔레트에서 배치 가능한지 반환한다.</summary>
         bool IsRuneUnlocked(string runeId);
 
+        /// <summary>편집 중인 마법을 포함한 보관함 전체의 Modifier 배치 수와 소지량을 구한다. Modifier가 아니면 false를 반환한다.</summary>
+        bool TryGetModifierUsage(string runeId, out int used, out int owned);
+
         /// <summary>지정 좌표에 룬 노드를 배치한다.</summary>
         void AddRune(string runeId, float x, float y);
 

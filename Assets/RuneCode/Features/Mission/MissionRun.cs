@@ -88,18 +88,20 @@ namespace RuneCode
             if (_simulation.Completed || _simulation.IsFailed) FinishMission();
         }
 
-        /// <summary>클리어 보상을 포함한 클리어, 사망 또는 보스 제한시간 초과 보상을 한 번만 정산하고 결과 문구와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
+        /// <summary>클리어 보상을 포함한 클리어, 사망 또는 보스 제한시간 초과 보상을 한 번만 정산하고 결과 문구(첫 클리어 Modifier 보상 포함)와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
         public void FinishMission()
         {
             if (_settled) return;
             _settled = true;
             var cleared = _simulation.Completed;
             var fragments = _simulation.SettlementFragments;
-            _session.SettleMission(_simulation.StageNumber, fragments, cleared, _simulation.KillCounts);
+            var modifierRewards = _session.SettleMission(_simulation.StageNumber, fragments, cleared, _simulation.KillCounts);
             var result = cleared ? "clear" : _simulation.IsTimedOut ? "timeout" : "death";
             var resultKey = cleared ? "result.stageCleared" : _simulation.IsTimedOut ? "result.timeout" : "result.dead";
             _lastResult = GameData.L(resultKey) + "\n" + GameData.L("result.fragments") + " " + fragments;
             if (cleared) _lastResult += "  ·  " + GameData.L("result.clearReward") + " " + _simulation.ClearReward;
+            foreach (var reward in modifierRewards)
+                _lastResult += "\n" + GameData.L("result.modifierReward") + " " + GameData.Runes.Get(reward.RuneId).Name + " +" + reward.Count;
             _isPaused = false;
             LocalTelemetry.Record(_simulation.Tick, "mission.result", result + ":" + fragments);
         }

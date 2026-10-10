@@ -34,7 +34,7 @@ namespace RuneCode
             };
         }
 
-        /// <summary>현재 분류·검색어에 맞는 팔레트 룬 행을 다시 채운다.</summary>
+        /// <summary>현재 분류·검색어에 맞는 팔레트 룬 행을 다시 채운다. Modifier는 남은 소지량/소지량을 함께 표시한다.</summary>
         public void Refresh()
         {
             _view.ClearPalette();
@@ -45,6 +45,8 @@ namespace RuneCode
                 bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
                 string runeId = rune.Id;
                 string label = rune.Name + "   " + rune.Ram + " RAM";
+                if (_editor.TryGetModifierUsage(rune.Id, out int used, out int owned))
+                    label += "  ·  " + GameData.L("ui.modifierStock") + " " + Math.Max(0, owned - used) + "/" + owned;
                 if (!isUnlocked) label += "\n" + GameData.L("ui.locked") + " · " + UnlockCondition(rune);
                 _view.AddPaletteRow(label, isUnlocked ? RuneMesh.CategoryColor(rune.Category) : LOCKED_TINT,
                     isUnlocked ? UNLOCKED_ROW_HEIGHT : LOCKED_ROW_HEIGHT,

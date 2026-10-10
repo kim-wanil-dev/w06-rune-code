@@ -30,6 +30,7 @@ namespace RuneCode
         [SerializeField] private List<string> _loadout = new List<string>();
         [SerializeField] private List<KillRecord> _killCounts = new List<KillRecord>();
         [SerializeField] private List<UpgradeNodeProgress> _upgradeNodeProgress = new List<UpgradeNodeProgress>();
+        [SerializeField] private List<ModifierStock> _modifierStock = new List<ModifierStock>();
 
         [Header("피드백 설정")]
         [SerializeField] private bool _screenShake = true;
@@ -56,6 +57,52 @@ namespace RuneCode
         public bool ScreenShake => _screenShake;
         public bool HitStop => _hitStop;
         public int TutorialStep => _tutorialStep;
+
+        /// <summary>Modifier 룬의 소지량(보관함 전체 공유)을 반환하고 기록이 없으면 0을 반환한다.</summary>
+        public int GetModifierStock(string runeId)
+        {
+            foreach (ModifierStock stock in _modifierStock)
+                if (stock != null && stock.RuneId == runeId) return stock.Count;
+            return 0;
+        }
+
+        /// <summary>Modifier 룬 ID별 소지량을 새 사전으로 반환한다. 컴파일·배치 검사에 쓴다.</summary>
+        public Dictionary<string, int> CreateModifierStockMap()
+        {
+            var map = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (ModifierStock stock in _modifierStock)
+                if (stock != null && !string.IsNullOrEmpty(stock.RuneId)) map[stock.RuneId] = stock.Count;
+            return map;
+        }
+
+        /// <summary>Modifier 룬의 소지량을 늘린다. Modifier가 아니거나 수량이 0 이하이면 무시한다. 스테이지 보상 등에서 쓴다.</summary>
+        public void AddModifierStock(string runeId, int amount)
+        {
+            if (amount <= 0 || !GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return;
+            foreach (ModifierStock stock in _modifierStock)
+            {
+                if (stock == null || stock.RuneId != runeId) continue;
+                stock.Add(amount);
+                return;
+            }
+            _modifierStock.Add(new ModifierStock(runeId, amount));
+        }
+
+        /// <summary>
+        /// 소지량 기록이 없는 Modifier 룬에 시작 소지량을 넣고, 카탈로그에 없거나 Modifier가 아닌 기록은 지운다.
+        /// 새 세이브와 이전 세이브 로드에서 호출하며 여러 번 호출해도 결과가 같다.
+        /// </summary>
+        private void EnsureModifierStock()
+        {
+            if (_modifierStock == null) _modifierStock = new List<ModifierStock>();
+            _modifierStock.RemoveAll(stock => stock == null || !GameData.Runes.TryGet(stock.RuneId, out RuneDefinition rune)
+                || rune.Category != SpellGrammar.CATEGORY_MODIFIER);
+            foreach (RuneDefinition rune in GameData.Runes.All)
+            {
+                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER || _modifierStock.Exists(stock => stock.RuneId == rune.Id)) continue;
+                _modifierStock.Add(new ModifierStock(rune.Id, GameData.Balance.Economy.ModifierStartStock));
+            }
+        }
 
         /// <summary>저장된 업그레이드 트리 노드의 레벨을 반환하고 구매 기록이 없으면 0을 반환한다.</summary>
         public int GetUpgradeNodeLevel(string nodeId)
@@ -103,6 +150,7 @@ namespace RuneCode
             save._loadout.Add(null);
             save._loadout.Add(null);
             save.AddDefaultMethods();
+            save.EnsureModifierStock();
             return save;
         }
 
@@ -122,6 +170,7 @@ namespace RuneCode
                 if (rune.UnlockType == "start" && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(rune.Id)) unlocked.Add(rune.Id);
             _unlockedRunes = unlocked;
             AddDefaultMethods();
+            EnsureModifierStock();
         }
 
         /// <summary>기본 마법 메소드 템플릿 중 보관함에 없는 것을 한도 안에서 추가한다.</summary>
@@ -335,6 +384,34 @@ namespace RuneCode
         {
             if (GameData.Runes.TryGet(runeId, out _) && !_unlockedRunes.Contains(runeId))
                 _unlockedRunes.Add(runeId);
+        }
+
+        [Serializable]
+        private sealed class ModifierStock
+        {
+            [SerializeField] private string _runeId;
+            [SerializeField] private int _count;
+
+            public string RuneId => _runeId;
+            public int Count => _count;
+
+            /// <summary>저장 직렬화에서 소지량 목록을 복원하기 위한 기본 생성자다.</summary>
+            private ModifierStock()
+            {
+            }
+
+            /// <summary>Modifier 룬 ID와 소지량으로 기록을 만든다.</summary>
+            public ModifierStock(string runeId, int count)
+            {
+                _runeId = runeId;
+                _count = Math.Max(0, count);
+            }
+
+            /// <summary>소지량을 늘린다.</summary>
+            public void Add(int amount)
+            {
+                _count += Math.Max(0, amount);
+            }
         }
 
         [Serializable]

@@ -1177,6 +1177,22 @@
       "_value": "산정 불가"
     },
     {
+      "_key": "issue.E21",
+      "_value": "Modifier 소지량을 넘었습니다(보관함 전체 배치 수/소지량). 다른 마법에서 빼거나 소지량을 늘리세요:"
+    },
+    {
+      "_key": "editor.modifierStockBlocked",
+      "_value": "Modifier 소지량이 부족해 더 배치할 수 없습니다"
+    },
+    {
+      "_key": "result.modifierReward",
+      "_value": "Modifier 획득"
+    },
+    {
+      "_key": "ui.modifierStock",
+      "_value": "보유"
+    },
+    {
       "_key": "magicType.cone",
       "_value": "부채꼴"
     },

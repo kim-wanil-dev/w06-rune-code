@@ -80,12 +80,18 @@ namespace RuneCode
             return _policy.IsRuneUnlocked(runeId);
         }
 
+        /// <summary>편집 중인 마법을 포함한 보관함 전체의 Modifier 배치 수와 소지량을 구한다. Modifier가 아니면 false를 반환한다.</summary>
+        public bool TryGetModifierUsage(string runeId, out int used, out int owned)
+        {
+            return _policy.TryGetModifierUsage(runeId, _editingGraph, out used, out owned);
+        }
+
         /// <summary>현재 진행 상태로 편집 마법을 다시 컴파일하고 결과를 알린다.</summary>
         public void Recompile()
         {
             var context = _policy.GetCompileContext();
             _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance.Grammar,
-                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library);
+                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock);
             RaiseCompiled();
         }
 
@@ -122,12 +128,13 @@ namespace RuneCode
             RaiseSpellSwitched();
         }
 
-        /// <summary>현재 그래프를 고유 ID와 표시 이름을 가진 독립 마법으로 복제한다.</summary>
+        /// <summary>현재 그래프를 고유 ID와 표시 이름을 가진 독립 마법으로 복제한다. 복제로 Modifier 소지량을 넘으면 거부한다.</summary>
         public void DuplicateSpell()
         {
             if (!_isEditable || _storage.Library.Count >= _policy.MaxLibrary) return;
             SpellGraph duplicate = _editingGraph.Clone();
             duplicate.SetIdentity(NewId("spell"));
+            if (!_policy.IsWithinModifierStock(null, duplicate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
             duplicate.Rename(_editingGraph.Name + GameData.L("editor.copySuffix"));
             _storage.Store(duplicate);
             SelectSpell(duplicate.Id);
@@ -186,7 +193,7 @@ namespace RuneCode
             RaiseSpellSwitched();
         }
 
-        /// <summary>Core 중복과 공유 RAM 한도를 막고 지정 좌표에 룬을 배치한다.</summary>
+        /// <summary>Core 중복, 공유 RAM 한도와 Modifier 소지량 초과를 막고 지정 좌표에 룬을 배치한다.</summary>
         public void AddRune(string runeId, float x, float y)
         {
             if (!_isEditable || !_policy.IsRuneUnlocked(runeId)) return;
@@ -197,6 +204,7 @@ namespace RuneCode
             var candidate = _editingGraph.Clone();
             candidate.AddNode(new GraphNode(NewId("node"), runeId, x, y));
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return; }
+            if (!_policy.IsWithinModifierStock(_editingGraph, candidate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
             _editingGraph = candidate;
             _policy.OnRunePlaced(runeId);
             MarkChanged(); RaiseGraphChanged();
@@ -216,7 +224,7 @@ namespace RuneCode
             candidate.AddEdge(edge);
             var context = _policy.GetCompileContext();
             CompileResult result = GraphCompiler.Compile(candidate, GameData.Runes, GameData.Balance.Grammar,
-                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library);
+                context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock);
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             _editingGraph.AddEdge(edge);
@@ -315,7 +323,7 @@ namespace RuneCode
             _copiedEdges.AddRange(snapshot.Edges.Where(edge => _copiedNodes.Any(node => node.Id == edge.FromNode) && _copiedNodes.Any(node => node.Id == edge.ToNode)));
         }
 
-        /// <summary>복사 노드에 새 ID와 좌표 오프셋을 부여하고 장착 RAM 검증 후 붙여넣는다.</summary>
+        /// <summary>복사 노드에 새 ID와 좌표 오프셋을 부여하고 장착 RAM·Modifier 소지량 검증 후 붙여넣는다.</summary>
         public void PasteNodes()
         {
             if (_copiedNodes.Count == 0 || !_isEditable) return;
@@ -330,6 +338,7 @@ namespace RuneCode
             }
             foreach (var edge in _copiedEdges) candidate.AddEdge(new GraphEdge(NewId("edge"), map[edge.FromNode], edge.FromPort, map[edge.ToNode], edge.ToPort));
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return; }
+            if (!_policy.IsWithinModifierStock(_editingGraph, candidate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
             _editingGraph = candidate; MarkChanged(); RaiseGraphChanged();
         }
 

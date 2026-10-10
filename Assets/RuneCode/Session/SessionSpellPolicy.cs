@@ -1,9 +1,10 @@
+using System.Collections.Generic;
 using System.Linq;
 
 namespace RuneCode
 {
     /// <summary>
-    /// 세션의 세이브와 성장 값으로 마법 편집 규칙(보관함 한도, 해금, RAM 용량, 튜토리얼, 상태 문구)을 적용한다.
+    /// 세션의 세이브와 성장 값으로 마법 편집 규칙(보관함 한도, 해금, RAM 용량, Modifier 소지량, 튜토리얼, 상태 문구)을 적용한다.
     /// </summary>
     public sealed class SessionSpellPolicy : ISpellEditPolicy
     {
@@ -17,10 +18,11 @@ namespace RuneCode
             _session = session;
         }
 
-        /// <summary>현재 해금 룬과 성장 값으로 컴파일 문맥을 만든다.</summary>
+        /// <summary>현재 해금 룬, 성장 값과 Modifier 소지량으로 컴파일 문맥을 만든다.</summary>
         public SpellCompileContext GetCompileContext()
         {
-            return new SpellCompileContext(_session.Save.UnlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library);
+            return new SpellCompileContext(_session.Save.UnlockedRunes, _session.Capacity, _session.MaxEnergy, _session.Save.Library,
+                _session.Save.CreateModifierStockMap());
         }
 
         /// <summary>룬이 세이브의 해금 목록에 있는지 반환한다.</summary>
@@ -40,6 +42,49 @@ namespace RuneCode
             if (equippedCopies == 0) return true;
             if (GameData.Balance.Ram.Mode == "shared") return CalculateEquippedRam(candidate) <= _session.Capacity;
             return GetGraphRam(candidate) <= _session.Capacity;
+        }
+
+        /// <summary>
+        /// 현재 그래프를 후보로 바꿨을 때 수가 늘어나는 Modifier마다, 후보와 보관함의 다른 마법에 배치된 수의 합이 소지량 이하인지 반환한다.
+        /// 이미 초과한 Modifier라도 늘리지 않는 편집(다른 노드 배치 등)은 막지 않는다.
+        /// </summary>
+        public bool IsWithinModifierStock(SpellGraph current, SpellGraph candidate)
+        {
+            if (candidate == null) return false;
+            Dictionary<string, int> stock = _session.Save.CreateModifierStockMap();
+            Dictionary<string, int> before = GraphCompiler.CountModifiers(current, GameData.Runes);
+            foreach (KeyValuePair<string, int> pair in GraphCompiler.CountModifiers(candidate, GameData.Runes))
+            {
+                before.TryGetValue(pair.Key, out int previous);
+                if (pair.Value <= previous) continue;
+                stock.TryGetValue(pair.Key, out int owned);
+                if (pair.Value + CountInOtherSpells(pair.Key, candidate.Id) > owned) return false;
+            }
+            return true;
+        }
+
+        /// <summary>편집 그래프와 보관함의 다른 마법에 배치된 Modifier 수(used)와 소지량(owned)을 구한다. Modifier가 아니면 false를 반환한다.</summary>
+        public bool TryGetModifierUsage(string runeId, SpellGraph editing, out int used, out int owned)
+        {
+            used = 0;
+            owned = 0;
+            if (!GameData.Runes.TryGet(runeId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) return false;
+            GraphCompiler.CountModifiers(editing, GameData.Runes).TryGetValue(runeId, out used);
+            used += CountInOtherSpells(runeId, editing?.Id);
+            owned = _session.Save.GetModifierStock(runeId);
+            return true;
+        }
+
+        /// <summary>보관함에서 지정 ID를 제외한 마법들에 배치된 Modifier 수를 반환한다.</summary>
+        private int CountInOtherSpells(string runeId, string excludedSpellId)
+        {
+            var count = 0;
+            foreach (SpellGraph graph in _session.Save.Library)
+            {
+                if (graph == null || graph.Id == excludedSpellId) continue;
+                if (GraphCompiler.CountModifiers(graph, GameData.Runes).TryGetValue(runeId, out int placed)) count += placed;
+            }
+            return count;
         }
 
         /// <summary>첫 발사 Behavior 블록 배치에서 튜토리얼 배치 단계를 기록한다.</summary>

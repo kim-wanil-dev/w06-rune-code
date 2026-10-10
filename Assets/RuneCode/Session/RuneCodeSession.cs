@@ -270,13 +270,30 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>전투 보상과 처치 기록을 세이브에 반영하고 저장한다. 클리어면 다음 스테이지를 해금한다.</summary>
-        public void SettleMission(int stageNumber, int fragments, bool isCleared, IEnumerable<KeyValuePair<string, int>> killCounts)
+        /// <summary>
+        /// 전투 보상과 처치 기록을 세이브에 반영하고 저장한다. 클리어면 다음 스테이지를 해금하고, 처음 클리어한 스테이지면
+        /// 스테이지 데이터의 Modifier 소지량 보상을 지급한다. 지급한 Modifier 보상 목록을 반환한다.
+        /// </summary>
+        public IReadOnlyList<ModifierRewardDefinition> SettleMission(int stageNumber, int fragments, bool isCleared, IEnumerable<KeyValuePair<string, int>> killCounts)
         {
+            var modifierRewards = new List<ModifierRewardDefinition>();
+            if (isCleared && stageNumber > _save.HighestClearedStage)
+            {
+                foreach (ModifierRewardDefinition reward in _stages.Get(stageNumber).ModifierRewards)
+                {
+                    // Modifier가 아닌 ID는 데이터 오류로 보고 지급하지 않는다.
+                    if (!GameData.Runes.TryGet(reward.RuneId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER)
+                    { Debug.LogWarning("[Stage] Modifier가 아닌 보상 ID를 건너뜁니다: " + reward.RuneId); continue; }
+                    _save.AddModifierStock(reward.RuneId, reward.Count);
+                    modifierRewards.Add(reward);
+                }
+            }
             if (isCleared) _save.RecordStageClear(stageNumber);
             _save.Settle(fragments, isCleared);
             foreach (var pair in killCounts) _save.RecordKills(pair.Key, pair.Value);
             SaveStore.Write(_save);
+            if (modifierRewards.Count > 0) _spells.Recompile();
+            return modifierRewards;
         }
 
         /// <summary>디버그 실행에서만 조각을 지급한다.</summary>

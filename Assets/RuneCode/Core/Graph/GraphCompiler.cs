@@ -8,16 +8,68 @@ namespace RuneCode
 {
     public static class GraphCompiler
     {
-        /// <summary>그래프와 해금·RAM·에너지 조건을 검증하고 최악 비용의 실행 트리를 컴파일한다.</summary>
+        /// <summary>
+        /// 그래프와 해금·RAM·에너지 조건을 검증하고 최악 비용의 실행 트리를 컴파일한다.
+        /// modifierStock이 있으면 Modifier 소지량(보관함 전체 공유)을 넘는 배치를 E21 오류로 낸다. null이면 검사하지 않는다.
+        /// </summary>
         public static CompileResult Compile(SpellGraph graph, RuneCatalog runes, GrammarLimits limits,
-            IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f, IEnumerable<SpellGraph> library = null)
+            IEnumerable<string> unlocked, int capacity = -1, float maxEnergy = -1f, IEnumerable<SpellGraph> library = null,
+            IReadOnlyDictionary<string, int> modifierStock = null)
         {
             CompileContext context = new CompileContext(unlocked ?? runes.StartRunes, library, graph, capacity, maxEnergy);
             List<CompileIssue> dependencyErrors = new List<CompileIssue>();
             ValidateSpellDependencies(graph, context.Library, new HashSet<string>(StringComparer.Ordinal),
                 new List<string>(), dependencyErrors);
             if (dependencyErrors.Count > 0) return new CompileResult(dependencyErrors, new List<CompileIssue>(), null);
-            return CompileGraph(graph, runes, limits, context);
+            CompileResult result = CompileGraph(graph, runes, limits, context);
+            List<CompileIssue> stockErrors = modifierStock == null ? null : FindModifierStockIssues(graph, runes, library, modifierStock);
+            if (stockErrors == null || stockErrors.Count == 0) return result;
+            return new CompileResult(result.Errors.Concat(stockErrors).ToList(), result.Warnings, result.Spell);
+        }
+
+        /// <summary>그래프에 배치된 Modifier 노드 수를 룬 ID별로 세어 반환한다.</summary>
+        public static Dictionary<string, int> CountModifiers(SpellGraph graph, RuneCatalog runes)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (graph?.Nodes == null) return counts;
+            foreach (GraphNode node in graph.Nodes)
+            {
+                if (node == null || !runes.TryGet(node.RuneId, out RuneDefinition rune) || rune.Category != SpellGrammar.CATEGORY_MODIFIER) continue;
+                counts.TryGetValue(node.RuneId, out int count);
+                counts[node.RuneId] = count + 1;
+            }
+            return counts;
+        }
+
+        /// <summary>
+        /// 보관함 전체에서 Modifier별 배치 수를 세어 소지량을 넘는 Modifier마다 이 그래프의 첫 초과 노드에 E21 오류를 만든다.
+        /// 보관함의 같은 ID 그래프는 이 그래프로 대체해 센다. 소지량에 없는 Modifier의 소지량은 0이다.
+        /// </summary>
+        private static List<CompileIssue> FindModifierStockIssues(SpellGraph graph, RuneCatalog runes, IEnumerable<SpellGraph> library,
+            IReadOnlyDictionary<string, int> modifierStock)
+        {
+            Dictionary<string, int> used = CountModifiers(graph, runes);
+            if (library != null)
+            {
+                foreach (SpellGraph other in library)
+                {
+                    if (other == null || (!string.IsNullOrEmpty(graph.Id) && other.Id == graph.Id)) continue;
+                    foreach (KeyValuePair<string, int> pair in CountModifiers(other, runes))
+                    {
+                        used.TryGetValue(pair.Key, out int count);
+                        used[pair.Key] = count + pair.Value;
+                    }
+                }
+            }
+            var issues = new List<CompileIssue>();
+            foreach (KeyValuePair<string, int> pair in used)
+            {
+                modifierStock.TryGetValue(pair.Key, out int stock);
+                if (pair.Value <= stock) continue;
+                GraphNode node = graph.Nodes.FirstOrDefault(item => item != null && item.RuneId == pair.Key);
+                if (node != null) issues.Add(new CompileIssue("E21", node.Id, runes.Get(pair.Key).Name + " " + pair.Value + "/" + stock));
+            }
+            return issues;
         }
 
         /// <summary>유효한 종속성을 가진 그래프를 순환 검사 스택에 넣고 한 번 컴파일한다.</summary>
