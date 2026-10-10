@@ -355,7 +355,7 @@ namespace RuneCode
         }
 
         /// <summary>디버그 기능에서 지정한 종류의 적을 이동 가능한 좌표에 추가한다. 엘리트 지정 시 스테이지 데이터와 무관하게 현재 기본 배율(체력·보상 2배, 속도 1배)을 적용한다.</summary>
-        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 2, 2, 1) : null);
+        public SimulationEnemy DebugSpawn(string id, bool isElite = false) => SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, isElite ? new EliteSpawnDefinition(id, 2, 2, 1, 2) : null);
 
         /// <summary>디버그 기능에서 현재 적들을 처치하고 보상을 회수하되 남은 스폰 예약과 보스 제한시간은 유지한다. 처치로 생긴 분열 대기도 함께 비운다.</summary>
         public void DebugDefeatRoom()
@@ -1662,7 +1662,7 @@ namespace RuneCode
             EnemyDefinition definition = parent.Definition;
             int delayTicks = Math.Max(1, (int)Math.Round(definition.SplitDelay * TICK_RATE));
             SimVector side = new SimVector(-parent.Facing.Y, parent.Facing.X);
-            double childRadius = _enemyCatalog.Get(definition.SplitInto).Radius;
+            double childRadius = _enemyCatalog.Get(definition.SplitInto).Radius * (parent.Elite != null ? parent.Elite.RadiusMultiplier : 1);
             for (int i = 0; i < definition.SplitCount; i++)
             {
                 double offsetRatio = definition.SplitCount == 1 ? 0 : i / (double)(definition.SplitCount - 1) * 2 - 1;
@@ -1767,7 +1767,7 @@ namespace RuneCode
         /// <summary>
         /// 스테이지 편성으로 외곽 벽만 있는 맵, 맵 중앙의 플레이어, 스폰 반경, 목표 처치 수와 스폰 진행을 준비하고 0틱 예약을 바로 스폰한다.
         /// 스폰 반경 = 기본 발사 사거리 + 가장 큰 적 반경 + 여유이며 막 스폰된 적에게 기본 발사체가 닿지 않게 한다.
-        /// 적 분리 격자를 맵 크기와 적 상한, 가장 큰 적 반경의 2배 칸 크기로 준비한다.
+        /// 적 분리 격자를 맵 크기와 적 상한, 가장 큰 적 반경의 2배 칸 크기로 준비한다. 가장 큰 적 반경에는 이 스테이지 엘리트 타입의 반경 배율을 반영한다.
         /// </summary>
         private void BeginTimedBattle()
         {
@@ -1779,9 +1779,13 @@ namespace RuneCode
             RuneStats bolt = GameData.Runes.Get(BOLT_RUNE_ID).Stats;
             double largestRadius = 0;
             foreach (EnemyDefinition enemy in _enemyCatalog.Enemies) largestRadius = Math.Max(largestRadius, enemy.Radius);
+            foreach (EliteSpawnDefinition elite in _stageDefinition.EliteTypes) largestRadius = Math.Max(largestRadius, _enemyCatalog.Get(elite.EnemyId).Radius * elite.RadiusMultiplier);
             _separation.Resize(_map.Width, _map.Height, EnemyLimit, largestRadius * 2);
             _spawnRadius = (double)bolt.Speed * bolt.Lifetime + largestRadius + _stages.Spawn.RingMargin;
-            _killTarget = _stageDefinition.IsBoss ? 0 : _stages.Growth.GetKillTarget(_stageDefinition.KillTarget, _stageNumber);
+            // 단일 스테이지 항목은 데이터 값을 그대로 쓰고, 범위 항목만 스테이지 성장 배율을 적용한다.
+            _killTarget = _stageDefinition.IsBoss ? 0
+                : _stageDefinition.IsSingle ? _stageDefinition.KillTarget
+                : _stages.Growth.GetKillTarget(_stageDefinition.KillTarget, _stageNumber);
             _targetKills = 0; _isBossDefeated = false;
             _director = new SpawnDirector(_stageDefinition, _stageNumber, _formations, TICK_RATE);
             AdvanceSpawns();
@@ -1823,7 +1827,7 @@ namespace RuneCode
         {
             FormationSettings settings = _director.GetSettings(order.Group);
             SpawnFormation formation = SpawnFormations.Get(settings.Shape);
-            double radius = _enemyCatalog.Get(enemyId).Radius;
+            double radius = _enemyCatalog.Get(enemyId).Radius * (elite != null ? elite.RadiusMultiplier : 1);
             int slotCount = settings.Slots > 0 ? settings.Slots : _stages.Spawn.RingSlots;
             if (!_director.IsStarted(order.Group))
             {
@@ -1919,7 +1923,7 @@ namespace RuneCode
         /// <summary>무반격 더미 적을 지정한 위치와 체력으로 생성한다.</summary>
         private SimulationEnemy SpawnBenchDummy(SimVector position, double hp) => SpawnEnemy("enemy.scout", position, true, hp);
 
-        /// <summary>설정 ID와 개별 위치, 더미 여부, 체력, 엘리트 정의 및 목표 처치 수 집계 대상 여부로 적을 생성하고 상대 시간 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도에 배율을 곱한다.</summary>
+        /// <summary>설정 ID, 위치, 더미 여부, 체력, 엘리트 정의, 목표 집계 여부와 캐리어 소유자 ID로 적을 생성하고 공격 일정을 설정한다. 엘리트는 체력·보상·이동 속도·반경 배율을 적용하며 캐리어 자식의 보상은 0으로 설정한다.</summary>
         public SimulationEnemy SpawnEnemy(string id, SimVector position, bool isDummy = false, double hp = 0, EliteSpawnDefinition elite = null, bool isKillTarget = false, int carrierOwnerId = 0)
         {
             if (Completed || IsFailed || _enemies.Count >= EnemyLimit) return null;
@@ -1932,7 +1936,8 @@ namespace RuneCode
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
             _bosses.TryGet(id, out BossDefinition boss);
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(definition.Movement), boss, _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, carrierOwnerId == 0 ? reward : 0, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget, carrierOwnerId);
+            double radius = definition.Radius * (elite != null ? elite.RadiusMultiplier : 1);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(definition.Movement), boss, _map.NearestFree(position, radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, carrierOwnerId == 0 ? reward : 0, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget, carrierOwnerId);
             enemy.AttackAt = Time + definition.AttackInterval;
             if (definition.Attack == EnemyDefinition.ATTACK_SNIPER) enemy.AttackAt = Time;
             if (definition.HasTrait(EnemyDefinition.TRAIT_CARRIER)) enemy.SpawnRemainingSeconds = _carrier.Interval;

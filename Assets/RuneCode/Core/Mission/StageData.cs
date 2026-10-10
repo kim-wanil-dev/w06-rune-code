@@ -216,22 +216,25 @@ namespace RuneCode
         [SerializeField] private double _hpMultiplier;
         [SerializeField] private double _rewardMultiplier;
         [SerializeField] private double _speedMultiplier;
+        [SerializeField] private double _radiusMultiplier;
         [SerializeField] private string _dropTable;
         public string EnemyId => _enemyId;
         // 배율 0은 데이터에 기재하지 않은 것으로 보고 1을 쓴다. 이후 강화 특징도 같은 방식으로 필드를 확장한다.
         public double HpMultiplier => _hpMultiplier > 0 ? _hpMultiplier : 1;
         public double RewardMultiplier => _rewardMultiplier > 0 ? _rewardMultiplier : 1;
         public double SpeedMultiplier => _speedMultiplier > 0 ? _speedMultiplier : 1;
+        public double RadiusMultiplier => _radiusMultiplier > 0 ? _radiusMultiplier : 1;
 
         /// <summary>엘리트 처치 시 추첨할 드롭 테이블 ID다. 데이터에 기재하지 않으면 드롭이 없다.</summary>
         public string DropTable => _dropTable;
         internal double RawHpMultiplier => _hpMultiplier;
         internal double RawRewardMultiplier => _rewardMultiplier;
         internal double RawSpeedMultiplier => _speedMultiplier;
+        internal double RawRadiusMultiplier => _radiusMultiplier;
 
         /// <summary>엘리트 종족과 배율로 실행 상태를 만든다. JSON 역직렬화가 아닌 디버그 스폰용이다.</summary>
-        internal EliteSpawnDefinition(string enemyId, double hpMultiplier, double rewardMultiplier, double speedMultiplier)
-        { _enemyId = enemyId; _hpMultiplier = hpMultiplier; _rewardMultiplier = rewardMultiplier; _speedMultiplier = speedMultiplier; }
+        internal EliteSpawnDefinition(string enemyId, double hpMultiplier, double rewardMultiplier, double speedMultiplier, double radiusMultiplier)
+        { _enemyId = enemyId; _hpMultiplier = hpMultiplier; _rewardMultiplier = rewardMultiplier; _speedMultiplier = speedMultiplier; _radiusMultiplier = radiusMultiplier; }
     }
 
     [Serializable]
@@ -502,8 +505,8 @@ namespace RuneCode
             {
                 enemies.Get(elite.EnemyId); // 없는 적 ID면 여기서 오류가 난다.
                 if (elite.EnemyId.StartsWith("boss.")) throw new FormatException("보스는 엘리트 대상이 아닙니다: " + elite.EnemyId + " (스테이지 " + stage.FromStage + ")");
-                if (!IsFinite(elite.RawHpMultiplier) || !IsFinite(elite.RawRewardMultiplier) || !IsFinite(elite.RawSpeedMultiplier)
-                    || elite.RawHpMultiplier < 0 || elite.RawRewardMultiplier < 0 || elite.RawSpeedMultiplier < 0)
+                if (!IsFinite(elite.RawHpMultiplier) || !IsFinite(elite.RawRewardMultiplier) || !IsFinite(elite.RawSpeedMultiplier) || !IsFinite(elite.RawRadiusMultiplier)
+                    || elite.RawHpMultiplier < 0 || elite.RawRewardMultiplier < 0 || elite.RawSpeedMultiplier < 0 || elite.RawRadiusMultiplier < 0)
                     throw new FormatException("엘리트 배율은 0 이상의 유한값이어야 합니다: " + elite.EnemyId + " (스테이지 " + stage.FromStage + ")");
                 if (!string.IsNullOrEmpty(elite.DropTable) && !drops.Has(elite.DropTable))
                     throw new FormatException("등록되지 않은 엘리트 드롭 테이블입니다: " + elite.DropTable + " (" + elite.EnemyId + ", 스테이지 " + stage.FromStage + ")");

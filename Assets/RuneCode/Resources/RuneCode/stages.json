@@ -56,7 +56,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
-      "_killTarget": 30,
+      "_killTarget": 10,
       "_stream": {
         "_candidates": [
           { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
@@ -144,17 +144,20 @@
           "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
       ]
@@ -165,7 +168,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
-      "_killTarget": 30,
+      "_killTarget": 10,
       "_stream": {
         "_candidates": [
           {
@@ -211,12 +214,14 @@
         {
           "_enemyId": "enemy.scout",
           "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
       ],
@@ -263,7 +268,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
-      "_killTarget": 30,
+      "_killTarget": 15,
       "_stream": {
         "_candidates": [
           { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
@@ -368,17 +373,20 @@
           "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
       ]
@@ -389,7 +397,7 @@
       "_kind": "normal",
       "_timeLimit": 0,
       "_clearReward": 20,
-      "_killTarget": 30,
+      "_killTarget": 20,
       "_stream": {
         "_candidates": [
           { "_enemyId": "enemy.bomb_seed", "_firstStage": 2, "_weight": 1 },
@@ -459,17 +467,20 @@
           "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
       ]
@@ -556,17 +567,20 @@
           "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         },
         {
           "_enemyId": "enemy.scout",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
+          "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
       ]
