@@ -40,7 +40,7 @@ namespace RuneCode
         public float MaxEnergy => GameData.Balance.Player.MaxEnergy + _save.EnergyLevel * GameData.Balance.Economy.StatStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.MaxEnergy);
         public float MaxHp => GameData.Balance.Player.MaxHp + _save.HpLevel * GameData.Balance.Economy.StatStep;
         public float EnergyRegen => GameData.Balance.Player.EnergyRegen + _save.EnergyLevel * GameData.Balance.Economy.EnergyRegenStep + GetUpgradeTreeEffectTotal(UpgradeEffectType.EnergyRegen);
-        public float BattleDuration => (float)_stages.Get(1).Stream.Until + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
+        public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds + _save.DurationLevel * GameData.Balance.Economy.DurationStep;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
         public int HighestClearedStage => _save.HighestClearedStage;

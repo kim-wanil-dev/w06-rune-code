@@ -1006,7 +1006,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · Esc 일시정지 · 모든 적을 처치하면 클리어"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · Esc 일시정지 · 목표 처치 수를 채우면 클리어 (보스 스테이지는 보스 처치)"
     },
     {
       "_key": "ui.kills",
@@ -1017,8 +1017,12 @@
       "_value": "남은 시간"
     },
     {
-      "_key": "ui.remainingEnemies",
-      "_value": "남은 적"
+      "_key": "ui.killProgress",
+      "_value": "처치"
+    },
+    {
+      "_key": "ui.bossObjective",
+      "_value": "보스 처치"
     },
     {
       "_key": "ui.nextStage",

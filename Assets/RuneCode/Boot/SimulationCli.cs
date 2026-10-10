@@ -28,7 +28,7 @@ namespace RuneCode
                 var seed = int.Parse(Argument(arguments, "--seed", "1"), CultureInfo.InvariantCulture);
                 var stage = int.Parse(Argument(arguments, "--stage", "1"), CultureInfo.InvariantCulture);
                 var duration = double.Parse(Argument(arguments, "--duration", "0"), CultureInfo.InvariantCulture);
-                if (duration != 0) UnityEngine.Debug.LogWarning("--duration은 더 이상 쓰이지 않습니다. 일반 스테이지는 전부 처치, 보스 스테이지는 데이터의 제한시간으로 끝납니다.");
+                if (duration != 0) UnityEngine.Debug.LogWarning("--duration은 더 이상 쓰이지 않습니다. 일반 스테이지는 목표 처치 수 달성, 보스 스테이지는 보스 처치 또는 제한시간으로 끝납니다.");
                 var capacityLevel = int.Parse(Argument(arguments, "--capacity-level", "0"), CultureInfo.InvariantCulture);
                 var energyLevel = int.Parse(Argument(arguments, "--energy-level", "0"), CultureInfo.InvariantCulture);
                 var report = Run(spell, scenario, ticks, seed, stage, capacityLevel, energyLevel);
@@ -154,8 +154,8 @@ namespace RuneCode
         [SerializeField] private int _stage;
         [SerializeField] private double _timeLimit;
         [SerializeField] private double _remainingTime;
-        [SerializeField] private int _totalEnemies;
-        [SerializeField] private int _remainingEnemies;
+        [SerializeField] private int _killTarget;
+        [SerializeField] private int _targetKills;
         [SerializeField] private string _result;
         [SerializeField] private int _kills;
         [SerializeField] private int _earnedRam;
@@ -175,7 +175,7 @@ namespace RuneCode
             _nodeExecutionCount = simulation.NodeExecutionCount; _elapsedMilliseconds = elapsedMilliseconds;
             _stateHash = simulation.StateHash();
             _stage = simulation.StageNumber; _timeLimit = simulation.TimeLimit; _remainingTime = simulation.RemainingTime;
-            _totalEnemies = simulation.TotalEnemies; _remainingEnemies = simulation.RemainingEnemies;
+            _killTarget = simulation.KillTarget; _targetKills = simulation.TargetKills;
             _result = simulation.Stage.ToString(); _kills = simulation.KillCount; _earnedRam = simulation.EarnedFragments;
             _settledRam = simulation.Completed || simulation.IsFailed ? simulation.SettlementFragments : 0;
             _clearReward = simulation.ClearReward;
