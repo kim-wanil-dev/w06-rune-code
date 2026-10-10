@@ -25,6 +25,9 @@ namespace RuneCode
         [SerializeField] private double _spreadDegrees;
         [SerializeField] private double _burstInterval;
         [SerializeField] private int _reward;
+        [SerializeField] private string _splitInto;
+        [SerializeField] private int _splitCount;
+        [SerializeField] private double _splitDelay;
         public string Id => _id;
         public double Hp => _hp;
         public double Speed => _speed;
@@ -41,6 +44,10 @@ namespace RuneCode
         public double SpreadDegrees => _spreadDegrees;
         public double BurstInterval => _burstInterval;
         public int Reward => _reward;
+        public string SplitInto => _splitInto;
+        public int SplitCount => _splitCount;
+        public double SplitDelay => _splitDelay;
+        public bool CanSplit => !string.IsNullOrEmpty(_splitInto) && _splitCount > 0;
     }
 
     [Serializable]
@@ -54,14 +61,19 @@ namespace RuneCode
         public EnemyDefinition Get(string id)
         { for (int i = 0; i < _enemies.Length; i++) if (_enemies[i].Id == id) return _enemies[i]; throw new FormatException("등록되지 않은 적: " + id); }
 
-        /// <summary>JSON 적 설정을 읽고 고유 ID, 체력, 크기 및 보상 범위를 검증한다.</summary>
+        /// <summary>JSON 적 설정을 읽고 고유 ID, 체력, 크기, 보상 범위, 분열 대상과 순환 분열을 검증한다.</summary>
         public static EnemyCatalog FromJson(string json)
         {
             var catalog = JsonUtility.FromJson<EnemyCatalog>(json);
-            if (catalog == null || catalog._enemies == null || catalog._enemies.Length != 6) throw new FormatException("적 설정은 6종이어야 합니다.");
+            if (catalog == null || catalog._enemies == null || catalog._enemies.Length != 9) throw new FormatException("적 설정은 9종이어야 합니다.");
             var ids = new HashSet<string>();
             foreach (EnemyDefinition enemy in catalog._enemies)
                 if (!ids.Add(enemy.Id) || enemy.Hp <= 0 || enemy.Radius <= 0 || enemy.Reward < 0) throw new FormatException("적 설정 값이 유효하지 않습니다.");
+            foreach (EnemyDefinition enemy in catalog._enemies)
+                if (enemy.CanSplit && (enemy.SplitInto == enemy.Id || enemy.SplitCount < 0 || enemy.SplitDelay < 0 || !ids.Contains(enemy.SplitInto))) throw new FormatException("적 분열 설정이 유효하지 않습니다: " + enemy.Id);
+            foreach (EnemyDefinition enemy in catalog._enemies)
+                for (string current = enemy.CanSplit ? enemy.SplitInto : null; !string.IsNullOrEmpty(current); current = catalog.Get(current).CanSplit ? catalog.Get(current).SplitInto : null)
+                    if (current == enemy.Id) throw new FormatException("순환 분열 설정입니다: " + enemy.Id);
             return catalog;
         }
     }

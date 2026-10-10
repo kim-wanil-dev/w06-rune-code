@@ -16,7 +16,7 @@ namespace RuneCode
         private const float PAUSE_WIDTH = 500f;
         private const float PAUSE_HEIGHT = 384f;
         private const float DEBUG_WIDTH = 510f;
-        private const float DEBUG_HEIGHT = 485f;
+        private const float DEBUG_HEIGHT = 615f;
         private const float CAMERA_DEPTH = -10f;
         private const float CAMERA_PRIORITY = 1f;
         private const float CAMERA_FAR_CLIP = 100f;
@@ -132,7 +132,7 @@ namespace RuneCode
             LayoutUtility.SaveViewPrefab(root);
         }
 
-        /// <summary>조각 지급·전체 해금·무적·소환·엘리트 소환 버튼의 디버그 팝업을 만들고 MissionDebugPopup Prefab으로 저장한다.</summary>
+        /// <summary>조각 지급·전체 해금·무적·소환·엘리트 소환·분열형 소환·엘리트 분열형 소환 버튼의 디버그 팝업을 만들고 MissionDebugPopup Prefab으로 저장한다.</summary>
         private static void BuildDebugPopup(UiFactory ui)
         {
             if (LayoutUtility.ViewPrefabExists(nameof(MissionDebugPopup))) return;
@@ -143,6 +143,8 @@ namespace RuneCode
             Button invulnerableButton = ui.Button(card, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
             Button spawnButton = ui.Button(card, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
             Button eliteSpawnButton = ui.Button(card, 24, 342, 444, 48, GameData.L("ui.spawnElite"), null, UiTheme.Muted, 14, "EliteSpawnButton");
+            Button splitterSpawnButton = ui.Button(card, 24, 407, 444, 48, GameData.L("ui.spawnSplitter"), null, UiTheme.Muted, 14, "SplitterSpawnButton");
+            Button splitterEliteSpawnButton = ui.Button(card, 24, 472, 444, 48, GameData.L("ui.spawnEliteSplitter"), null, UiTheme.Muted, 14, "SplitterEliteSpawnButton");
 
             MissionDebugPopup popup = root.gameObject.AddComponent<MissionDebugPopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
@@ -151,6 +153,8 @@ namespace RuneCode
             LayoutUtility.SetReference(popup, "_invulnerableButton", invulnerableButton);
             LayoutUtility.SetReference(popup, "_spawnButton", spawnButton);
             LayoutUtility.SetReference(popup, "_eliteSpawnButton", eliteSpawnButton);
+            LayoutUtility.SetReference(popup, "_splitterSpawnButton", splitterSpawnButton);
+            LayoutUtility.SetReference(popup, "_splitterEliteSpawnButton", splitterEliteSpawnButton);
             LayoutUtility.SaveViewPrefab(root);
         }
 

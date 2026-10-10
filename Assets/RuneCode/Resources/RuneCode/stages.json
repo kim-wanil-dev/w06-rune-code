@@ -37,6 +37,10 @@
     {
       "_enemyId": "enemy.relay",
       "_reward": 8
+    },
+    {
+      "_enemyId": "enemy.splitter",
+      "_reward": 5
     }
   ],
   "_stages": [
@@ -62,6 +66,11 @@
             "_enemyId": "enemy.aegis",
             "_firstStage": 3,
             "_weight": 1.5
+          },
+          {
+            "_enemyId": "enemy.splitter",
+            "_firstStage": 3,
+            "_weight": 1
           },
           {
             "_enemyId": "enemy.sentry",
@@ -124,6 +133,11 @@
             "_enemyId": "enemy.aegis",
             "_firstStage": 3,
             "_weight": 1.5
+          },
+          {
+            "_enemyId": "enemy.splitter",
+            "_firstStage": 3,
+            "_weight": 1
           },
           {
             "_enemyId": "enemy.sentry",
@@ -202,6 +216,11 @@
             "_weight": 1.5
           },
           {
+            "_enemyId": "enemy.splitter",
+            "_firstStage": 3,
+            "_weight": 1
+          },
+          {
             "_enemyId": "enemy.sentry",
             "_firstStage": 4,
             "_weight": 1
@@ -260,6 +279,11 @@
             "_enemyId": "enemy.aegis",
             "_firstStage": 3,
             "_weight": 1.5
+          },
+          {
+            "_enemyId": "enemy.splitter",
+            "_firstStage": 3,
+            "_weight": 1
           },
           {
             "_enemyId": "enemy.sentry",

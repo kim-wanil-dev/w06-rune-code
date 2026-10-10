@@ -28,6 +28,7 @@ namespace RuneCode
         private const float DAMAGE_FONT_SIZE = 5.6f;
 
         private static readonly Color DefaultEnemyTint = new Color(0.94f, 0.34f, 0.40f);
+        private static readonly Color SplitterEnemyTint = new Color(0.36f, 0.84f, 0.44f);
 
         /// <summary>도형 스프라이트, 재질, 6종 뷰 Prefab을 준비해 씬 빌더가 연결할 자산 묶음으로 반환한다.</summary>
         public static Result Ensure()
@@ -105,7 +106,10 @@ namespace RuneCode
                 ("enemy.hunter", shapes.Diamond, DefaultEnemyTint),
                 ("enemy.aegis", shapes.Hexagon, new Color(0.96f, 0.69f, 0.29f)),
                 ("enemy.relay", shapes.Octagon, new Color(0.62f, 0.39f, 0.97f)),
-                ("boss.governor", shapes.Hexagon, new Color(0.89f, 0.35f, 0.92f))
+                ("boss.governor", shapes.Hexagon, new Color(0.89f, 0.35f, 0.92f)),
+                ("enemy.splitter", shapes.Circle, SplitterEnemyTint),
+                ("enemy.splitter_mid", shapes.Circle, SplitterEnemyTint),
+                ("enemy.splitter_small", shapes.Circle, SplitterEnemyTint)
             };
             SerializedProperty list = serialized.FindProperty("_appearances");
             list.arraySize = appearances.Length;

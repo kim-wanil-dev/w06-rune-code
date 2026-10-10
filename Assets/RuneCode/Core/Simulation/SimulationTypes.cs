@@ -179,6 +179,7 @@ namespace RuneCode
         private readonly double _damage;
         private readonly double _damageMultiplier;
         private readonly int _reward;
+        private readonly EliteSpawnDefinition _elite;
         private SimVector _position;
         private SimVector _facing = new SimVector(-1, 0);
         private double _hp;
@@ -217,6 +218,7 @@ namespace RuneCode
         internal EnemyDefinition Definition => _definition;
         internal EnemyMovementType MovementType => _movementType;
         internal double DamageMultiplier => _damageMultiplier;
+        internal EliteSpawnDefinition Elite => _elite;
         internal double AttackAt { get => _attackAt; set => _attackAt = value; }
         internal double WarningUntil { get => _warningUntil; set => _warningUntil = value; }
         internal double DashUntil { get => _dashUntil; set => _dashUntil = value; }
@@ -224,9 +226,9 @@ namespace RuneCode
         internal double ReinforcementAt { get => _reinforcementAt; set => _reinforcementAt = value; }
         internal double HazardAt { get => _hazardAt; set => _hazardAt = value; }
 
-        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격 및 엘리트 여부로 실행 상태를 생성한다.</summary>
-        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1)
-        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _isElite = isElite; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; }
+        /// <summary>공유 적 설정을 변경하지 않고 이동 종류, 위치, 개별 체력·피해·이동 속도 배율, 보상, 무반격, 엘리트 여부와 엘리트 정의로 실행 상태를 생성한다.</summary>
+        internal SimulationEnemy(int id, EnemyDefinition definition, EnemyMovementType movementType, SimVector position, bool isDummy, double hp, double hitFlashSeconds, double hpMultiplier = 1, double damageMultiplier = 1, int reward = -1, bool isElite = false, double speedMultiplier = 1, EliteSpawnDefinition elite = null)
+        { _id = id; _definition = definition; _movementType = movementType; _position = position; _isDummy = isDummy; _isElite = isElite; _speedMultiplier = speedMultiplier; _hitFlashSeconds = hitFlashSeconds; _maxHp = hp > 0 ? hp : definition.Hp * hpMultiplier; _hp = _maxHp; _damageMultiplier = damageMultiplier; _damage = definition.Damage * damageMultiplier; _reward = reward >= 0 ? reward : definition.Reward; _attackAt = definition.AttackInterval; _elite = elite; }
 
         /// <summary>예고, 패치 및 피격 표시 판정에 사용할 관측 시각을 갱신한다.</summary>
         internal void Observe(double time) { _observedTime = time; }

@@ -361,6 +361,14 @@
       "_value": "엘리트 소환"
     },
     {
+      "_key": "ui.spawnSplitter",
+      "_value": "분열형 소환"
+    },
+    {
+      "_key": "ui.spawnEliteSplitter",
+      "_value": "엘리트 분열형 소환"
+    },
+    {
       "_key": "scenario.dummy_single",
       "_value": "단일 더미"
     },

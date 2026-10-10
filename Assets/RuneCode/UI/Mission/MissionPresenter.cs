@@ -149,11 +149,15 @@ namespace RuneCode
             Action invulnerable = () => _run?.DebugInvulnerable();
             Action spawn = () => _run?.DebugSpawn();
             Action eliteSpawn = () => _run?.DebugSpawn(isElite: true);
+            Action splitterSpawn = () => _run?.DebugSpawn("enemy.splitter");
+            Action splitterEliteSpawn = () => _run?.DebugSpawn("enemy.splitter", isElite: true);
             popup.GrantClicked += grant;
             popup.UnlockClicked += unlock;
             popup.InvulnerableClicked += invulnerable;
             popup.SpawnClicked += spawn;
             popup.EliteSpawnClicked += eliteSpawn;
+            popup.SplitterSpawnClicked += splitterSpawn;
+            popup.SplitterEliteSpawnClicked += splitterEliteSpawn;
             popup.Closed += () =>
             {
                 popup.GrantClicked -= grant;
@@ -161,6 +165,8 @@ namespace RuneCode
                 popup.InvulnerableClicked -= invulnerable;
                 popup.SpawnClicked -= spawn;
                 popup.EliteSpawnClicked -= eliteSpawn;
+                popup.SplitterSpawnClicked -= splitterSpawn;
+                popup.SplitterEliteSpawnClicked -= splitterEliteSpawn;
             };
         }
 
