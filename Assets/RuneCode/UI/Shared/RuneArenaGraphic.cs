@@ -326,50 +326,34 @@ namespace RuneCode
             Vector2 point = Point(enemy.Position);
             float radius = sim.Stage == MissionStage.Bench ? Mathf.Max(5, (float)enemy.Radius * _scale) : (float)enemy.Radius * _scale;
             Color tint = EnemyColor(enemy);
-            int sides = EnemySides(enemy.Kind);
+            int sides = enemy.Definition.Sides;
             float facing = Mathf.Atan2(-(float)enemy.Facing.Y, (float)enemy.Facing.X);
             RuneMesh.Polygon(mesh, point, radius, tint, sides, facing);
             RuneMesh.Polygon(mesh, point, radius * 0.48f, ENEMY_CORE_COLOR, sides, facing);
             // 엘리트는 강화형 금색, 신속형 청록색 링으로 구분한다. 두 배율을 모두 가지면 속도 색을 우선한다.
             if (enemy.IsElite) RuneMesh.Ring(mesh, point, radius + 5 * _scale, 2 * _scale, enemy.SpeedMultiplier > 1 ? ELITE_SPEED_COLOR : ELITE_HP_COLOR);
             if (enemy.IsWarning) RuneMesh.Ring(mesh, point, radius + (6 + Mathf.Sin(Time.unscaledTime * 16) * 3) * _scale, 2 * _scale, WARNING_COLOR);
-            if (enemy.Kind == "enemy.relay") RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, RELAY_AURA_COLOR);
-            if (enemy.Kind == "enemy.aegis" && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp)) DrawAegisShield(mesh, point, radius, facing);
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA)) RuneMesh.Ring(mesh, point, GameData.Balance.Combat.RelayRadius * _scale, _scale, RELAY_AURA_COLOR);
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !sim.HasEnemyStatus(enemy, EnemyStatusType.Emp)) DrawAegisShield(mesh, point, radius, facing);
             if (enemy.IsPatching) RuneMesh.Ring(mesh, point, radius + 12 * _scale, 3 * _scale, PATCH_COLOR, 12);
             DrawEnemyStatuses(mesh, enemy, sim, point, radius);
             DrawEnemyHp(mesh, enemy, point, radius, tint);
         }
 
-        /// <summary>적 종류·더미·피격 번쩍임에 맞는 몸체 색을 반환한다.</summary>
+        /// <summary>적 종류·더미·피격 번쩍임에 맞는 몸체 색을 반환한다. 보스 여부와 특수 능력은 정의에서 읽는다.</summary>
         private static Color EnemyColor(SimulationEnemy enemy)
         {
             if (enemy.IsFlashing) return Color.white;
             if (enemy.IsDummy) return DUMMY_COLOR;
+            if (enemy.Boss != null) return BOSS_COLOR;
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA)) return RELAY_COLOR;
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD)) return AEGIS_COLOR;
             switch (enemy.Kind)
             {
-                case "enemy.relay": return RELAY_COLOR;
-                case "enemy.aegis": return AEGIS_COLOR;
-                case "boss.governor": return BOSS_COLOR;
                 case "enemy.splitter":
                 case "enemy.splitter_mid":
                 case "enemy.splitter_small": return SPLITTER_COLOR;
                 default: return ENEMY_COLOR;
-            }
-        }
-
-        /// <summary>적 종류별 몸체 다각형의 변 수를 반환한다.</summary>
-        private static int EnemySides(string kind)
-        {
-            switch (kind)
-            {
-                case "enemy.scout": return 3;
-                case "enemy.sentry":
-                case "enemy.hunter": return 4;
-                case "enemy.relay": return 8;
-                case "enemy.splitter":
-                case "enemy.splitter_mid":
-                case "enemy.splitter_small": return 12;
-                default: return 6;
             }
         }
 

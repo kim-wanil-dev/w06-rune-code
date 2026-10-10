@@ -18,13 +18,10 @@ namespace RuneCode
         private const string PERSIST_FORM_ID = "form.zone";
         private const double SAME_SPAWN_DISTANCE = 0.5;
         private const string BOLT_RUNE_ID = "form.bolt";
-        private const string SURROUND_SHAPE = "ringAllSlots";
-        private const string REINFORCEMENT_ENEMY_ID = "enemy.scout";
-        private const string BOSS_GOVERNOR_ID = "boss.governor";
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
-        private readonly GovernorDefinition _governor;
+        private readonly BossCatalog _bosses;
         private readonly FormationCatalog _formations;
         private readonly StageCatalog _stages;
         private readonly bool _isMission;
@@ -158,8 +155,8 @@ namespace RuneCode
             _balance = GameData.Balance;
             _enemyCatalog = EnemyCatalog.FromJson(LoadJson("enemies"));
             _sector = SectorDefinition.FromJson(LoadJson("sector1"), _enemyCatalog);
-            _governor = GovernorDefinition.FromJson(LoadJson("governor"));
             _formations = FormationCatalog.FromJson(LoadJson("formations"));
+            _bosses = BossCatalog.FromJson(LoadJson("bosses"), _enemyCatalog, _formations);
             _stages = StageCatalog.FromJson(LoadJson("stages"), _enemyCatalog, _formations);
             _isMission = isMission; _initialSeed = seed; _rngState = (uint)seed; _maxHp = maxHp > 0 ? maxHp : _balance.Player.Hp; _maxEnergy = maxEnergy > 0 ? maxEnergy : _balance.Player.Energy;
             _stageNumber = Math.Max(1, stageNumber);
@@ -830,12 +827,12 @@ namespace RuneCode
         {
             if (!enemy.IsAlive || enemy.IsPatching) return 0;
             double actual = damage * Adaptation.GetMultiplier(element, form);
-            if (enemy.Kind == "enemy.aegis" && !HasEnemyStatus(enemy, EnemyStatusType.Emp) && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
+            if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !HasEnemyStatus(enemy, EnemyStatusType.Emp) && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
             bool relayAlive = false;
             bool hasRelayAura = false;
             foreach (SimulationEnemy relay in _enemies)
             {
-                if (relay.Kind != "enemy.relay" || !relay.IsAlive) continue;
+                if (!relay.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA) || !relay.IsAlive) continue;
                 relayAlive = true;
                 if (relay != enemy && SimVector.Distance(relay.Position, enemy.Position) <= _balance.Combat.RelayRadius) hasRelayAura = true;
             }
@@ -849,7 +846,7 @@ namespace RuneCode
                 _damageNumbers.Add(new DamageNumber(enemy.Position, actual, element, _tick));
                 Adaptation.Learn(element, form, Time, actual, isDot, noise, relayAlive);
             }
-            if (enemy.Kind == "boss.governor" && enemy.IsAlive) CheckBossPatch(enemy);
+            if (enemy.Boss != null && enemy.Boss.IsGovernorPattern && enemy.IsAlive) CheckBossPatch(enemy, enemy.Boss);
             return actual;
         }
 
@@ -986,12 +983,13 @@ namespace RuneCode
                 enemy.Observe(Time);
                 if (enemy.IsDummy || HasEnemyStatus(enemy, EnemyStatusType.Freeze)) continue;
                 SimVector offset = _player.Position - enemy.Position; SimVector direction = offset.Normalized();
-                bool isBoss = enemy.Kind == "boss.governor";
-                if (isBoss) { CheckBossPatch(enemy); if (enemy.IsPatching) continue; }
-                double speedMultiplier = isBoss && enemy.Phase == 3 ? _governor.PhaseThreeMultiplier : 1;
-                var context = new EnemyMoveContext(offset, direction, Time, _isMission, _stages.StationaryAdvanceSpeed, _governor.PreferredDistance, speedMultiplier);
+                BossDefinition bossPattern = enemy.Boss;
+                bool isBoss = bossPattern != null && bossPattern.IsGovernorPattern;
+                if (isBoss) { CheckBossPatch(enemy, bossPattern); if (enemy.IsPatching) continue; }
+                double speedMultiplier = isBoss && enemy.Phase == 3 ? bossPattern.PhaseThreeMultiplier : 1;
+                var context = new EnemyMoveContext(offset, direction, Time, _isMission, _stages.StationaryAdvanceSpeed, isBoss ? bossPattern.PreferredDistance : 0, speedMultiplier);
                 ApplyMove(enemy, EnemyMovements.Decide(enemy, context));
-                if (isBoss) AdvanceBoss(enemy, direction);
+                if (isBoss) AdvanceBoss(enemy, bossPattern, direction);
                 else AdvanceEnemyAttack(enemy, offset, direction);
             }
         }
@@ -1005,13 +1003,13 @@ namespace RuneCode
 
         /// <summary>
         /// 보스가 아닌 적의 공격 일정을 이동 전 거리·방향으로 진행한다.
-        /// 센트리는 예고 후 연사, 헌터는 예고 후 돌진·돌진 중 접촉, 릴레이는 공격하지 않으며 그 외는 주기적 접촉 피해를 준다.
+        /// 연사형은 예고 후 연사, 돌진 접촉형은 예고 후 돌진·돌진 중 접촉, 공격 없음은 쉬며 그 외는 주기적 접촉 피해를 준다.
         /// </summary>
         private void AdvanceEnemyAttack(SimulationEnemy enemy, SimVector offset, SimVector direction)
         {
             EnemyDefinition definition = enemy.Definition;
-            if (enemy.Kind == "enemy.relay") return;
-            if (enemy.Kind == "enemy.sentry")
+            if (definition.Attack == EnemyDefinition.ATTACK_NONE) return;
+            if (definition.Attack == EnemyDefinition.ATTACK_BURST)
             {
                 if (enemy.WarningUntil > 0 && Time + 0.000001 >= enemy.WarningUntil)
                 { ShootBurst(enemy, enemy.AttackDirection, 1); enemy.WarningUntil = 0; enemy.AttackAt = Time + definition.AttackInterval - definition.WarningSeconds; }
@@ -1019,7 +1017,7 @@ namespace RuneCode
                 { enemy.AttackDirection = direction; enemy.WarningUntil = Time + definition.WarningSeconds; }
                 return;
             }
-            if (enemy.Kind == "enemy.hunter")
+            if (definition.Attack == EnemyDefinition.ATTACK_DASH_CONTACT)
             {
                 if (Time < enemy.DashUntil) { HurtByContact(enemy); return; }
                 if (enemy.WarningUntil > 0)
@@ -1088,39 +1086,39 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 거버너의 방사 사격, 조준 사격, 예고 장판, 증원 주기 및 접촉 피해를 페이즈에 맞춰 처리한다.
+        /// 보스 패턴의 방사 사격, 조준 사격, 예고 장판, 증원 주기 및 접촉 피해를 페이즈에 맞춰 처리한다.
         /// 페이즈 전환과 이동은 호출 전에 끝난 상태여야 하며 조준은 이동 전 방향을 사용한다.
         /// </summary>
-        private void AdvanceBoss(SimulationEnemy boss, SimVector direction)
+        private void AdvanceBoss(SimulationEnemy boss, BossDefinition pattern, SimVector direction)
         {
-            double multiplier = boss.Phase == 3 ? _governor.PhaseThreeMultiplier : 1;
+            double multiplier = boss.Phase == 3 ? pattern.PhaseThreeMultiplier : 1;
             if (Time + 0.000001 >= boss.AttackAt)
             {
                 if (boss.Phase == 1 || boss.Phase == 3)
-                    for (int i = 0; i < _governor.RadialCount; i++)
-                    { double angle = i * 2 * Math.PI / _governor.RadialCount; ShootFan(boss, new SimVector(Math.Cos(angle), Math.Sin(angle)), 1, multiplier); }
+                    for (int i = 0; i < pattern.RadialCount; i++)
+                    { double angle = i * 2 * Math.PI / pattern.RadialCount; ShootFan(boss, new SimVector(Math.Cos(angle), Math.Sin(angle)), 1, multiplier); }
                 if (boss.Phase >= 2) ShootBurst(boss, direction, multiplier);
-                boss.AttackAt = Time + (boss.Phase == 2 ? _governor.AimInterval : _governor.RadialInterval) / multiplier;
+                boss.AttackAt = Time + (boss.Phase == 2 ? pattern.AimInterval : pattern.RadialInterval) / multiplier;
             }
             if (boss.Phase >= 2 && Time >= boss.HazardAt)
-            { _enemyProjectiles.Add(new SimulationProjectile(_player.Position, SimVector.Zero, 0, _governor.HazardDamage * boss.DamageMultiplier, _governor.HazardRadius, _governor.HazardLifetime + _governor.HazardWarning, true, _governor.HazardWarning)); boss.HazardAt = Time + _governor.HazardInterval / multiplier; }
+            { _enemyProjectiles.Add(new SimulationProjectile(_player.Position, SimVector.Zero, 0, pattern.HazardDamage * boss.DamageMultiplier, pattern.HazardRadius, pattern.HazardLifetime + pattern.HazardWarning, true, pattern.HazardWarning)); boss.HazardAt = Time + pattern.HazardInterval / multiplier; }
             if (Time >= boss.ReinforcementAt)
             {
-                if (_isMission) SpawnReinforcements(boss);
-                else for (int i = 0; i < _governor.ReinforcementCount; i++) SpawnEnemy(REINFORCEMENT_ENEMY_ID, _map.GetPoint((char)('1' + i * 2)), false, 0);
-                boss.ReinforcementAt = Time + _governor.ReinforcementInterval;
+                if (_isMission) SpawnReinforcements(boss, pattern.Reinforcement);
+                else for (int i = 0; i < pattern.Reinforcement.Count; i++) SpawnEnemy(pattern.Reinforcement.EnemyId, _map.GetPoint((char)('1' + i * 2)), false, 0);
+                boss.ReinforcementAt = Time + pattern.Reinforcement.Interval;
             }
             HurtByContact(boss);
         }
 
-        /// <summary>거버너 체력 문턱에서 패치 무적과 최고 피해 태그 잠금을 적용한다.</summary>
-        private void CheckBossPatch(SimulationEnemy boss)
+        /// <summary>보스 체력 문턱에서 패치 무적과 최고 피해 태그 잠금을 적용한다.</summary>
+        private void CheckBossPatch(SimulationEnemy boss, BossDefinition pattern)
         {
             if (boss.IsPatching) return;
-            int next = boss.Phase == 1 && boss.Hp / boss.MaxHp <= _governor.PhaseTwoThreshold ? 2 : boss.Phase == 2 && boss.Hp / boss.MaxHp <= _governor.PhaseThreeThreshold ? 3 : boss.Phase;
+            int next = boss.Phase == 1 && boss.Hp / boss.MaxHp <= pattern.PhaseTwoThreshold ? 2 : boss.Phase == 2 && boss.Hp / boss.MaxHp <= pattern.PhaseThreeThreshold ? 3 : boss.Phase;
             if (next == boss.Phase) return;
-            boss.Patch(next, Time, _governor.PatchSeconds); boss.Observe(Time); _lastPatchTags = Adaptation.LockTopDamageTags();
-            boss.AttackAt = Time + _governor.PatchSeconds + boss.Definition.WarningSeconds;
+            boss.Patch(next, Time, pattern.PatchSeconds); boss.Observe(Time); _lastPatchTags = Adaptation.LockTopDamageTags();
+            boss.AttackAt = Time + pattern.PatchSeconds + boss.Definition.WarningSeconds;
         }
 
         /// <summary>적 탄환과 위험 장판의 수명, 벽 충돌 및 플레이어 피격을 처리한다.</summary>
@@ -1161,7 +1159,7 @@ namespace RuneCode
                 if (_isMission)
                 {
                     if (enemy.IsKillTarget) _targetKills++;
-                    if (enemy.Kind == BOSS_GOVERNOR_ID) _isBossDefeated = true;
+                    if (enemy.Boss != null) _isBossDefeated = true;
                     if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
                     if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, enemy.Reward));
                     _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
@@ -1275,15 +1273,15 @@ namespace RuneCode
             SpawnEnemy(enemyId, ResolvePlacement(placement, radius), false, 0, elite, isKillTarget);
         }
 
-        /// <summary>보스 주변 원 위에 같은 간격으로 증원을 생성한다. 시작 각도는 보스가 바라보는 방향이며 맵 밖 위치는 원형 슬롯과 같이 제외한다.</summary>
-        private void SpawnReinforcements(SimulationEnemy boss)
+        /// <summary>보스 증원 설정으로 보스 주변 원 위에 같은 간격으로 증원을 생성한다. 시작 각도는 보스가 바라보는 방향이며 맵 밖 위치는 원형 슬롯과 같이 제외한다.</summary>
+        private void SpawnReinforcements(SimulationEnemy boss, BossReinforcement reinforcement)
         {
-            int count = _governor.ReinforcementCount;
-            double radius = _enemyCatalog.Get(REINFORCEMENT_ENEMY_ID).Radius;
+            int count = reinforcement.Count;
+            double radius = _enemyCatalog.Get(reinforcement.EnemyId).Radius;
             _spawnSlots.Refresh(_map, boss.Position, boss.Radius + _stages.Spawn.ReinforcementGap, count, Math.Atan2(boss.Facing.Y, boss.Facing.X), radius);
-            SpawnFormation surround = SpawnFormations.Get(SURROUND_SHAPE);
+            SpawnFormation formation = SpawnFormations.Get(_formations.Get(reinforcement.Formation).Shape);
             for (int i = 0; i < count; i++)
-                SpawnEnemy(REINFORCEMENT_ENEMY_ID, ResolvePlacement(surround.Place(i, count, -1, _spawnSlots, default), radius), false, 0);
+                SpawnEnemy(reinforcement.EnemyId, ResolvePlacement(formation.Place(i, count, -1, _spawnSlots, default), radius), false, 0);
         }
 
         /// <summary>
@@ -1368,9 +1366,10 @@ namespace RuneCode
             double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
             if (elite != null) reward = (int)Math.Round(reward * elite.RewardMultiplier, MidpointRounding.AwayFromZero);
-            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(id), _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget);
+            _bosses.TryGet(id, out BossDefinition boss);
+            var enemy = new SimulationEnemy(++_nextEntityId, definition, EnemyMovements.Resolve(definition.Movement), boss, _map.NearestFree(position, definition.Radius), isDummy, hp, _balance.Sim.HitFlashSeconds, hpMultiplier, damageMultiplier, reward, elite != null, elite != null ? elite.SpeedMultiplier : 1, elite, isKillTarget);
             enemy.AttackAt = Time + definition.AttackInterval;
-            if (id == BOSS_GOVERNOR_ID) { enemy.ReinforcementAt = Time + _governor.ReinforcementInterval; enemy.HazardAt = Time + _governor.HazardInterval; }
+            if (boss != null && boss.IsGovernorPattern) { enemy.ReinforcementAt = Time + boss.Reinforcement.Interval; enemy.HazardAt = Time + boss.HazardInterval; }
             enemy.Observe(Time); _enemies.Add(enemy); if (_isMission) _spawnedEnemies++; return enemy;
         }
 

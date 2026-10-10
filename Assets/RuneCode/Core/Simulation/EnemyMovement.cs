@@ -1,3 +1,5 @@
+using System;
+
 namespace RuneCode
 {
     internal enum EnemyMovementType { Chase, Turret, Anchor, DashChase, KeepDistance }
@@ -114,16 +116,17 @@ namespace RuneCode
             new KeepDistanceMovement()
         };
 
-        /// <summary>적 설정 ID에 대응하는 이동 종류를 반환하며 별도 대응이 없는 적은 추적형으로 처리한다.</summary>
-        public static EnemyMovementType Resolve(string enemyId)
+        /// <summary>적 설정의 이동 방식 이름에 대응하는 이동 종류를 반환하며 모르는 이름에는 데이터 오류를 발생시킨다.</summary>
+        public static EnemyMovementType Resolve(string movement)
         {
-            switch (enemyId)
+            switch (movement)
             {
-                case "enemy.sentry": return EnemyMovementType.Turret;
-                case "enemy.relay": return EnemyMovementType.Anchor;
-                case "enemy.hunter": return EnemyMovementType.DashChase;
-                case "boss.governor": return EnemyMovementType.KeepDistance;
-                default: return EnemyMovementType.Chase;
+                case EnemyDefinition.MOVEMENT_TURRET: return EnemyMovementType.Turret;
+                case EnemyDefinition.MOVEMENT_ANCHOR: return EnemyMovementType.Anchor;
+                case EnemyDefinition.MOVEMENT_DASH_CHASE: return EnemyMovementType.DashChase;
+                case EnemyDefinition.MOVEMENT_KEEP_DISTANCE: return EnemyMovementType.KeepDistance;
+                case EnemyDefinition.MOVEMENT_CHASE: return EnemyMovementType.Chase;
+                default: throw new FormatException("알 수 없는 적 이동 방식입니다: " + movement);
             }
         }
 
