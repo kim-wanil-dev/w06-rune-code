@@ -197,7 +197,7 @@ namespace RuneCode
             }
         }
 
-        /// <summary>마법 개체를 범위형(폭발·잔류), Beam 잔상과 이동형(발사·공전)으로 나눠 그린다.</summary>
+        /// <summary>마법 개체를 범위형(폭발·잔류·Sphere·Cone Beam), Box Beam 잔상과 이동형(발사·공전)으로 나눠 그린다.</summary>
         private void DrawSpell(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell)
         {
             Vector2 point = Point(spell.Position);
@@ -205,20 +205,20 @@ namespace RuneCode
             float radius = (float)spell.Radius * _scale;
             Vector2 direction = ScreenDirection(spell.Direction);
             float angle = Mathf.Atan2(direction.y, direction.x);
-            if (spell.Kind == SpellGrammar.FORM_BEAM)
+            if (spell.Kind == SpellGrammar.FORM_BEAM && spell.IsBox)
             {
                 DrawBeam(mesh, spell, point, (float)(spell.BeamWidth * 0.5) * _scale, angle, tint);
                 return;
             }
 
             float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
-            if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST)
+            if (spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST || spell.Kind == SpellGrammar.FORM_BEAM)
                 DrawAreaSpell(mesh, spell, point, radius, angle, boxRotation, tint);
             else
                 DrawMovingSpell(mesh, spell, point, radius, direction, angle, boxRotation, tint);
         }
 
-        /// <summary>Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box(채움과 외곽선)으로 그린다.</summary>
+        /// <summary>Box Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box(채움과 외곽선)으로 그린다.</summary>
         private void DrawBeam(UnityEngine.UI.VertexHelper mesh, SimulationSpellEntity spell, Vector2 point, float halfWidth, float angle, Color tint)
         {
             Color fill = tint;

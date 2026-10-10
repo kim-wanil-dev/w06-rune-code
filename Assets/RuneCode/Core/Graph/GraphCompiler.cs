@@ -320,10 +320,11 @@ namespace RuneCode
             else if (element == "heal") isValid = form == "explosion" || form == "remain" || form == SpellGrammar.FORM_BEAM;
             else if (element == "protection") isValid = form == "explosion" || isProtectionOrbit || form == SpellGrammar.FORM_BEAM;
             else isValid = true;
-            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
-            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch") isValid = false;
-            // Beam은 Box Shape와만 조합할 수 있다(백서 v5). 다른 Shape면 E14다.
-            if (form == SpellGrammar.FORM_BEAM && magicType != SpellGrammar.MAGIC_TYPE_BOX) isValid = false;
+            // 부채꼴은 실행 위치에서 방향으로 펼친 범위(Burst·Persist·Beam)와 진행 방향으로 펼친 부채꼴 발사체(Launch)에만 정의되어 있다.
+            if (magicType == SpellGrammar.MAGIC_TYPE_CONE && form != "explosion" && form != "remain" && form != "launch" && form != SpellGrammar.FORM_BEAM) isValid = false;
+            // Beam은 Sphere·Box·Cone Shape와 조합할 수 있다(백서 v6). 그 외(버프)는 E14다.
+            if (form == SpellGrammar.FORM_BEAM && magicType != SpellGrammar.MAGIC_TYPE_SPHERE && magicType != SpellGrammar.MAGIC_TYPE_BOX
+                && magicType != SpellGrammar.MAGIC_TYPE_CONE) isValid = false;
             if (!isValid) errors.Add(new CompileIssue("E14", node.Id));
             if (magicType == "buff" && edges.Any(edge => edge.FromNode == node.Id
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT)))

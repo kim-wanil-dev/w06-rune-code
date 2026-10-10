@@ -7,7 +7,7 @@ namespace RuneCode
     /// <summary>
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
     /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
-    /// Beam은 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시한다.
+    /// Box Beam은 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로, Sphere·Cone Beam은 폭발과 같은 원·부채꼴 범위로 표시한다.
     /// 부채꼴(범위·발사체)은 Prefab의 Cone 자식에 실행 중 갱신하는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
     /// 예고 중인 Persist는 최종 범위를 빨간 외곽선으로 두고 진행률만큼 안쪽을 채운다.
     /// </summary>
@@ -70,13 +70,13 @@ namespace RuneCode
             Color tint = RuneMesh.ElementColor(spell.Element);
             float radius = (float)spell.Radius;
             float angle = MissionWorldSpace.ToWorldAngle(spell.Direction);
-            if (spell.Kind == SpellGrammar.FORM_BEAM)
+            if (spell.Kind == SpellGrammar.FORM_BEAM && spell.IsBox)
             {
                 ApplyBeam(spell, tint, origin);
                 return;
             }
             float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
-            bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST;
+            bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST || spell.Kind == SpellGrammar.FORM_BEAM;
             bool isCone = spell.IsCone && (isArea || spell.Kind == SpellGrammar.FORM_BOLT);
             MissionWorldSpace.SetVisible(_trail, !isArea);
             MissionWorldSpace.SetVisible(_shape, !isArea && !isCone);
@@ -90,7 +90,7 @@ namespace RuneCode
             else ApplyProjectile(spell, tint, radius, angle, boxRotation);
         }
 
-        /// <summary>Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시하고 나머지 표시를 끈다.</summary>
+        /// <summary>Box Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시하고 나머지 표시를 끈다.</summary>
         private void ApplyBeam(SimulationSpellEntity spell, Color tint, SimVector origin)
         {
             MissionWorldSpace.SetVisible(_trail, false);

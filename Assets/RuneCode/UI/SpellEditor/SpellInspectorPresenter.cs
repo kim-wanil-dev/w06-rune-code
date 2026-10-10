@@ -239,7 +239,7 @@ namespace RuneCode
             SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
             if (action?.Stats == null) return;
             SpellStats stats = action.Stats;
-            if (action.Form == SpellGrammar.FORM_BEAM)
+            if (action.Form == SpellGrammar.FORM_BEAM && action.MagicType == SpellGrammar.MAGIC_TYPE_BOX)
             {
                 // Beam의 크기 원본은 RuneSimulation.GetBeamBox 한 곳에만 있다(W1 통합 시 함께 바뀐다).
                 RuneSimulation.GetBeamBox(stats, out double width, out double length);
@@ -249,6 +249,14 @@ namespace RuneCode
             }
             float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
                 : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
+            // Sphere·Cone Beam은 시작점에서 Cone 거리 또는 Sphere 지름만큼 닿는다.
+            if (action.Form == SpellGrammar.FORM_BEAM)
+            {
+                reach = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE ? stats.Radius : stats.Radius * 2f;
+                _view.AddNote(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n"
+                    + GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px", UiTheme.Cyan, 70, 6);
+                return;
+            }
             string speed = action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s";
             _view.AddNote(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n"
                 + GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px\n"
