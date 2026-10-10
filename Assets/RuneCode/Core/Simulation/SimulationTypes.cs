@@ -371,11 +371,9 @@ namespace RuneCode
         private HashSet<int> _nextContacts = new HashSet<int>();
         private SimVector _position;
         private SimVector _direction;
-        private readonly double _beamLength;
         private double _age;
         private double _angle;
         private int _hits;
-        private int _triggerCount;
         private bool _hasExpired;
         private bool _hasFiredFirstEvent;
         private bool _hasDirectHit;
@@ -387,9 +385,15 @@ namespace RuneCode
         /// <summary>현재 판정 반경이다. Burst는 확장 시간 동안 0에서 최종 반경까지 커지고, 그 외는 최종 반경이다.</summary>
         public double Radius => _action.Form == SpellGrammar.FORM_BURST && _warmupSeconds > 0
             ? _stats.Radius * Math.Min(1, _age / _warmupSeconds) : _stats.Radius;
-        public double BoxWidth => _stats.BoxWidth * ExpansionProgress;
+        /// <summary>Beam 범위의 폭이다. Burst도 확장 중 폭은 그대로다.</summary>
+        public double BoxWidth => _stats.BoxWidth;
+
+        /// <summary>Beam 범위의 현재 길이다. Burst는 확장 시간 동안 0에서 최종 길이까지 진행 방향으로 늘어난다.</summary>
         public double BoxLength => _stats.BoxLength * ExpansionProgress;
-        public bool IsBoxWorldAligned => _stats.IsBoxWorldAligned;
+
+        /// <summary>Beam 범위의 중심이다. Burst·Persist는 뒤쪽 면을 개체 위치에 두므로 진행 방향으로 현재 길이의 절반 앞이고, 그 외는 개체 위치다.</summary>
+        public SimVector BoxCenter => _action.Form == SpellGrammar.FORM_BURST || _action.Form == SpellGrammar.FORM_ZONE
+            ? _position + _direction.Normalized() * (BoxLength * 0.5) : _position;
 
         /// <summary>Persist가 활성화 전 예고 중인지 나타낸다. 예고 중에는 효과·적중 판정을 하지 않는다.</summary>
         public bool IsWarning => _action.Form == SpellGrammar.FORM_ZONE && _age + 0.000001 < _warmupSeconds;
@@ -414,20 +418,12 @@ namespace RuneCode
 
         /// <summary>부채꼴의 반경이다. 발사체는 지름(중심 앞뒤로 반경씩), 범위는 개체 반경이다.</summary>
         public double ConeReach => _action.Form == SpellGrammar.FORM_BOLT ? _stats.Radius * 2 : _stats.Radius;
-
-        /// <summary>Beam의 실제 Box 길이(px, 벽으로 잘린 길이)다. Beam이 아니면 0이다.</summary>
-        public double BeamLength => _beamLength;
-
-        /// <summary>Beam 잔상의 폭(Box Shape 폭, Expand 반영)이다. Beam이 아니면 의미가 없다.</summary>
-        public double BeamWidth => _stats.BoxWidth;
         public double Age => _age;
         /// <summary>
-        /// 개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간,
-        /// Beam은 잔상 시간(balance의 spellVisualSeconds), 그 외는 유지 시간이다.
+        /// 개체 수명이다. Burst는 확장 시간 + 잔상 시간, Persist는 예고 시간 + 유지 시간, 그 외는 유지 시간이다.
         /// </summary>
         public double Lifetime => _action.Form == SpellGrammar.FORM_BURST ? _warmupSeconds + _visualSeconds
-            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime
-            : _action.Form == SpellGrammar.FORM_BEAM ? _visualSeconds : _stats.Lifetime;
+            : _action.Form == SpellGrammar.FORM_ZONE ? _warmupSeconds + _stats.Lifetime : _stats.Lifetime;
         public string NodeId => _action.NodeId;
         internal SpellAction Action => _action;
         internal SpellStats Stats => _stats;
@@ -444,7 +440,6 @@ namespace RuneCode
         internal SimVector Anchor => _anchor;
         internal Dictionary<int, double> HitTimes => _hitTimes;
         internal int Hits { get => _hits; set => _hits = value; }
-        internal int TriggerCount { get => _triggerCount; set => _triggerCount = value; }
         internal double Angle { get => _angle; set => _angle = value; }
         internal bool HasExpired { get => _hasExpired; set => _hasExpired = value; }
 
@@ -457,12 +452,10 @@ namespace RuneCode
         /// <summary>
         /// 컴파일된 Form 수치, 호출 이벤트 문맥과 이벤트 분기의 비용 배율을 가진 독립 마법 개체를 생성한다.
         /// warmupSeconds는 Burst의 확장 시간 또는 Persist의 예고 시간이며 그 외 형태는 0이다.
-        /// beamLength는 Beam의 벽으로 잘린 실제 Box 길이이며 다른 형태는 0이다.
         /// </summary>
         internal SimulationSpellEntity(int id, SpellAction action, SpellStats stats, string element, SimVector position,
             SimVector direction, bool fromEvent, SimVector anchor, double angle, string castNoiseElement,
-            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster,
-            double beamLength = 0)
+            double visualSeconds, double warmupSeconds, SpellEventScope callEvents, SpellModifierValues modifiers, double costMultiplier, SimulationPlayer caster)
         {
             _warmupSeconds = warmupSeconds;
             _costMultiplier = costMultiplier;
@@ -478,7 +471,6 @@ namespace RuneCode
             _visualSeconds = visualSeconds;
             _anchor = anchor;
             _angle = angle;
-            _beamLength = beamLength;
             _callEvents = callEvents;
             _modifiers = modifiers ?? SpellModifierValues.None;
         }
@@ -526,7 +518,7 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_triggerCount}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);
@@ -571,14 +563,19 @@ namespace RuneCode
         { state.Append(FormattableString.Invariant($"|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_speed:R}|{_damage:R}|{_radius:R}|{_lifetime:R}|{_isHazard}|{_warning:R}|{_age:R}")); if (_isExplosion) state.Append("|explosion"); }
     }
 
-    public readonly struct FragmentOrb
+    public struct FragmentOrb
     {
-        private readonly SimVector _position;
+        private SimVector _position;
         private readonly int _amount;
+        private bool _isAttracted;
         public SimVector Position => _position;
         public int Amount => _amount;
+        public bool IsAttracted => _isAttracted;
         /// <summary>처치 위치와 조각 개수로 회수 가능한 오브를 생성한다.</summary>
-        internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; }
+        internal FragmentOrb(SimVector position, int amount) { _position = position; _amount = amount; _isAttracted = false; }
+
+        /// <summary>자석 이동이 시작된 오브의 위치를 갱신하고 추적 상태를 유지한다.</summary>
+        internal void AttractTo(SimVector position) { _position = position; _isAttracted = true; }
     }
 
     /// <summary>바닥에 떨어져 플레이어가 줍기를 기다리는 Modifier 드롭 개체다. 등급은 C·B·A·S 문자열이며 등급 없이 드롭된 항목은 null이다.</summary>
@@ -587,15 +584,20 @@ namespace RuneCode
         private readonly string _runeId;
         private readonly string _grade;
         private readonly int _count;
-        private readonly SimVector _position;
+        private SimVector _position;
+        private bool _isAttracted;
         public string RuneId => _runeId;
         public string Grade => _grade;
         public int Count => _count;
         public SimVector Position => _position;
+        public bool IsAttracted => _isAttracted;
 
         /// <summary>Modifier 룬 ID, 등급 문자, 수량과 바닥 위치로 드롭 개체를 생성한다.</summary>
         internal SimulationItemDrop(string runeId, string grade, int count, SimVector position)
         { _runeId = runeId; _grade = grade; _count = count; _position = position; }
+
+        /// <summary>자석 이동이 시작된 Modifier의 위치를 갱신하고 추적 상태를 유지한다.</summary>
+        internal void AttractTo(SimVector position) { _position = position; _isAttracted = true; }
     }
 
     public readonly struct DamageNumber

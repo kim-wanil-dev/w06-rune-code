@@ -213,18 +213,6 @@ MonoBehaviour:
     - _cost: 150
       _amount: 0
   _unplacedNodes:
-  - _id: unlock.element.neutral
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 430, y: 410}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.neutral
-    _prerequisites: []
-    _levels:
-    - _cost: 5
-      _amount: 0
   - _id: unlock.element.healing
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
@@ -417,15 +405,19 @@ MonoBehaviour:
     _levels:
     - _cost: 25
       _amount: 0
-  - _id: unlock.behavior.beam
+  - _id: upgrade.scrapPickupRange
     _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
     _position: {x: 0, y: 0}
     _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: behavior.beam
+    _effectType: 9
+    _runeId: 
     _prerequisites: []
     _levels:
-    - _cost: 0
-      _amount: 0
+    - _cost: 10
+      _amount: 0.1
+    - _cost: 20
+      _amount: 0.1
+    - _cost: 40
+      _amount: 0.1

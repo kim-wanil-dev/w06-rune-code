@@ -92,7 +92,7 @@ namespace RuneCode
             var context = _policy.GetCompileContext();
             _compileResult = GraphCompiler.Compile(_editingGraph, GameData.Runes, GameData.Balance.Grammar,
                 context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock,
-                context.MaxResourceCosts, context.LegacyBoxWorldAligned);
+                context.MaxResourceCosts);
             RaiseCompiled();
         }
 
@@ -211,8 +211,6 @@ namespace RuneCode
             var candidate = _editingGraph.Clone();
             var node = new GraphNode(NewId("node"), runeId, x, y);
             if (isModifier) node.SetText(SpellGrammar.MODIFIER_GRADE_PARAM, grade);
-            if (runeId == SpellGrammar.ShapeRune(SpellGrammar.MAGIC_TYPE_BOX))
-                node.SetText(SpellGrammar.BOX_DIRECTION_PARAM, "aim");
             candidate.AddNode(node);
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return; }
             if (!_policy.IsWithinModifierStock(_editingGraph, candidate)) { _policy.ReportStatus("editor.modifierStockBlocked"); return; }
@@ -236,7 +234,7 @@ namespace RuneCode
             var context = _policy.GetCompileContext();
             CompileResult result = GraphCompiler.Compile(candidate, GameData.Runes, GameData.Balance.Grammar,
                 context.UnlockedRunes, context.Capacity, context.MaxEnergy, context.Library, context.ModifierStock,
-                context.MaxResourceCosts, context.LegacyBoxWorldAligned);
+                context.MaxResourceCosts);
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             _editingGraph.AddEdge(edge);

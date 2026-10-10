@@ -9,7 +9,7 @@ namespace RuneCode
     [Serializable]
     public sealed class PlayerSave : ISerializationCallbackReceiver
     {
-        private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "shape.box", "shape.cone", "behavior.launch" };
+        private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "shape.box", "shape.cone", "behavior.launch", "element.neutral" };
         private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
 
         [Header("저장 버전")]
@@ -167,7 +167,7 @@ namespace RuneCode
             return save;
         }
 
-        /// <summary>기본 트리 시작 룬 네 개를 해금 목록에 중복 없이 추가한다.</summary>
+        /// <summary>기본 시작 룬을 해금 목록에 중복 없이 추가한다.</summary>
         private void AddStarterRunes()
         {
             if (_unlockedRunes == null) _unlockedRunes = new List<string>();
@@ -289,7 +289,7 @@ namespace RuneCode
             _version = 2;
         }
 
-        /// <summary>버전 2 저장의 구형 강화와 트리 구매를 초기화하고 시작 룬 네 개만 남겨 버전 3으로 이전한다.</summary>
+        /// <summary>버전 2 저장의 구형 강화와 트리 구매를 초기화하고 기본 시작 룬만 남겨 버전 3으로 이전한다.</summary>
         public void MigrateToHardwareTree()
         {
             if (_version != 2) return;

@@ -699,42 +699,6 @@
       "_value": "점멸 거리"
     },
     {
-      "_key": "param.radius",
-      "_value": "반경 (px)"
-    },
-    {
-      "_key": "param.boxWidth",
-      "_value": "폭 (px)"
-    },
-    {
-      "_key": "param.boxHeight",
-      "_value": "높이 (px)"
-    },
-    {
-      "_key": "param.boxLength",
-      "_value": "길이 (px)"
-    },
-    {
-      "_key": "param.coneDistance",
-      "_value": "거리 (px)"
-    },
-    {
-      "_key": "param.coneAngle",
-      "_value": "각도 (°)"
-    },
-    {
-      "_key": "param.boxDirection",
-      "_value": "방향"
-    },
-    {
-      "_key": "boxDirection.aim",
-      "_value": "진행 방향"
-    },
-    {
-      "_key": "boxDirection.world",
-      "_value": "월드 축"
-    },
-    {
       "_key": "condition.targetHpBelow",
       "_value": "대상 HP 미만"
     },
@@ -792,7 +756,7 @@
     },
     {
       "_key": "magicType.box",
-      "_value": "사각"
+      "_value": "빔"
     },
     {
       "_key": "magicType.buff",
@@ -813,10 +777,6 @@
     {
       "_key": "magicForm.remain",
       "_value": "잔류"
-    },
-    {
-      "_key": "magicForm.beam",
-      "_value": "빔"
     },
     {
       "_key": "trigger.attack",
@@ -1023,6 +983,14 @@
       "_value": "적 처치 시 획득하는 스크랩 증가"
     },
     {
+      "_key": "ui.tree.scrapPickupRange",
+      "_value": "스크랩 줍기 범위"
+    },
+    {
+      "_key": "ui.tree.scrapPickupRangeDescription",
+      "_value": "근처 스크랩을 주울 수 있는 범위 증가"
+    },
+    {
       "_key": "ui.tree.maxHp",
       "_value": "기본 HP"
     },
@@ -1124,7 +1092,7 @@
     },
     {
       "_key": "ui.manualBattleControls",
-      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · Esc 일시정지 · 목표 처치 수를 채우면 클리어 (보스 스테이지는 보스 처치)"
+      "_value": "WASD 이동 · 마우스 조준 · 좌클릭을 누르는 동안 시전 · Space 대시 · 스크랩은 가까이 가면 획득 · Esc 일시정지 · 목표 처치 수를 채우면 클리어 (보스 스테이지는 보스 처치)"
     },
     {
       "_key": "ui.kills",
@@ -1203,10 +1171,6 @@
       "_value": "등급별 크기 수치가 볼트·영역의 충돌 반경과 오비트의 궤도 크기에 적용됩니다"
     },
     {
-      "_key": "ui.behavior.beamHint",
-      "_value": "실행 시 원점에서 방향으로 뻗은 Box 안의 모든 적을 한 번씩 적중합니다. 첫 벽에서 길이가 잘리고, 회복·보호 속성은 범위 안의 자신에게 적용됩니다. Box 크기 속성은 준비 중입니다"
-    },
-    {
       "_key": "ui.mod.rangeHint",
       "_value": "볼트의 비행 거리, 버스트·존의 생성 거리, 오비트의 궤도 거리를 조절합니다"
     },
@@ -1223,8 +1187,8 @@
       "_value": "충돌 반경"
     },
     {
-      "_key": "ui.shapeSizeBounds",
-      "_value": "크기 4~800px · 각도 10~180° · Expand가 크기에 적용됩니다"
+      "_key": "ui.spellBeamSize",
+      "_value": "빔 폭 × 길이"
     },
     {
       "_key": "ui.spellSpeed",

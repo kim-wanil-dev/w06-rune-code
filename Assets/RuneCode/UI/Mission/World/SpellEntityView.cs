@@ -6,8 +6,7 @@ namespace RuneCode
 {
     /// <summary>
     /// 마법 개체 하나를 형태에 맞춰 표시한다. 발사·공전은 잔상과 속성별 도형, 폭발·잔류는 채움·외곽선·안쪽 선을 쓴다.
-    /// 사각형 판정 개체는 사각형 모양으로 그리고, 범위 사각형은 똑바로 세우기 설정을 따른다.
-    /// Beam은 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시한다.
+    /// Beam Shape 개체는 진행 방향으로 긴 사각형으로 그리며, 폭발·잔류 Beam은 뒤쪽 면을 개체 위치에 둔다.
     /// 부채꼴(범위·발사체)은 Prefab의 Cone 자식에 실행 중 갱신하는 부채꼴 메시로 채움과 앞쪽 호를 그린다.
     /// 예고 중인 Persist는 최종 범위를 빨간 외곽선으로 두고 진행률만큼 안쪽을 채운다.
     /// </summary>
@@ -21,7 +20,6 @@ namespace RuneCode
         private const float BURST_FILL_ALPHA = 0.22f;
         private const float TRAIL_ALPHA = 0.25f;
         private const float LAUNCH_CONE_FILL_ALPHA = 0.6f;
-        private const float BEAM_FILL_ALPHA = 0.6f;
         private const float CONE_EDGE_WIDTH = 2f;
         private const int CONE_SEGMENTS = 24;
         private const float WARNING_FILL_ALPHA = 0.25f;
@@ -70,12 +68,6 @@ namespace RuneCode
             Color tint = RuneMesh.ElementColor(spell.Element);
             float radius = (float)spell.Radius;
             float angle = MissionWorldSpace.ToWorldAngle(spell.Direction);
-            if (spell.Kind == SpellGrammar.FORM_BEAM)
-            {
-                ApplyBeam(spell, tint, origin);
-                return;
-            }
-            float boxRotation = spell.IsBoxWorldAligned ? 0 : angle;
             bool isArea = spell.Kind == SpellGrammar.FORM_ZONE || spell.Kind == SpellGrammar.FORM_BURST;
             bool isCone = spell.IsCone && (isArea || spell.Kind == SpellGrammar.FORM_BOLT);
             MissionWorldSpace.SetVisible(_trail, !isArea);
@@ -86,43 +78,30 @@ namespace RuneCode
             MissionWorldSpace.SetVisible(_coneRenderer, isCone);
             if (!isArea) PlaceTrail(spell, tint, radius);
             if (isCone) ApplyCone(spell, tint, angle, origin);
-            else if (isArea) ApplyArea(spell, tint, radius, boxRotation);
-            else ApplyProjectile(spell, tint, radius, angle, boxRotation);
+            else if (isArea) ApplyArea(spell, tint, radius, angle, origin);
+            else ApplyProjectile(spell, tint, radius, angle);
         }
 
-        /// <summary>Beam 잔상을 첫 벽에서 잘린 길이·설정 폭의 진행 방향 Box 채움으로 표시하고 나머지 표시를 끈다.</summary>
-        private void ApplyBeam(SimulationSpellEntity spell, Color tint, SimVector origin)
-        {
-            MissionWorldSpace.SetVisible(_trail, false);
-            MissionWorldSpace.SetVisible(_shape, false);
-            MissionWorldSpace.SetVisible(_outline, false);
-            MissionWorldSpace.SetVisible(_inner, false);
-            MissionWorldSpace.SetVisible(_fill, true);
-            MissionWorldSpace.SetVisible(_coneRenderer, false);
-            Color fill = tint;
-            fill.a = BEAM_FILL_ALPHA;
-            Vector2 direction = MissionWorldSpace.ToWorldDirection(spell.Direction);
-            float length = MissionWorldSpace.ToWorldLength(spell.BeamLength);
-            Vector2 center = MissionWorldSpace.ToWorld(spell.Position, origin);
-            MissionWorldSpace.PlaceLine(_fill, center - direction * (length * 0.5f), center + direction * (length * 0.5f),
-                (float)spell.BeamWidth, fill);
-        }
-
-        /// <summary>폭발·잔류를 원 또는 사각형의 채움, 외곽선, 안쪽 선으로 표시한다. 예고 중인 잔류는 빨간 외곽선과 진행률만큼의 채움만 그린다.</summary>
-        private void ApplyArea(SimulationSpellEntity spell, Color tint, float radius, float boxRotation)
+        /// <summary>
+        /// 폭발·잔류를 원 또는 Beam 사각형의 채움, 외곽선, 안쪽 선으로 표시한다. Beam은 진행 방향(angle)으로 길이를 두고 BoxCenter에 둔다.
+        /// 예고 중인 잔류는 빨간 외곽선과 진행률만큼의 채움만 그린다.
+        /// </summary>
+        private void ApplyArea(SimulationSpellEntity spell, Color tint, float radius, float angle, SimVector origin)
         {
             bool isWarning = spell.IsWarning;
             Color fill = isWarning ? WarningColor : tint;
             fill.a = isWarning ? WARNING_FILL_ALPHA : spell.Kind == SpellGrammar.FORM_ZONE ? ZONE_FILL_ALPHA : BURST_FILL_ALPHA;
             _fill.sprite = spell.IsBox ? _squareShape : spell.Element == "ice" && !isWarning ? _iceShape : _defaultShape;
             _outline.sprite = _inner.sprite = spell.IsBox ? _squareOutlineShape : _ringShape;
-            Quaternion rotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : 0);
+            Quaternion rotation = Quaternion.Euler(0, 0, spell.IsBox ? angle : 0);
             if (spell.IsBox)
             {
-                Vector2 dimensions = new Vector2((float)spell.BoxWidth, (float)spell.BoxLength);
-                MissionWorldSpace.Place(_fill, Vector2.zero, dimensions * (float)spell.WarnProgress, fill);
-                MissionWorldSpace.Place(_outline, Vector2.zero, dimensions, isWarning ? WarningColor : tint);
-                MissionWorldSpace.Place(_inner, Vector2.zero, dimensions * INNER_SCALE, fill * 2);
+                Vector2 center = (MissionWorldSpace.ToWorld(spell.BoxCenter, origin) - MissionWorldSpace.ToWorld(spell.Position, origin))
+                    * MissionWorldSpace.PIXELS_PER_UNIT;
+                Vector2 dimensions = new Vector2((float)spell.BoxLength, (float)spell.BoxWidth);
+                MissionWorldSpace.Place(_fill, center, dimensions * (float)spell.WarnProgress, fill);
+                MissionWorldSpace.Place(_outline, center, dimensions, isWarning ? WarningColor : tint);
+                MissionWorldSpace.Place(_inner, center, dimensions * INNER_SCALE, fill * 2);
             }
             else
             {
@@ -142,15 +121,15 @@ namespace RuneCode
             MissionWorldSpace.PlaceLine(_trail, -direction * TRAIL_LENGTH, Vector2.zero, Mathf.Max(MIN_TRAIL_WIDTH, radius), trail);
         }
 
-        /// <summary>발사·공전을 진행 방향의 속성별 도형(사각형 판정이면 사각형)으로 표시한다.</summary>
-        private void ApplyProjectile(SimulationSpellEntity spell, Color tint, float radius, float angle, float boxRotation)
+        /// <summary>발사·공전을 진행 방향의 속성별 도형(Beam이면 진행 방향으로 긴 사각형)으로 표시한다.</summary>
+        private void ApplyProjectile(SimulationSpellEntity spell, Color tint, float radius, float angle)
         {
             _shape.sprite = spell.IsBox ? _squareShape : GetElementShape(spell.Element);
             if (spell.IsBox)
-                MissionWorldSpace.Place(_shape, Vector2.zero, new Vector2((float)spell.BoxWidth, (float)spell.BoxLength), tint);
+                MissionWorldSpace.Place(_shape, Vector2.zero, new Vector2((float)spell.BoxLength, (float)spell.BoxWidth), tint);
             else
                 MissionWorldSpace.Place(_shape, Vector2.zero, Mathf.Max(MIN_SHAPE_RADIUS, radius) * 2, tint);
-            _shape.transform.localRotation = Quaternion.Euler(0, 0, spell.IsBox ? boxRotation : angle);
+            _shape.transform.localRotation = Quaternion.Euler(0, 0, angle);
         }
 
         /// <summary>

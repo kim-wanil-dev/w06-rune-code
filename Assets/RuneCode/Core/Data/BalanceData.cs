@@ -35,7 +35,6 @@ namespace RuneCode
     {
         [Header("제한")]
         [SerializeField] private int _maxLiveSpellEntities;
-        [SerializeField] private int _hitTriggerCap;
         [SerializeField] private int _maxFrameSteps;
         [SerializeField] private int _maxGraphNodes;
         [SerializeField] private int _maxGraphEdges;
@@ -44,7 +43,6 @@ namespace RuneCode
         [SerializeField] private int _maxScheduledExecutions = 2048;
         [SerializeField] private int _maxActionsPerTick = 512;
         public int MaxLiveSpellEntities => _maxLiveSpellEntities;
-        public int HitTriggerCap => _hitTriggerCap;
         public int MaxFrameSteps => _maxFrameSteps;
         public int MaxGraphNodes => _maxGraphNodes;
         public int MaxGraphEdges => _maxGraphEdges;
@@ -132,6 +130,7 @@ namespace RuneCode
         [SerializeField] private int _maxLibrary;
         [SerializeField] private int _modifierStartStock;
         [SerializeField] private float _orbAbsorbRadius;
+        [SerializeField] private float _pickupAttractSpeed = 480f;
         [SerializeField] private float _terminalHeal;
         public int SlotCost => _slotCost;
         public float DeathRetention => _deathRetention;
@@ -140,7 +139,10 @@ namespace RuneCode
 
         /// <summary>새 세이브(또는 소지량 기록이 없는 세이브)에서 Modifier 종류마다 주는 시작 소지량이다.</summary>
         public int ModifierStartStock => _modifierStartStock;
+        /// <summary>스크랩과 Modifier의 자석 이동이 시작되는 공통 반경이다.</summary>
         public float OrbAbsorbRadius => _orbAbsorbRadius;
+        /// <summary>자석 이동 중 아이템이 플레이어를 향해 이동하는 초당 거리다.</summary>
+        public float PickupAttractSpeed => _pickupAttractSpeed;
         public float TerminalHeal => _terminalHeal;
     }
 
@@ -181,7 +183,6 @@ namespace RuneCode
         [SerializeField] private float _hitFlashSeconds;
         [SerializeField] private float _damageNumberSeconds;
         [SerializeField] private float _wandOffset;
-        [SerializeField] private float _itemPickupRadius = 24f;
         [SerializeField] private float _executionTimeScale = 1f;
         public int TickRate => _tickRate;
         public float MultiOffset => _multiOffset;
@@ -204,9 +205,6 @@ namespace RuneCode
         public float HitFlashSeconds => _hitFlashSeconds;
         public float DamageNumberSeconds => _damageNumberSeconds;
         public float WandOffset => _wandOffset;
-
-        /// <summary>바닥에 떨어진 Modifier 드롭을 줍는 반경이다.</summary>
-        public float ItemPickupRadius => _itemPickupRadius;
 
         /// <summary>룬 실행 시간 기여분의 전역 배율이며 0이면 Shape·Behavior 노드 시간 기여를 끈다.</summary>
         public float ExecutionTimeScale => _executionTimeScale;
@@ -235,7 +233,7 @@ namespace RuneCode
 
         /// <summary>문법 엔진(컴파일러)에 전달할 한도·기본값을 이 밸런스 값으로 만들어 반환한다. 처음 요청할 때 한 번 만든다.</summary>
         public GrammarLimits Grammar => _grammar ??= new GrammarLimits(_limits.MaxGraphNodes, _limits.MaxGraphEdges,
-            _limits.HitTriggerCap, _limits.MaxCompiledActions, _limits.MaxLiveSpellEntities, _economy.BaseCapacity,
+            _limits.MaxCompiledActions, _limits.MaxLiveSpellEntities, _economy.BaseCapacity,
             _player.MaxEnergy, _ram.CooldownBase, _ram.CooldownPerRam);
 
         /// <summary>밸런스 JSON을 읽고 필수 설정과 양수 제한값을 검증하여 반환한다.</summary>
@@ -245,7 +243,7 @@ namespace RuneCode
             if (data == null || data.Player == null || data.Limits == null || data.Adaptation == null
                 || data.Combat == null || data.Economy == null || data.Ram == null || data.Sim == null
                 || data.Player.MaxHp <= 0f || data.Player.MaxEnergy <= 0f || data.Sim.TickRate != 60
-                || data.Limits.MaxLiveSpellEntities <= 0 || data.Limits.HitTriggerCap <= 0
+                || data.Limits.MaxLiveSpellEntities <= 0
                 || data.Economy.BaseCapacity <= 0
                 || (data.Ram.Mode != "shared" && data.Ram.Mode != "perSpell"))
                 throw new FormatException("유효하지 않은 밸런스 데이터입니다.");
@@ -257,11 +255,11 @@ namespace RuneCode
                 data.Combat.BurnSeconds, data.Combat.ChillSlow, data.Combat.ChillSeconds, data.Combat.FreezeSeconds,
                 data.Combat.FreezeImmunity, data.Combat.EmpSeconds, data.Combat.AegisAngle, data.Combat.AegisReduction,
                 data.Combat.RelayRadius, data.Combat.RelayReduction, data.Economy.DeathRetention, data.Economy.OrbAbsorbRadius,
-                data.Economy.TerminalHeal, data.Ram.CooldownBase, data.Ram.CooldownPerRam, data.Sim.MultiOffset,
+                data.Economy.TerminalHeal, data.Economy.PickupAttractSpeed, data.Ram.CooldownBase, data.Ram.CooldownPerRam, data.Sim.MultiOffset,
                 data.Sim.TelemetryHighlightSeconds, data.Sim.BenchPlayerX, data.Sim.BenchPlayerY, data.Sim.BenchDummyX,
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
-                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset, data.Sim.ItemPickupRadius,
+                data.Sim.HitFlashSeconds, data.Sim.DamageNumberSeconds, data.Sim.WandOffset,
                 data.Sim.ExecutionTimeScale, data.Combat.SeparationAllowance, data.Combat.SeparationStrength,
                 data.Combat.SeparationMaxStep };
             foreach (float value in values)
@@ -273,14 +271,14 @@ namespace RuneCode
                 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
                 || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.MaxLibrary <= 0
-                || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0
+                || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0 || data.Economy.PickupAttractSpeed <= 0f
                 || data.Combat.SeparationAllowance <= 0f || data.Combat.SeparationAllowance > 1f
                 || data.Combat.SeparationStrength <= 0f || data.Combat.SeparationStrength > 1f
                 || data.Combat.SeparationMaxStep <= 0f
                 || data.Limits.MaxFrameSteps <= 0 || data.Limits.MaxGraphNodes <= 0 || data.Limits.MaxGraphEdges <= 0
                 || data.Sim.BenchHp <= 0f
                 || data.Sim.BenchLineCount <= 0 || data.Sim.BenchSwarmColumns <= 0 || data.Sim.BenchSwarmRows <= 0
-                || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f || data.Sim.ItemPickupRadius <= 0f
+                || data.Sim.SpellVisualSeconds <= 0f || data.Sim.DamageNumberSeconds <= 0f
                 || data.Limits.MaxEnemies <= 0 || data.Limits.MaxCompiledActions <= 0
                 || data.Limits.MaxScheduledExecutions <= 0 || data.Limits.MaxActionsPerTick <= 0)
                 throw new FormatException("밸런스 범위가 유효하지 않습니다.");

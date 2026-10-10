@@ -95,6 +95,7 @@ namespace RuneCode
                 case UpgradeEffectType.MaxHp: unit = " HP"; break;
                 case UpgradeEffectType.Damage:
                 case UpgradeEffectType.ScrapGain:
+                case UpgradeEffectType.ScrapPickupRange:
                 case UpgradeEffectType.MoveSpeed:
                     amount *= 100f;
                     unit = "%";

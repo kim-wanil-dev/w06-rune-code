@@ -72,7 +72,8 @@ namespace RuneCode
             _spell = spell;
             _spellName = spellName;
             _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen,
-                session.DamageMultiplier, session.MoveSpeedMultiplier, session.ScrapGainMultiplier, CarrierSpawnSettings.LoadDefinition());
+                session.DamageMultiplier, session.MoveSpeedMultiplier, session.ScrapGainMultiplier,
+                carrier: CarrierSpawnSettings.LoadDefinition(), scrapPickupRangeMultiplier: session.ScrapPickupRangeMultiplier);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
@@ -82,7 +83,7 @@ namespace RuneCode
         public void TogglePause() { _isPaused = !_isPaused; }
 
         /// <summary>
-        /// 이동·대시 키, 포인터 조준과 시전 입력(isCasting, 좌클릭 유지)을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고,
+        /// 이동·대시·줍기 키, 포인터 조준과 시전 입력(isCasting, 좌클릭 유지)을 모아 MaxFrameSteps 제한 안의 고정 스텝만큼 시뮬레이션을 갱신하고,
         /// 노드 텔레메트리 기록과 종료 조건을 확인한다.
         /// </summary>
         public void Step(bool isTyping, bool hasPointer, SimVector pointer, bool isCasting, float unscaledDeltaTime)
