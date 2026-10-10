@@ -92,7 +92,42 @@
         "_rampSeconds": 60,
         "_formation": "scatter"
       },
-      "_waves": [],
+      "_waves": [
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            }
+          ]
+        }
+      ],
       "_eliteEvery": 10,
       "_eliteTypes": [
         {
@@ -208,6 +243,305 @@
       ]
     },
     {
+      "_fromStage": 2,
+      "_toStage": 2,
+      "_kind": "normal",
+      "_timeLimit": 0,
+      "_clearReward": 20,
+      "_killTarget": 30,
+      "_stream": {
+        "_candidates": [
+          {
+            "_enemyId": "enemy.scout",
+            "_firstStage": 1,
+            "_weight": 7
+          },
+          {
+            "_enemyId": "enemy.hunter",
+            "_firstStage": 2,
+            "_weight": 2
+          },
+          {
+            "_enemyId": "enemy.aegis",
+            "_firstStage": 3,
+            "_weight": 1.5
+          },
+          {
+            "_enemyId": "enemy.splitter",
+            "_firstStage": 3,
+            "_weight": 1
+          },
+          {
+            "_enemyId": "enemy.sentry",
+            "_firstStage": 4,
+            "_weight": 1
+          },
+          {
+            "_enemyId": "enemy.relay",
+            "_firstStage": 5,
+            "_weight": 0.5
+          }
+        ],
+        "_baseInterval": 1.6,
+        "_minInterval": 0.35,
+        "_stageScale": 0.08,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
+        "_formation": "scatter"
+      },
+      "_waves": [
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            }
+          ]
+        },
+        {
+          "_at": 28,
+          "_repeatInterval": 30,
+          "_formation": {
+            "_id": "doubleSurround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 6
+            }
+          ]
+        }
+      ],
+      "_eliteEvery": 10,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.hunter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_speedMultiplier": 1.2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        }
+      ]
+    },
+    {
+      "_fromStage": 3,
+      "_toStage": 3,
+      "_kind": "normal",
+      "_timeLimit": 0,
+      "_clearReward": 20,
+      "_killTarget": 30,
+      "_stream": {
+        "_candidates": [
+          {
+            "_enemyId": "enemy.scout",
+            "_firstStage": 1,
+            "_weight": 7
+          },
+          {
+            "_enemyId": "enemy.hunter",
+            "_firstStage": 2,
+            "_weight": 2
+          },
+          {
+            "_enemyId": "enemy.sentry",
+            "_firstStage": 3,
+            "_weight": 1
+          }
+        ],
+        "_baseInterval": 1.6,
+        "_minInterval": 0.35,
+        "_stageScale": 0.08,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
+        "_formation": "scatter"
+      },
+      "_waves": [
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            }
+          ]
+        }
+      ],
+      "_eliteEvery": 10,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.hunter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_speedMultiplier": 1.2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        }
+      ]
+    },
+    {
+      "_fromStage": 4,
+      "_toStage": 4,
+      "_kind": "normal",
+      "_timeLimit": 0,
+      "_clearReward": 20,
+      "_killTarget": 30,
+      "_stream": {
+        "_candidates": [
+          {
+            "_enemyId": "enemy.scout",
+            "_firstStage": 1,
+            "_weight": 7
+          },
+          {
+            "_enemyId": "enemy.hunter",
+            "_firstStage": 2,
+            "_weight": 2
+          },
+          {
+            "_enemyId": "enemy.sentry",
+            "_firstStage": 3,
+            "_weight": 1
+          },
+          {
+            "_enemyId": "enemy.relay",
+            "_firstStage": 4,
+            "_weight": 0.5
+          }
+        ],
+        "_baseInterval": 1.6,
+        "_minInterval": 0.35,
+        "_stageScale": 0.08,
+        "_intraRamp": 0.5,
+        "_rampSeconds": 60,
+        "_formation": "scatter"
+      },
+      "_waves": [
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            }
+          ]
+        }
+      ],
+      "_eliteEvery": 10,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.hunter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_speedMultiplier": 1.2
+        },
+        {
+          "_enemyId": "enemy.scout",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2
+        }
+      ]
+    },
+    {
       "_fromStage": 5,
       "_toStage": 5,
       "_kind": "boss",
@@ -268,6 +602,40 @@
             {
               "_enemyId": "boss.governor",
               "_count": 1
+            }
+          ]
+        },
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
             }
           ]
         }
@@ -334,6 +702,40 @@
             {
               "_enemyId": "boss.governor",
               "_count": 1
+            }
+          ]
+        },
+        {
+          "_at": 8,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
             }
           ]
         }
