@@ -8,18 +8,19 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>작업실 화면 Prefab의 헤더, 4개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
+    /// <summary>작업실의 두 탭, 스테이지 선택 화면과 별도 설정 팝업의 Prefab 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
         private const string UPGRADE_TREE_NODE_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeTreeNode.prefab";
         private const string UPGRADE_TREE_ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
-        private static readonly string[] TABS = { "editor", "tree", "deploy", "settings" };
+        private static readonly string[] TABS = { "editor", "tree" };
 
-        /// <summary>작업실 Prefab이 없으면 생성하고, 이미 있으면 디버그 트리 초기화 버튼의 누락된 연결만 보충한다.</summary>
+        /// <summary>작업실 Prefab이 없으면 생성하고, 기존 화면에는 탐색 분리와 누락된 트리 참조를 보충한다.</summary>
         public static void Build()
         {
             if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen)))
             {
+                EnsureNavigation();
                 EnsureDebugTreeReset();
                 EnsureUpgradeTreeLayout();
                 EnsureUpgradeTreeNodePrefab();
@@ -32,12 +33,14 @@ namespace RuneCode
             ui.Panel(page, 0, 0, 1280, 70, "Header");
             ui.Text(page, 18, 18, 200, 36, GameData.L("ui.title"), 27, FontStyles.Bold, "HeaderTitle");
             Button[] tabButtons = new Button[TABS.Length];
-            TextMeshProUGUI[] tabLabels = new TextMeshProUGUI[TABS.Length];
             for (int i = 0; i < TABS.Length; i++)
             {
                 tabButtons[i] = ui.Button(page, 220 + i * 112, 18, 104, 34, GameData.L("ui." + TABS[i]), null, 13, TABS[i] + "TabButton", "TabButton");
-                tabLabels[i] = tabButtons[i].GetComponentInChildren<TextMeshProUGUI>();
             }
+            Button deployButton = ui.Button(page, 444, 18, 104, 34, GameData.L("ui.deploy"), null, 13, "DeployButton");
+            Button settingsButton = ui.Button(page, 556, 18, 104, 34, GameData.L("ui.settings"), null, 13, "SettingsButton");
+            Button backButton = ui.Button(page, 220, 18, 104, 34, GameData.L("ui.back"), null, 13, "BackButton");
+            backButton.gameObject.SetActive(false);
             TextMeshProUGUI headerStats = ui.Text(page, 816, 23, 440, 30, "", 16, FontStyles.Normal, "HeaderStats");
             TextMeshProUGUI status = ui.Text(page, 18, 686, 1240, 22, "", 12, FontStyles.Normal, "Status");
 
@@ -48,44 +51,142 @@ namespace RuneCode
             UpgradeTreePanel upgradeTreePanel = BuildUpgradeTree(ui, treeRoot);
             RectTransform deployRoot = UiFactory.Rect(page, "DeployTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             DeployPanel deployPanel = BuildDeploy(ui, deployRoot);
-            RectTransform settingsRoot = UiFactory.Rect(page, "SettingsTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
-            SettingsPanel settingsPanel = BuildSettings(ui, settingsRoot);
+            BuildSettingsPopup(ui);
             treeRoot.gameObject.SetActive(false);
             deployRoot.gameObject.SetActive(false);
-            settingsRoot.gameObject.SetActive(false);
 
             WorkshopScreen screen = root.gameObject.AddComponent<WorkshopScreen>();
             LayoutUtility.SetReference(screen, "_editorRoot", editorRoot);
             LayoutUtility.SetReference(screen, "_treeRoot", treeRoot);
             LayoutUtility.SetReference(screen, "_deployRoot", deployRoot);
-            LayoutUtility.SetReference(screen, "_settingsRoot", settingsRoot);
             LayoutUtility.SetReferences(screen, "_tabButtons", tabButtons);
-            LayoutUtility.SetReferences(screen, "_tabLabels", tabLabels);
+            LayoutUtility.SetReference(screen, "_deployButton", deployButton);
+            LayoutUtility.SetReference(screen, "_settingsButton", settingsButton);
+            LayoutUtility.SetReference(screen, "_backButton", backButton);
             LayoutUtility.SetReference(screen, "_spellEditor", spellEditor);
             LayoutUtility.SetReference(screen, "_dockPanel", dockPanel);
             LayoutUtility.SetReference(screen, "_upgradeTreePanel", upgradeTreePanel);
             LayoutUtility.SetReference(screen, "_deployPanel", deployPanel);
-            LayoutUtility.SetReference(screen, "_settingsPanel", settingsPanel);
             LayoutUtility.SetReference(screen, "_headerStats", headerStats);
             LayoutUtility.SetReference(screen, "_status", status);
             LayoutUtility.SaveViewPrefab(root);
         }
 
-        /// <summary>기존 작업실 Prefab의 미사용 디버그 버튼을 트리 초기화 버튼으로 연결한다.</summary>
-        private static void EnsureDebugTreeReset()
+        /// <summary>기존 배치를 보존하며 전투·설정을 일반 버튼으로 분리하고 설정 내용을 팝업으로 옮긴다.</summary>
+        public static void EnsureNavigation()
         {
-            GameData.Load();
             string path = LayoutUtility.VIEW_FOLDER + nameof(WorkshopScreen) + ".prefab";
             GameObject root = PrefabUtility.LoadPrefabContents(path);
             try
             {
-                Transform settings = root.transform.Find("Page/SettingsTab");
+                WorkshopScreen screen = root.GetComponent<WorkshopScreen>();
+                SerializedObject serialized = new SerializedObject(screen);
+                if (serialized.FindProperty("_deployButton").objectReferenceValue != null) return;
+                GameData.Load();
+                UiFactory ui = LayoutUtility.CreateFactory();
+                SerializedProperty tabs = serialized.FindProperty("_tabButtons");
+                Button editor = (Button)tabs.GetArrayElementAtIndex(0).objectReferenceValue;
+                Button tree = (Button)tabs.GetArrayElementAtIndex(1).objectReferenceValue;
+                Button deploy = AsActionButton((Button)tabs.GetArrayElementAtIndex(2).objectReferenceValue, ui);
+                Button settings = AsActionButton((Button)tabs.GetArrayElementAtIndex(3).objectReferenceValue, ui);
+                Transform oldSettings = root.transform.Find("Page/SettingsTab");
+                BuildSettingsPopup(ui, oldSettings);
+                UnityEngine.Object.DestroyImmediate(oldSettings.gameObject);
+                Button back = ui.Button(editor.transform.parent, 0, 0, 104, 34, GameData.L("ui.back"), null, 13, "BackButton");
+                CopyRect((RectTransform)editor.transform, (RectTransform)back.transform);
+                back.transform.SetSiblingIndex(editor.transform.GetSiblingIndex());
+                back.gameObject.SetActive(false);
+                LayoutUtility.SetReferences(screen, "_tabButtons", new[] { editor, tree });
+                LayoutUtility.SetReference(screen, "_deployButton", deploy);
+                LayoutUtility.SetReference(screen, "_settingsButton", settings);
+                LayoutUtility.SetReference(screen, "_backButton", back);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        /// <summary>TabButton인 버튼만 일반 버튼으로 교체하여 기존 배치와 문구를 보존하고 반환한다.</summary>
+        private static Button AsActionButton(Button source, UiFactory ui)
+        {
+            if (source.GetComponent<TabButton>() == null) return source;
+            TextMeshProUGUI label = source.GetComponentInChildren<TextMeshProUGUI>();
+            Button button = ui.Button(source.transform.parent, 0, 0, 104, 34, label.text, null, (int)label.fontSize, source.name.Replace("TabButton", "Button"));
+            CopyRect((RectTransform)source.transform, (RectTransform)button.transform);
+            button.transform.SetSiblingIndex(source.transform.GetSiblingIndex());
+            button.interactable = source.interactable;
+            UnityEngine.Object.DestroyImmediate(source.gameObject);
+            return button;
+        }
+
+        /// <summary>원본 RectTransform의 앵커·피벗·크기·위치를 대상 버튼에 복사한다.</summary>
+        private static void CopyRect(RectTransform source, RectTransform target)
+        {
+            target.anchorMin = source.anchorMin;
+            target.anchorMax = source.anchorMax;
+            target.pivot = source.pivot;
+            target.sizeDelta = source.sizeDelta;
+            target.anchoredPosition3D = source.anchoredPosition3D;
+            target.localScale = source.localScale;
+            target.localRotation = source.localRotation;
+            LayoutElement sourceLayout = source.GetComponent<LayoutElement>();
+            if (sourceLayout != null)
+            {
+                LayoutElement targetLayout = target.GetComponent<LayoutElement>();
+                if (targetLayout == null) targetLayout = target.gameObject.AddComponent<LayoutElement>();
+                EditorUtility.CopySerialized(sourceLayout, targetLayout);
+            }
+        }
+
+        /// <summary>기존 설정 내용과 참조를 보존하여 검은색 70% 딤 배경을 가진 독립 설정 팝업을 저장한다.</summary>
+        private static void BuildSettingsPopup(UiFactory ui, Transform existingSettings = null)
+        {
+            if (LayoutUtility.ViewPrefabExists(nameof(SettingsPopup))) return;
+            RectTransform root = LayoutUtility.CreateViewRoot(nameof(SettingsPopup));
+            RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.settings"), 1000, 480, out Button close);
+            Image shade = root.GetChild(0).GetComponent<Image>();
+            shade.color = new Color(0, 0, 0, 0.7f);
+            RectTransform content;
+            SettingsPanel panel;
+            if (existingSettings != null)
+            {
+                content = (RectTransform)UnityEngine.Object.Instantiate(existingSettings, card, false);
+                panel = content.GetComponent<SettingsPanel>();
+            }
+            else
+            {
+                content = UiFactory.Rect(card, "Content", 0, 0, 952, 360);
+                panel = BuildSettings(ui, content);
+            }
+            content.name = "Content";
+            content.gameObject.SetActive(true);
+            LayoutUtility.SetTopLeftRect(content, 24, 86, 952, 360);
+            Transform oldTitle = content.Find("SettingsTitle");
+            if (oldTitle != null) UnityEngine.Object.DestroyImmediate(oldTitle.gameObject);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("ScreenShakeButton"), 0, 0, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("HitStopButton"), 0, 70, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("ResetSaveButton"), 0, 226, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("DebugGroup"), 480, 0, 444, 243);
+            SettingsPopup popup = root.gameObject.AddComponent<SettingsPopup>();
+            LayoutUtility.SetReference(popup, "_closeButton", close);
+            LayoutUtility.SetReference(popup, "_panel", panel);
+            LayoutUtility.SaveViewPrefab(root);
+        }
+
+        /// <summary>설정 팝업의 미사용 디버그 버튼을 트리 초기화 버튼으로 연결한다.</summary>
+        private static void EnsureDebugTreeReset()
+        {
+            GameData.Load();
+            string path = LayoutUtility.VIEW_FOLDER + nameof(SettingsPopup) + ".prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                Transform settings = root.transform.Find("Card/Content");
                 Transform debugGroup = settings?.Find("DebugGroup");
                 SettingsPanel panel = settings?.GetComponent<SettingsPanel>();
                 Transform buttonTransform = debugGroup?.Find("DebugResetTreeButton") ?? debugGroup?.Find("DebugInvulnerableButton");
                 Button button = buttonTransform?.GetComponent<Button>();
                 if (panel == null || button == null)
-                    throw new InvalidOperationException("WorkshopScreen Prefab의 디버그 설정 버튼을 찾을 수 없습니다.");
+                    throw new InvalidOperationException("SettingsPopup Prefab의 디버그 설정 버튼을 찾을 수 없습니다.");
                 bool hasChanged = false;
                 if (button.name != "DebugResetTreeButton")
                 {

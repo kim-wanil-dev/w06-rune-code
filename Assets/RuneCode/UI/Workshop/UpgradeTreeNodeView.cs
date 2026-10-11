@@ -16,7 +16,7 @@ namespace RuneCode
         [SerializeField] private Image _spriteIcon;
         [SerializeField] private Button _button;
 
-        [Header("상태 표시: 잠금 / 구매 가능 / 일부 강화 / MAX / 비용 부족")]
+        [Header("상태 표시: 잠금 / 개방 / 일부 강화 / MAX")]
         [SerializeField] private UiStateVisual _visual;
 
         private Action _purchaseAction;
@@ -39,7 +39,7 @@ namespace RuneCode
         /// <summary>아이콘, 노드 개방 상태, 완료 강조와 구매 가능 여부를 화면에 반영한다.</summary>
         public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, bool isAvailable, bool isComplete, bool canPurchase)
         {
-            _visual.Show(!isAvailable ? 0 : isComplete ? 3 : level > 0 ? 2 : canPurchase ? 1 : 4);
+            _visual.Show(!isAvailable ? 0 : isComplete ? 3 : level > 0 ? 2 : 1);
             _spriteIcon.gameObject.SetActive(sprite != null);
             _icon.gameObject.SetActive(sprite == null);
             if (sprite == null)

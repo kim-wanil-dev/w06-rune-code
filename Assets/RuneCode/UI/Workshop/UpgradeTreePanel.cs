@@ -63,7 +63,7 @@ namespace RuneCode
                 foreach (UpgradeTreePrerequisite prerequisite in node.Prerequisites)
                 {
                     UpgradeTreeNodeDefinition source = _definition.FindNode(prerequisite.NodeId);
-                    if (source != null) CreateConnection(source, node, prerequisite);
+                    if (source != null) CreateConnection(source, node);
                 }
             }
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
@@ -82,11 +82,11 @@ namespace RuneCode
             if (_nodeViews.TryGetValue(nodeId, out UpgradeTreeNodeView view)) view.SetContent(effectType, runeCategory, icon, level, isAvailable, isComplete, canPurchase);
         }
 
-        /// <summary>각 연결선을 선행 노드 조건 충족 여부(노드 ID, 요구 레벨 → 충족)에 따라 완료 또는 잠금 프리팹 표시으로 표시한다.</summary>
-        public void SetConnectionStates(Func<string, int, bool> isSatisfied)
+        /// <summary>노드 ID별 학습 여부를 받아 연결된 양쪽 노드를 모두 배웠을 때만 연결선을 강조한다.</summary>
+        public void SetConnectionStates(Func<string, bool> isLearned)
         {
             foreach (TreeConnection connection in _connections)
-                connection.Visual.Show(isSatisfied(connection.NodeId, connection.RequiredLevel) ? 1 : 0);
+                connection.Visual.Show(isLearned(connection.SourceNodeId) && isLearned(connection.TargetNodeId) ? 1 : 0);
         }
 
         /// <summary>노드 위 정보 상자에 이름·설명·강화 레벨·다음 상승량·비용을 표시한다.</summary>
@@ -168,8 +168,8 @@ namespace RuneCode
             _nodeViews.Add(node.Id, view);
         }
 
-        /// <summary>두 노드 중심을 잇는 직선을 노드 뒤에 만들고 선행 노드 조건과 함께 저장한다.</summary>
-        private void CreateConnection(UpgradeTreeNodeDefinition source, UpgradeTreeNodeDefinition target, UpgradeTreePrerequisite prerequisite)
+        /// <summary>두 노드 중심을 잇는 직선을 노드 뒤에 만들고 양 끝의 노드 ID와 함께 저장한다.</summary>
+        private void CreateConnection(UpgradeTreeNodeDefinition source, UpgradeTreeNodeDefinition target)
         {
             Vector2 start = new Vector2(source.Position.x + NODE_SIZE * 0.5f, -source.Position.y - NODE_SIZE * 0.5f);
             Vector2 end = new Vector2(target.Position.x + NODE_SIZE * 0.5f, -target.Position.y - NODE_SIZE * 0.5f);
@@ -183,26 +183,26 @@ namespace RuneCode
             lineRect.anchoredPosition = (start + end) * 0.5f;
             lineRect.sizeDelta = new Vector2(delta.magnitude, LINE_WIDTH);
             lineRect.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            _connections.Add(new TreeConnection(visual, prerequisite.NodeId, prerequisite.RequiredLevel));
+            _connections.Add(new TreeConnection(visual, source.Id, target.Id));
             lineObject.transform.SetAsFirstSibling();
         }
 
         private sealed class TreeConnection
         {
             private readonly UiStateVisual _visual;
-            private readonly string _nodeId;
-            private readonly int _requiredLevel;
+            private readonly string _sourceNodeId;
+            private readonly string _targetNodeId;
 
             public UiStateVisual Visual => _visual;
-            public string NodeId => _nodeId;
-            public int RequiredLevel => _requiredLevel;
+            public string SourceNodeId => _sourceNodeId;
+            public string TargetNodeId => _targetNodeId;
 
-            /// <summary>연결선과 이 선이 표시하는 선행 노드 요구 레벨을 저장한다.</summary>
-            public TreeConnection(UiStateVisual visual, string nodeId, int requiredLevel)
+            /// <summary>연결선과 양 끝의 노드 ID를 저장하여 실제 학습 여부에 따른 강조에 사용한다.</summary>
+            public TreeConnection(UiStateVisual visual, string sourceNodeId, string targetNodeId)
             {
                 _visual = visual;
-                _nodeId = nodeId;
-                _requiredLevel = requiredLevel;
+                _sourceNodeId = sourceNodeId;
+                _targetNodeId = targetNodeId;
             }
         }
     }

@@ -1,8 +1,6 @@
 using System;
-
-using UnityEngine;
-
 using TMPro;
+using UnityEngine;
 
 namespace RuneCode
 {
@@ -16,7 +14,7 @@ namespace RuneCode
         private const float WIDTH = 222f;
         private const float PARAMETER_ROW_HEIGHT = 64f;
         private const float SPELL_PARAMETER_ROW_HEIGHT = 76f;
-        private const float VALIDATION_BOTTOM = 510f;
+        private const float VALIDATION_BOTTOM = 460f;
         private const float MIN_VALIDATION_HEIGHT = 80f;
 
         private readonly RectTransform _panel;

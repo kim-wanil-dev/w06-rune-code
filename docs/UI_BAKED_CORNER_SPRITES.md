@@ -2,6 +2,17 @@
 
 저장 위치: `Assets/RuneCode/Art/UI/`. 원본 `Button_8px.png`와 기존 흰색 Sprite는 보존했다.
 
+현재 강화 노드는 아래의 `Vivid` 변형 네 개를 사용한다. 이전 강화 노드 이미지와 비용 부족 이미지는 리소스로 보존했지만 프리팹에서 사용하지 않는다. 내장 image_gen 편집 도구로 회색 테두리를 유지하며 배경색의 채도와 명도를 높였다. 생성본을 128×128로 축소하고 검정 외부 매트를 투명하게 정리했으며, 기존 Sprite의 16px Border 가져오기 설정을 복사했다. 루트의 기본 Sprite는 제거하여 상태별 배경만 표시한다.
+
+| 현재 적용 파일 | 중앙색 | 상태 |
+| --- | --- | --- |
+| Tree_FourCorners_Locked_Vivid_128.png | #14374F | 잠금 |
+| Tree_FourCorners_Available_Vivid_128.png | #087EB8 | 개방 |
+| Tree_FourCorners_Partial_Vivid_128.png | #8835BC | 일부 강화 |
+| Tree_FourCorners_Max_Vivid_128.png | #13985A | MAX |
+
+아래 기존 생성 기록과 색상표는 이전 자산에 대한 기록이다.
+
 | 파일 | 중앙색 | 적용 대상 |
 | --- | --- | --- |
 | Button_TopCorners_Navy_128.png | #1A2130 | TabButton Normal / Selected |
@@ -109,4 +120,41 @@ Use case: precise-object-edit. Edit target Image1: a flat solid-filled four-cham
 ```text
 Use case: precise-object-edit. Edit target Image1: a flat solid-filled four-chamfer game UI sprite. Style reference Image2: original navy sprite. CHANGE ONLY the flat interior fill color of Image1 to EXACT opaque #8A6B43. Preserve Image1's all FOUR equally clipped corner geometry, border thickness, nested frame spacing and blue-gray rim colors; arrange frame as Image2 (bright outer blue-gray #56627F, inset darker blue-gray #242B39 hairline). Do not color-multiply the frame. Keep a very thin frame relative to128-square, no extra bevels. CRITICAL filled tile, never hollow: entire interior completely opaque uniform #8A6B43, no gradients or lighting or texture at all. ONE square1:1 standalone sprite, fills canvas edge-to-edge, no padding; intended final128x128. Use pure BLACK #000000 ONLY outside four tiny cut corner triangles as removable technical matte. Do not put any black/transparent area inside. No text, no icon, no shadow, no contact sheet.
 ```
+
+## Vivid 상태 이미지의 최종 프롬프트
+
+실행 방식: 내장 image_gen 편집. 참조: `Assets/RuneCode/Art/UI/Tree_FourCorners_Available_128.png`. 중앙까지 투명하게 생성된 첫 결과는 사용하지 않았고, 불투명 중앙과 검정 외부 매트를 요청한 재생성 결과를 사용했다. 최종 PNG는 중앙 Alpha 255와 외부 모서리 Alpha 0을 유지한다.
+
+### Locked
+
+저장: `Assets/RuneCode/Art/UI/Tree_FourCorners_Locked_Vivid_128.png`
+
+```text
+Use case: precise-object-edit. Asset type: Unity 9-slice upgrade-tree square button background. Input image: reference frame and shape to preserve exactly. Create the Locked state variant. Change only the large flat interior fill to saturated #14374F. Keep the exact square aspect ratio, all four clipped corners, thin gray outer bevel #56627F and dark inner rim #242B39. Keep the frame neutral gray, not tinted. Fill every pixel inside the frame with the specified flat uniform color; no gradient, dark center, transparency, empty hole or translucent glass. The entire interior must be OPAQUE and completely filled with the specified SOLID color, not empty or transparent. Render only the tiny exterior corner triangles in solid black #000000 matte. Do not use transparency anywhere in this output. No text, icon, highlights, shadows, glow or additional detail. Match the reference silhouette and border proportions exactly. Edge-to-edge square sprite, no margins.
+```
+
+### Available
+
+저장: `Assets/RuneCode/Art/UI/Tree_FourCorners_Available_Vivid_128.png`
+
+```text
+Use case: precise-object-edit. Asset type: Unity 9-slice upgrade-tree square button background. Input image: reference frame and shape to preserve exactly. Create the Available state variant. Change only the large flat interior fill to saturated #087EB8. Keep the exact square aspect ratio, all four clipped corners, thin gray outer bevel #56627F and dark inner rim #242B39. Keep the frame neutral gray, not tinted. Fill every pixel inside the frame with the specified flat uniform color; no gradient, dark center, transparency, empty hole or translucent glass. The entire interior must be OPAQUE and completely filled with the specified SOLID color, not empty or transparent. Render only the tiny exterior corner triangles in solid black #000000 matte. Do not use transparency anywhere in this output. No text, icon, highlights, shadows, glow or additional detail. Match the reference silhouette and border proportions exactly. Edge-to-edge square sprite, no margins.
+```
+
+### Partial
+
+저장: `Assets/RuneCode/Art/UI/Tree_FourCorners_Partial_Vivid_128.png`
+
+```text
+Use case: precise-object-edit. Asset type: Unity 9-slice upgrade-tree square button background. Input image: reference frame and shape to preserve exactly. Create the Partial state variant. Change only the large flat interior fill to saturated #8835BC. Keep the exact square aspect ratio, all four clipped corners, thin gray outer bevel #56627F and dark inner rim #242B39. Keep the frame neutral gray, not tinted. Fill every pixel inside the frame with the specified flat uniform color; no gradient, dark center, transparency, empty hole or translucent glass. The entire interior must be OPAQUE and completely filled with the specified SOLID color, not empty or transparent. Render only the tiny exterior corner triangles in solid black #000000 matte. Do not use transparency anywhere in this output. No text, icon, highlights, shadows, glow or additional detail. Match the reference silhouette and border proportions exactly. Edge-to-edge square sprite, no margins.
+```
+
+### Max
+
+저장: `Assets/RuneCode/Art/UI/Tree_FourCorners_Max_Vivid_128.png`
+
+```text
+Use case: precise-object-edit. Asset type: Unity 9-slice upgrade-tree square button background. Input image: reference frame and shape to preserve exactly. Create the Max state variant. Change only the large flat interior fill to saturated #13985A. Keep the exact square aspect ratio, all four clipped corners, thin gray outer bevel #56627F and dark inner rim #242B39. Keep the frame neutral gray, not tinted. Fill every pixel inside the frame with the specified flat uniform color; no gradient, dark center, transparency, empty hole or translucent glass. The entire interior must be OPAQUE and completely filled with the specified SOLID color, not empty or transparent. Render only the tiny exterior corner triangles in solid black #000000 matte. Do not use transparency anywhere in this output. No text, icon, highlights, shadows, glow or additional detail. Match the reference silhouette and border proportions exactly. Edge-to-edge square sprite, no margins.
+```
+
 

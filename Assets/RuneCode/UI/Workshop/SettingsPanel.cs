@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>설정 탭 View다. 피드백 설정 문구를 표시하고 설정 전환·저장 초기화·디버그 클릭을 알린다.</summary>
+    /// <summary>설정 팝업의 내용 View다. 피드백 설정 문구를 표시하고 설정 전환·저장 초기화·디버그 클릭을 알린다.</summary>
     public sealed class SettingsPanel : MonoBehaviour
     {
         [Header("설정")]

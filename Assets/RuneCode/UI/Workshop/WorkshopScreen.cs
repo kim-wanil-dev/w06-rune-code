@@ -16,24 +16,24 @@ namespace RuneCode
         public const string TAB_EDITOR = "editor";
         public const string TAB_TREE = "tree";
         public const string TAB_DEPLOY = "deploy";
-        public const string TAB_SETTINGS = "settings";
-
-        private static readonly string[] TABS = { TAB_EDITOR, TAB_TREE, TAB_DEPLOY, TAB_SETTINGS };
+        private static readonly string[] TABS = { TAB_EDITOR, TAB_TREE };
 
         [Header("탭 구성")]
         [SerializeField] private RectTransform _editorRoot;
         [SerializeField] private RectTransform _treeRoot;
         [SerializeField] private RectTransform _deployRoot;
-        [SerializeField] private RectTransform _settingsRoot;
         [SerializeField] private Button[] _tabButtons;
-        [SerializeField] private TextMeshProUGUI[] _tabLabels;
+
+        [Header("화면 이동")]
+        [SerializeField] private Button _deployButton;
+        [SerializeField] private Button _settingsButton;
+        [SerializeField] private Button _backButton;
 
         [Header("패널")]
         [SerializeField] private SpellEditorPanel _spellEditor;
         [SerializeField] private DockPanel _dockPanel;
         [SerializeField] private UpgradeTreePanel _upgradeTreePanel;
         [SerializeField] private DeployPanel _deployPanel;
-        [SerializeField] private SettingsPanel _settingsPanel;
 
         [Header("표시")]
         [SerializeField] private TextMeshProUGUI _headerStats;
@@ -45,10 +45,18 @@ namespace RuneCode
         public DockPanel Dock => _dockPanel;
         public UpgradeTreePanel UpgradeTree => _upgradeTreePanel;
         public DeployPanel Deploy => _deployPanel;
-        public SettingsPanel Settings => _settingsPanel;
 
         /// <summary>탭 버튼을 눌렀을 때 탭 ID와 함께 알린다.</summary>
         public event Action<string> TabClicked;
+
+        /// <summary>시간제 전투의 스테이지 선택 화면 열기를 알린다.</summary>
+        public event Action DeployClicked;
+
+        /// <summary>현재 화면 위에 설정 팝업 열기를 알린다.</summary>
+        public event Action SettingsClicked;
+
+        /// <summary>스테이지 선택 이전 화면으로 돌아가기를 알린다.</summary>
+        public event Action BackClicked;
 
         /// <summary>탭 버튼을 이벤트로 연결하고 세션·UI 관리자로 Presenter를 만든다. 이미 초기화했으면 무시한다.</summary>
         public void Initialize(RuneCodeSession session, UIManager ui)
@@ -59,20 +67,34 @@ namespace RuneCode
                 string tab = TABS[i];
                 _tabButtons[i].onClick.AddListener(() => TabClicked?.Invoke(tab));
             }
+            _deployButton.onClick.AddListener(() => DeployClicked?.Invoke());
+            _settingsButton.onClick.AddListener(() => SettingsClicked?.Invoke());
+            _backButton.onClick.AddListener(() => BackClicked?.Invoke());
             _presenter = new WorkshopPresenter(session, ui, this);
         }
 
-        /// <summary>지정 탭의 패널만 활성화하고 탭 버튼을 선택 색으로 표시한다. 편집 패널 표시는 Presenter가 정한다.</summary>
+        /// <summary>지정 화면만 표시하고 스테이지 선택 중에는 탭과 진입 버튼을 숨기고 뒤로가기를 표시한다.</summary>
         public void ShowTab(string tab)
         {
             _editorRoot.gameObject.SetActive(tab == TAB_EDITOR);
             _treeRoot.gameObject.SetActive(tab == TAB_TREE);
             _deployRoot.gameObject.SetActive(tab == TAB_DEPLOY);
-            _settingsRoot.gameObject.SetActive(tab == TAB_SETTINGS);
+            bool isDeploy = tab == TAB_DEPLOY;
+            _deployButton.gameObject.SetActive(!isDeploy);
+            _backButton.gameObject.SetActive(isDeploy);
             for (int i = 0; i < TABS.Length; i++)
             {
+                _tabButtons[i].gameObject.SetActive(!isDeploy);
                 _tabButtons[i].GetComponent<TabButton>().SetSelected(TABS[i] == tab);
             }
+        }
+
+        /// <summary>스테이지 선택 중 Esc를 누르면 이전 작업실 탭으로 돌아가고 입력 소비 여부를 반환한다.</summary>
+        public override bool HandleEscape()
+        {
+            if (!_deployRoot.gameObject.activeSelf) return false;
+            BackClicked?.Invoke();
+            return true;
         }
 
         /// <summary>헤더 수치 문구를 표시한다.</summary>

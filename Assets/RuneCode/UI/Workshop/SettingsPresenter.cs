@@ -2,7 +2,7 @@ using System;
 
 namespace RuneCode
 {
-    /// <summary>설정 탭 Presenter다. 피드백 설정 저장, 공용 확인 팝업을 거친 저장 초기화, 디버그 지급·해금을 처리한다.</summary>
+    /// <summary>설정 내용 Presenter다. 피드백 설정 저장, 공용 확인 팝업을 거친 저장 초기화, 디버그 지급·해금을 처리한다.</summary>
     public sealed class SettingsPresenter
     {
         private readonly RuneCodeSession _session;

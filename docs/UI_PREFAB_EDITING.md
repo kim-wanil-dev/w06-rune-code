@@ -33,14 +33,35 @@
 | InspectorButton / InspectorDeleteButton | 인스펙터 조작 버튼과 삭제 버튼 |
 | UiText / UiInput / UiScrollList | 공통 생성 텍스트, 입력창, 스크롤 목록 원본 |
 | MissionTimer | 일반 TimerLabel / Warning 표시. 타이머 문구는 두 텍스트에 동일하게 갱신됨 |
-| UpgradeTreeConnection | 선행 조건 미충족 Locked / 충족 Satisfied 연결선 |
+| UpgradeTreeConnection | 양 끝 노드 중 미학습 노드가 있는 Locked / 양쪽을 모두 배운 Satisfied 연결선 |
 | GraphNodeLabel | 그래프 노드의 라벨 원본 |
 | GraphVisualStyle | 그래프 배경, 격자, 노드, 연결선, 포트, 선택 표시의 색상 템플릿 |
 | PopupShade / UiHitArea | 화면 생성 도구에서 쓰는 팝업 차단 배경 / 투명 입력 영역 |
 
-강화 노드 원본은 `Assets/RuneCode/Prefabs/UI/UpgradeTreeNode.prefab`이다. Locked / Available / Partial / Max / InsufficientScrap 자식의 Image를 각각 편집한다. 구매 완료, 일부 강화, 선행 조건 미충족, 비용 부족을 서로 다른 모습으로 설정할 수 있다. 효과 아이콘은 기존 Icon / SpriteIcon과 강화 트리 SO의 아이콘 연결을 사용한다.
+강화 노드 원본은 `Assets/RuneCode/Prefabs/UI/UpgradeTreeNode.prefab`이다. Locked / Available / Partial / Max 자식의 Image를 각각 편집한다. 루트 Image는 Source Image 없이 Alpha 0인 투명 클릭 영역으로 유지한다. 표시용 이미지를 루트에 넣지 말고 각 상태 자식에 넣는다. 효과 아이콘은 기존 Icon / SpriteIcon과 강화 트리 SO의 아이콘 연결을 사용한다.
+
+강화 노드는 회색 테두리와 채도를 높인 배경색을 포함한 `Tree_FourCorners_상태_Vivid_128.png`를 사용한다. 상태 자식의 Image Color는 흰색이다. UiStateVisual의 States 순서는 Locked(0), Available(1), Partial(2), Max(3)이며 Selectable은 루트 Button을 참조한다. 비용 부족 전용 상태는 제거했다. 비용이 부족해도 개방 여부와 학습 레벨에 맞는 모습을 유지하며 구매는 차단하고 툴팁에 필요한 비용을 표시한다.
+
+연결선은 양 끝 노드가 모두 1레벨 이상일 때만 Satisfied로 바뀐다. 선행 노드를 배우기만 했거나 디버그 모드로 선행 조건을 무시할 수 있어도, 다음 노드를 배우기 전에는 기본 Locked 표시를 유지한다. MAX까지 강화할 필요는 없다.
 
 화면 전체 배치는 기존 `Assets/RuneCode/Resources/RuneCode/UI/WorkshopScreen.prefab`, `MissionScreen.prefab` 및 각 Popup 프리팹에서 편집한다. 공통 일반 버튼과 패널은 기존 `Assets/RuneCode/Prefabs/UI/UiButton.prefab`, `UiPanel.prefab`을 사용한다.
+
+## 작업실 탐색과 설정 팝업
+
+작업실 탭은 **룬 설계 / 강화 트리** 두 개만 사용한다. 시간제 전투 진입 버튼과 설정 버튼은 `UiButton` 일반 버튼이며, `TabButton`의 선택 상태를 사용하지 않는다.
+
+| 편집 대상 | 프리팹과 위치 |
+| --- | --- |
+| 룬 설계·강화 트리 탭 | `WorkshopScreen.prefab` → `Page/HeaderArea/BtnArea/editorTabButton`, `treeTabButton` |
+| 설정 열기 버튼 | `WorkshopScreen.prefab` → `Page/HeaderArea/BtnArea/settingsButton` |
+| 시간제 전투 진입 버튼 | `WorkshopScreen.prefab` → `Page/HeaderArea/stageButton` |
+| 스테이지 선택의 뒤로가기 버튼 | `WorkshopScreen.prefab` → `Page/HeaderArea/BtnArea/BackButton` |
+| 설정 창 배치·배경·닫기 | `SettingsPopup.prefab` → `Card`, `Card/Content`, `Card/CloseButton` |
+| 설정 창의 검은 딤 배경 | `SettingsPopup.prefab` → `PopupShade`의 Image Color `(0, 0, 0, 0.7)` |
+
+`SettingsPopup.prefab`은 `Assets/RuneCode/Resources/RuneCode/UI/`에 있다. 기존 화면 흔들림, 히트스톱, 저장 초기화와 디버그 설정 참조를 이 팝업으로 옮겼다. 배경은 입력을 차단하며 닫기 버튼 또는 Esc로 닫는다. 딤 색상은 이 팝업 인스턴스의 프리팹 Override이므로 공용 `PopupShade.prefab`을 바꿀 필요가 없다.
+
+스테이지 선택 중에는 두 탭과 전투 진입 버튼을 숨기고 뒤로가기를 표시한다. 뒤로가기 또는 Esc는 진입 직전에 보던 룬 설계·강화 트리로 돌아간다. 설정 팝업을 열거나 닫아도 현재 화면은 유지한다. 이동할 버튼을 직접 배치한 뒤에는 `WorkshopScreen` 컴포넌트의 Tab Buttons(룬 설계, 강화 트리 순서), Deploy Button, Settings Button, Back Button 참조를 유지한다. 팝업의 Panel과 Close Button 참조도 유지한다.
 
 ## 상태 편집 방법
 
