@@ -116,6 +116,24 @@ Color Multiplier는 1, Fade Duration은 0.08초이다. 상태별 배경 자식�
 
 제목·설명과 포트 행은 별도 TMP 라벨로 표시한다. 포트 행의 중심 Y는 GraphNodeLayout의 실제 포트 좌표를 사용하며, 확대·축소와 노드 이동에도 점과 이름이 함께 움직인다. 첫 포트는 노드 상단에서 52px, 이후는 23px 간격이며 제목·설명을 위한 공간을 포함해 노드 높이를 계산한다. 지원 중단 출력은 기존 연결이 있을 때만 표시하고 취소선을 유지한다. 글자 색상과 글꼴 자산은 기존 GraphNodeLabel 프리팹에서 편집한다.
 
+## 스테이지 출현 적 미리보기
+
+`Assets/RuneCode/Resources/RuneCode/UI/WorkshopScreen.prefab`의 `DeployTab/DeployCard`에서 편집한다. `EnemyPreview`는 스테이지 선택 제목과 스테이지 변경 버튼 사이에 있으며, 선택한 1~10스테이지의 출현 적만 표시한다. 일반 출현 후보·웨이브·엘리트 편성과 캐리어 생성 설정을 읽으므로 스테이지별 적 목록을 UI 코드에 별도로 작성하지 않는다. 분열체는 최초 개체만 표시하고, 분열 후 생기는 중형·소형 개체는 추가하지 않는다.
+
+| 편집 대상 | 위치 및 방법 |
+| --- | --- |
+| 카드 공통 배치 | `Assets/RuneCode/Prefabs/UI/StageEnemyPreviewRow.prefab`의 Background, Icon, Name, Description. 이미지 → 이름 → 설명 순서의 세로 배치다. |
+| 각 적의 이미지·이름·한 줄 설명 | WorkshopScreen의 `EnemyPreview/EnemyGrid/적 ID` 인스턴스. Icon/Body와 Icon/Core의 Sprite·Color, Name·Description의 TMP 텍스트를 편집한다. |
+| 목록 열 수·간격 | EnemyGrid의 Grid Layout Group. 현재 6열, 행 높이 102, 간격 (6, 6)이다. 열 수를 바꾸면 Cell Size와 미리보기 영역 높이도 조정한다. |
+| 보스 배너 | `Assets/RuneCode/Prefabs/UI/BossStageBanner.prefab`. WorkshopScreen의 BossStageBanner 인스턴스에서 위치를 편집한다. |
+| 보스 카드 강조 | EnemyGrid의 `boss.governor` 인스턴스에서 Background와 Name의 색상을 편집한다. |
+
+5·10스테이지는 스테이지 데이터의 IsBoss에 따라 보스 배너가 표시된다. 색상·이미지·설명은 프리팹 설정을 사용하고, 실행 중 코드는 카드와 배너의 활성 상태만 바꾼다. 설명은 한 줄이며 긴 문구는 자동 크기 조절 후 말줄임 처리된다.
+
+새 적을 표시하려면 EnemyGrid에 StageEnemyPreviewRow를 중첩하고 이미지·이름·설명을 설정한 뒤, DeployTab의 DeployPanel 컴포넌트에서 Enemy Previews 배열에 해당 Enemy Id와 카드 Root를 연결한다. 캐리어가 생성하는 적도 개별 카드 연결이 필요하다. 기존 카드의 오브젝트 이름만 바꿀 때는 배열의 Root 참조를 유지한다.
+
+디버그 모드로 새로 시작하거나 저장 초기화를 하면, 효과 표에 실제 값이 정의된 모든 Modifier 종류·등급을 각각 9개씩 가진다. 효과 값이 null인 등급은 지급하지 않는다. 디버그에서는 스테이지 변경 버튼으로 클리어 여부와 관계없이 이동할 수 있으며, 일반 모드의 보유량·스테이지 해금 기록과 저장 파일에는 영향을 주지 않는다.
+
 ## 코드가 계속 담당하는 항목
 
 - 강화 노드 위치·선행 관계·효과 아이콘은 Upgrade Tree SO, 연결선 길이·각도는 해당 노드 위치에 따라 결정된다.

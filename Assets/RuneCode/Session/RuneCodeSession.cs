@@ -12,6 +12,8 @@ namespace RuneCode
     /// </summary>
     public sealed class RuneCodeSession
     {
+        private const int DEBUG_MODIFIER_STOCK = 9;
+
         private PlayerSave _save;
         private PlayerSave _normalSave;
         private readonly StageCatalog _stages;
@@ -46,6 +48,7 @@ namespace RuneCode
         public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
+        public StageDefinition SelectedStageDefinition => _stages.Get(SelectedStage);
         public int HighestClearedStage => _save.HighestClearedStage;
 
         /// <summary>화면 전환 요청을 받는 콜백이다. RuneCodeApp만 등록한다.</summary>
@@ -193,11 +196,11 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>해금 범위 안의 출격 스테이지를 선택하고 저장한다.</summary>
+        /// <summary>출격 스테이지를 선택하고 저장한다. 디버그 모드에서는 클리어에 따른 선택 제한을 무시한다.</summary>
         public void SelectStage(int stage)
         {
-            if (stage < 1 || stage > HighestClearedStage + 1) return;
-            _save.SelectStage(stage);
+            if (stage < 1 || (!_isDebugEnabled && stage > HighestClearedStage + 1)) return;
+            _save.SelectStage(stage, _isDebugEnabled);
             PersistProgress();
         }
 
@@ -332,7 +335,7 @@ namespace RuneCode
             if (!_isDebugEnabled) SaveStore.Write(_save);
         }
 
-        /// <summary>디버그 진행에 배치 여부와 관계없이 SO의 모든 룬 해금 노드를 적용한다.</summary>
+        /// <summary>새 디버그 진행에 SO의 모든 룬 해금을 적용하고 유효한 Modifier 등급별 소지량을 9개로 채운다.</summary>
         private void UnlockDebugRunes()
         {
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
@@ -341,6 +344,12 @@ namespace RuneCode
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.UnplacedNodes)
                 if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock)
                     _save.Unlock(node.RuneId);
+            foreach (RuneDefinition rune in GameData.Runes.All)
+            {
+                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER) continue;
+                foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
+                    _save.AddModifierStock(rune.Id, grade, DEBUG_MODIFIER_STOCK - _save.GetModifierStock(rune.Id, grade));
+            }
         }
 
         /// <summary>배치된 모든 룬의 RAM을 합산한다.</summary>
