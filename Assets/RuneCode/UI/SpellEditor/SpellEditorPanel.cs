@@ -10,7 +10,7 @@ namespace RuneCode
     /// <summary>
     /// 비주얼 스크립팅 편집 View다. 마법 제목 줄·지표, 룬 팔레트, 노드 그래프, 인스펙터, 편집 도구줄, 튜토리얼 문구를 표시하고
     /// 버튼·검색 입력을 이벤트로 알린다. 편집 진행은 SpellEditorPresenter가 하고, 보관함·공유 등은 Popup 층 팝업으로 연다.
-    /// 레이아웃과 직렬화 참조는 처음 한 번 UI/Editor/Layouts/SpellEditorLayout이 만들고 이후에는 Prefab에서 직접 편집한다.
+    /// 레이아웃과 직렬화 참조는 저장된 Prefab에서 직접 관리한다.
     /// </summary>
     public sealed class SpellEditorPanel : MonoBehaviour
     {

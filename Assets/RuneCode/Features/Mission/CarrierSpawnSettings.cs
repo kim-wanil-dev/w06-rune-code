@@ -36,7 +36,7 @@ namespace RuneCode
         {
             GameObject prefab = Resources.Load<GameObject>(RESOURCE_PATH);
             if (prefab == null || !prefab.TryGetComponent(out CarrierSpawnSettings settings))
-                throw new InvalidOperationException("캐리어 Prefab 설정이 없습니다. Rune Code > Prepare Additional Enemies를 실행하세요.");
+                throw new InvalidOperationException("캐리어 Prefab 설정이 없습니다: Resources/" + RESOURCE_PATH);
             return settings.CreateDefinition();
         }
     }

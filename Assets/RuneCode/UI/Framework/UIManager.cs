@@ -111,14 +111,13 @@ namespace RuneCode
 
         /// <summary>
         /// 층에 붙은 View T를 반환한다. 처음 요청이면 Resources의 RuneCode/UI/T 이름 Prefab에서 만들어 숨긴 채 보관한다.
-        /// Prefab이 없으면 예외를 던진다(Unity의 Rune Code &gt; Build UI로 생성한다).
+        /// Prefab이 없으면 기대한 Resources 경로를 포함한 예외를 던진다.
         /// </summary>
         public T GetView<T>(UiLayer layer) where T : UiView
         {
             if (_views.TryGetValue(typeof(T), out UiView cached)) return (T)cached;
             T prefab = Resources.Load<T>(VIEW_RESOURCE_FOLDER + typeof(T).Name);
-            if (prefab == null) throw new InvalidOperationException("UI Prefab이 없습니다: Resources/" + VIEW_RESOURCE_FOLDER + typeof(T).Name
-                + " (Rune Code > Build UI 실행 필요)");
+            if (prefab == null) throw new InvalidOperationException("UI Prefab이 없습니다: Resources/" + VIEW_RESOURCE_FOLDER + typeof(T).Name);
             T view = Instantiate(prefab, _layers[layer], false);
             view.name = typeof(T).Name;
             view.gameObject.SetActive(false);

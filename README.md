@@ -6,7 +6,7 @@
 
 `Builds/RuneCodePoC-ManualMods-Windows.zip`을 모두 압축 해제한 뒤 `RuneCodePoC.exe`를 실행한다. 실행 파일과 `_Data`, `UnityPlayer.dll`, `MonoBleedingEdge`를 함께 유지한다. 이전 빌드와 ZIP은 보존한다.
 
-Editor에서는 `Assets/Scenes/RuneCodePoC.unity`를 열고 Play한다. `Rune Code > Prepare PoC Scene`은 기존 장면과 글꼴 연결을 유지하며 한국어 문자를 준비한다. `Rune Code > Build Windows PoC`의 출력은 `Builds/RuneCodePoC-ManualMods/RuneCodePoC.exe`다.
+Editor에서는 `Assets/Scenes/Boot.unity`를 열고 Play한다.
 
 ## 플레이 흐름
 
@@ -94,6 +94,6 @@ JSON에는 피해, DPS, 에너지 사용량, 실행 횟수·시간, 상태 해�
 
 ## 데이터와 검증
 
-`Assets/RuneCode/Resources/RuneCode/stages.json`은 맵 크기·스폰 반경 여유·스테이지별 기본 흐름(후보·간격·끝 시각)과 웨이브·보스 제한시간·성장 계수·적 보상을, `formations.json`은 스폰 진형(흩뿌림·포위·일렬)의 기본값을, `balance.json`은 성장 가격·증가량·실행 상한을 관리한다. 게임 규칙은 기존 Core, 표시와 플레이어 입력 연결은 UI(미션 전투는 `UI/Mission/World`의 월드 오브젝트와 미션 카메라), 저장은 Save에서 처리한다. 미션 씬만 다시 만들 때는 `Rune Code > Build Mission Scene`을 쓴다.
+`Assets/RuneCode/Resources/RuneCode/stages.json`은 맵 크기·스폰 반경 여유·스테이지별 기본 흐름(후보·간격·끝 시각)과 웨이브·보스 제한시간·성장 계수·적 보상을, `formations.json`은 스폰 진형(흩뿌림·포위·일렬)의 기본값을, `balance.json`은 성장 가격·증가량·실행 상한을 관리한다. 게임 규칙은 기존 Core, 표시와 플레이어 입력 연결은 UI(미션 전투는 `UI/Mission/World`의 월드 오브젝트와 미션 카메라), 저장은 Save에서 처리한다.
 
 검증 이력은 `docs/history/PROGRESS.md`, 변경 결정은 `docs/decisions/DECISIONS.md`에 기록한다. AGENTS.md에 따라 Git CLI·커밋·push와 테스트 코드·자산 추가는 수행하지 않는다.
