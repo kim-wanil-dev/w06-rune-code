@@ -52,7 +52,7 @@ namespace RuneCode
             _quickPlacement = quickPlacement;
             _viewport = new GraphViewport(rectTransform);
             _layout = new GraphNodeLayout(_viewport, () => _editor.Graph);
-            _painter = new GraphMeshPainter(_viewport, _layout, _state);
+            _painter = new GraphMeshPainter(_viewport, _layout, _state, Resources.Load<GraphVisualStyle>("RuneCode/UI/Elements/GraphVisualStyle"));
             _labels = new GraphNodeLabels(rectTransform, font, _viewport, _layout);
             _placement = new GraphPlacement(() => _editor, _viewport);
             raycastTarget = true;

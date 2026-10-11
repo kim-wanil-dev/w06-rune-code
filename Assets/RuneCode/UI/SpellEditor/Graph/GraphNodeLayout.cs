@@ -12,10 +12,10 @@ namespace RuneCode
     internal sealed class GraphNodeLayout
     {
         public const float NODE_WIDTH = 160f;
-        public const float NODE_BASE_HEIGHT = 39f;
+        public const float NODE_BASE_HEIGHT = 51f;
 
         private const float PORT_SPACING = 23f;
-        private const float PORT_TOP_OFFSET = 40f;
+        private const float PORT_TOP_OFFSET = 52f;
         private const float PORT_HIT_RADIUS = 9f;
         private const float MIN_PORT_HIT_RADIUS = 8f;
         private const float EDGE_HIT_DISTANCE = 8f;

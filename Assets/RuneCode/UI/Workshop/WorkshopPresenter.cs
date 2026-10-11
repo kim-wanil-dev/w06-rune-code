@@ -5,7 +5,7 @@ using UnityEngine;
 namespace RuneCode
 {
     /// <summary>
-    /// 작업실 화면 Presenter다. 탭 Presenter(도크·강화 트리·출격·설정)를 조립하고 탭 전환, 헤더·상태줄, 도크 실행 하이라이트를 다룬다.
+    /// 작업실 화면 Presenter다. 도크·강화 트리·출격을 조립하고 두 탭 전환, 스테이지 선택 복귀, 설정 팝업과 헤더·상태줄을 다룬다.
     /// 편집 패널(SpellEditorPanel)의 ISpellEditorHost 역할을 맡는다.
     /// </summary>
     public sealed class WorkshopPresenter : ISpellEditorHost, IDisposable
@@ -19,9 +19,9 @@ namespace RuneCode
         private readonly DockPresenter _dock;
         private readonly UpgradeTreePresenter _upgradeTree;
         private readonly DeployPresenter _deploy;
-        private readonly SettingsPresenter _settings;
 
         private string _selectedTab = WorkshopScreen.TAB_EDITOR;
+        private string _returnTab = WorkshopScreen.TAB_EDITOR;
         private RuneSimulation _observedDock;
         private int _lastDockEventCount;
 
@@ -36,8 +36,10 @@ namespace RuneCode
             view.SpellEditor.Initialize(session.Spells, this, ui);
             _upgradeTree = new UpgradeTreePresenter(session, view.UpgradeTree, RefreshProgression);
             _deploy = new DeployPresenter(session, view.Deploy);
-            _settings = new SettingsPresenter(session, ui, view.Settings, ShowEditorTab, RefreshProgression);
             _view.TabClicked += SetTab;
+            _view.DeployClicked += OpenDeploy;
+            _view.SettingsClicked += OpenSettings;
+            _view.BackClicked += ReturnFromDeploy;
             _session.Spells.Compiled += RefreshHeader;
         }
 
@@ -67,6 +69,10 @@ namespace RuneCode
         /// <summary>컴파일 이벤트 구독을 풀고 도크 구동을 정리한다.</summary>
         public void Dispose()
         {
+            _view.TabClicked -= SetTab;
+            _view.DeployClicked -= OpenDeploy;
+            _view.SettingsClicked -= OpenSettings;
+            _view.BackClicked -= ReturnFromDeploy;
             _session.Spells.Compiled -= RefreshHeader;
             _dockRun.Dispose();
         }
@@ -94,8 +100,27 @@ namespace RuneCode
             }
             if (tab == WorkshopScreen.TAB_TREE) _upgradeTree.Refresh();
             if (tab == WorkshopScreen.TAB_DEPLOY) _deploy.Refresh();
-            if (tab == WorkshopScreen.TAB_SETTINGS) _settings.Refresh();
             RefreshHeader();
+        }
+
+        /// <summary>직전에 보던 룬 설계 또는 강화 트리 탭을 기억하고 스테이지 선택 화면을 연다.</summary>
+        private void OpenDeploy()
+        {
+            if (_selectedTab == WorkshopScreen.TAB_DEPLOY) return;
+            _returnTab = _selectedTab;
+            SetTab(WorkshopScreen.TAB_DEPLOY);
+        }
+
+        /// <summary>스테이지 선택에서 직전에 보던 작업실 탭으로 돌아간다.</summary>
+        private void ReturnFromDeploy()
+        {
+            if (_selectedTab == WorkshopScreen.TAB_DEPLOY) SetTab(_returnTab);
+        }
+
+        /// <summary>현재 화면을 유지한 채 설정 팝업을 열고 세션과 설정 변경 후 갱신 동작을 연결한다.</summary>
+        private void OpenSettings()
+        {
+            _ui.OpenPopup<SettingsPopup>().Configure(_session, _ui, ShowEditorTab, RefreshProgression);
         }
 
         /// <summary>도크를 다시 시작한 뒤 에디터 탭으로 전환하고 출격·헤더를 갱신한다.</summary>
@@ -118,8 +143,9 @@ namespace RuneCode
         /// <summary>보유 조각과 단일 마법의 RAM 사용량·용량을 헤더에 표시한다.</summary>
         private void RefreshHeader()
         {
-            _view.SetHeader(GameData.L("ui.fragments") + "  " + _session.Save.Currency + "   /   " + GameData.L("ui.capacity") + " "
-                + _session.EquippedRam + "/" + _session.Capacity);
+            //_view.SetHeader(GameData.L("ui.fragments") + "  " + _session.Save.Currency + "   /   " + GameData.L("ui.capacity") + " "
+            //    + _session.EquippedRam + "/" + _session.Capacity);
+            _view.SetHeader(GameData.L("ui.fragments") + "  " + _session.Save.Currency);
         }
 
         /// <summary>팝업이 열려 있어 도크 클릭 시전을 막아야 하는지 반환한다.</summary>

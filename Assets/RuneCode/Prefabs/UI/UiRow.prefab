@@ -139,6 +139,7 @@ MonoBehaviour:
   _button: {fileID: 1177883024519998316}
   _background: {fileID: 8560359988346295049}
   _label: {fileID: 8229026165395197983}
+  _visual: {fileID: 0}
 --- !u!114 &8229026165395197983 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}

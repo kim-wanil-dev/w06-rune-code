@@ -46,7 +46,7 @@ namespace RuneCode
         /// <summary>마법 이름·ID 행을 하나 추가하고 클릭 동작을 연결한다.</summary>
         public void AddSpell(string name, string id, Action onClick)
         {
-            _rows.Get().Configure(name + "\n" + id, UiTheme.Cyan, 50, onClick, 12);
+            _rows.Get().Configure(name + "\n" + id, 50, onClick, 12);
         }
     }
 }

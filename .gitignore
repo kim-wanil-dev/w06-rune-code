@@ -111,6 +111,8 @@ InitTestScene*.unity*
 # Personal notes (not shared)
 /[Aa]ssets/Docs~/
 
+/Assets/Docs/
+
 # 테이블 편집기 빌드 산출물
 tools/TableEditor/bin/
 tools/TableEditor/obj/
