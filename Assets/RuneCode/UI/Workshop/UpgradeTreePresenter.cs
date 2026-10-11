@@ -32,7 +32,7 @@ namespace RuneCode
             {
                 if (node != null) RefreshNode(node);
             }
-            _view.SetConnectionStates((nodeId, requiredLevel) => _session.IsDebugEnabled || _session.GetUpgradeNodeLevel(nodeId) >= requiredLevel);
+            _view.SetConnectionStates(nodeId => _session.GetUpgradeNodeLevel(nodeId) > 0);
             if (!string.IsNullOrEmpty(_hoveredNodeId)) RefreshTooltip(_hoveredNodeId);
         }
 

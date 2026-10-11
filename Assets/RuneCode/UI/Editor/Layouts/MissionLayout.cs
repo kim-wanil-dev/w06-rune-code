@@ -64,7 +64,7 @@ namespace RuneCode
                 idList.arraySize = ids.Length;
                 for (int i = 0; i < ids.Length; i++)
                 {
-                    Button spawn = ui.Button(card, 24 + i % 2 * 226, 535 + i / 2 * 24, 218, 22, GameData.L(ids[i]), null, UiTheme.Muted, 11, "AdditionalSpawn" + i);
+                    Button spawn = ui.Button(card, 24 + i % 2 * 226, 535 + i / 2 * 24, 218, 22, GameData.L(ids[i]), null, 11, "AdditionalSpawn" + i);
                     buttons.GetArrayElementAtIndex(i).objectReferenceValue = spawn;
                     idList.GetArrayElementAtIndex(i).stringValue = ids[i];
                 }
@@ -83,26 +83,29 @@ namespace RuneCode
             MissionScreen screen = page.gameObject.AddComponent<MissionScreen>();
             MissionHud hud = page.gameObject.AddComponent<MissionHud>();
 
-            ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, TOP_BAR_HEIGHT, UiTheme.Panel, "TopBar");
-            TextMeshProUGUI hpCaption = ui.Text(page, 18, 11, 238, 24, GameData.L("ui.hp"), 12, UiTheme.Muted, FontStyles.Normal, "HpCaption");
-            ui.Panel(page, 18, 40, 238, 9, new Color(0.20f, 0.15f, 0.20f), "HpTrack");
-            Image hpFill = ui.Panel(page, 18, 40, 238, 9, new Color(1f, 0.38f, 0.4f), "HpFill").GetComponent<Image>();
-            TextMeshProUGUI energyCaption = ui.Text(page, 282, 11, 238, 24, GameData.L("ui.energy"), 12, UiTheme.Muted, FontStyles.Normal, "EnergyCaption");
-            ui.Panel(page, 282, 40, 238, 9, new Color(0.1f, 0.2f, 0.28f), "EnergyTrack");
-            Image energyFill = ui.Panel(page, 282, 40, 238, 9, UiTheme.Cyan, "EnergyFill").GetComponent<Image>();
-            TextMeshProUGUI stageLabel = ui.Text(page, 542, 10, 280, 23, "", 16, Color.white, FontStyles.Bold, "StageLabel");
-            TextMeshProUGUI statsLabel = ui.Text(page, 542, 37, 280, 26, "", 15, UiTheme.Cyan, FontStyles.Normal, "StatsLabel");
-            TextMeshProUGUI timerLabel = ui.Text(page, 836, 14, 274, 50, "", 29, new Color(0.98f, 0.82f, 0.45f), FontStyles.Bold, "TimerLabel");
+            ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, TOP_BAR_HEIGHT, "TopBar");
+            TextMeshProUGUI hpCaption = ui.Text(page, 18, 11, 238, 24, GameData.L("ui.hp"), 12, FontStyles.Normal, "HpCaption");
+            ui.Panel(page, 18, 40, 238, 9, "HpTrack");
+            Image hpFill = ui.Panel(page, 18, 40, 238, 9, "HpFill").GetComponent<Image>();
+            TextMeshProUGUI energyCaption = ui.Text(page, 282, 11, 238, 24, GameData.L("ui.energy"), 12, FontStyles.Normal, "EnergyCaption");
+            ui.Panel(page, 282, 40, 238, 9, "EnergyTrack");
+            Image energyFill = ui.Panel(page, 282, 40, 238, 9, "EnergyFill").GetComponent<Image>();
+            TextMeshProUGUI stageLabel = ui.Text(page, 542, 10, 280, 23, "", 16, FontStyles.Bold, "StageLabel");
+            TextMeshProUGUI statsLabel = ui.Text(page, 542, 37, 280, 26, "", 15, FontStyles.Normal, "StatsLabel");
+            GameObject timer = (GameObject)PrefabUtility.InstantiatePrefab(LayoutUtility.Element<UiStateVisual>("MissionTimer").gameObject, page);
+            LayoutUtility.SetTopLeftRect((RectTransform)timer.transform, 836, 14, 274, 50);
+            TextMeshProUGUI timerLabel = timer.transform.Find("TimerLabel").GetComponent<TextMeshProUGUI>();
+            TextMeshProUGUI timerWarningLabel = timer.transform.Find("Warning").GetComponent<TextMeshProUGUI>();
             timerLabel.enableAutoSizing = true;
             timerLabel.fontSizeMin = TIMER_MIN_FONT_SIZE;
             timerLabel.fontSizeMax = 29;
-            Button pauseButton = ui.Button(page, 1142, 18, 114, 34, GameData.L("ui.pause"), null, UiTheme.Muted, 14, "PauseButton");
+            Button pauseButton = ui.Button(page, 1142, 18, 114, 34, GameData.L("ui.pause"), null, 14, "PauseButton");
 
-            ui.Panel(page, 0, UiTheme.SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT, UiTheme.SCREEN_WIDTH, BOTTOM_BAR_HEIGHT, UiTheme.Panel, "BottomBar");
-            TextMeshProUGUI spellLabel = ui.Text(page, 270, 661, 968, 30, "", 17, UiTheme.Cyan, FontStyles.Normal, "SpellLabel");
-            ui.Text(page, 20, 698, 1220, 19, GameData.L("ui.manualBattleControls"), 11, UiTheme.Muted, FontStyles.Normal, "ControlsHint");
-            TextMeshProUGUI fragmentToast = ui.Text(page, 46, 98, 300, 35, "", 18, new Color(0.4f, 0.97f, 0.77f), FontStyles.Normal, "FragmentToast");
-            Button debugButton = ui.Button(page, 20, 654, 116, 36, GameData.L("ui.debug"), null, UiTheme.Muted, 11, "DebugButton");
+            ui.Panel(page, 0, UiTheme.SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT, UiTheme.SCREEN_WIDTH, BOTTOM_BAR_HEIGHT, "BottomBar");
+            TextMeshProUGUI spellLabel = ui.Text(page, 270, 661, 968, 30, "", 17, FontStyles.Normal, "SpellLabel");
+            ui.Text(page, 20, 698, 1220, 19, GameData.L("ui.manualBattleControls"), 11, FontStyles.Normal, "ControlsHint");
+            TextMeshProUGUI fragmentToast = ui.Text(page, 46, 98, 300, 35, "", 18, FontStyles.Normal, "FragmentToast");
+            Button debugButton = ui.Button(page, 20, 654, 116, 36, GameData.L("ui.debug"), null, 11, "DebugButton");
 
             ResultPanel resultPanel = BuildResultPanel(ui, page);
 
@@ -117,6 +120,8 @@ namespace RuneCode
             LayoutUtility.SetReference(hud, "_stageLabel", stageLabel);
             LayoutUtility.SetReference(hud, "_statsLabel", statsLabel);
             LayoutUtility.SetReference(hud, "_timerLabel", timerLabel);
+            LayoutUtility.SetReference(hud, "_timerWarningLabel", timerWarningLabel);
+            LayoutUtility.SetReference(hud, "_timerVisual", timer.GetComponent<UiStateVisual>());
             LayoutUtility.SetReference(hud, "_spellLabel", spellLabel);
             LayoutUtility.SetReference(hud, "_fragmentToast", fragmentToast);
             LayoutUtility.SetReference(hud, "_pauseButton", pauseButton);
@@ -128,21 +133,21 @@ namespace RuneCode
         /// <summary>정산 문구, 개선·재도전 버튼과 숨긴 클리어 Modifier 선택 버튼 3개의 전체 화면 결과 패널을 만들고 참조를 연결해 반환한다. 처음에는 숨겨 둔다.</summary>
         private static ResultPanel BuildResultPanel(UiFactory ui, RectTransform page)
         {
-            RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "ResultPanel");
+            RectTransform resultRoot = ui.Panel(page, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, "ResultPanel");
             resultRoot.GetComponent<Image>().raycastTarget = true;
-            RectTransform resultCard = ui.Panel(resultRoot, 92, 72, 1096, 570, UiTheme.Panel, "Card");
-            ui.Text(resultCard, 40, 32, 1016, 48, GameData.L("ui.result"), 34, Color.white, FontStyles.Bold, "Title");
-            TextMeshProUGUI summary = ui.Text(resultCard, 40, 108, 1016, 108, "", 26, UiTheme.Cyan, FontStyles.Normal, "Summary");
-            TextMeshProUGUI stage = ui.Text(resultCard, 40, 250, 1016, 35, "", 23, Color.white, FontStyles.Normal, "Stage");
-            TextMeshProUGUI progress = ui.Text(resultCard, 40, 308, 1016, 35, "", 22, UiTheme.Muted, FontStyles.Normal, "Progress");
-            ui.Text(resultCard, 40, 366, 1016, 64, GameData.L("ui.improveHint"), 20, UiTheme.Muted, FontStyles.Normal, "Hint");
-            Button improveButton = ui.Button(resultCard, 40, 464, 344, 58, GameData.L("ui.improveSpell"), null, UiTheme.Cyan, 20, "ImproveButton");
-            Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, UiTheme.Muted, 20, "RetryButton");
+            RectTransform resultCard = ui.Panel(resultRoot, 92, 72, 1096, 570, "Card");
+            ui.Text(resultCard, 40, 32, 1016, 48, GameData.L("ui.result"), 34, FontStyles.Bold, "Title");
+            TextMeshProUGUI summary = ui.Text(resultCard, 40, 108, 1016, 108, "", 26, FontStyles.Normal, "Summary");
+            TextMeshProUGUI stage = ui.Text(resultCard, 40, 250, 1016, 35, "", 23, FontStyles.Normal, "Stage");
+            TextMeshProUGUI progress = ui.Text(resultCard, 40, 308, 1016, 35, "", 22, FontStyles.Normal, "Progress");
+            ui.Text(resultCard, 40, 366, 1016, 64, GameData.L("ui.improveHint"), 20, FontStyles.Normal, "Hint");
+            Button improveButton = ui.Button(resultCard, 40, 464, 344, 58, GameData.L("ui.improveSpell"), null, 20, "ImproveButton");
+            Button retryButton = ui.Button(resultCard, 412, 464, 344, 58, GameData.L("ui.retryStage"), null, 20, "RetryButton");
             var clearChoiceButtons = new Button[RESULT_CLEAR_CHOICE_COUNT];
             for (int i = 0; i < clearChoiceButtons.Length; i++)
             {
                 clearChoiceButtons[i] = ui.Button(resultRoot, RESULT_CLEAR_CHOICE_LEFT + i * (RESULT_CLEAR_CHOICE_WIDTH + RESULT_CLEAR_CHOICE_GAP), RESULT_CLEAR_CHOICE_TOP,
-                    RESULT_CLEAR_CHOICE_WIDTH, RESULT_CLEAR_CHOICE_HEIGHT, "", null, UiTheme.Cyan, 20, "ClearChoiceButton" + i);
+                    RESULT_CLEAR_CHOICE_WIDTH, RESULT_CLEAR_CHOICE_HEIGHT, "", null, 20, "ClearChoiceButton" + i);
                 clearChoiceButtons[i].gameObject.SetActive(false);
             }
 
@@ -163,10 +168,10 @@ namespace RuneCode
             if (LayoutUtility.ViewPrefabExists(nameof(PausePopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(PausePopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.pause"), PAUSE_WIDTH, PAUSE_HEIGHT, out Button closeButton);
-            Button resumeButton = ui.Button(card, 28, 90, 444, 48, GameData.L("ui.resume"), null, UiTheme.Cyan, 19, "ResumeButton");
-            Button shakeButton = ui.Button(card, 28, 155, 444, 42, "", null, UiTheme.Muted, 16, "ShakeButton");
-            Button hitStopButton = ui.Button(card, 28, 214, 444, 42, "", null, UiTheme.Muted, 16, "HitStopButton");
-            Button retreatButton = ui.Button(card, 28, 292, 444, 48, GameData.L("ui.retreat"), null, UiTheme.Muted, 18, "RetreatButton");
+            Button resumeButton = ui.Button(card, 28, 90, 444, 48, GameData.L("ui.resume"), null, 19, "ResumeButton");
+            Button shakeButton = ui.Button(card, 28, 155, 444, 42, "", null, 16, "ShakeButton");
+            Button hitStopButton = ui.Button(card, 28, 214, 444, 42, "", null, 16, "HitStopButton");
+            Button retreatButton = ui.Button(card, 28, 292, 444, 48, GameData.L("ui.retreat"), null, 18, "RetreatButton");
 
             PausePopup popup = root.gameObject.AddComponent<PausePopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
@@ -185,13 +190,13 @@ namespace RuneCode
             if (LayoutUtility.ViewPrefabExists(nameof(MissionDebugPopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(MissionDebugPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.debug"), DEBUG_WIDTH, DEBUG_HEIGHT, out Button closeButton);
-            Button grantButton = ui.Button(card, 24, 82, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "GrantButton");
-            Button unlockButton = ui.Button(card, 24, 147, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "UnlockButton");
-            Button invulnerableButton = ui.Button(card, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, UiTheme.Muted, 14, "InvulnerableButton");
-            Button spawnButton = ui.Button(card, 24, 277, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "SpawnButton");
-            Button eliteSpawnButton = ui.Button(card, 24, 342, 444, 48, GameData.L("ui.spawnElite"), null, UiTheme.Muted, 14, "EliteSpawnButton");
-            Button splitterSpawnButton = ui.Button(card, 24, 407, 444, 48, GameData.L("ui.spawnSplitter"), null, UiTheme.Muted, 14, "SplitterSpawnButton");
-            Button splitterEliteSpawnButton = ui.Button(card, 24, 472, 444, 48, GameData.L("ui.spawnEliteSplitter"), null, UiTheme.Muted, 14, "SplitterEliteSpawnButton");
+            Button grantButton = ui.Button(card, 24, 82, 444, 48, GameData.L("ui.grant"), null, 14, "GrantButton");
+            Button unlockButton = ui.Button(card, 24, 147, 444, 48, GameData.L("ui.unlockAll"), null, 14, "UnlockButton");
+            Button invulnerableButton = ui.Button(card, 24, 212, 444, 48, GameData.L("ui.invulnerable"), null, 14, "InvulnerableButton");
+            Button spawnButton = ui.Button(card, 24, 277, 444, 48, GameData.L("ui.spawn"), null, 14, "SpawnButton");
+            Button eliteSpawnButton = ui.Button(card, 24, 342, 444, 48, GameData.L("ui.spawnElite"), null, 14, "EliteSpawnButton");
+            Button splitterSpawnButton = ui.Button(card, 24, 407, 444, 48, GameData.L("ui.spawnSplitter"), null, 14, "SplitterSpawnButton");
+            Button splitterEliteSpawnButton = ui.Button(card, 24, 472, 444, 48, GameData.L("ui.spawnEliteSplitter"), null, 14, "SplitterEliteSpawnButton");
 
             MissionDebugPopup popup = root.gameObject.AddComponent<MissionDebugPopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);

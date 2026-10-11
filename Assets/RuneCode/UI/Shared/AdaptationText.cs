@@ -17,9 +17,9 @@ namespace RuneCode
                     bool isElement = tag == "fire" || tag == "ice" || tag == "arc" || tag == "raw";
                     float cap = isElement ? GameData.Balance.Adaptation.ElementCap : GameData.Balance.Adaptation.FormCap;
                     int filled = Mathf.Clamp(Mathf.RoundToInt((float)value / Mathf.Max(0.001f, cap) * 8), 0, 8);
-                    string locked = sim.Adaptation.IsLocked(tag) ? "<color=#FFC96B>*</color>" : "";
-                    text += "<color=#DDEBFA>" + GameData.L("tag." + tag) + "<pos=62>" + (value * 100).ToString("0") + "%</color>" + locked +
-                        "<pos=112><color=#344455>" + new string('■', 8) + "</color><pos=112><color=#BFB2FF>" + new string('■', filled) + "</color>\n";
+                    string locked = sim.Adaptation.IsLocked(tag) ? "*" : "";
+                    text += "" + GameData.L("tag." + tag) + "<pos=62>" + (value * 100).ToString("0") + "%" + locked +
+                        "<pos=112>" + new string('■', 8) + "<pos=112>" + new string('■', filled) + "\n";
                 }
                 else if (value > 0) text += GameData.L("tag." + tag) + " " + (value * 100).ToString("0") + "%  ";
             }

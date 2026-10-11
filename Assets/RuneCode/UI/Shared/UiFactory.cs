@@ -63,26 +63,24 @@ namespace RuneCode
             return rect;
         }
 
-        /// <summary>공통 패널 Prefab을 지정 위치에 배치하고 색상과 포인터 차단 여부를 설정한다.</summary>
-        public RectTransform Panel(Transform parent, float x, float y, float width, float height, Color tint, string name = "Panel")
+        /// <summary>공통 패널 Prefab을 지정 위치에 배치하고 포인터 차단 여부를 설정한다.</summary>
+        public RectTransform Panel(Transform parent, float x, float y, float width, float height, string name = "Panel")
         {
             GameObject instance = InstantiatePrefab(_panelPrefab, parent, name);
             RectTransform rect = Place(instance, x, y, width, height);
             Image image = instance.GetComponent<Image>();
-            image.color = tint;
             image.raycastTarget = false;
             return rect;
         }
 
-        /// <summary>지정 위치에 글꼴, 크기와 색상을 설정한 TMP 텍스트를 생성한다.</summary>
-        public TextMeshProUGUI Text(Transform parent, float x, float y, float width, float height, string value, float size, Color tint,
-            FontStyles style = FontStyles.Normal, string name = "Label")
+        /// <summary>지정 위치에 글꼴, 크기와 표시 내용을 설정한 TMP 텍스트를 생성한다.</summary>
+        public TextMeshProUGUI Text(Transform parent, float x, float y, float width, float height, string value, float size,
+            FontStyles style = FontStyles.Normal, string name = "Label", string prefabName = "UiText")
         {
-            RectTransform rect = Rect(parent, name, x, y, width, height);
-            TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+            RectTransform rect = Place(InstantiatePrefab(Resources.Load<GameObject>("RuneCode/UI/Elements/" + prefabName), parent, name), x, y, width, height);
+            TextMeshProUGUI text = rect.GetComponent<TextMeshProUGUI>();
             text.font = _font;
             text.fontSize = size;
-            text.color = tint;
             text.fontStyle = style;
             text.text = value;
             text.raycastTarget = false;
@@ -91,28 +89,19 @@ namespace RuneCode
             return text;
         }
 
-        /// <summary>강조 색 버튼을 생성하고 action이 있으면 실행 콜백을 연결한다. 에디터 베이크 시에는 action 없이 호출한다.</summary>
+        /// <summary>지정 버튼 프리팹을 배치하고 문구와 action 클릭 콜백을 연결한다. 표시 스타일은 프리팹에서 관리한다.</summary>
         public Button Button(Transform parent, float x, float y, float width, float height, string label, Action action = null,
-            Color? tint = null, float size = 14, string name = "Button")
+            float size = 14, string name = "Button", string prefabName = null)
         {
-            Color accent = tint ?? UiTheme.Muted;
-            GameObject instance = InstantiatePrefab(_buttonPrefab, parent, name);
+            GameObject instance = InstantiatePrefab(prefabName == null ? _buttonPrefab : Resources.Load<GameObject>("RuneCode/UI/Elements/" + prefabName), parent, name);
             RectTransform rect = Place(instance, x, y, width, height);
             Image image = instance.GetComponent<Image>();
-            image.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
             image.raycastTarget = true;
             Button button = instance.GetComponent<Button>();
-            button.targetGraphic = image;
-            ColorBlock colors = button.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.35f, 1.35f, 1.35f);
-            colors.pressedColor = new Color(0.65f, 0.85f, 1);
-            button.colors = colors;
             if (action != null) button.onClick.AddListener(() => action());
             TextMeshProUGUI text = instance.GetComponentInChildren<TextMeshProUGUI>(true);
             text.font = _font;
             text.fontSize = size;
-            text.color = accent;
             text.text = label;
             text.raycastTarget = false;
             text.alignment = TextAlignmentOptions.Midline;
@@ -122,18 +111,10 @@ namespace RuneCode
         /// <summary>문자 입력 필드를 TMP 뷰포트, 표시 문자와 안내 문구에 연결한다.</summary>
         public TMP_InputField Input(Transform parent, float x, float y, float width, float height, string value, string placeholder, string name = "Input")
         {
-            RectTransform rect = Panel(parent, x, y, width, height, UiTheme.InputBackground, name);
-            rect.GetComponent<Image>().raycastTarget = true;
-            TMP_InputField field = rect.gameObject.AddComponent<TMP_InputField>();
-            RectTransform viewport = Rect(rect, "TextViewport", 8, 4, width - 16, height - 8);
-            viewport.gameObject.AddComponent<RectMask2D>();
-            TextMeshProUGUI text = Text(viewport, 0, 0, width - 16, height - 8, "", 13, Color.white);
-            TextMeshProUGUI hint = Text(viewport, 0, 0, width - 16, height - 8, placeholder, 13, UiTheme.Muted);
-            field.textViewport = viewport;
-            field.textComponent = text;
-            field.placeholder = hint;
-            field.targetGraphic = rect.GetComponent<Image>();
+            RectTransform rect = Place(InstantiatePrefab(Resources.Load<GameObject>("RuneCode/UI/Elements/UiInput"), parent, name), x, y, width, height);
+            TMP_InputField field = rect.GetComponent<TMP_InputField>();
             field.text = value;
+            ((TMP_Text)field.placeholder).text = placeholder;
             field.fontAsset = _font;
             return field;
         }
@@ -141,29 +122,10 @@ namespace RuneCode
         /// <summary>마스킹된 스크롤 영역과 자동 높이의 세로 목록을 생성하고 콘텐츠를 반환한다.</summary>
         public static RectTransform ScrollList(Transform parent, string name, float x, float y, float width, float height)
         {
-            RectTransform root = Rect(parent, name, x, y, width, height);
-            ScrollRect scroll = root.gameObject.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            RectTransform viewport = Rect(root, "Viewport", 0, 0, width, height);
-            Image viewportImage = viewport.gameObject.AddComponent<Image>();
-            viewportImage.color = new Color(1, 1, 1, 0.005f);
-            viewportImage.raycastTarget = true;
-            Mask mask = viewport.gameObject.AddComponent<Mask>();
-            mask.showMaskGraphic = false;
-            RectTransform content = Rect(viewport, "Content", 0, 0, width - 8, height);
-            VerticalLayoutGroup layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 5;
-            layout.childControlWidth = true;
-            layout.childControlHeight = false;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-            ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.viewport = viewport;
-            scroll.content = content;
-            return content;
+            GameObject instance = UnityEngine.Object.Instantiate(Resources.Load<GameObject>("RuneCode/UI/Elements/UiScrollList"), parent, false);
+            instance.name = name;
+            Place(instance, x, y, width, height);
+            return instance.GetComponent<ScrollRect>().content;
         }
 
         /// <summary>지정된 부모 아래 공통 UI Prefab 인스턴스를 만들고 이름을 지정한다.</summary>

@@ -17,70 +17,41 @@ namespace RuneCode
         public const string ROW_PREFAB_PATH = PREFAB_FOLDER + "/UiRow.prefab";
         public const string VIEW_FOLDER = "Assets/RuneCode/Resources/" + UIManager.VIEW_RESOURCE_FOLDER;
 
+        /// <summary>독립 편집용 UI 요소 프리팹에서 지정 컴포넌트를 반환한다.</summary>
+        public static T Element<T>(string name) where T : Component
+        {
+            return AssetDatabase.LoadAssetAtPath<GameObject>(VIEW_FOLDER + "Elements/" + name + ".prefab").GetComponent<T>();
+        }
+
+        /// <summary>편집용 표시 프리팹을 부모 영역 전체를 채우는 중첩 인스턴스로 배치한다.</summary>
+        public static RectTransform FillElement(Transform parent, string name)
+        {
+            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(Element<RectTransform>(name).gameObject, parent);
+            RectTransform rect = (RectTransform)instance.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            return rect;
+        }
+
         /// <summary>공통 UI Prefab을 준비하고 프로젝트 한글 글꼴·Prefab 인스턴스 생성기를 연결한 UiFactory를 반환한다.</summary>
         public static UiFactory CreateFactory()
         {
             GameData.Load();
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FONT_PATH);
-            EnsureSharedPrefabs(font);
+            EnsureSharedPrefabs();
             GameObject panelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PANEL_PREFAB_PATH);
             GameObject buttonPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BUTTON_PREFAB_PATH);
             return new UiFactory(font, panelPrefab, buttonPrefab,
                 (prefab, parent) => (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent));
         }
 
-        /// <summary>공유 패널·버튼 Prefab이 없을 때 기본 구조로 만들고 기존 편집 자산은 보존한다.</summary>
-        private static void EnsureSharedPrefabs(TMP_FontAsset font)
+        /// <summary>화면 생성에 필요한 공통 패널·버튼 프리팹 원본이 있는지 확인한다.</summary>
+        private static void EnsureSharedPrefabs()
         {
-            EnsureFolder(PREFAB_FOLDER);
-            if (AssetDatabase.LoadAssetAtPath<GameObject>(PANEL_PREFAB_PATH) == null)
-            {
-                GameObject panel = new GameObject("UiPanel", typeof(RectTransform), typeof(UnityEngine.UI.Image));
-                RectTransform rect = panel.GetComponent<RectTransform>();
-                rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
-                rect.pivot = new Vector2(0, 1);
-                rect.sizeDelta = new Vector2(200, 80);
-                UnityEngine.UI.Image image = panel.GetComponent<UnityEngine.UI.Image>();
-                image.color = UiTheme.Panel;
-                image.raycastTarget = false;
-                SavePrefab(panel, "UiPanel");
-            }
-            if (AssetDatabase.LoadAssetAtPath<GameObject>(BUTTON_PREFAB_PATH) == null)
-            {
-                GameObject buttonObject = new GameObject("UiButton", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
-                RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
-                buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0, 1);
-                buttonRect.pivot = new Vector2(0, 1);
-                buttonRect.sizeDelta = new Vector2(180, 40);
-                UnityEngine.UI.Image image = buttonObject.GetComponent<UnityEngine.UI.Image>();
-                image.color = new Color(UiTheme.Muted.r * 0.19f + 0.03f, UiTheme.Muted.g * 0.19f + 0.05f, UiTheme.Muted.b * 0.19f + 0.07f);
-                image.raycastTarget = true;
-                UnityEngine.UI.Button button = buttonObject.GetComponent<UnityEngine.UI.Button>();
-                button.targetGraphic = image;
-                UnityEngine.UI.ColorBlock colors = button.colors;
-                colors.normalColor = Color.white;
-                colors.highlightedColor = new Color(1.35f, 1.35f, 1.35f);
-                colors.pressedColor = new Color(0.65f, 0.85f, 1);
-                button.colors = colors;
-
-                GameObject labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-                labelObject.transform.SetParent(buttonObject.transform, false);
-                RectTransform labelRect = labelObject.GetComponent<RectTransform>();
-                labelRect.anchorMin = Vector2.zero;
-                labelRect.anchorMax = Vector2.one;
-                labelRect.pivot = new Vector2(0.5f, 0.5f);
-                labelRect.offsetMin = new Vector2(6, 0);
-                labelRect.offsetMax = new Vector2(-6, 0);
-                TextMeshProUGUI label = labelObject.GetComponent<TextMeshProUGUI>();
-                label.font = font;
-                label.fontSize = 14;
-                label.color = UiTheme.Muted;
-                label.alignment = TextAlignmentOptions.Midline;
-                label.raycastTarget = false;
-                label.textWrappingMode = TextWrappingModes.Normal;
-                label.overflowMode = TextOverflowModes.Overflow;
-                SavePrefab(buttonObject, "UiButton");
-            }
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(PANEL_PREFAB_PATH) == null ||
+                AssetDatabase.LoadAssetAtPath<GameObject>(BUTTON_PREFAB_PATH) == null)
+                throw new System.InvalidOperationException("공통 UI 프리팹을 먼저 연결해야 합니다.");
         }
 
         /// <summary>대상 컴포넌트의 private 직렬화 필드에 오브젝트 참조를 기록한다.</summary>
@@ -137,7 +108,7 @@ namespace RuneCode
             UiRow existing = AssetDatabase.LoadAssetAtPath<UiRow>(ROW_PREFAB_PATH);
             if (existing != null) return existing;
             GameObject temp = new GameObject("Temp", typeof(RectTransform));
-            UnityEngine.UI.Button button = ui.Button(temp.transform, 0, 0, 320, 44, "", null, UiTheme.Muted, 12, "Button");
+            UnityEngine.UI.Button button = ui.Button(temp.transform, 0, 0, 320, 44, "", null, 12, "Button");
             GameObject row = button.gameObject;
             row.transform.SetParent(null, false);
             Object.DestroyImmediate(temp);
@@ -198,17 +169,15 @@ namespace RuneCode
 
         /// <summary>
         /// 팝업 공통 구조(화면 전체 딤 배경, 가운데 카드, 제목, 닫기 버튼)를 만들고 카드를 반환한다.
-        /// 루트의 딤 이미지가 아래 화면 입력을 막는다.
+        /// 딤 배경 프리팹이 아래 화면 입력을 막는다.
         /// </summary>
         public static RectTransform BuildPopupFrame(UiFactory ui, RectTransform root, string title, float width, float height,
             out UnityEngine.UI.Button closeButton)
         {
-            UnityEngine.UI.Image shade = root.gameObject.AddComponent<UnityEngine.UI.Image>();
-            shade.color = UiTheme.ModalShade;
-            shade.raycastTarget = true;
-            RectTransform card = ui.Panel(root, (UiTheme.SCREEN_WIDTH - width) / 2, (UiTheme.SCREEN_HEIGHT - height) / 2, width, height, UiTheme.Panel, "Card");
-            ui.Text(card, 24, 21, width - 90, 35, title, 24, Color.white, FontStyles.Bold, "Title");
-            closeButton = ui.Button(card, width - 60, 20, 36, 32, "×", null, UiTheme.Muted, 23, "CloseButton");
+            FillElement(root, "PopupShade");
+            RectTransform card = ui.Panel(root, (UiTheme.SCREEN_WIDTH - width) / 2, (UiTheme.SCREEN_HEIGHT - height) / 2, width, height, "Card");
+            ui.Text(card, 24, 21, width - 90, 35, title, 24, FontStyles.Bold, "Title");
+            closeButton = ui.Button(card, width - 60, 20, 36, 32, "×", null, 23, "CloseButton");
             return card;
         }
     }

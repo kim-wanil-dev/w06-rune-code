@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -29,6 +30,7 @@ namespace RuneCode
         [SerializeField] private Button[] _categoryButtons;
         [SerializeField] private RectTransform _runeList;
         [SerializeField] private UiRow _runeRowPrefab;
+        [SerializeField] private RunePaletteRowBinding[] _categoryRowPrefabs = Array.Empty<RunePaletteRowBinding>();
 
         [Header("그래프와 인스펙터")]
         [SerializeField] private RuneGraphCanvas _graphCanvas;
@@ -54,7 +56,7 @@ namespace RuneCode
         [SerializeField] private GameObject _buttonPrefab;
 
         private SpellEditorPresenter _presenter;
-        private ViewPool<UiRow> _paletteRows;
+        private readonly Dictionary<UiRow, ViewPool<UiRow>> _paletteRows = new Dictionary<UiRow, ViewPool<UiRow>>();
         private SpellInspectorView _inspector;
 
         /// <summary>노드 그래프 View다.</summary>
@@ -88,7 +90,6 @@ namespace RuneCode
         {
             if (_presenter != null) return;
             if (_font == null) _font = TMP_Settings.defaultFontAsset;
-            _paletteRows = new ViewPool<UiRow>(_runeRowPrefab, _runeList);
             _inspector = new SpellInspectorView(_inspectorPanel, new UiFactory(_font, _panelPrefab, _buttonPrefab), _parameterRowPrefab, _issueRowPrefab);
             BindButtons();
             _presenter = new SpellEditorPresenter(editor, host, ui, this);
@@ -127,13 +128,23 @@ namespace RuneCode
         public string SearchQuery => _searchField.text;
 
         /// <summary>팔레트 목록을 비운다. 이어서 AddPaletteRow로 채운다.</summary>
-        public void ClearPalette() => _paletteRows.ReleaseAll();
+        public void ClearPalette()
+        {
+            foreach (ViewPool<UiRow> rows in _paletteRows.Values) rows.ReleaseAll();
+        }
 
         /// <summary>팔레트 행을 추가하고 클릭·드래그 배치를 룬 등급과 연결한다.</summary>
-        public void AddPaletteRow(string label, Color accent, float height, Action onClick, string runeId, string grade, bool canPlace)
+        public void AddPaletteRow(string label, float height, Action onClick, string runeId, string grade, bool canPlace)
         {
-            UiRow row = _paletteRows.Get();
-            row.Configure(label, accent, height, onClick, 12);
+            string category = GameData.Runes.Get(runeId).Category;
+            UiRow prefab = RunePaletteRowBinding.Resolve(_categoryRowPrefabs, category, _runeRowPrefab);
+            if (!_paletteRows.TryGetValue(prefab, out ViewPool<UiRow> rows))
+            {
+                rows = new ViewPool<UiRow>(prefab, _runeList);
+                _paletteRows.Add(prefab, rows);
+            }
+            UiRow row = rows.Get();
+            row.Configure(label, height, onClick, 12);
             RunePaletteDrag drag = row.GetComponent<RunePaletteDrag>();
             if (drag == null) drag = row.gameObject.AddComponent<RunePaletteDrag>();
             drag.Initialize(_graphCanvas, runeId, grade, canPlace);
@@ -149,7 +160,14 @@ namespace RuneCode
             _presenter?.Dispose();
         }
 
-        /// <summary>제목 줄·팔레트·도구줄·튜토리얼 버튼과 검색 입력을 이벤트로 연결한다.</summary>
+        /// <summary>category에 해당하는 팔레트 탭의 선택 표시를 활성화한다.</summary>
+        public void ShowCategory(string category)
+        {
+            for (int i = 0; i < _categoryButtons.Length; i++)
+                _categoryButtons[i].GetComponent<TabButton>().SetSelected(CATEGORY_IDS[i] == category);
+        }
+
+        /// <summary>편집 버튼과 검색·분류 입력을 화면 이벤트에 연결한다.</summary>
         private void BindButtons()
         {
             _libraryButton.onClick.AddListener(() => LibraryClicked?.Invoke());

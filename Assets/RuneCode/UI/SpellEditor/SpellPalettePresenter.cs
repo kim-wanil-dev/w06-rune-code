@@ -6,12 +6,11 @@ namespace RuneCode
 {
     /// <summary>
     /// 룬 팔레트와 빠른 검색 팝업의 Presenter다. 분류·검색어로 배치 가능한 룬을 골라 표시하고,
-    /// 행을 누르면 제안 위치(팔레트) 또는 더블클릭 위치(빠른 검색)에 룬을 배치한다. 미해금 룬과 남은 소지량이 0인 Modifier 등급은 표시하지 않는다.
+    /// 행을 누르면 제안 위치(팔레트) 또는 더블클릭 위치(빠른 검색)에 룬을 배치한다. 미해금 룬은 비활성 표시하고 남은 소지량이 0인 Modifier 등급은 숨긴다.
     /// </summary>
     public sealed class SpellPalettePresenter
     {
-        private const float ROW_HEIGHT = 40f;
-        private const float LOCKED_ROW_HEIGHT = 52f;
+        public const float ROW_HEIGHT = 52f;
 
         private readonly ISpellEditor _editor;
         private readonly UIManager _ui;
@@ -33,10 +32,11 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 현재 분류·검색어에 맞는 해금 룬 행을 다시 채운다. Modifier는 남은 소지량이 있는 등급만 등급별 행으로 남은 소지량/소지량과 함께 표시한다.
+        /// 현재 분류·검색어에 맞는 룬 이름을 표시하고 미해금인 경우에만 둘째 줄을 추가한다. Modifier는 이름·등급과 남은 소지량/소지량을 표시한다.
         /// </summary>
         public void Refresh()
         {
+            _view.ShowCategory(_category);
             _view.ClearPalette();
             string query = _view.SearchQuery;
             foreach (RuneDefinition rune in GameData.Runes.All)
@@ -45,13 +45,13 @@ namespace RuneCode
                 bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
                 if (!isUnlocked)
                 {
-                    string lockedLabel = rune.Name + "   " + rune.Ram + " RAM\n" + GameData.L("ui.locked") + " · " + GameData.L("ui.unlockViaTree");
+                    string lockedLabel = rune.Name + "\n" + GameData.L("ui.locked");
                     AddPaletteRune(rune, null, lockedLabel, false);
                     continue;
                 }
                 if (rune.Category != SpellGrammar.CATEGORY_MODIFIER)
                 {
-                    AddPaletteRune(rune, null, rune.Name + "   " + rune.Ram + " RAM", true);
+                    AddPaletteRune(rune, null, rune.Name, true);
                     continue;
                 }
                 foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
@@ -98,8 +98,7 @@ namespace RuneCode
             string runeId = rune.Id;
             Action onClick = null;
             if (canPlace) onClick = () => _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade);
-            _view.AddPaletteRow(label, canPlace ? RuneMesh.CategoryColor(rune.Category) : UiTheme.Muted,
-                canPlace ? ROW_HEIGHT : LOCKED_ROW_HEIGHT, onClick, runeId, grade, canPlace);
+            _view.AddPaletteRow(label, ROW_HEIGHT, onClick, runeId, grade, canPlace);
         }
 
         /// <summary>Modifier 등급의 남은 소지량(remaining)과 소지량(owned)을 구하고 남은 소지량이 1 이상이면 true를 반환한다.</summary>
@@ -111,23 +110,23 @@ namespace RuneCode
             return remaining > 0;
         }
 
-        /// <summary>Modifier 행 문구(이름·등급·남은 소지량/소지량)를 반환한다.</summary>
+        /// <summary>Modifier의 첫 줄에 이름·등급, 둘째 줄에 남은 소지량/소지량을 담은 문구를 반환한다.</summary>
         private static string ModifierLabel(RuneDefinition rune, string grade, int remaining, int owned)
         {
-            return rune.Name + " " + grade + " · " + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
+            return rune.Name + " " + grade + "\n" + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
         }
 
         /// <summary>빠른 검색에 등급과 남은 소지량을 표시하고 지정 등급으로 배치하는 결과를 추가한다.</summary>
         private void AddQuickRune(QuickPalettePopup popup, RuneDefinition rune, string grade, Vector2 graphPosition, int remaining, int owned)
         {
             string label = rune.Category == SpellGrammar.CATEGORY_MODIFIER
-                ? ModifierLabel(rune, grade, remaining, owned) : rune.Name + " · " + rune.Ram + " RAM";
+                ? ModifierLabel(rune, grade, remaining, owned) : rune.Name;
             string runeId = rune.Id;
-            popup.AddResult(label, RuneMesh.CategoryColor(rune.Category), () =>
+            popup.AddResult(label, () =>
             {
                 popup.Close();
                 _view.GraphCanvas.PlaceRune(runeId, graphPosition, grade);
-            });
+            }, rune.Category);
         }
 
         /// <summary>팔레트에 놓을 수 있는 룬인지 반환한다. 시전 코어·내부 룬·속성(드롭다운 값)은 제외한다.</summary>

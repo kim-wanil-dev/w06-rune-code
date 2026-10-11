@@ -16,8 +16,6 @@ namespace RuneCode
         private const float BAR_WIDTH = 238f;
         private const float BAR_HEIGHT = 9f;
 
-        private static readonly Color TimerColor = new Color(0.98f, 0.82f, 0.45f);
-        private static readonly Color TimerWarningColor = new Color(1f, 0.43f, 0.36f);
 
         [Header("막대")]
         [SerializeField] private TextMeshProUGUI _hpCaption;
@@ -29,6 +27,8 @@ namespace RuneCode
         [SerializeField] private TextMeshProUGUI _stageLabel;
         [SerializeField] private TextMeshProUGUI _statsLabel;
         [SerializeField] private TextMeshProUGUI _timerLabel;
+        [SerializeField] private TextMeshProUGUI _timerWarningLabel;
+        [SerializeField] private UiStateVisual _timerVisual;
         [SerializeField] private TextMeshProUGUI _spellLabel;
         [SerializeField] private TextMeshProUGUI _fragmentToast;
 
@@ -71,11 +71,12 @@ namespace RuneCode
         /// <summary>처치·조각 문구를 표시한다.</summary>
         public void SetStats(string text) => _statsLabel.text = text;
 
-        /// <summary>남은 적 수(보스 스테이지는 남은 시간 포함) 문구를 표시하고 제한시간이 임박하면 경고 색으로 바꾼다.</summary>
+        /// <summary>남은 적 수(보스 스테이지는 남은 시간 포함) 문구를 표시하고 제한시간이 임박하면 경고 표시로 바꾼다.</summary>
         public void SetTimer(string text, bool isWarning)
         {
             _timerLabel.text = text;
-            _timerLabel.color = isWarning ? TimerWarningColor : TimerColor;
+            _timerWarningLabel.text = text;
+            _timerVisual.Show(isWarning ? 1 : 0);
         }
 
         /// <summary>하단 마법 정보 줄을 표시한다.</summary>

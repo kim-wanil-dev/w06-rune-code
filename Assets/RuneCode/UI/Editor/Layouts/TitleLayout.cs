@@ -19,16 +19,16 @@ namespace RuneCode
             }
             UiFactory ui = LayoutUtility.CreateFactory();
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(TitleScreen));
-            RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
-            ui.Panel(page, 72, 72, 1136, 576, UiTheme.Panel, "IntroPanel");
-            ui.Panel(page, 110, 116, 6, 430, UiTheme.Cyan, "AccentBar");
-            ui.Text(page, 150, 132, 960, 30, GameData.L("ui.introCode"), 16, UiTheme.Cyan, FontStyles.Normal, "IntroCode");
-            ui.Text(page, 146, 190, 980, 92, GameData.L("ui.title"), 76, Color.white, FontStyles.Bold, "TitleLabel");
-            ui.Text(page, 152, 310, 850, 60, GameData.L("ui.subtitle"), 24, UiTheme.Muted, FontStyles.Normal, "Subtitle");
-            ui.Text(page, 152, 400, 920, 34, GameData.L("ui.help"), 25, UiTheme.Cyan, FontStyles.Normal, "Help");
-            Button startButton = ui.Button(page, 154, 494, 274, 60, GameData.L("ui.startNormal"), null, UiTheme.Cyan, 21, "StartButton");
-            Button debugStartButton = ui.Button(page, 154, 568, 274, 60, GameData.L("ui.startDebug"), null, UiTheme.Muted, 21, "DebugStartButton");
-            ui.Text(page, 640, 518, 440, 60, GameData.L("ui.incrementalLoop"), 14, UiTheme.Muted, FontStyles.Normal, "IncrementalLoop");
+            RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, "Page");
+            ui.Panel(page, 72, 72, 1136, 576, "IntroPanel");
+            ui.Panel(page, 110, 116, 6, 430, "AccentBar");
+            ui.Text(page, 150, 132, 960, 30, GameData.L("ui.introCode"), 16, FontStyles.Normal, "IntroCode");
+            ui.Text(page, 146, 190, 980, 92, GameData.L("ui.title"), 76, FontStyles.Bold, "TitleLabel");
+            ui.Text(page, 152, 310, 850, 60, GameData.L("ui.subtitle"), 24, FontStyles.Normal, "Subtitle");
+            ui.Text(page, 152, 400, 920, 34, GameData.L("ui.help"), 25, FontStyles.Normal, "Help");
+            Button startButton = ui.Button(page, 154, 494, 274, 60, GameData.L("ui.startNormal"), null, 21, "StartButton");
+            Button debugStartButton = ui.Button(page, 154, 568, 274, 60, GameData.L("ui.startDebug"), null, 21, "DebugStartButton");
+            ui.Text(page, 640, 518, 440, 60, GameData.L("ui.incrementalLoop"), 14, FontStyles.Normal, "IncrementalLoop");
             TitleScreen screen = root.gameObject.AddComponent<TitleScreen>();
             LayoutUtility.SetReference(screen, "_startButton", startButton);
             LayoutUtility.SetReference(screen, "_debugStartButton", debugStartButton);
@@ -60,8 +60,7 @@ namespace RuneCode
                 if (debugStartButton == null)
                 {
                     UiFactory ui = LayoutUtility.CreateFactory();
-                    debugStartButton = ui.Button(page, 154, 568, 274, 60, GameData.L("ui.startDebug"), null,
-                        UiTheme.Muted, 21, "DebugStartButton");
+                    debugStartButton = ui.Button(page, 154, 568, 274, 60, GameData.L("ui.startDebug"), null, 21, "DebugStartButton");
                     hasChanged = true;
                 }
                 SerializedObject serialized = new SerializedObject(screen);

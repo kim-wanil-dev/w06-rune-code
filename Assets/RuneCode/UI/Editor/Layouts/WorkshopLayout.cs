@@ -8,19 +8,19 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>작업실 화면 Prefab의 헤더, 4개 탭 패널과 상태줄을 원본 좌표로 생성하고 참조를 연결한다.</summary>
+    /// <summary>작업실의 두 탭, 스테이지 선택 화면과 별도 설정 팝업의 Prefab 참조를 연결한다.</summary>
     public static class WorkshopLayout
     {
         private const string UPGRADE_TREE_NODE_PREFAB_PATH = LayoutUtility.PREFAB_FOLDER + "/UpgradeTreeNode.prefab";
         private const string UPGRADE_TREE_ASSET_PATH = "Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset";
-        private static readonly Color RESET_COLOR = new Color(1f, 0.43f, 0.43f);
-        private static readonly string[] TABS = { "editor", "tree", "deploy", "settings" };
+        private static readonly string[] TABS = { "editor", "tree" };
 
-        /// <summary>작업실 Prefab이 없으면 생성하고, 이미 있으면 디버그 트리 초기화 버튼의 누락된 연결만 보충한다.</summary>
+        /// <summary>작업실 Prefab이 없으면 생성하고, 기존 화면에는 탐색 분리와 누락된 트리 참조를 보충한다.</summary>
         public static void Build()
         {
             if (LayoutUtility.ViewPrefabExists(nameof(WorkshopScreen)))
             {
+                EnsureNavigation();
                 EnsureDebugTreeReset();
                 EnsureUpgradeTreeLayout();
                 EnsureUpgradeTreeNodePrefab();
@@ -28,19 +28,21 @@ namespace RuneCode
             }
             UiFactory ui = LayoutUtility.CreateFactory();
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(WorkshopScreen));
-            RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, UiTheme.Background, "Page");
+            RectTransform page = ui.Panel(root, 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT, "Page");
 
-            ui.Panel(page, 0, 0, 1280, 70, UiTheme.Panel, "Header");
-            ui.Text(page, 18, 18, 200, 36, GameData.L("ui.title"), 27, Color.white, FontStyles.Bold, "HeaderTitle");
+            ui.Panel(page, 0, 0, 1280, 70, "Header");
+            ui.Text(page, 18, 18, 200, 36, GameData.L("ui.title"), 27, FontStyles.Bold, "HeaderTitle");
             Button[] tabButtons = new Button[TABS.Length];
-            TextMeshProUGUI[] tabLabels = new TextMeshProUGUI[TABS.Length];
             for (int i = 0; i < TABS.Length; i++)
             {
-                tabButtons[i] = ui.Button(page, 220 + i * 112, 18, 104, 34, GameData.L("ui." + TABS[i]), null, UiTheme.Muted, 13, TABS[i] + "TabButton");
-                tabLabels[i] = tabButtons[i].GetComponentInChildren<TextMeshProUGUI>();
+                tabButtons[i] = ui.Button(page, 220 + i * 112, 18, 104, 34, GameData.L("ui." + TABS[i]), null, 13, TABS[i] + "TabButton", "TabButton");
             }
-            TextMeshProUGUI headerStats = ui.Text(page, 816, 23, 440, 30, "", 16, UiTheme.Cyan, FontStyles.Normal, "HeaderStats");
-            TextMeshProUGUI status = ui.Text(page, 18, 686, 1240, 22, "", 12, UiTheme.Muted, FontStyles.Normal, "Status");
+            Button deployButton = ui.Button(page, 444, 18, 104, 34, GameData.L("ui.deploy"), null, 13, "DeployButton");
+            Button settingsButton = ui.Button(page, 556, 18, 104, 34, GameData.L("ui.settings"), null, 13, "SettingsButton");
+            Button backButton = ui.Button(page, 220, 18, 104, 34, GameData.L("ui.back"), null, 13, "BackButton");
+            backButton.gameObject.SetActive(false);
+            TextMeshProUGUI headerStats = ui.Text(page, 816, 23, 440, 30, "", 16, FontStyles.Normal, "HeaderStats");
+            TextMeshProUGUI status = ui.Text(page, 18, 686, 1240, 22, "", 12, FontStyles.Normal, "Status");
 
             RectTransform editorRoot = UiFactory.Rect(page, "EditorTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             SpellEditorPanel spellEditor = SpellEditorLayout.Build(ui, editorRoot);
@@ -49,44 +51,142 @@ namespace RuneCode
             UpgradeTreePanel upgradeTreePanel = BuildUpgradeTree(ui, treeRoot);
             RectTransform deployRoot = UiFactory.Rect(page, "DeployTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             DeployPanel deployPanel = BuildDeploy(ui, deployRoot);
-            RectTransform settingsRoot = UiFactory.Rect(page, "SettingsTab", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
-            SettingsPanel settingsPanel = BuildSettings(ui, settingsRoot);
+            BuildSettingsPopup(ui);
             treeRoot.gameObject.SetActive(false);
             deployRoot.gameObject.SetActive(false);
-            settingsRoot.gameObject.SetActive(false);
 
             WorkshopScreen screen = root.gameObject.AddComponent<WorkshopScreen>();
             LayoutUtility.SetReference(screen, "_editorRoot", editorRoot);
             LayoutUtility.SetReference(screen, "_treeRoot", treeRoot);
             LayoutUtility.SetReference(screen, "_deployRoot", deployRoot);
-            LayoutUtility.SetReference(screen, "_settingsRoot", settingsRoot);
             LayoutUtility.SetReferences(screen, "_tabButtons", tabButtons);
-            LayoutUtility.SetReferences(screen, "_tabLabels", tabLabels);
+            LayoutUtility.SetReference(screen, "_deployButton", deployButton);
+            LayoutUtility.SetReference(screen, "_settingsButton", settingsButton);
+            LayoutUtility.SetReference(screen, "_backButton", backButton);
             LayoutUtility.SetReference(screen, "_spellEditor", spellEditor);
             LayoutUtility.SetReference(screen, "_dockPanel", dockPanel);
             LayoutUtility.SetReference(screen, "_upgradeTreePanel", upgradeTreePanel);
             LayoutUtility.SetReference(screen, "_deployPanel", deployPanel);
-            LayoutUtility.SetReference(screen, "_settingsPanel", settingsPanel);
             LayoutUtility.SetReference(screen, "_headerStats", headerStats);
             LayoutUtility.SetReference(screen, "_status", status);
             LayoutUtility.SaveViewPrefab(root);
         }
 
-        /// <summary>기존 작업실 Prefab의 미사용 디버그 버튼을 트리 초기화 버튼으로 연결한다.</summary>
-        private static void EnsureDebugTreeReset()
+        /// <summary>기존 배치를 보존하며 전투·설정을 일반 버튼으로 분리하고 설정 내용을 팝업으로 옮긴다.</summary>
+        public static void EnsureNavigation()
         {
-            GameData.Load();
             string path = LayoutUtility.VIEW_FOLDER + nameof(WorkshopScreen) + ".prefab";
             GameObject root = PrefabUtility.LoadPrefabContents(path);
             try
             {
-                Transform settings = root.transform.Find("Page/SettingsTab");
+                WorkshopScreen screen = root.GetComponent<WorkshopScreen>();
+                SerializedObject serialized = new SerializedObject(screen);
+                if (serialized.FindProperty("_deployButton").objectReferenceValue != null) return;
+                GameData.Load();
+                UiFactory ui = LayoutUtility.CreateFactory();
+                SerializedProperty tabs = serialized.FindProperty("_tabButtons");
+                Button editor = (Button)tabs.GetArrayElementAtIndex(0).objectReferenceValue;
+                Button tree = (Button)tabs.GetArrayElementAtIndex(1).objectReferenceValue;
+                Button deploy = AsActionButton((Button)tabs.GetArrayElementAtIndex(2).objectReferenceValue, ui);
+                Button settings = AsActionButton((Button)tabs.GetArrayElementAtIndex(3).objectReferenceValue, ui);
+                Transform oldSettings = root.transform.Find("Page/SettingsTab");
+                BuildSettingsPopup(ui, oldSettings);
+                UnityEngine.Object.DestroyImmediate(oldSettings.gameObject);
+                Button back = ui.Button(editor.transform.parent, 0, 0, 104, 34, GameData.L("ui.back"), null, 13, "BackButton");
+                CopyRect((RectTransform)editor.transform, (RectTransform)back.transform);
+                back.transform.SetSiblingIndex(editor.transform.GetSiblingIndex());
+                back.gameObject.SetActive(false);
+                LayoutUtility.SetReferences(screen, "_tabButtons", new[] { editor, tree });
+                LayoutUtility.SetReference(screen, "_deployButton", deploy);
+                LayoutUtility.SetReference(screen, "_settingsButton", settings);
+                LayoutUtility.SetReference(screen, "_backButton", back);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        /// <summary>TabButton인 버튼만 일반 버튼으로 교체하여 기존 배치와 문구를 보존하고 반환한다.</summary>
+        private static Button AsActionButton(Button source, UiFactory ui)
+        {
+            if (source.GetComponent<TabButton>() == null) return source;
+            TextMeshProUGUI label = source.GetComponentInChildren<TextMeshProUGUI>();
+            Button button = ui.Button(source.transform.parent, 0, 0, 104, 34, label.text, null, (int)label.fontSize, source.name.Replace("TabButton", "Button"));
+            CopyRect((RectTransform)source.transform, (RectTransform)button.transform);
+            button.transform.SetSiblingIndex(source.transform.GetSiblingIndex());
+            button.interactable = source.interactable;
+            UnityEngine.Object.DestroyImmediate(source.gameObject);
+            return button;
+        }
+
+        /// <summary>원본 RectTransform의 앵커·피벗·크기·위치를 대상 버튼에 복사한다.</summary>
+        private static void CopyRect(RectTransform source, RectTransform target)
+        {
+            target.anchorMin = source.anchorMin;
+            target.anchorMax = source.anchorMax;
+            target.pivot = source.pivot;
+            target.sizeDelta = source.sizeDelta;
+            target.anchoredPosition3D = source.anchoredPosition3D;
+            target.localScale = source.localScale;
+            target.localRotation = source.localRotation;
+            LayoutElement sourceLayout = source.GetComponent<LayoutElement>();
+            if (sourceLayout != null)
+            {
+                LayoutElement targetLayout = target.GetComponent<LayoutElement>();
+                if (targetLayout == null) targetLayout = target.gameObject.AddComponent<LayoutElement>();
+                EditorUtility.CopySerialized(sourceLayout, targetLayout);
+            }
+        }
+
+        /// <summary>기존 설정 내용과 참조를 보존하여 검은색 70% 딤 배경을 가진 독립 설정 팝업을 저장한다.</summary>
+        private static void BuildSettingsPopup(UiFactory ui, Transform existingSettings = null)
+        {
+            if (LayoutUtility.ViewPrefabExists(nameof(SettingsPopup))) return;
+            RectTransform root = LayoutUtility.CreateViewRoot(nameof(SettingsPopup));
+            RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.settings"), 1000, 480, out Button close);
+            Image shade = root.GetChild(0).GetComponent<Image>();
+            shade.color = new Color(0, 0, 0, 0.7f);
+            RectTransform content;
+            SettingsPanel panel;
+            if (existingSettings != null)
+            {
+                content = (RectTransform)UnityEngine.Object.Instantiate(existingSettings, card, false);
+                panel = content.GetComponent<SettingsPanel>();
+            }
+            else
+            {
+                content = UiFactory.Rect(card, "Content", 0, 0, 952, 360);
+                panel = BuildSettings(ui, content);
+            }
+            content.name = "Content";
+            content.gameObject.SetActive(true);
+            LayoutUtility.SetTopLeftRect(content, 24, 86, 952, 360);
+            Transform oldTitle = content.Find("SettingsTitle");
+            if (oldTitle != null) UnityEngine.Object.DestroyImmediate(oldTitle.gameObject);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("ScreenShakeButton"), 0, 0, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("HitStopButton"), 0, 70, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("ResetSaveButton"), 0, 226, 446, 48);
+            LayoutUtility.SetTopLeftRect((RectTransform)content.Find("DebugGroup"), 480, 0, 444, 243);
+            SettingsPopup popup = root.gameObject.AddComponent<SettingsPopup>();
+            LayoutUtility.SetReference(popup, "_closeButton", close);
+            LayoutUtility.SetReference(popup, "_panel", panel);
+            LayoutUtility.SaveViewPrefab(root);
+        }
+
+        /// <summary>설정 팝업의 미사용 디버그 버튼을 트리 초기화 버튼으로 연결한다.</summary>
+        private static void EnsureDebugTreeReset()
+        {
+            GameData.Load();
+            string path = LayoutUtility.VIEW_FOLDER + nameof(SettingsPopup) + ".prefab";
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                Transform settings = root.transform.Find("Card/Content");
                 Transform debugGroup = settings?.Find("DebugGroup");
                 SettingsPanel panel = settings?.GetComponent<SettingsPanel>();
                 Transform buttonTransform = debugGroup?.Find("DebugResetTreeButton") ?? debugGroup?.Find("DebugInvulnerableButton");
                 Button button = buttonTransform?.GetComponent<Button>();
                 if (panel == null || button == null)
-                    throw new InvalidOperationException("WorkshopScreen Prefab의 디버그 설정 버튼을 찾을 수 없습니다.");
+                    throw new InvalidOperationException("SettingsPopup Prefab의 디버그 설정 버튼을 찾을 수 없습니다.");
                 bool hasChanged = false;
                 if (button.name != "DebugResetTreeButton")
                 {
@@ -112,17 +212,17 @@ namespace RuneCode
         /// <summary>시험 도크의 경기장, 시나리오·시험·리셋·자동 발사·적응·배속 조작과 지표 문구를 만들고 DockPanel 참조를 연결한다.</summary>
         private static DockPanel BuildDock(UiFactory ui, RectTransform parent)
         {
-            ui.Panel(parent, 222, 512, 772, 143, UiTheme.Panel, "DockBackground");
+            ui.Panel(parent, 222, 512, 772, 143, "DockBackground");
             RectTransform arena = UiFactory.Rect(parent, "DockArena", 222, 541, 292, 110);
             RuneArenaGraphic arenaGraphic = arena.gameObject.AddComponent<RuneArenaGraphic>();
-            Button scenarioButton = ui.Button(parent, 226, 515, 126, 22, GameData.L("scenario.dummy_single"), null, UiTheme.Muted, 10, "ScenarioButton");
-            Button testButton = ui.Button(parent, 360, 515, 50, 22, GameData.L("ui.test"), null, UiTheme.Cyan, 10, "TestButton");
-            Button resetButton = ui.Button(parent, 418, 515, 86, 22, GameData.L("ui.reset"), null, UiTheme.Muted, 10, "ResetButton");
-            Button autoFireButton = ui.Button(parent, 528, 521, 128, 27, GameData.L("ui.autofire"), null, UiTheme.Cyan, 11, "AutoFireButton");
-            Button adaptationButton = ui.Button(parent, 666, 521, 124, 27, GameData.L("ui.adaptation"), null, UiTheme.Cyan, 11, "AdaptationButton");
-            Button speedButton = ui.Button(parent, 800, 521, 76, 27, "0.5 / 1 / 2×", null, UiTheme.Muted, 10, "SpeedButton");
-            TextMeshProUGUI metrics = ui.Text(parent, 528, 562, 455, 46, "", 12, Color.white, FontStyles.Normal, "DockMetrics");
-            TextMeshProUGUI adaptation = ui.Text(parent, 528, 605, 452, 45, "", 10, UiTheme.Muted, FontStyles.Normal, "AdaptationSummary");
+            Button scenarioButton = ui.Button(parent, 226, 515, 126, 22, GameData.L("scenario.dummy_single"), null, 10, "ScenarioButton");
+            Button testButton = ui.Button(parent, 360, 515, 50, 22, GameData.L("ui.test"), null, 10, "TestButton");
+            Button resetButton = ui.Button(parent, 418, 515, 86, 22, GameData.L("ui.reset"), null, 10, "ResetButton");
+            Button autoFireButton = ui.Button(parent, 528, 521, 128, 27, GameData.L("ui.autofire"), null, 11, "AutoFireButton");
+            Button adaptationButton = ui.Button(parent, 666, 521, 124, 27, GameData.L("ui.adaptation"), null, 11, "AdaptationButton");
+            Button speedButton = ui.Button(parent, 800, 521, 76, 27, "0.5 / 1 / 2×", null, 10, "SpeedButton");
+            TextMeshProUGUI metrics = ui.Text(parent, 528, 562, 455, 46, "", 12, FontStyles.Normal, "DockMetrics");
+            TextMeshProUGUI adaptation = ui.Text(parent, 528, 605, 452, 45, "", 10, FontStyles.Normal, "AdaptationSummary");
 
             DockPanel dockPanel = parent.gameObject.AddComponent<DockPanel>();
             LayoutUtility.SetReference(dockPanel, "_arena", arenaGraphic);
@@ -141,24 +241,22 @@ namespace RuneCode
         /// <summary>트리 뷰포트·우클릭 이동·휠 확대, 포인터 정보 패널과 ScriptableObject·노드 Prefab 참조를 연결한다.</summary>
         private static UpgradeTreePanel BuildUpgradeTree(UiFactory ui, RectTransform parent)
         {
-            ui.Text(parent, 30, 98, 850, 40, GameData.L("ui.tree.title"), 29, Color.white, FontStyles.Bold, "UpgradeTreeTitle");
-            TextMeshProUGUI summary = ui.Text(parent, 30, 139, 1210, 23, "", 14, UiTheme.Cyan, FontStyles.Normal, "UpgradeTreeSummary");
+            ui.Text(parent, 30, 98, 850, 40, GameData.L("ui.tree.title"), 29, FontStyles.Bold, "UpgradeTreeTitle");
+            TextMeshProUGUI summary = ui.Text(parent, 30, 139, 1210, 23, "", 14, FontStyles.Normal, "UpgradeTreeSummary");
 
             RectTransform viewport = UiFactory.Rect(parent, "UpgradeTreeViewport", 28, 171, 1224, 489);
-            Image viewportImage = viewport.gameObject.AddComponent<Image>();
-            viewportImage.color = new Color(1, 1, 1, 0.005f);
-            viewportImage.raycastTarget = true;
+            LayoutUtility.FillElement(viewport, "UiHitArea");
             viewport.gameObject.AddComponent<RectMask2D>();
             RectTransform content = UiFactory.Rect(viewport, "Content", 0, 0, 1800, 560);
 
-            RectTransform hoverPanel = ui.Panel(parent, 0, 0, 396, 112, UiTheme.Panel, "UpgradeTreeHoverInfo");
+            RectTransform hoverPanel = ui.Panel(parent, 0, 0, 396, 112, "UpgradeTreeHoverInfo");
             hoverPanel.pivot = new Vector2(0.5f, 0);
             hoverPanel.GetComponent<Image>().raycastTarget = false;
-            TextMeshProUGUI hoverTitle = ui.Text(hoverPanel, 12, 8, 274, 24, "", 15, Color.white, FontStyles.Bold, "HoverTitle");
-            TextMeshProUGUI hoverDescription = ui.Text(hoverPanel, 12, 36, 372, 48, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverDescription");
-            TextMeshProUGUI hoverLevel = ui.Text(hoverPanel, 294, 8, 90, 24, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverLevel");
-            TextMeshProUGUI hoverIncrease = ui.Text(hoverPanel, 12, 86, 180, 20, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverIncrease");
-            TextMeshProUGUI hoverCost = ui.Text(hoverPanel, 198, 86, 186, 20, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverCost");
+            TextMeshProUGUI hoverTitle = ui.Text(hoverPanel, 12, 8, 274, 24, "", 15, FontStyles.Bold, "HoverTitle");
+            TextMeshProUGUI hoverDescription = ui.Text(hoverPanel, 12, 36, 372, 48, "", 12, FontStyles.Normal, "HoverDescription");
+            TextMeshProUGUI hoverLevel = ui.Text(hoverPanel, 294, 8, 90, 24, "", 12, FontStyles.Normal, "HoverLevel");
+            TextMeshProUGUI hoverIncrease = ui.Text(hoverPanel, 12, 86, 180, 20, "", 12, FontStyles.Normal, "HoverIncrease");
+            TextMeshProUGUI hoverCost = ui.Text(hoverPanel, 198, 86, 186, 20, "", 12, FontStyles.Normal, "HoverCost");
             hoverPanel.gameObject.SetActive(false);
 
             UpgradeTreeDefinition definition = AssetDatabase.LoadAssetAtPath<UpgradeTreeDefinition>(UPGRADE_TREE_ASSET_PATH);
@@ -171,6 +269,7 @@ namespace RuneCode
             UpgradeTreePanel panel = parent.gameObject.AddComponent<UpgradeTreePanel>();
             LayoutUtility.SetReference(panel, "_definition", definition);
             LayoutUtility.SetReference(panel, "_nodePrefab", nodePrefab);
+            LayoutUtility.SetReference(panel, "_connectionPrefab", LayoutUtility.Element<UiStateVisual>("UpgradeTreeConnection"));
             LayoutUtility.SetReference(panel, "_summary", summary);
             LayoutUtility.SetReference(panel, "_viewport", viewport);
             LayoutUtility.SetReference(panel, "_content", content);
@@ -230,7 +329,7 @@ namespace RuneCode
                 Transform level = hover.Find("HoverLevel");
                 if (level == null)
                 {
-                    level = ui.Text(hover, 294, 8, 90, 24, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverLevel").transform;
+                    level = ui.Text(hover, 294, 8, 90, 24, "", 12, FontStyles.Normal, "HoverLevel").transform;
                     hasChanged = true;
                 }
                 RectTransform levelRect = (RectTransform)level;
@@ -247,13 +346,13 @@ namespace RuneCode
                 Transform increase = hover.Find("HoverIncrease");
                 if (increase == null)
                 {
-                    increase = ui.Text(hover, 12, 86, 180, 20, "", 12, UiTheme.Cyan, FontStyles.Normal, "HoverIncrease").transform;
+                    increase = ui.Text(hover, 12, 86, 180, 20, "", 12, FontStyles.Normal, "HoverIncrease").transform;
                     hasChanged = true;
                 }
                 Transform cost = hover.Find("HoverCost");
                 if (cost == null)
                 {
-                    cost = ui.Text(hover, 198, 86, 186, 20, "", 12, UiTheme.Muted, FontStyles.Normal, "HoverCost").transform;
+                    cost = ui.Text(hover, 198, 86, 186, 20, "", 12, FontStyles.Normal, "HoverCost").transform;
                     hasChanged = true;
                 }
                 if (new SerializedObject(panel).FindProperty("_hoverIncrease").objectReferenceValue != increase.GetComponent<TextMeshProUGUI>())
@@ -271,7 +370,7 @@ namespace RuneCode
             finally { PrefabUtility.UnloadPrefabContents(root); }
         }
 
-        /// <summary>노드 Prefab이 있으면 그대로 반환하고, 없으면 아이콘 전용 정사각형 버튼으로 만들어 뷰 참조를 연결한다.</summary>
+        /// <summary>편집한 노드 프리팹의 아이콘 참조를 확인해 반환한다. 원본이 없으면 연결 오류를 알린다.</summary>
         private static UpgradeTreeNodeView EnsureUpgradeTreeNodePrefab()
         {
             UpgradeTreeNodeView existing = AssetDatabase.LoadAssetAtPath<UpgradeTreeNodeView>(UPGRADE_TREE_NODE_PREFAB_PATH);
@@ -280,40 +379,7 @@ namespace RuneCode
                 EnsureNodeSpriteIcon();
                 return AssetDatabase.LoadAssetAtPath<UpgradeTreeNodeView>(UPGRADE_TREE_NODE_PREFAB_PATH);
             }
-            GameObject source = new GameObject("UpgradeTreeNode", typeof(RectTransform), typeof(Image));
-            source.name = "UpgradeTreeNode";
-            LayoutUtility.SetTopLeftRect((RectTransform)source.transform, 0, 0, 76, 76);
-            Image background = source.GetComponent<Image>();
-            if (background == null) background = source.AddComponent<Image>();
-            background.color = UiTheme.Panel;
-            background.raycastTarget = true;
-            Button button = source.GetComponent<Button>();
-            if (button == null) button = source.AddComponent<Button>();
-            button.targetGraphic = background;
-            button.transition = Selectable.Transition.None;
-            Outline outline = source.GetComponent<Outline>();
-            if (outline == null) outline = source.AddComponent<Outline>();
-            outline.effectDistance = new Vector2(2, -2);
-            outline.useGraphicAlpha = true;
-
-            RectTransform iconRect = UiFactory.Rect(source.transform, "Icon", 0, 0, 42, 42);
-            iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.5f);
-            iconRect.pivot = new Vector2(0.5f, 0.5f);
-            iconRect.anchoredPosition = Vector2.zero;
-            UpgradeTreeNodeIconGraphic icon = iconRect.gameObject.AddComponent<UpgradeTreeNodeIconGraphic>();
-            icon.raycastTarget = false;
-            Image spriteIcon = CreateSpriteIcon(source.transform);
-
-            UpgradeTreeNodeView view = source.GetComponent<UpgradeTreeNodeView>();
-            if (view == null) view = source.AddComponent<UpgradeTreeNodeView>();
-            LayoutUtility.SetReference(view, "_background", background);
-            LayoutUtility.SetReference(view, "_outline", outline);
-            LayoutUtility.SetReference(view, "_icon", icon);
-            LayoutUtility.SetReference(view, "_spriteIcon", spriteIcon);
-            LayoutUtility.SetReference(view, "_button", button);
-            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(source, UPGRADE_TREE_NODE_PREFAB_PATH);
-            UnityEngine.Object.DestroyImmediate(source);
-            return prefab.GetComponent<UpgradeTreeNodeView>();
+            throw new InvalidOperationException("UpgradeTreeNode 프리팹을 먼저 연결해야 합니다.");
         }
 
         /// <summary>노드 Prefab에 SO Sprite를 표시할 이미지가 없을 때만 추가하고 직렬화 참조를 보존한다.</summary>
@@ -354,18 +420,18 @@ namespace RuneCode
         /// <summary>시간제 전투 안내, 스테이지 선택과 출격 버튼을 만들고 DeployPanel 참조를 연결한다.</summary>
         private static DeployPanel BuildDeploy(UiFactory ui, RectTransform parent)
         {
-            RectTransform card = ui.Panel(parent, 64, 122, 1152, 498, UiTheme.Panel, "DeployCard");
-            ui.Text(card, 38, 32, 1070, 46, GameData.L("ui.timedBattle"), 32, Color.white, FontStyles.Bold, "BattleTitle");
-            ui.Text(card, 38, 98, 1010, 72, GameData.L("ui.battleDescription"), 20, UiTheme.Muted, FontStyles.Normal, "BattleDescription");
-            TextMeshProUGUI highest = ui.Text(card, 38, 202, 480, 30, "", 16, UiTheme.Muted, FontStyles.Normal, "HighestStage");
-            TextMeshProUGUI stage = ui.Text(card, 38, 246, 238, 36, "", 28, UiTheme.Cyan, FontStyles.Bold, "Stage");
-            Button stageDown = ui.Button(card, 292, 240, 52, 44, "−", null, UiTheme.Muted, 22, "StageDownButton");
-            Button stageUp = ui.Button(card, 358, 240, 52, 44, "+", null, UiTheme.Cyan, 22, "StageUpButton");
-            TextMeshProUGUI duration = ui.Text(card, 510, 202, 560, 40, "", 27, Color.white, FontStyles.Normal, "Duration");
-            ui.Text(card, 510, 253, 560, 35, GameData.L("ui.manualBattle"), 18, UiTheme.Cyan, FontStyles.Normal, "BattleMode");
-            TextMeshProUGUI spell = ui.Text(card, 38, 310, 1032, 52, "", 18, Color.white, FontStyles.Normal, "SpellSummary");
-            Button launch = ui.Button(card, 38, 386, 320, 60, GameData.L("ui.launch"), null, UiTheme.Cyan, 22, "LaunchButton");
-            ui.Text(card, 406, 390, 680, 56, GameData.L("ui.manualBattleControls"), 14, UiTheme.Muted, FontStyles.Normal, "BattleControls");
+            RectTransform card = ui.Panel(parent, 64, 122, 1152, 498, "DeployCard");
+            ui.Text(card, 38, 32, 1070, 46, GameData.L("ui.timedBattle"), 32, FontStyles.Bold, "BattleTitle");
+            ui.Text(card, 38, 98, 1010, 72, GameData.L("ui.battleDescription"), 20, FontStyles.Normal, "BattleDescription");
+            TextMeshProUGUI highest = ui.Text(card, 38, 202, 480, 30, "", 16, FontStyles.Normal, "HighestStage");
+            TextMeshProUGUI stage = ui.Text(card, 38, 246, 238, 36, "", 28, FontStyles.Bold, "Stage");
+            Button stageDown = ui.Button(card, 292, 240, 52, 44, "−", null, 22, "StageDownButton");
+            Button stageUp = ui.Button(card, 358, 240, 52, 44, "+", null, 22, "StageUpButton");
+            TextMeshProUGUI duration = ui.Text(card, 510, 202, 560, 40, "", 27, FontStyles.Normal, "Duration");
+            ui.Text(card, 510, 253, 560, 35, GameData.L("ui.manualBattle"), 18, FontStyles.Normal, "BattleMode");
+            TextMeshProUGUI spell = ui.Text(card, 38, 310, 1032, 52, "", 18, FontStyles.Normal, "SpellSummary");
+            Button launch = ui.Button(card, 38, 386, 320, 60, GameData.L("ui.launch"), null, 22, "LaunchButton");
+            ui.Text(card, 406, 390, 680, 56, GameData.L("ui.manualBattleControls"), 14, FontStyles.Normal, "BattleControls");
 
             DeployPanel deployPanel = parent.gameObject.AddComponent<DeployPanel>();
             LayoutUtility.SetReference(deployPanel, "_highestText", highest);
@@ -381,15 +447,15 @@ namespace RuneCode
         /// <summary>피드백 설정, 저장 초기화 버튼과 디버그 도구를 만들고 SettingsPanel 참조를 연결한다. 초기화 확인은 공용 확인 팝업을 쓴다.</summary>
         private static SettingsPanel BuildSettings(UiFactory ui, RectTransform parent)
         {
-            ui.Text(parent, 42, 112, 800, 42, GameData.L("ui.settings"), 30, Color.white, FontStyles.Bold, "SettingsTitle");
-            Button shakeButton = ui.Button(parent, 42, 194, 446, 48, "", null, UiTheme.Cyan, 19, "ScreenShakeButton");
-            Button hitStopButton = ui.Button(parent, 42, 264, 446, 48, "", null, UiTheme.Cyan, 19, "HitStopButton");
-            Button resetButton = ui.Button(parent, 42, 420, 446, 48, GameData.L("ui.resetSave"), null, RESET_COLOR, 18, "ResetSaveButton");
+            ui.Text(parent, 42, 112, 800, 42, GameData.L("ui.settings"), 30, FontStyles.Bold, "SettingsTitle");
+            Button shakeButton = ui.Button(parent, 42, 194, 446, 48, "", null, 19, "ScreenShakeButton");
+            Button hitStopButton = ui.Button(parent, 42, 264, 446, 48, "", null, 19, "HitStopButton");
+            Button resetButton = ui.Button(parent, 42, 420, 446, 48, GameData.L("ui.resetSave"), null, 18, "ResetSaveButton");
             RectTransform debugGroup = UiFactory.Rect(parent, "DebugGroup", 560, 190, 444, 243);
-            Button grantButton = ui.Button(debugGroup, 0, 0, 444, 48, GameData.L("ui.grant"), null, UiTheme.Cyan, 14, "DebugGrantButton");
-            Button unlockButton = ui.Button(debugGroup, 0, 65, 444, 48, GameData.L("ui.unlockAll"), null, UiTheme.Muted, 14, "DebugUnlockAllButton");
-            Button resetTreeButton = ui.Button(debugGroup, 0, 130, 444, 48, GameData.L("ui.resetDebugTree"), null, UiTheme.Muted, 14, "DebugResetTreeButton");
-            ui.Button(debugGroup, 0, 195, 444, 48, GameData.L("ui.spawn"), null, UiTheme.Muted, 14, "DebugSpawnButton");
+            Button grantButton = ui.Button(debugGroup, 0, 0, 444, 48, GameData.L("ui.grant"), null, 14, "DebugGrantButton");
+            Button unlockButton = ui.Button(debugGroup, 0, 65, 444, 48, GameData.L("ui.unlockAll"), null, 14, "DebugUnlockAllButton");
+            Button resetTreeButton = ui.Button(debugGroup, 0, 130, 444, 48, GameData.L("ui.resetDebugTree"), null, 14, "DebugResetTreeButton");
+            ui.Button(debugGroup, 0, 195, 444, 48, GameData.L("ui.spawn"), null, 14, "DebugSpawnButton");
 
 
             SettingsPanel settingsPanel = parent.gameObject.AddComponent<SettingsPanel>();

@@ -87,7 +87,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -282,7 +282,18 @@ MonoBehaviour:
   _isEscapeClosable: 1
   _search: {fileID: 2841814905197323921}
   _list: {fileID: 853696901971842744}
-  _rowPrefab: {fileID: 1184634989544299347, guid: b0046acd4e86a8448a558e0a7798507c, type: 3}
+  _rowPrefab: {fileID: 1540158046371985609, guid: 90a02109676d61f458e5a6b7d92e1b44, type: 3}
+  _categoryRowPrefabs:
+  - _category: shape
+    _prefab: {fileID: 8603407542614846706, guid: 0abc2bfc799e01f4a90e620f901720cd, type: 3}
+  - _category: behavior
+    _prefab: {fileID: 1292502464876566752, guid: bd900756825611b49859e17ab2594bca, type: 3}
+  - _category: modifier
+    _prefab: {fileID: 859389041560541855, guid: 22f2783e4e25e1d4fbf5888b36dce8f5, type: 3}
+  - _category: flow
+    _prefab: {fileID: 451224348913190848, guid: ec3c73ba2765e1d4690af09c8e890478, type: 3}
+  - _category: method
+    _prefab: {fileID: 3179469781767233823, guid: 3d11cbbbbd07dc944b81fe0d49cce487, type: 3}
 --- !u!1 &2320053277576284238
 GameObject:
   m_ObjectHideFlags: 0
@@ -424,7 +435,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4291079050
   m_fontColor: {r: 0.54, g: 0.67, b: 0.77, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -437,7 +448,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -586,8 +597,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 853696901971842744}
-  - component: {fileID: 5252590253862458053}
   - component: {fileID: 7220485742296353902}
+  - component: {fileID: 2500305372549721242}
   m_Layer: 0
   m_Name: Content
   m_TagString: Untagged
@@ -612,34 +623,8 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 494, y: 300}
+  m_SizeDelta: {x: 494, y: 0}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &5252590253862458053
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4308543794844977666}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 5
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 0
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!114 &7220485742296353902
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -654,6 +639,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
   m_HorizontalFit: 0
   m_VerticalFit: 2
+--- !u!114 &2500305372549721242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4308543794844977666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.GridLayoutGroup
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 0
+  m_StartCorner: 0
+  m_StartAxis: 0
+  m_CellSize: {x: 244, y: 52}
+  m_Spacing: {x: 6, y: 6}
+  m_Constraint: 1
+  m_ConstraintCount: 2
 --- !u!1 &5153737044903612306
 GameObject:
   m_ObjectHideFlags: 0
@@ -741,7 +750,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1245,6 +1254,14 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_fontSizeBase
       value: 23
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4291079050
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
