@@ -12,9 +12,6 @@ namespace RuneCode
     /// </summary>
     public sealed class SpellInspectorPresenter
     {
-        private static readonly Color ISSUE_ERROR_TINT = new Color(1f, 0.41f, 0.44f);
-        private static readonly Color ISSUE_WARNING_TINT = new Color(1f, 0.76f, 0.38f);
-        private static readonly Color DELETE_TINT = new Color(0.97f, 0.43f, 0.45f);
 
         private readonly ISpellEditor _editor;
         private readonly SpellInspectorView _view;
@@ -55,7 +52,7 @@ namespace RuneCode
         private void ShowNode(GraphNode node)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            _view.AddTitle(rune.Name + " / " + GameData.Runes.NodeRam(node) + " RAM", RuneMesh.CategoryColor(rune.Category));
+            _view.AddTitle(rune.Name + " / " + GameData.Runes.NodeRam(node) + " RAM");
             foreach (ParameterDefinition parameter in rune.Params)
             {
                 if (IsParameterVisible(node, parameter)) ShowParameter(node, rune, parameter);
@@ -63,15 +60,15 @@ namespace RuneCode
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
                 ShowModifierGrade(node, rune);
-                if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), UiTheme.Muted, 52, 6);
+                if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), 52, 6);
             }
             if (rune.Params.Count == 0 && rune.Category != SpellGrammar.CATEGORY_MODIFIER)
             {
                 _view.AddNote(GameData.L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + GameData.L("ui.damage") + " "
-                    + rune.Stats.Damage.ToString("0.#"), UiTheme.Muted, 34, 8);
+                    + rune.Stats.Damage.ToString("0.#"), 34, 8);
             }
             if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) ShowBehaviorStats(node);
-            if (rune.Category != SpellGrammar.CATEGORY_CORE) _view.AddButton(GameData.L("ui.delete"), DELETE_TINT, () => _editor.RemoveNode(node.Id));
+            if (rune.Category != SpellGrammar.CATEGORY_CORE) _view.AddButton(GameData.L("ui.delete"), "InspectorDeleteButton", () => _editor.RemoveNode(node.Id));
         }
 
         /// <summary>Modifier 등급 선택 버튼과 현재 등급의 고정 수치 안내를 표시한다.</summary>
@@ -81,8 +78,8 @@ namespace RuneCode
             _editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned);
             string label = GameData.L("ui.modifierGrade") + " " + grade + " · " + GameData.L("ui.modifierStock")
                 + " " + Math.Max(0, owned - used) + "/" + owned;
-            _view.AddButton(label, UiTheme.Cyan, () => SelectNextModifierGrade(node.Id, rune));
-            _view.AddNote(GameData.L("ui.gradeStats") + " " + FormatModifierStats(rune, grade), UiTheme.Cyan, 70, 6);
+            _view.AddButton(label, "InspectorButton", () => SelectNextModifierGrade(node.Id, rune));
+            _view.AddNote(GameData.L("ui.gradeStats") + " " + FormatModifierStats(rune, grade), 70, 6);
         }
 
         /// <summary>소지량이 있는 다음 등급을 찾아 선택 노드에 저장한다.</summary>
@@ -195,7 +192,7 @@ namespace RuneCode
             string speed = action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s";
             _view.AddNote(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n"
                 + size + "\n"
-                + GameData.L("ui.spellSpeed") + " " + speed, UiTheme.Cyan, 70, 6);
+                + GameData.L("ui.spellSpeed") + " " + speed, 70, 6);
         }
 
         /// <summary>컴파일 성공 여부, 오류·경고(누르면 해당 노드로 이동)와 조작 안내를 검증 목록에 표시한다.</summary>
@@ -203,17 +200,17 @@ namespace RuneCode
         {
             RectTransform list = _view.BeginValidation();
             CompileResult result = _editor.CompileResult;
-            if (result.Ok) _view.AddIssue(list, GameData.L("ui.valid"), UiTheme.Cyan, null);
-            foreach (CompileIssue issue in result.Errors) AddIssue(list, issue, ISSUE_ERROR_TINT);
-            foreach (CompileIssue issue in result.Warnings) AddIssue(list, issue, ISSUE_WARNING_TINT);
-            _view.AddIssue(list, GameData.L("ui.controls"), UiTheme.Muted, null);
+            if (result.Ok) _view.AddIssue(list, GameData.L("ui.valid"), "ValidationSuccessRow", null);
+            foreach (CompileIssue issue in result.Errors) AddIssue(list, issue, "ValidationErrorRow");
+            foreach (CompileIssue issue in result.Warnings) AddIssue(list, issue, "ValidationWarningRow");
+            _view.AddIssue(list, GameData.L("ui.controls"), null, null);
         }
 
         /// <summary>검증 항목 하나를 코드·문구로 표시하고 누르면 관련 노드로 그래프를 이동하게 한다.</summary>
-        private void AddIssue(RectTransform list, CompileIssue issue, Color tint)
+        private void AddIssue(RectTransform list, CompileIssue issue, string prefabName)
         {
             string nodeId = issue.NodeId;
-            _view.AddIssue(list, issue.Code + " · " + CompileIssueText.Format(issue), tint, () => { if (nodeId != null) _graph.FocusNode(nodeId); });
+            _view.AddIssue(list, issue.Code + " · " + CompileIssueText.Format(issue), prefabName, () => { if (nodeId != null) _graph.FocusNode(nodeId); });
         }
 
         /// <summary>수식 배율을 데이터의 한 단계만큼 바꾸고 범위 안으로 제한해 저장한 뒤 인스펙터를 다시 그린다.</summary>

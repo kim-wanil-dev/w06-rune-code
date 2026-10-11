@@ -22,6 +22,7 @@ namespace RuneCode
         [Header("트리 데이터")]
         [SerializeField] private UpgradeTreeDefinition _definition;
         [SerializeField] private UpgradeTreeNodeView _nodePrefab;
+        [SerializeField] private UiStateVisual _connectionPrefab;
 
         [Header("트리 화면")]
         [SerializeField] private TextMeshProUGUI _summary;
@@ -81,11 +82,11 @@ namespace RuneCode
             if (_nodeViews.TryGetValue(nodeId, out UpgradeTreeNodeView view)) view.SetContent(effectType, runeCategory, icon, level, isAvailable, isComplete, canPurchase);
         }
 
-        /// <summary>각 연결선을 선행 노드 조건 충족 여부(노드 ID, 요구 레벨 → 충족)에 따라 완료 색 또는 잠금 색으로 표시한다.</summary>
+        /// <summary>각 연결선을 선행 노드 조건 충족 여부(노드 ID, 요구 레벨 → 충족)에 따라 완료 또는 잠금 프리팹 표시으로 표시한다.</summary>
         public void SetConnectionStates(Func<string, int, bool> isSatisfied)
         {
             foreach (TreeConnection connection in _connections)
-                connection.Image.color = isSatisfied(connection.NodeId, connection.RequiredLevel) ? UiTheme.Cyan : UiTheme.Muted;
+                connection.Visual.Show(isSatisfied(connection.NodeId, connection.RequiredLevel) ? 1 : 0);
         }
 
         /// <summary>노드 위 정보 상자에 이름·설명·강화 레벨·다음 상승량·비용을 표시한다.</summary>
@@ -173,34 +174,33 @@ namespace RuneCode
             Vector2 start = new Vector2(source.Position.x + NODE_SIZE * 0.5f, -source.Position.y - NODE_SIZE * 0.5f);
             Vector2 end = new Vector2(target.Position.x + NODE_SIZE * 0.5f, -target.Position.y - NODE_SIZE * 0.5f);
             Vector2 delta = end - start;
-            GameObject lineObject = new GameObject(source.Id + "To" + target.Id, typeof(RectTransform), typeof(Image));
-            lineObject.transform.SetParent(_content, false);
+            UiStateVisual visual = Instantiate(_connectionPrefab, _content);
+            GameObject lineObject = visual.gameObject;
+            lineObject.name = source.Id + "To" + target.Id;
             RectTransform lineRect = lineObject.GetComponent<RectTransform>();
             lineRect.anchorMin = lineRect.anchorMax = new Vector2(0, 1);
             lineRect.pivot = new Vector2(0.5f, 0.5f);
             lineRect.anchoredPosition = (start + end) * 0.5f;
             lineRect.sizeDelta = new Vector2(delta.magnitude, LINE_WIDTH);
             lineRect.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            Image image = lineObject.GetComponent<Image>();
-            image.raycastTarget = false;
-            _connections.Add(new TreeConnection(image, prerequisite.NodeId, prerequisite.RequiredLevel));
+            _connections.Add(new TreeConnection(visual, prerequisite.NodeId, prerequisite.RequiredLevel));
             lineObject.transform.SetAsFirstSibling();
         }
 
         private sealed class TreeConnection
         {
-            private readonly Image _image;
+            private readonly UiStateVisual _visual;
             private readonly string _nodeId;
             private readonly int _requiredLevel;
 
-            public Image Image => _image;
+            public UiStateVisual Visual => _visual;
             public string NodeId => _nodeId;
             public int RequiredLevel => _requiredLevel;
 
             /// <summary>연결선과 이 선이 표시하는 선행 노드 요구 레벨을 저장한다.</summary>
-            public TreeConnection(Image image, string nodeId, int requiredLevel)
+            public TreeConnection(UiStateVisual visual, string nodeId, int requiredLevel)
             {
-                _image = image;
+                _visual = visual;
                 _nodeId = nodeId;
                 _requiredLevel = requiredLevel;
             }

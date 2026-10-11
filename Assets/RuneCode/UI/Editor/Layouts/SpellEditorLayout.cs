@@ -12,6 +12,43 @@ namespace RuneCode
     /// </summary>
     public static class SpellEditorLayout
     {
+        /// <summary>팔레트 content를 고정 2열 그리드로 설정하고 현재 너비에 맞춰 셀 크기와 자동 콘텐츠 높이를 지정한다.</summary>
+        public static void ConfigurePaletteGrid(RectTransform content)
+        {
+            var vertical = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+            if (vertical != null) Object.DestroyImmediate(vertical);
+            var grid = content.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            if (grid == null) grid = content.gameObject.AddComponent<UnityEngine.UI.GridLayoutGroup>();
+            grid.constraint = UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
+            grid.startAxis = UnityEngine.UI.GridLayoutGroup.Axis.Horizontal;
+            grid.startCorner = UnityEngine.UI.GridLayoutGroup.Corner.UpperLeft;
+            grid.childAlignment = TextAnchor.UpperLeft;
+            grid.spacing = new Vector2(6, 6);
+            grid.padding = new RectOffset();
+            grid.cellSize = new Vector2((content.rect.width - grid.spacing.x) / 2, SpellPalettePresenter.ROW_HEIGHT);
+            var fitter = content.GetComponent<UnityEngine.UI.ContentSizeFitter>();
+            fitter.horizontalFit = UnityEngine.UI.ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        /// <summary>target의 분류별 행 연결 배열에 prefix로 구분한 프리팹 원본을 기록한다.</summary>
+        public static void BindPaletteRowPrefabs(Component target, string prefix)
+        {
+            SerializedObject serialized = new SerializedObject(target);
+            SerializedProperty bindings = serialized.FindProperty("_categoryRowPrefabs");
+            bindings.arraySize = SpellEditorPanel.CATEGORY_IDS.Length - 1;
+            for (int i = 1; i < SpellEditorPanel.CATEGORY_IDS.Length; i++)
+            {
+                string category = SpellEditorPanel.CATEGORY_IDS[i];
+                string suffix = char.ToUpperInvariant(category[0]) + category.Substring(1);
+                SerializedProperty binding = bindings.GetArrayElementAtIndex(i - 1);
+                binding.FindPropertyRelative("_category").stringValue = category;
+                binding.FindPropertyRelative("_prefab").objectReferenceValue = LayoutUtility.Element<UiRow>(prefix + suffix + "Row");
+            }
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         /// <summary>parent 아래에 1280×720 SpellEditorPanel과 편집 영역 UI, RuneGraphCanvas 뷰포트를 만들고 직렬화 참조를 연결한 뒤 패널을 반환한다.</summary>
         public static SpellEditorPanel Build(UiFactory ui, Transform parent)
         {
@@ -19,43 +56,43 @@ namespace RuneCode
             RectTransform root = UiFactory.Rect(parent, "SpellEditorPanel", 0, 0, UiTheme.SCREEN_WIDTH, UiTheme.SCREEN_HEIGHT);
             SpellEditorPanel panel = root.gameObject.AddComponent<SpellEditorPanel>();
 
-            ui.Text(root, 18, 91, 190, 30, GameData.L("ui.singleSpell"), 15, UiTheme.Cyan);
-            TextMeshProUGUI spellTitle = ui.Text(root, 222, 89, 300, 33, "", 22, Color.white, FontStyles.Bold);
-            Button libraryButton = ui.Button(root, 528, 86, 88, 34, GameData.L("ui.library"), null, UiTheme.Muted, 12);
-            Button renameButton = ui.Button(root, 628, 86, 116, 34, GameData.L("ui.rename"), null, UiTheme.Muted, 13);
-            Button saveButton = ui.Button(root, 756, 86, 92, 34, GameData.L("ui.save"), null, UiTheme.Cyan, 13);
-            Button shareButton = ui.Button(root, 862, 86, 132, 34, GameData.L("ui.share"), null, UiTheme.Muted, 13);
-            TextMeshProUGUI metrics = ui.Text(root, 224, 129, 766, 23, "", 12, UiTheme.Cyan);
+            ui.Text(root, 18, 91, 190, 30, GameData.L("ui.singleSpell"), 15);
+            TextMeshProUGUI spellTitle = ui.Text(root, 222, 89, 300, 33, "", 22, FontStyles.Bold);
+            Button libraryButton = ui.Button(root, 528, 86, 88, 34, GameData.L("ui.library"), null, 12);
+            Button renameButton = ui.Button(root, 628, 86, 116, 34, GameData.L("ui.rename"), null, 13);
+            Button saveButton = ui.Button(root, 756, 86, 92, 34, GameData.L("ui.save"), null, 13);
+            Button shareButton = ui.Button(root, 862, 86, 132, 34, GameData.L("ui.share"), null, 13);
+            TextMeshProUGUI metrics = ui.Text(root, 224, 129, 766, 23, "", 12);
 
-            RectTransform palette = ui.Panel(root, 16, 136, 190, 526, UiTheme.Panel, "Palette");
-            ui.Text(palette, 12, 12, 166, 26, GameData.L("ui.palette"), 17, Color.white, FontStyles.Bold);
+            RectTransform palette = ui.Panel(root, 16, 136, 190, 526, "Palette");
+            ui.Text(palette, 12, 12, 166, 26, GameData.L("ui.palette"), 17, FontStyles.Bold);
             TMP_InputField search = ui.Input(palette, 10, 47, 170, 32, "", GameData.L("ui.search"));
             Button[] categoryButtons = new Button[SpellEditorPanel.CATEGORY_IDS.Length];
             for (int i = 0; i < SpellEditorPanel.CATEGORY_IDS.Length; i++)
             {
                 string category = SpellEditorPanel.CATEGORY_IDS[i];
                 categoryButtons[i] = ui.Button(palette, 10 + i % 3 * 58, 87 + i / 3 * 29, 54, 25,
-                    category == "all" ? GameData.L("ui.all") : GameData.L("category." + category), null, UiTheme.Muted, 10);
+                    category == "all" ? GameData.L("ui.all") : GameData.L("category." + category), null, 10, prefabName: "TabButton");
             }
             RectTransform runeList = UiFactory.ScrollList(palette, "RuneList", 8, 177, 174, 338);
+            ConfigurePaletteGrid(runeList);
 
             RectTransform graphViewport = UiFactory.Rect(root, "GraphViewport", 222, 162, 772, 306);
             graphViewport.gameObject.AddComponent<RectMask2D>();
             RectTransform graphSurface = UiFactory.Rect(graphViewport, "GraphCanvas", 0, 0, 772, 306);
             RuneGraphCanvas graphCanvas = graphSurface.gameObject.AddComponent<RuneGraphCanvas>();
 
-            RectTransform inspector = ui.Panel(root, 1010, 136, 254, 526, UiTheme.Panel, "Inspector");
+            RectTransform inspector = ui.Panel(root, 1010, 136, 254, 526, "Inspector");
 
-            Button undoButton = ui.Button(root, 222, 476, 72, 27, GameData.L("ui.undo"), null, UiTheme.Muted, 11);
-            Button redoButton = ui.Button(root, 300, 476, 72, 27, GameData.L("ui.redo"), null, UiTheme.Muted, 11);
-            Button arrangeButton = ui.Button(root, 378, 476, 84, 27, GameData.L("ui.arrange"), null, UiTheme.Muted, 11);
-            Button copyButton = ui.Button(root, 468, 476, 58, 27, GameData.L("ui.copy"), null, UiTheme.Muted, 11);
-            Button pasteButton = ui.Button(root, 532, 476, 78, 27, GameData.L("ui.paste"), null, UiTheme.Muted, 11);
-            TextMeshProUGUI tooltip = ui.Text(root, 619, 476, 372, 28, GameData.L("ui.executionOrder"), 11, UiTheme.Muted);
-            TextMeshProUGUI tutorial = ui.Text(root, 222, 662, 1026, 22, "", 12, UiTheme.Cyan);
-            Button tutorialButton = ui.Button(root, 16, 666, 190, 19, GameData.L("ui.tutorial"), null, UiTheme.Cyan, 11);
+            Button undoButton = ui.Button(root, 222, 476, 72, 27, GameData.L("ui.undo"), null, 11);
+            Button redoButton = ui.Button(root, 300, 476, 72, 27, GameData.L("ui.redo"), null, 11);
+            Button arrangeButton = ui.Button(root, 378, 476, 84, 27, GameData.L("ui.arrange"), null, 11);
+            Button copyButton = ui.Button(root, 468, 476, 58, 27, GameData.L("ui.copy"), null, 11);
+            Button pasteButton = ui.Button(root, 532, 476, 78, 27, GameData.L("ui.paste"), null, 11);
+            TextMeshProUGUI tooltip = ui.Text(root, 619, 476, 372, 28, GameData.L("ui.executionOrder"), 11);
+            TextMeshProUGUI tutorial = ui.Text(root, 222, 662, 1026, 22, "", 12);
+            Button tutorialButton = ui.Button(root, 16, 666, 190, 19, GameData.L("ui.tutorial"), null, 11);
 
-            UiRow rowPrefab = LayoutUtility.GetSharedRowPrefab(ui);
             LayoutUtility.SetReference(panel, "_spellTitle", spellTitle);
             LayoutUtility.SetReference(panel, "_libraryButton", libraryButton);
             LayoutUtility.SetReference(panel, "_renameButton", renameButton);
@@ -65,11 +102,12 @@ namespace RuneCode
             LayoutUtility.SetReference(panel, "_searchField", search);
             LayoutUtility.SetReferences(panel, "_categoryButtons", categoryButtons);
             LayoutUtility.SetReference(panel, "_runeList", runeList);
-            LayoutUtility.SetReference(panel, "_runeRowPrefab", rowPrefab);
+            LayoutUtility.SetReference(panel, "_runeRowPrefab", LayoutUtility.Element<UiRow>("RunePaletteRow"));
+            BindPaletteRowPrefabs(panel, "RunePalette");
             LayoutUtility.SetReference(panel, "_graphCanvas", graphCanvas);
             LayoutUtility.SetReference(panel, "_inspectorPanel", inspector);
             LayoutUtility.SetReference(panel, "_parameterRowPrefab", EnsureParameterRowPrefab(ui));
-            LayoutUtility.SetReference(panel, "_issueRowPrefab", rowPrefab);
+            LayoutUtility.SetReference(panel, "_issueRowPrefab", LayoutUtility.Element<UiRow>("ValidationRow"));
             LayoutUtility.SetReference(panel, "_undoButton", undoButton);
             LayoutUtility.SetReference(panel, "_redoButton", redoButton);
             LayoutUtility.SetReference(panel, "_arrangeButton", arrangeButton);
@@ -103,11 +141,13 @@ namespace RuneCode
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.search"), 550, 470, out Button closeButton);
             TMP_InputField search = ui.Input(card, 24, 80, 502, 38, "", GameData.L("ui.search"));
             RectTransform list = UiFactory.ScrollList(card, "QuickPalette", 24, 138, 502, 300);
+            ConfigurePaletteGrid(list);
             QuickPalettePopup popup = root.gameObject.AddComponent<QuickPalettePopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
             LayoutUtility.SetReference(popup, "_search", search);
             LayoutUtility.SetReference(popup, "_list", list);
-            LayoutUtility.SetReference(popup, "_rowPrefab", LayoutUtility.GetSharedRowPrefab(ui));
+            LayoutUtility.SetReference(popup, "_rowPrefab", LayoutUtility.Element<UiRow>("QuickPaletteRow"));
+            BindPaletteRowPrefabs(popup, "QuickPalette");
             LayoutUtility.SaveViewPrefab(root);
         }
 
@@ -118,13 +158,13 @@ namespace RuneCode
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(SpellListPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.library"), 620, 500, out Button closeButton);
             RectTransform list = UiFactory.ScrollList(card, "SpellList", 24, 74, 572, 340);
-            Button newButton = ui.Button(card, 24, 430, 240, 42, GameData.L("ui.new"), null, UiTheme.Cyan, 13, "NewSpellButton");
-            Button duplicateButton = ui.Button(card, 278, 430, 240, 42, GameData.L("ui.duplicate"), null, UiTheme.Muted, 13, "DuplicateSpellButton");
+            Button newButton = ui.Button(card, 24, 430, 240, 42, GameData.L("ui.new"), null, 13, "NewSpellButton");
+            Button duplicateButton = ui.Button(card, 278, 430, 240, 42, GameData.L("ui.duplicate"), null, 13, "DuplicateSpellButton");
             SpellListPopup popup = root.gameObject.AddComponent<SpellListPopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
             LayoutUtility.SetReference(popup, "_title", card.Find("Title").GetComponent<TextMeshProUGUI>());
             LayoutUtility.SetReference(popup, "_list", list);
-            LayoutUtility.SetReference(popup, "_rowPrefab", LayoutUtility.GetSharedRowPrefab(ui));
+            LayoutUtility.SetReference(popup, "_rowPrefab", LayoutUtility.Element<UiRow>("SpellListRow"));
             LayoutUtility.SetReference(popup, "_newButton", newButton);
             LayoutUtility.SetReference(popup, "_duplicateButton", duplicateButton);
             LayoutUtility.SaveViewPrefab(root);
@@ -136,9 +176,9 @@ namespace RuneCode
             if (LayoutUtility.ViewPrefabExists(nameof(TutorialPopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(TutorialPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.tutorial"), 660, 380, out Button closeButton);
-            ui.Text(card, 30, 92, 600, 68, GameData.L("ui.tutorial1"), 18, Color.white);
-            ui.Text(card, 30, 172, 600, 68, GameData.L("ui.tutorial2"), 18, Color.white);
-            ui.Text(card, 30, 252, 600, 68, GameData.L("ui.tutorial3"), 18, UiTheme.Cyan);
+            ui.Text(card, 30, 92, 600, 68, GameData.L("ui.tutorial1"), 18);
+            ui.Text(card, 30, 172, 600, 68, GameData.L("ui.tutorial2"), 18);
+            ui.Text(card, 30, 252, 600, 68, GameData.L("ui.tutorial3"), 18);
             TutorialPopup popup = root.gameObject.AddComponent<TutorialPopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
             LayoutUtility.SaveViewPrefab(root);
@@ -151,7 +191,7 @@ namespace RuneCode
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(RenamePopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.rename"), 560, 250, out Button closeButton);
             TMP_InputField nameField = ui.Input(card, 28, 88, 504, 42, "", "");
-            Button saveButton = ui.Button(card, 352, 164, 180, 40, GameData.L("ui.save"), null, UiTheme.Cyan, 14, "SaveButton");
+            Button saveButton = ui.Button(card, 352, 164, 180, 40, GameData.L("ui.save"), null, 14, "SaveButton");
             RenamePopup popup = root.gameObject.AddComponent<RenamePopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
             LayoutUtility.SetReference(popup, "_nameField", nameField);
@@ -165,12 +205,12 @@ namespace RuneCode
             if (LayoutUtility.ViewPrefabExists(nameof(SharePopup))) return;
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(SharePopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, GameData.L("ui.share"), 770, 400, out Button closeButton);
-            ui.Text(card, 26, 74, 718, 40, GameData.L("ui.importCurrent"), 12, UiTheme.Muted);
+            ui.Text(card, 26, 74, 718, 40, GameData.L("ui.importCurrent"), 12);
             TMP_InputField codeField = ui.Input(card, 26, 122, 718, 168, "", "RC1.");
             codeField.lineType = TMP_InputField.LineType.MultiLineNewline;
-            Button exportButton = ui.Button(card, 26, 322, 180, 42, GameData.L("ui.export"), null, UiTheme.Cyan, 14, "ExportButton");
-            Button pasteButton = ui.Button(card, 220, 322, 180, 42, GameData.L("ui.paste"), null, UiTheme.Muted, 14, "PasteButton");
-            Button importButton = ui.Button(card, 564, 322, 180, 42, GameData.L("ui.import"), null, UiTheme.Cyan, 14, "ImportButton");
+            Button exportButton = ui.Button(card, 26, 322, 180, 42, GameData.L("ui.export"), null, 14, "ExportButton");
+            Button pasteButton = ui.Button(card, 220, 322, 180, 42, GameData.L("ui.paste"), null, 14, "PasteButton");
+            Button importButton = ui.Button(card, 564, 322, 180, 42, GameData.L("ui.import"), null, 14, "ImportButton");
             SharePopup popup = root.gameObject.AddComponent<SharePopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);
             LayoutUtility.SetReference(popup, "_codeField", codeField);
@@ -188,12 +228,12 @@ namespace RuneCode
 
             RectTransform rect = UiFactory.Rect(null, "SpellParameterRow", 0, 0, 224, 64);
             SpellParameterRow row = rect.gameObject.AddComponent<SpellParameterRow>();
-            TextMeshProUGUI label = ui.Text(rect, 0, 0, 224, 20, "", 12, UiTheme.Muted);
+            TextMeshProUGUI label = ui.Text(rect, 0, 0, 224, 20, "", 12);
             TMP_InputField input = ui.Input(rect, 0, 24, 222, 30, "", "");
-            Button minusButton = ui.Button(rect, 0, 24, 34, 30, "−", null, UiTheme.Muted, 18);
-            Button plusButton = ui.Button(rect, 182, 24, 40, 30, "+", null, UiTheme.Cyan, 18);
-            Button optionButton = ui.Button(rect, 0, 24, 222, 30, "", null, UiTheme.Muted, 12);
-            Button spellButton = ui.Button(rect, 0, 24, 222, 42, "", null, UiTheme.Muted, 11);
+            Button minusButton = ui.Button(rect, 0, 24, 34, 30, "−", null, 18);
+            Button plusButton = ui.Button(rect, 182, 24, 40, 30, "+", null, 18);
+            Button optionButton = ui.Button(rect, 0, 24, 222, 30, "", null, 12);
+            Button spellButton = ui.Button(rect, 0, 24, 222, 42, "", null, 11);
             LayoutUtility.SetReference(row, "_label", label);
             LayoutUtility.SetReference(row, "_input", input);
             LayoutUtility.SetReference(row, "_minusButton", minusButton);

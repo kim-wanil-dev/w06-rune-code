@@ -38,28 +38,28 @@ namespace RuneCode
         public void Begin()
         {
             UiFactory.ClearChildren(_panel);
-            _ui.Text(_panel, LEFT, 12, WIDTH, 27, GameData.L("ui.inspector"), 17, Color.white, FontStyles.Bold);
+            _ui.Text(_panel, LEFT, 12, WIDTH, 27, GameData.L("ui.inspector"), 17, FontStyles.Bold, prefabName: "InspectorHeading");
             _top = 50;
         }
 
         /// <summary>노드 이름 줄을 추가한다.</summary>
-        public void AddTitle(string text, Color tint)
+        public void AddTitle(string text)
         {
-            _ui.Text(_panel, LEFT, _top, WIDTH, 28, text, 17, tint);
+            _ui.Text(_panel, LEFT, _top, WIDTH, 28, text, 17, prefabName: "InspectorTitle");
             _top += 37;
         }
 
         /// <summary>안내·정보 문구를 지정 높이로 추가하고 높이와 간격만큼 아래로 내려간다.</summary>
-        public void AddNote(string text, Color tint, float height, float spacing)
+        public void AddNote(string text, float height, float spacing)
         {
-            _ui.Text(_panel, LEFT, _top, WIDTH, height, text, 12, tint);
+            _ui.Text(_panel, LEFT, _top, WIDTH, height, text, 12, prefabName: "InspectorNote");
             _top += height + spacing;
         }
 
         /// <summary>노드 미선택 안내 문구를 추가한다.</summary>
         public void AddEmptyHint(string text)
         {
-            _ui.Text(_panel, LEFT, _top, 224, 62, text, 13, UiTheme.Muted);
+            _ui.Text(_panel, LEFT, _top, 224, 62, text, 13, prefabName: "InspectorHint");
             _top += 72;
         }
 
@@ -105,25 +105,26 @@ namespace RuneCode
             _top += SPELL_PARAMETER_ROW_HEIGHT;
         }
 
-        /// <summary>강조 색 버튼을 추가하고 클릭을 동작으로 연결한다.</summary>
-        public void AddButton(string label, Color tint, Action onClick)
+        /// <summary>프리팹 버튼을 추가하고 클릭을 동작으로 연결한다.</summary>
+        public void AddButton(string label, string prefabName, Action onClick)
         {
-            _ui.Button(_panel, LEFT, _top, WIDTH, 29, label, onClick, tint, 12);
+            _ui.Button(_panel, LEFT, _top, WIDTH, 29, label, onClick, 12, prefabName: prefabName);
             _top += 42;
         }
 
         /// <summary>검증 제목과 남은 높이를 채우는 스크롤 목록을 추가하고, 이어서 AddIssue로 채울 목록을 반환한다.</summary>
         public RectTransform BeginValidation()
         {
-            _ui.Text(_panel, LEFT, _top, WIDTH, 25, GameData.L("ui.validation"), 15, Color.white, FontStyles.Bold);
+            _ui.Text(_panel, LEFT, _top, WIDTH, 25, GameData.L("ui.validation"), 15, FontStyles.Bold, prefabName: "InspectorHeading");
             _top += 31;
             return UiFactory.ScrollList(_panel, "Validation", 12, _top, 228, Mathf.Max(MIN_VALIDATION_HEIGHT, VALIDATION_BOTTOM - _top));
         }
 
         /// <summary>검증 목록에 문구 행을 추가하고 클릭 동작을 연결한다.</summary>
-        public void AddIssue(RectTransform list, string label, Color tint, Action onClick)
+        public void AddIssue(RectTransform list, string label, string prefabName, Action onClick)
         {
-            UnityEngine.Object.Instantiate(_issueRowPrefab, list).Configure(label, tint, 56, onClick, 11);
+            UiRow prefab = prefabName == null ? _issueRowPrefab : Resources.Load<UiRow>("RuneCode/UI/Elements/" + prefabName);
+            UnityEngine.Object.Instantiate(prefab, list).Configure(label, 56, onClick, 11);
         }
 
         /// <summary>현재 위치에 파라미터 행 Prefab을 만든다.</summary>

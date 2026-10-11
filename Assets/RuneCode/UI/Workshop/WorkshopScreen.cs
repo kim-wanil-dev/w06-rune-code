@@ -71,9 +71,7 @@ namespace RuneCode
             _settingsRoot.gameObject.SetActive(tab == TAB_SETTINGS);
             for (int i = 0; i < TABS.Length; i++)
             {
-                Color accent = TABS[i] == tab ? UiTheme.Cyan : UiTheme.Muted;
-                _tabLabels[i].color = accent;
-                _tabButtons[i].image.color = new Color(accent.r * 0.19f + 0.03f, accent.g * 0.19f + 0.05f, accent.b * 0.19f + 0.07f);
+                _tabButtons[i].GetComponent<TabButton>().SetSelected(TABS[i] == tab);
             }
         }
 

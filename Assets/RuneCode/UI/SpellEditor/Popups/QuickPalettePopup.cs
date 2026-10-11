@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -15,8 +16,10 @@ namespace RuneCode
         [SerializeField] private TMP_InputField _search;
         [SerializeField] private RectTransform _list;
         [SerializeField] private UiRow _rowPrefab;
+        [SerializeField] private RunePaletteRowBinding[] _categoryRowPrefabs = Array.Empty<RunePaletteRowBinding>();
 
-        private ViewPool<UiRow> _rows;
+        private readonly Dictionary<UiRow, ViewPool<UiRow>> _rows = new Dictionary<UiRow, ViewPool<UiRow>>();
+        private bool _isBound;
 
         /// <summary>검색어가 바뀌었을 때 알린다.</summary>
         public event Action<string> SearchChanged;
@@ -27,22 +30,31 @@ namespace RuneCode
         /// <summary>검색 입력을 처음 한 번만 이벤트로 연결하고 검색어를 비운 뒤 입력 칸에 포커스를 준다.</summary>
         public void Begin()
         {
-            if (_rows == null)
+            if (!_isBound)
             {
-                _rows = new ViewPool<UiRow>(_rowPrefab, _list);
                 _search.onValueChanged.AddListener(query => SearchChanged?.Invoke(query));
+                _isBound = true;
             }
             _search.SetTextWithoutNotify("");
             _search.ActivateInputField();
         }
 
         /// <summary>결과 목록을 비운다.</summary>
-        public void ClearResults() => _rows.ReleaseAll();
-
-        /// <summary>결과 행을 하나 추가하고 클릭 동작을 연결한다.</summary>
-        public void AddResult(string label, Color accent, Action onClick)
+        public void ClearResults()
         {
-            _rows.Get().Configure(label, accent, 36, onClick, 14);
+            foreach (ViewPool<UiRow> rows in _rows.Values) rows.ReleaseAll();
+        }
+
+        /// <summary>category에 연결된 프리팹으로 결과 행을 추가하고 문구와 클릭 동작을 연결한다.</summary>
+        public void AddResult(string label, Action onClick, string category = null)
+        {
+            UiRow prefab = RunePaletteRowBinding.Resolve(_categoryRowPrefabs, category, _rowPrefab);
+            if (!_rows.TryGetValue(prefab, out ViewPool<UiRow> rows))
+            {
+                rows = new ViewPool<UiRow>(prefab, _list);
+                _rows.Add(prefab, rows);
+            }
+            rows.Get().Configure(label, SpellPalettePresenter.ROW_HEIGHT, onClick, 14);
         }
     }
 }

@@ -25,9 +25,9 @@ namespace RuneCode
             RectTransform root = LayoutUtility.CreateViewRoot(nameof(ConfirmPopup));
             RectTransform card = LayoutUtility.BuildPopupFrame(ui, root, "", CONFIRM_WIDTH, CONFIRM_HEIGHT, out Button closeButton);
             TextMeshProUGUI title = card.Find("Title").GetComponent<TextMeshProUGUI>();
-            TextMeshProUGUI message = ui.Text(card, 28, 72, CONFIRM_WIDTH - 56, 70, "", 16, UiTheme.Muted, FontStyles.Normal, "Message");
-            Button confirmButton = ui.Button(card, 28, 170, 232, 60, "", null, UiTheme.Cyan, 14, "ConfirmButton");
-            Button cancelButton = ui.Button(card, 280, 170, 232, 60, GameData.L("ui.close"), null, UiTheme.Muted, 14, "CancelButton");
+            TextMeshProUGUI message = ui.Text(card, 28, 72, CONFIRM_WIDTH - 56, 70, "", 16, FontStyles.Normal, "Message");
+            Button confirmButton = ui.Button(card, 28, 170, 232, 60, "", null, 14, "ConfirmButton");
+            Button cancelButton = ui.Button(card, 280, 170, 232, 60, GameData.L("ui.close"), null, 14, "CancelButton");
 
             ConfirmPopup popup = root.gameObject.AddComponent<ConfirmPopup>();
             LayoutUtility.SetReference(popup, "_closeButton", closeButton);

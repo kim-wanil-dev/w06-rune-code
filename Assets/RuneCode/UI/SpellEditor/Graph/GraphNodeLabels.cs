@@ -15,16 +15,20 @@ namespace RuneCode
     internal sealed class GraphNodeLabels
     {
         private const float LABEL_FONT_SIZE = 12f;
-        private const float LABEL_PADDING_X = 14f;
-        private const float LABEL_PADDING_TOP = 10f;
-        private const float LABEL_PADDING_BOTTOM = 4f;
-        private const float LABEL_WIDTH = GraphNodeLayout.NODE_WIDTH - LABEL_PADDING_X * 2;
+        private const float LABEL_PADDING_X = 24f;
+        private const float LABEL_PADDING_RIGHT = 14f;
+        private const float LABEL_PADDING_TOP = 12f;
+        private const float HEADER_HEIGHT = 28f;
+        private const float PORT_FONT_SIZE = 10f;
+        private const float PORT_LABEL_HEIGHT = 16f;
+        private const float LABEL_WIDTH = GraphNodeLayout.NODE_WIDTH - LABEL_PADDING_X - LABEL_PADDING_RIGHT;
 
         private readonly RectTransform _parent;
         private readonly TMP_FontAsset _font;
         private readonly GraphViewport _viewport;
         private readonly GraphNodeLayout _layout;
         private readonly Dictionary<string, TextMeshProUGUI> _labels = new Dictionary<string, TextMeshProUGUI>();
+        private readonly Dictionary<string, List<TextMeshProUGUI>> _portLabels = new Dictionary<string, List<TextMeshProUGUI>>();
         private readonly HashSet<string> _existingNodes = new HashSet<string>();
         private readonly List<string> _staleIds = new List<string>();
         private readonly StringBuilder _builder = new StringBuilder();
@@ -49,8 +53,9 @@ namespace RuneCode
             {
                 _existingNodes.Add(node.Id);
                 TextMeshProUGUI label = GetOrCreate(node.Id);
-                string text = BuildText(node, label, library);
+                string text = BuildText(node, library);
                 if (label.text != text) label.text = text;
+                RefreshPortLabels(node);
             }
             RemoveStale();
             return _existingNodes;
@@ -68,8 +73,20 @@ namespace RuneCode
                 Rect rect = _layout.NodeRect(node, rune);
                 RectTransform textRect = label.rectTransform;
                 textRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * zoom, rect.yMax - _parent.rect.yMax - LABEL_PADDING_TOP * zoom);
-                textRect.sizeDelta = new Vector2(LABEL_WIDTH, _layout.NodeHeight(node, rune) - LABEL_PADDING_TOP - LABEL_PADDING_BOTTOM);
+                textRect.sizeDelta = new Vector2(LABEL_WIDTH, HEADER_HEIGHT);
                 textRect.localScale = scale;
+                List<TextMeshProUGUI> ports = _portLabels[node.Id];
+                int rows = _layout.PortRowCount(node, rune);
+                for (int row = 0; row < rows; row++)
+                {
+                    PortDefinition port = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_IN, row)
+                        ?? _layout.PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
+                    Vector2 point = _layout.PortPosition(rect, node, rune, port.Id);
+                    RectTransform portRect = ports[row].rectTransform;
+                    portRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * zoom, point.y - _parent.rect.yMax);
+                    portRect.sizeDelta = new Vector2(LABEL_WIDTH, PORT_LABEL_HEIGHT);
+                    portRect.localScale = scale;
+                }
             }
         }
 
@@ -77,20 +94,44 @@ namespace RuneCode
         private TextMeshProUGUI GetOrCreate(string nodeId)
         {
             if (_labels.TryGetValue(nodeId, out TextMeshProUGUI label)) return label;
-            var target = new GameObject("NodeLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
-            target.transform.SetParent(_parent, false);
-            label = target.GetComponent<TextMeshProUGUI>();
+            label = CreateLabel(LABEL_FONT_SIZE, false);
+            _labels.Add(nodeId, label);
+            _portLabels.Add(nodeId, new List<TextMeshProUGUI>());
+            return label;
+        }
+
+        /// <summary>프리팹으로 라벨을 만들고 글꼴 크기·세로 정렬·좌상단 기준점을 지정한다.</summary>
+        private TextMeshProUGUI CreateLabel(float fontSize, bool isPort)
+        {
+            TextMeshProUGUI label = Object.Instantiate(Resources.Load<TextMeshProUGUI>("RuneCode/UI/Elements/GraphNodeLabel"), _parent, false);
             label.font = _font;
-            label.fontSize = LABEL_FONT_SIZE;
-            label.color = Color.white;
+            label.fontSize = fontSize;
             label.raycastTarget = false;
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Overflow;
+            label.horizontalAlignment = HorizontalAlignmentOptions.Left;
+            label.verticalAlignment = isPort ? VerticalAlignmentOptions.Middle : VerticalAlignmentOptions.Top;
             RectTransform textRect = label.rectTransform;
             textRect.anchorMin = textRect.anchorMax = new Vector2(0, 1);
-            textRect.pivot = new Vector2(0, 1);
-            _labels.Add(nodeId, label);
+            textRect.pivot = new Vector2(0, isPort ? .5f : 1);
             return label;
+        }
+
+        /// <summary>표시 포트 행의 라벨을 재사용해 입력·출력 이름을 갱신하고 사라진 행은 숨긴다.</summary>
+        private void RefreshPortLabels(GraphNode node)
+        {
+            RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+            List<TextMeshProUGUI> labels = _portLabels[node.Id];
+            int rows = _layout.PortRowCount(node, rune);
+            for (int row = 0; row < rows; row++)
+            {
+                if (row == labels.Count) labels.Add(CreateLabel(PORT_FONT_SIZE, true));
+                TextMeshProUGUI label = labels[row];
+                label.gameObject.SetActive(true);
+                string text = BuildPortText(node, rune, row, label);
+                if (label.text != text) label.text = text;
+            }
+            for (int row = rows; row < labels.Count; row++) labels[row].gameObject.SetActive(false);
         }
 
         /// <summary>그래프에서 사라진 노드의 라벨 오브젝트를 파괴하고 목록에서 뺀다.</summary>
@@ -105,35 +146,37 @@ namespace RuneCode
             {
                 Object.Destroy(_labels[id].gameObject);
                 _labels.Remove(id);
+                foreach (TextMeshProUGUI label in _portLabels[id]) Object.Destroy(label.gameObject);
+                _portLabels.Remove(id);
             }
         }
 
         /// <summary>
-        /// 룬 이름·RAM, 핵심 설정 요약, 입력·출력 포트 이름 행으로 라벨 rich text를 만든다.
-        /// 출력 포트 이름은 라벨 글꼴로 너비를 재어 노드 오른쪽 끝에 맞추고, 지원 중단 포트는 회색 취소선으로 표시한다.
+        /// 룬 이름·RAM과 핵심 설정 요약을 담은 제목 라벨 rich text를 반환한다. 포트 이름은 별도 행 라벨로 표시한다.
         /// </summary>
-        private string BuildText(GraphNode node, TextMeshProUGUI label, IEnumerable<SpellGraph> library)
+        private string BuildText(GraphNode node, IEnumerable<SpellGraph> library)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             _builder.Clear();
-            _builder.Append("<b>").Append(rune.Name).Append("</b>  <color=#8EACC6>").Append(GameData.Runes.NodeRam(node)).Append(" RAM</color>\n");
+            _builder.Append("<b>").Append(rune.Name).Append("</b>  ").Append(GameData.Runes.NodeRam(node)).Append(" RAM");
             string summary = Summary(node, rune, library);
-            if (!string.IsNullOrEmpty(summary)) _builder.Append("<size=10><color=#A8C9D8>").Append(summary).Append("</color></size>\n");
+            if (!string.IsNullOrEmpty(summary)) _builder.Append("\n<size=10>").Append(summary).Append("</size>");
+            return _builder.ToString();
+        }
 
-            int rows = _layout.PortRowCount(node, rune);
-            for (int row = 0; row < rows; row++)
+        /// <summary>지정 포트 행의 입력 이름과 오른쪽 정렬한 출력 이름을 반환하며 지원 중단 출력에는 취소선을 붙인다.</summary>
+        private string BuildPortText(GraphNode node, RuneDefinition rune, int row, TextMeshProUGUI label)
+        {
+            _builder.Clear();
+            PortDefinition input = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_IN, row);
+            PortDefinition output = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
+            _builder.Append(input?.Id);
+            if (output != null)
             {
-                PortDefinition input = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_IN, row);
-                PortDefinition output = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
-                _builder.Append("<size=10>").Append(input?.Id);
-                if (output != null)
-                {
-                    string outputText = output.IsDeprecated ? "<s><color=#737880>" + output.Id + "</color></s>" : output.Id;
-                    float outputWidth = label.GetPreferredValues("<size=10>" + outputText).x;
-                    float outputStart = Mathf.Max(0, LABEL_WIDTH - outputWidth);
-                    _builder.Append("<pos=").Append(outputStart.ToString("0.#", CultureInfo.InvariantCulture)).Append('>').Append(outputText);
-                }
-                _builder.Append("</size>\n");
+                string outputText = output.IsDeprecated ? "<s>" + output.Id + "</s>" : output.Id;
+                float outputWidth = label.GetPreferredValues(outputText).x;
+                float outputStart = Mathf.Max(0, LABEL_WIDTH - outputWidth);
+                _builder.Append("<pos=").Append(outputStart.ToString("0.#", CultureInfo.InvariantCulture)).Append('>').Append(outputText);
             }
             return _builder.ToString();
         }

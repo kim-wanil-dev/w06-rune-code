@@ -1,4 +1,5 @@
 using System;
+
 using UnityEngine;
 
 using UnityEngine.EventSystems;
@@ -14,6 +15,9 @@ namespace RuneCode
         [SerializeField] private UpgradeTreeNodeIconGraphic _icon;
         [SerializeField] private Image _spriteIcon;
         [SerializeField] private Button _button;
+
+        [Header("상태 표시: 잠금 / 구매 가능 / 일부 강화 / MAX / 비용 부족")]
+        [SerializeField] private UiStateVisual _visual;
 
         private Action _purchaseAction;
         private Action<bool> _hoverAction;
@@ -35,26 +39,16 @@ namespace RuneCode
         /// <summary>아이콘, 노드 개방 상태, 완료 강조와 구매 가능 여부를 화면에 반영한다.</summary>
         public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, bool isAvailable, bool isComplete, bool canPurchase)
         {
-            Color accent = !isAvailable ? UiTheme.Muted :
-                isComplete ? new Color(0.31f, 0.91f, 0.68f) :
-                level > 0 ? new Color(0.72f, 0.58f, 1f) :
-                canPurchase ? GetEffectColor(effectType, runeCategory) : new Color(1f, 0.63f, 0.3f);
-            _background.color = !isAvailable ? new Color(0.035f, 0.055f, 0.075f, 1) :
-                isComplete ? new Color(0.045f, 0.16f, 0.12f, 1) :
-                level > 0 ? new Color(0.11f, 0.075f, 0.17f, 1) :
-                canPurchase ? new Color(0.055f, 0.105f, 0.15f, 1) : new Color(0.17f, 0.105f, 0.065f, 1);
-            _outline.effectColor = accent;
+            _visual.Show(!isAvailable ? 0 : isComplete ? 3 : level > 0 ? 2 : canPurchase ? 1 : 4);
             _spriteIcon.gameObject.SetActive(sprite != null);
             _icon.gameObject.SetActive(sprite == null);
             if (sprite == null)
             {
                 _icon.Configure(effectType, runeCategory);
-                _icon.color = accent;
             }
             else
             {
                 _spriteIcon.sprite = sprite;
-                _spriteIcon.color = isAvailable ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1);
             }
             _button.interactable = canPurchase;
         }
@@ -71,13 +65,5 @@ namespace RuneCode
             _hoverAction?.Invoke(false);
         }
 
-        /// <summary>업그레이드 효과 유형 또는 룬 분류에 맞는 노드 강조색을 반환한다.</summary>
-        private static Color GetEffectColor(UpgradeEffectType effectType, string runeCategory)
-        {
-            if (effectType == UpgradeEffectType.RuneUnlock) return RuneMesh.CategoryColor(runeCategory);
-            if (effectType == UpgradeEffectType.EnergyRegen) return new Color(0.34f, 0.91f, 0.68f);
-            if (effectType == UpgradeEffectType.MaxEnergy) return UiTheme.Cyan;
-            return new Color(0.72f, 0.58f, 1f);
-        }
     }
 }
