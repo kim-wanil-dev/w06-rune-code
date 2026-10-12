@@ -193,6 +193,7 @@ namespace RuneCode
             {
                 SpellGrammar.MODIFIER_KIND => _style.GetColor(MODIFIER_PORT_COLOR),
                 SpellGrammar.CHAIN_KIND => _style.GetColor(CHAIN_COLOR),
+                SpellGrammar.ELEMENT_KIND => RuneMesh.CategoryColor(SpellGrammar.CATEGORY_ELEMENT),
                 _ => _style.GetColor(EXEC_PORT_COLOR),
             };
         }
@@ -204,6 +205,7 @@ namespace RuneCode
             {
                 SpellGrammar.MODIFIER_KIND => 4,
                 SpellGrammar.CHAIN_KIND => 6,
+                SpellGrammar.ELEMENT_KIND => 3,
                 _ => 16,
             };
         }

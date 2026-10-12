@@ -250,7 +250,7 @@ namespace RuneCode
                 ? GameData.L("ui.executing") + " " + sim.Player.ExecutionRemaining(0).ToString("0.0") + "s " + GameData.L("ui.remaining")
                 : GameData.L("ui.cooldown") + " " + sim.Player.Cooldowns[0].ToString("0.0") + "s";
             _hud.SetSpellLine(GameData.L("ui.singleSpell") + "  " + _run.SpellName + "  ·  " + executionState
-                + "  ·  " + GameData.L("ui.cost") + " " + FormatSpellCosts(_run.SpellCosts));
+                + "  ·  " + SpellCostText.FormatCastAndMax(_run.SpellCastCosts, _run.SpellCosts));
             if (sim.EarnedFragments > _lastFragments)
             {
                 _hud.SetToast("+" + (sim.EarnedFragments - _lastFragments) + " " + GameData.L("ui.fragments"));
@@ -258,25 +258,6 @@ namespace RuneCode
             }
             _lastFragments = sim.EarnedFragments;
             if (Time.unscaledTime >= _toastUntil) _hud.SetToast("");
-        }
-
-        /// <summary>최대 비용 묶음을 산정 불가 안내 또는 자원별 수치로 표시한다.</summary>
-        private static string FormatSpellCosts(ResourceCostSet costs)
-        {
-            foreach (ResourceAmount amount in costs.Amounts)
-                if (double.IsInfinity(amount.Amount) || double.IsNaN(amount.Amount)) return GameData.L("ui.costUnbounded");
-            if (costs.Amounts.Count == 0) return "0 EN";
-            if (costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana")
-                return costs.Amounts[0].Amount.ToString("0.#") + " EN";
-            return costs.Format(ResourceName);
-        }
-
-        /// <summary>자원 ID의 현지화 이름을 반환하고 번역이 없으면 ID를 반환한다.</summary>
-        private static string ResourceName(string resource)
-        {
-            string key = "resource." + resource;
-            string value = GameData.L(key);
-            return value == key ? resource : value;
         }
     }
 }

@@ -134,7 +134,7 @@ namespace RuneCode
             RefreshAll();
         }
 
-        /// <summary>장착 RAM·그래프 RAM과 최대 비용·쿨다운·실행 시간·예상 동시 개체 수(컴파일 실패 시 주의)를 표시한다.</summary>
+        /// <summary>장착 RAM·그래프 RAM과 시전·최대 비용, 쿨다운·실행 시간·예상 동시 개체 수(컴파일 실패 시 주의)를 표시한다.</summary>
         private void RefreshMetrics()
         {
             CompiledSpell spell = _editor.CompileResult.Spell;
@@ -146,15 +146,17 @@ namespace RuneCode
                 + RAM_HIGHLIGHT_CLOSE;
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
-                : "  ·  " + GameData.L("ui.cost") + " " + (HasUnboundedCost(spell.ResourceCosts)
-                    ? GameData.L("ui.costUnbounded") : FormatCosts(spell.ResourceCosts, false)) + "  ·  " + GameData.L("ui.cooldown") + " "
+                : "  ·  " + SpellCostText.FormatCastAndMax(spell.CastCosts, spell.ResourceCosts) + "  ·  " + GameData.L("ui.cooldown") + " "
                     + spell.Cooldown.ToString("0.00") + "s  ·  " + GameData.L("ui.executionTime") + " "
                     + spell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  "
                     + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
             _view.SetMetrics(text);
         }
 
-        /// <summary>포인터 아래 노드의 피해·자체 비용을 도구줄에 표시한다. 노드가 없으면 실행 순서 안내를 표시한다.</summary>
+        /// <summary>
+        /// 포인터 아래 노드의 피해·노드 비용을 도구줄에 표시한다. Shape·Modifier 노드는 합쳐지거나 붙은 명령의 수치를 쓰고,
+        /// Modifier는 비용 배율을 함께 표시한다. 노드가 없으면 실행 순서 안내를 표시한다.
+        /// </summary>
         private void ShowTooltip(GraphNode node)
         {
             if (node == null)
@@ -163,38 +165,15 @@ namespace RuneCode
                 return;
             }
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
-            ResourceCostSet costs = action?.OwnCosts ?? rune.Costs;
-            bool isManaOnly = costs.Amounts.Count == 0 || costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana";
-            string costText = costs.Amounts.Count == 0 ? "0" : isManaOnly
-                ? costs.Amounts[0].Amount.ToString("0.#") : FormatCosts(costs, false);
-            _view.SetTooltip(rune.Name + "  ·  " + GameData.L("ui.damage") + " " + (action?.Stats?.Damage ?? rune.Stats.Damage).ToString("0.#")
-                + "  ·  " + (isManaOnly ? GameData.L("ui.energy") : GameData.L("ui.cost")) + " " + costText);
-        }
-
-        /// <summary>자원 비용 목록에 무한 또는 NaN 비용이 있는지 반환한다.</summary>
-        private static bool HasUnboundedCost(ResourceCostSet costs)
-        {
-            foreach (ResourceAmount amount in costs.Amounts)
-                if (double.IsInfinity(amount.Amount) || double.IsNaN(amount.Amount)) return true;
-            return false;
-        }
-
-        /// <summary>마나 단독 비용은 기존 숫자로, 여러 자원은 이름을 붙여 표시한다.</summary>
-        private static string FormatCosts(ResourceCostSet costs, bool includeManaUnit)
-        {
-            if (costs.Amounts.Count == 0) return "0";
-            if (costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana")
-                return costs.Amounts[0].Amount.ToString("0.#") + (includeManaUnit ? " EN" : "");
-            return costs.Format(ResourceName);
-        }
-
-        /// <summary>자원 ID의 현지화 이름을 반환하고 번역이 없으면 ID를 반환한다.</summary>
-        private static string ResourceName(string resource)
-        {
-            string key = "resource." + resource;
-            string value = GameData.L(key);
-            return value == key ? resource : value;
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                _view.SetTooltip(rune.Name + "  ·  " + GameData.L("ui.costMultiplier") + " ×" + rune.EnergyMult.ToString("0.##"));
+                return;
+            }
+            SpellAction action = _editor.CompileResult.Spell?.FindNodeAction(_editor.Graph, node.Id);
+            string text = rune.Name;
+            if (action?.Stats != null) text += "  ·  " + GameData.L("ui.damage") + " " + action.Stats.Damage.ToString("0.#");
+            _view.SetTooltip(text + "  ·  " + GameData.L("ui.nodeCost") + " " + SpellCostText.Format(action?.OwnCosts ?? rune.Costs));
         }
 
         /// <summary>튜토리얼 안내 팝업을 열고 현재 시험 실행 수를 완료 판정 기준으로 저장한다.</summary>
@@ -205,7 +184,7 @@ namespace RuneCode
             _ui.OpenPopup<TutorialPopup>();
         }
 
-        /// <summary>Shape→발사 체인 연결, Shape의 화염 속성, 시험 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시하고 완료를 저장한다.</summary>
+        /// <summary>Shape→발사 체인 연결, Shape에 붙인 화염 속성 노드, 시험 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시하고 완료를 저장한다.</summary>
         private void UpdateTutorial()
         {
             bool hasCastShape = false;
@@ -214,9 +193,9 @@ namespace RuneCode
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
                 bool isShape = SpellGrammar.MagicTypeOf(node.RuneId) != null;
-                if (isShape && node.GetText(SpellGrammar.ELEMENT_PARAM) == "fire") hasFire = true;
                 foreach (GraphEdge edge in _editor.Graph.Edges)
                 {
+                    if (node.RuneId == SpellGrammar.ElementRune("fire") && edge.FromNode == node.Id && edge.FromPort == SpellGrammar.ELEMENT_PORT) hasFire = true;
                     if (isShape && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.EXEC_PORT) hasCastShape = true;
                     if (node.RuneId == "behavior.launch" && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.CHAIN_IN) hasLaunch = true;
                 }

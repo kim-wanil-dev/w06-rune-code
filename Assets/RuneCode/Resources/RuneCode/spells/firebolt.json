@@ -1,7 +1,7 @@
 {
   "_id": "firebolt",
   "_name": "파이어 볼트",
-  "_version": 2,
+  "_version": 3,
   "_nodes": [
     {
       "_id": "core",
@@ -12,28 +12,21 @@
         {
           "_key": "trigger",
           "_number": 0.0,
-          "_text": "attack"
+          "_text": "onAttack"
         }
       ]
     },
     {
       "_id": "type",
-      "_runeId": "type.sphere",
+      "_runeId": "shape.sphere",
       "_x": 200,
       "_y": 150,
       "_params": []
     },
     {
-      "_id": "attr",
-      "_runeId": "element.normal",
-      "_x": 380,
-      "_y": 150,
-      "_params": []
-    },
-    {
       "_id": "form",
-      "_runeId": "shape.launch",
-      "_x": 560,
+      "_runeId": "behavior.launch",
+      "_x": 380,
       "_y": 150,
       "_params": []
     }
@@ -48,16 +41,8 @@
       "_order": 0
     },
     {
-      "_id": "chain0",
+      "_id": "chain",
       "_fromNode": "type",
-      "_fromPort": "next",
-      "_toNode": "attr",
-      "_toPort": "in",
-      "_order": 0
-    },
-    {
-      "_id": "chain1",
-      "_fromNode": "attr",
       "_fromPort": "next",
       "_toNode": "form",
       "_toPort": "in",

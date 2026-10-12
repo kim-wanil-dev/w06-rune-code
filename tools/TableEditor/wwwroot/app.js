@@ -656,7 +656,12 @@ function renderGradesView(table, main) {
     for (const option of VOCAB.effectType) effectSelect.appendChild(el("option", { value: option, text: option, selected: option === effect._effectType ? "" : null }));
     if (!VOCAB.effectType.includes(effect._effectType)) effectSelect.appendChild(el("option", { value: effect._effectType, text: effect._effectType, selected: "" }));
     effectSelect.value = effect._effectType || "";
-    effectSelect.addEventListener("change", () => { effect._effectType = effectSelect.value; touch(); });
+    effectSelect.addEventListener("change", () => {
+      effect._effectType = effectSelect.value;
+      for (const grade of Object.keys(effect._gradeValues || {}))
+        if (gradeValueError(effect._effectType, effect._gradeValues[grade]) !== null) effect._gradeValues[grade] = null;
+      touch(); renderView();
+    });
     row.appendChild(el("td", {}, effectSelect));
     for (const grade of grades) row.appendChild(el("td", {}, gradeValueControl(effect, grade)));
     const actions = el("td", { class: "item-actions" });
@@ -745,30 +750,71 @@ function renderGradesView(table, main) {
   main.appendChild(wrap);
 }
 
+// mod.homing에 정의된 유도 단계 이름 목록을 반환한다.
+function homingTierNames() {
+  const homing = (state.data.runes && state.data.runes._runes || []).find(row => row._id === "mod.homing");
+  return ((homing && homing._homingTiers) || []).map(tier => tier._tier).filter(Boolean);
+}
+
+// 효과 종류에 맞지 않는 등급 값이면 오류 문구를, 맞거나 null(등급 없음)이면 null을 반환한다.
+function gradeValueError(effectType, value) {
+  if (value === null || value === undefined) return null;
+  const kind = GRADE_VALUE_KINDS[effectType];
+  if (kind === "decimal") return typeof value === "number" && isFinite(value) && value > 0 ? null : "0보다 큰 숫자(배율)여야 합니다.";
+  if (kind === "integer") return Number.isInteger(value) && value >= 0 ? null : "0 이상 정수여야 합니다.";
+  if (kind === "integerOrAll") return (Number.isInteger(value) && value >= 0) || value === "ALL" ? null : "0 이상 정수 또는 ALL(무제한)이어야 합니다.";
+  if (kind === "homingTier") return typeof value === "string" && homingTierNames().includes(value) ? null : "mod.homing에 정의된 유도 단계 이름이어야 합니다.";
+  return "알 수 없는 효과 종류입니다.";
+}
+
+// 효과 종류마다 값 형식이 정해진 등급 값 입력을 만든다. 체크를 끄면 그 등급이 없음(null)이다.
+// 배율은 소수, 개수는 정수, 관통은 정수 또는 무제한(ALL), 유도는 단계 선택으로만 입력한다.
 function gradeValueControl(effect, grade) {
   effect._gradeValues = effect._gradeValues || {};
   const values = effect._gradeValues;
+  const kind = GRADE_VALUE_KINDS[effect._effectType];
   const wrap = el("div", { class: "field", style: "gap:4px" });
-  const has = values[grade] !== null && values[grade] !== undefined;
-  const check = el("input", { type: "checkbox", class: "chk", title: "값 있음" });
+  const value = values[grade];
+  const has = value !== null && value !== undefined;
+  const check = el("input", { type: "checkbox", class: "chk", title: "등급 있음" });
   check.checked = has;
-  const original = values[grade];
-  const input = el("input", { type: typeof original === "number" ? "number" : "text", step: "any", value: has ? String(original) : "", style: "width:90px" });
-  input.disabled = !has;
+  wrap.appendChild(check);
+  const defaults = { decimal: 1, integer: 1, integerOrAll: 1, homingTier: homingTierNames()[0] ?? null };
   check.addEventListener("change", () => {
-    if (check.checked) values[grade] = typeof original === "number" || (original === undefined) ? 0 : "";
-    else values[grade] = null;
+    values[grade] = check.checked ? (defaults[kind] ?? null) : null;
     touch(); renderView();
   });
-  input.addEventListener("change", () => {
-    if (!has) return;
-    if (input.value.trim() === "") { values[grade] = ""; }
-    else if (typeof original === "number" || original === undefined) values[grade] = Number(input.value) || 0;
-    else values[grade] = input.value;
-    touch();
-  });
-  wrap.appendChild(check);
-  wrap.appendChild(input);
+  if (!has) return wrap;
+  if (kind === "homingTier") {
+    const select = el("select");
+    const names = homingTierNames();
+    for (const name of names) select.appendChild(el("option", { value: name, text: name, selected: name === value ? "" : null }));
+    if (!names.includes(value)) select.appendChild(el("option", { value: String(value), text: `${value} (없음)`, selected: "" }));
+    select.addEventListener("change", () => { values[grade] = select.value; touch(); });
+    wrap.appendChild(select);
+  } else if (kind === "integerOrAll") {
+    const isAll = value === "ALL";
+    const input = el("input", { type: "number", step: "1", min: "0", value: isAll ? "" : String(value), style: "width:64px" });
+    input.disabled = isAll;
+    input.addEventListener("change", () => { values[grade] = Math.max(0, Math.round(Number(input.value) || 0)); touch(); });
+    const all = el("input", { type: "checkbox", class: "chk", title: "무제한(ALL)" });
+    all.checked = isAll;
+    all.addEventListener("change", () => { values[grade] = all.checked ? "ALL" : 1; touch(); renderView(); });
+    wrap.appendChild(input);
+    wrap.appendChild(all);
+    wrap.appendChild(el("span", { class: "muted", text: "ALL" }));
+  } else {
+    const isInteger = kind === "integer";
+    const input = el("input", { type: "number", step: isInteger ? "1" : "0.01", min: isInteger ? "0" : "0.01", value: String(value), style: "width:72px" });
+    input.addEventListener("change", () => {
+      const number = Number(input.value) || 0;
+      values[grade] = isInteger ? Math.max(0, Math.round(number)) : number;
+      touch(); renderView();
+    });
+    wrap.appendChild(input);
+  }
+  const error = gradeValueError(effect._effectType, value);
+  if (error) wrap.appendChild(el("span", { class: "muted", text: "⚠", title: error }));
   return wrap;
 }
 
@@ -845,9 +891,20 @@ const VALIDATORS = {
         }
       }
       (row._ports || []).forEach((port, index) => {
-        if (port._kind && !VOCAB.portKind.includes(port._kind)) errors.push({ level: "error", path: `${p}:_ports[${index}]:_kind`, msg: `포트 종류 오류: ${port._kind}` });
-        if (port._direction && !VOCAB.portDirection.includes(port._direction)) errors.push({ level: "error", path: `${p}:_ports[${index}]:_direction`, msg: `포트 방향 오류: ${port._direction}` });
+        const path = `${p}:_ports[${index}]`;
+        if (port._kind && !VOCAB.portKind.includes(port._kind)) errors.push({ level: "error", path: `${path}:_kind`, msg: `포트 종류 오류: ${port._kind}` });
+        if (port._direction && !VOCAB.portDirection.includes(port._direction)) errors.push({ level: "error", path: `${path}:_direction`, msg: `포트 방향 오류: ${port._direction}` });
+        if ((port._kind === "chain" || port._kind === "element") && port._max !== 1) errors.push({ level: "error", path: `${path}:_max`, msg: `${port._kind} 포트의 최대 연결은 1이어야 합니다.` });
+        if (port._kind === "exec" && port._direction === "in" && port._max !== 1) errors.push({ level: "error", path: `${path}:_max`, msg: "exec 입력 포트의 최대 연결은 1이어야 합니다." });
+        if (port._kind === "element" && port._direction === "in" && row._category !== "shape") errors.push({ level: "error", path: `${path}`, msg: "element 입력 포트는 shape 룬에만 둘 수 있습니다." });
+        if (port._kind === "element" && port._direction === "out" && row._category !== "element") errors.push({ level: "error", path: `${path}`, msg: "element 출력 포트는 element 룬에만 둘 수 있습니다." });
       });
+      if (row._category === "shape" && !(row._ports || []).some(port => port._kind === "element" && port._direction === "in"))
+        errors.push({ level: "warn", path: `${p}:_ports`, msg: "shape 룬에 element 입력 포트가 없어 속성 노드를 붙일 수 없습니다." });
+      if (row._category === "element" && row._id !== "element.neutral" && !(row._ports || []).some(port => port._kind === "element" && port._direction === "out"))
+        errors.push({ level: "warn", path: `${p}:_ports`, msg: "속성 룬에 element 출력 포트가 없어 그래프에 연결할 수 없습니다." });
+      if (row._homingTiers && row._homingTiers.length && row._id !== "mod.homing")
+        errors.push({ level: "error", path: `${p}:_homingTiers`, msg: "유도 단계는 mod.homing에만 둘 수 있습니다." });
       (row._params || []).forEach((param, index) => {
         if (param._kind === "enum" && param._defaultText) {
           const options = (param._options || []).map(option => option._option);
@@ -1019,6 +1076,14 @@ const VALIDATORS = {
     for (const effect of g._modifierGradeEffects || []) {
       const p = `grades:${effect._modifierId || "?"}`;
       checkRef(errors, "error", `${p}:_modifierId`, effect._modifierId, "modifier");
+      if (!GRADE_VALUE_KINDS[effect._effectType]) errors.push({ level: "error", path: `${p}:_effectType`, msg: `알 수 없는 효과 종류: ${effect._effectType}` });
+      const values = effect._gradeValues || {};
+      for (const grade of grades) {
+        const message = gradeValueError(effect._effectType, values[grade]);
+        if (message && GRADE_VALUE_KINDS[effect._effectType]) errors.push({ level: "error", path: `${p}:_gradeValues.${grade}`, msg: message });
+      }
+      if (!grades.some(grade => values[grade] !== null && values[grade] !== undefined))
+        errors.push({ level: "error", path: `${p}:_gradeValues`, msg: "값이 있는 등급이 하나 이상 있어야 합니다." });
     }
     for (const row of g._stageDropTables || []) {
       const p = `grades:${row._stage}스테이지`;

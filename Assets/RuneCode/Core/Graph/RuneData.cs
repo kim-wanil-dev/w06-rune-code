@@ -476,6 +476,19 @@ namespace RuneCode
             return !string.IsNullOrEmpty(id) && _elementsById.TryGetValue(id, out element);
         }
 
+        /// <summary>속성 룬 ID(예: element.fire)가 정의하는 속성을 찾아 반환하며 속성 룬이 아니면 false를 반환한다.</summary>
+        public bool TryGetRuneElement(string runeId, out ElementDefinition element)
+        {
+            element = null;
+            foreach (ElementDefinition candidate in _elements)
+            {
+                if (candidate.RuneId != runeId) continue;
+                element = candidate;
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>룬 데이터의 태그 목록을 순서대로 만들고 비어 있거나 중복된 순서를 오류로 기록한다.</summary>
         private static List<string> BuildTags(RuneRowData row, TableErrorLog log)
         {
@@ -527,12 +540,12 @@ namespace RuneCode
                 {
                     log.Add(row._id, "ports", "중복된 포트입니다: " + port.Direction + " " + port.Id);
                 }
-                if ((port.Kind != "exec" && port.Kind != "mod" && port.Kind != "chain")
+                if ((port.Kind != "exec" && port.Kind != "mod" && port.Kind != "chain" && port.Kind != SpellGrammar.ELEMENT_KIND)
                     || (port.Direction != "in" && port.Direction != "out") || port.Max < 0
-                    || (port.Kind == "chain" && port.Max != 1)
+                    || ((port.Kind == "chain" || port.Kind == SpellGrammar.ELEMENT_KIND) && port.Max != 1)
                     || (port.Direction == "in" && port.Kind == "exec" && port.Max != 1))
                 {
-                    log.Add(row._id, "ports:" + port.Id, "유효하지 않은 룬 포트입니다 (종류 exec/mod/chain, 방향 in/out, chain과 exec 입력은 최대 1).");
+                    log.Add(row._id, "ports:" + port.Id, "유효하지 않은 룬 포트입니다 (종류 exec/mod/chain/element, 방향 in/out, chain·element와 exec 입력은 최대 1).");
                 }
                 if ((port.Status != SpellGrammar.PORT_ACTIVE && !port.IsDeprecated)
                     || (port.IsDeprecated && (port.Kind != "exec" || port.Direction != "out")))

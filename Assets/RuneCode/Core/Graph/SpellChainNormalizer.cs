@@ -5,7 +5,8 @@ using System.Linq;
 namespace RuneCode
 {
     /// <summary>
-    /// 문법 블록 [Shape(Element)] → [Behavior]와 [Apply(Element)]를 컴파일 내부 표현인 Inline Magic 노드 하나로 합친다.
+    /// 문법 블록 [Shape ← 속성 노드] → [Behavior]와 [Apply(Element)]를 컴파일 내부 표현인 Inline Magic 노드 하나로 합친다.
+    /// Shape의 속성은 element 포트에 붙은 속성 노드(없으면 무속성)이고, 회복·보호 효과량은 그 속성 노드의 값을 쓴다.
     /// Behavior·Apply 노드의 ID를 그대로 쓰므로 거기에 연결된 효과와 이벤트 분기는 그대로 유지된다.
     /// Inline Magic의 magicType·element·form 값은 이전 문법의 내부 값을 그대로 사용해 컴파일·실행 결과가 바뀌지 않는다.
     /// </summary>
@@ -22,6 +23,7 @@ namespace RuneCode
             if (graph?.Nodes == null || graph.Edges == null) return graph;
             var definitions = new Dictionary<string, RuneDefinition>(StringComparer.Ordinal);
             var elements = new Dictionary<string, ElementDefinition>(StringComparer.Ordinal);
+            var elementSources = new Dictionary<string, GraphNode>(StringComparer.Ordinal);
             bool hasGrammar = false;
             int errorCount = errors.Count;
             foreach (GraphNode node in graph.Nodes)
@@ -34,7 +36,16 @@ namespace RuneCode
                 bool isConnected = graph.IsNodeConnected(node.Id);
                 if (isConnected) chainRam += rune.Ram;
                 if (!unlocked.Contains(rune.Id)) errors.Add(new CompileIssue("E10", node.Id));
-                if (HasElement(rune) && TryResolveElement(node, rune, runes, errors, out ElementDefinition element, out RuneDefinition elementRune))
+                if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
+                {
+                    // 속성 노드의 RAM·해금은 그 노드 자신이 문법 블록으로 따로 센다.
+                    if (TryResolveAttachedElement(node, graph, runes, errors, out ElementDefinition attached, out GraphNode source))
+                    {
+                        elements[node.Id] = attached;
+                        if (source != null) elementSources[node.Id] = source;
+                    }
+                }
+                else if (rune.Id == SpellGrammar.APPLY_RUNE && TryResolveElement(node, rune, runes, errors, out ElementDefinition element, out RuneDefinition elementRune))
                 {
                     elements[node.Id] = element;
                     if (isConnected) chainRam += elementRune.Ram;
@@ -60,7 +71,7 @@ namespace RuneCode
                     if (elements.TryGetValue(node.Id, out ElementDefinition applied)) synthetic[node.Id] = CreateApplyNode(node, applied);
                     continue;
                 }
-                if (rune.Category != SpellGrammar.CATEGORY_BEHAVIOR || IsIsolated(node.Id, graph.Edges)) continue;
+                if (rune.Category != SpellGrammar.CATEGORY_BEHAVIOR || IsIsolated(node.Id, graph.Edges, definitions)) continue;
 
                 GraphNode shape = SingleSource(node.Id, chainEdges, graph);
                 if (shape == null || !definitions.TryGetValue(shape.Id, out RuneDefinition shapeRune) || shapeRune.Category != SpellGrammar.CATEGORY_SHAPE)
@@ -74,8 +85,10 @@ namespace RuneCode
                     continue;
                 }
                 consumed.Add(shape.Id);
+                if (elementSources.TryGetValue(shape.Id, out GraphNode elementNode)) consumed.Add(elementNode.Id);
                 shapeToBehavior[shape.Id] = node.Id;
-                if (elements.TryGetValue(shape.Id, out ElementDefinition element)) synthetic[node.Id] = CreateInlineNode(node, shape, element);
+                if (elements.TryGetValue(shape.Id, out ElementDefinition element))
+                    synthetic[node.Id] = CreateInlineNode(node, shape, element, elementSources.TryGetValue(shape.Id, out GraphNode source) ? source : null);
             }
 
             var removed = new HashSet<string>(consumed, StringComparer.Ordinal);
@@ -83,14 +96,22 @@ namespace RuneCode
             {
                 if (node == null || !definitions.TryGetValue(node.Id, out RuneDefinition rune) || !IsGrammarBlock(rune)) continue;
                 if (consumed.Contains(node.Id) || synthetic.ContainsKey(node.Id)) continue;
-                if (IsIsolated(node.Id, graph.Edges))
+                if (IsIsolated(node.Id, graph.Edges, definitions))
                 {
+                    // 속성만 붙은 Shape는 그 속성 노드와 함께 사용되지 않는 블록으로 본다.
                     warnings.Add(new CompileIssue("W1", node.Id));
                     removed.Add(node.Id);
+                    if (elementSources.TryGetValue(node.Id, out GraphNode unusedElement)) removed.Add(unusedElement.Id);
                 }
+                else if (rune.Category == SpellGrammar.CATEGORY_ELEMENT) continue;
                 else if (rune.Category != SpellGrammar.CATEGORY_BEHAVIOR) errors.Add(new CompileIssue("E18", node.Id));
             }
             if (errors.Count > errorCount) return graph;
+            // 속성 노드는 Shape에 합쳐지거나(소비) 사용되지 않아 빠지며 컴파일용 그래프에 남지 않는다.
+            foreach (GraphNode node in graph.Nodes)
+            {
+                if (node != null && definitions.TryGetValue(node.Id, out RuneDefinition rune) && rune.Category == SpellGrammar.CATEGORY_ELEMENT) removed.Add(node.Id);
+            }
 
             var nodes = new List<GraphNode>();
             foreach (GraphNode node in graph.Nodes)
@@ -121,10 +142,32 @@ namespace RuneCode
                 || rune.Category == SpellGrammar.CATEGORY_ELEMENT;
         }
 
-        /// <summary>속성 드롭다운을 가진 블록(Shape, Apply)인지 반환한다.</summary>
-        private static bool HasElement(RuneDefinition rune)
+        /// <summary>
+        /// Shape의 element 포트에 붙은 속성 노드에서 속성을 찾는다. 연결이 없으면 무속성(source는 null)이다.
+        /// 속성 노드가 둘 이상이면 E6, 속성 룬이 아닌 노드가 붙었으면 E3을 추가하고 false를 반환한다.
+        /// </summary>
+        private static bool TryResolveAttachedElement(GraphNode shape, SpellGraph graph, RuneCatalog runes, List<CompileIssue> errors,
+            out ElementDefinition element, out GraphNode source)
         {
-            return rune.Category == SpellGrammar.CATEGORY_SHAPE || rune.Id == SpellGrammar.APPLY_RUNE;
+            element = null;
+            source = null;
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                if (edge == null || edge.ToNode != shape.Id || edge.ToPort != SpellGrammar.ELEMENT_PORT) continue;
+                if (source != null)
+                {
+                    errors.Add(new CompileIssue("E6", shape.Id));
+                    return false;
+                }
+                source = graph.FindNode(edge.FromNode);
+            }
+            if (source == null) return runes.TryGetElement(SpellGrammar.ELEMENT_NEUTRAL, out element);
+            if (!runes.TryGetRuneElement(source.RuneId, out element))
+            {
+                errors.Add(new CompileIssue("E3", shape.Id));
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -151,14 +194,14 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>Behavior 노드 ID를 유지하고 Shape·속성·Behavior 값과 Shape의 효과량 파라미터를 담은 Inline Magic 노드를 만든다.</summary>
-        private static GraphNode CreateInlineNode(GraphNode behavior, GraphNode shape, ElementDefinition element)
+        /// <summary>Behavior 노드 ID를 유지하고 Shape·속성·Behavior 값과 속성 노드(없으면 생략)의 효과량 파라미터를 담은 Inline Magic 노드를 만든다.</summary>
+        private static GraphNode CreateInlineNode(GraphNode behavior, GraphNode shape, ElementDefinition element, GraphNode elementNode)
         {
             var inline = new GraphNode(behavior.Id, SpellGrammar.INLINE_RUNE, behavior.X, behavior.Y);
             inline.SetText("magicType", SpellGrammar.MagicTypeOf(shape.RuneId));
             inline.SetText("element", element.InternalValue);
             inline.SetText("form", SpellGrammar.FormOf(behavior.RuneId));
-            CopyEffectParameters(shape, inline);
+            if (elementNode != null) CopyEffectParameters(elementNode, inline);
             return inline;
         }
 
@@ -216,12 +259,14 @@ namespace RuneCode
             return count;
         }
 
-        /// <summary>노드에 연결된 엣지가 하나도 없는지 반환한다.</summary>
-        private static bool IsIsolated(string nodeId, IReadOnlyList<GraphEdge> edges)
+        /// <summary>노드에 속성 부착 외의 엣지가 하나도 없는지 반환한다. 속성 노드는 속성 부착 엣지도 연결로 센다.</summary>
+        private static bool IsIsolated(string nodeId, IReadOnlyList<GraphEdge> edges, Dictionary<string, RuneDefinition> definitions)
         {
+            bool isElement = definitions.TryGetValue(nodeId, out RuneDefinition rune) && rune.Category == SpellGrammar.CATEGORY_ELEMENT;
             foreach (GraphEdge edge in edges)
             {
-                if (edge != null && (edge.FromNode == nodeId || edge.ToNode == nodeId)) return false;
+                if (edge == null || (edge.FromNode != nodeId && edge.ToNode != nodeId)) continue;
+                if (isElement || edge.ToPort != SpellGrammar.ELEMENT_PORT) return false;
             }
             return true;
         }

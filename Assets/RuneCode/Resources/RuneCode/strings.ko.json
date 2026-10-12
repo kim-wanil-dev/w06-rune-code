@@ -340,7 +340,7 @@
     },
     {
       "_key": "ui.tutorial2",
-      "_value": "2 / 3 · [구형] 블록을 선택하고 속성을 [화염]으로 바꾸세요"
+      "_value": "2 / 3 · [화염] 속성 노드를 [구형] 블록의 element 포트에 연결하세요"
     },
     {
       "_key": "ui.tutorial3",
@@ -357,6 +357,30 @@
     {
       "_key": "ui.cost",
       "_value": "최대 비용"
+    },
+    {
+      "_key": "ui.castCost",
+      "_value": "시전 비용"
+    },
+    {
+      "_key": "ui.nodeCost",
+      "_value": "노드 비용"
+    },
+    {
+      "_key": "ui.costMultiplier",
+      "_value": "비용 배율"
+    },
+    {
+      "_key": "ui.spellSpawnAtHit",
+      "_value": "생성 위치: 명중 지점"
+    },
+    {
+      "_key": "ui.spellSpawnAtCaster",
+      "_value": "생성 위치: 시전 지점"
+    },
+    {
+      "_key": "ui.spellTrackSpeed",
+      "_value": "추적 속도"
     },
     {
       "_key": "ui.unlock",
@@ -1176,7 +1200,7 @@
     },
     {
       "_key": "ui.mod.speedHint",
-      "_value": "볼트의 이동 속도와 오비트의 회전 속도를 조절합니다. 볼트의 비행 거리는 유지됩니다"
+      "_value": "볼트의 이동 속도와 오비트의 회전 속도, 잔류의 예고 속도와 유도 이동 속도를 조절합니다. 볼트의 비행 거리는 유지됩니다"
     },
     {
       "_key": "ui.mod.amplifyHint",
@@ -1493,6 +1517,14 @@
     {
       "_key": "ui.gradeOrbitCount",
       "_value": "궤도 수"
+    },
+    {
+      "_key": "ui.gradeLaunchCount",
+      "_value": "발사 행동 수"
+    },
+    {
+      "_key": "ui.gradeLaunchSpread",
+      "_value": "발사 행동 퍼짐"
     },
     {
       "_key": "ui.gradePierce",

@@ -3,8 +3,8 @@
 
 const VOCAB = {
   runeCategory: ["core", "form", "element", "modifier", "flow", "action", "magic", "shape", "behavior", "method", "internal"],
-  unlockType: ["start", "bench", "reward"],
-  portKind: ["exec", "mod", "chain"],
+  unlockType: ["start", "tree", "bench"],
+  portKind: ["exec", "mod", "chain", "element"],
   portDirection: ["in", "out"],
   paramKind: ["number", "enum", "text"],
   elementCategory: ["elemental", "functional"],
@@ -47,6 +47,9 @@ const LABELS = {
   _arcMultiplier: "연쇄 배율", _learningMultiplier: "학습 배율", _spreadAngle: "발사 각도",
   _shieldAmount: "보호막량", _shieldSeconds: "보호막 지속", _coneAngle: "부채꼴 각도",
   _expandSeconds: "확장 시간", _warnSeconds: "예고 시간",
+  _speedMultiplier: "속도 배율", _durationMultiplier: "지속 배율", _beamWidth: "빔 폭", _beamLength: "빔 길이",
+  _executionSeconds: "실행 시간", _executionSecondsPerArea: "넓이당 실행 시간", _shapeCostRates: "넓이당 비용",
+  _resource: "자원", _rate: "단가", _homingTiers: "유도 단계", _tier: "단계",
   _portId: "포트 ID", _kind: "종류", _direction: "방향", _status: "상태", _paramId: "파라미터 ID",
   _defaultNumber: "숫자 기본값", _defaultText: "문자 기본값", _internalValue: "내부 값", _runtimeTag: "런타임 태그",
   // 밸런스
@@ -116,6 +119,10 @@ const SCHEMAS = {
       { k: "_energyMult", label: "에너지 배율", type: "number" },
       { k: "_unlockType", label: "해금 방식", type: "select", vocab: "unlockType" },
       { k: "_unlockCost", label: "해금 비용", type: "number" },
+      { k: "_executionSeconds", label: "실행 시간(초)", type: "number" },
+      { k: "_executionSecondsPerArea", label: "넓이당 실행 시간", type: "number" },
+      { k: "_shapeCostRates", label: "넓이당 비용(Shape)", type: "list", item: [
+        { k: "_resource", label: "자원", type: "text" }, { k: "_rate", label: "단가", type: "number" } ] },
       { k: "_stats", label: "전투 수치", type: "object", fields: "runeStats" },
       { k: "_ports", label: "포트", type: "list", item: [
         { k: "_order", label: "순서", type: "number" }, { k: "_portId", label: "포트 ID", type: "text" },
@@ -139,6 +146,9 @@ const SCHEMAS = {
         { k: "_category", label: "분류", type: "select", vocab: "elementCategory" },
         { k: "_internalValue", label: "내부 값", type: "text" }, { k: "_runtimeTag", label: "런타임 태그", type: "text" } ] },
       { k: "_modifierTargets", label: "효과 대상", type: "list", item: [ { k: "", label: "대상 룬", type: "ref", ref: "rune" } ], scalarItem: true },
+      { k: "_homingTiers", label: "유도 단계(mod.homing 전용)", type: "list", item: [
+        { k: "_tier", label: "단계 이름", type: "text" }, { k: "_homingTurn", label: "유도 회전", type: "number" },
+        { k: "_homingRange", label: "유도 거리", type: "number" } ] },
     ],
   },
   runeStats: [
@@ -156,6 +166,8 @@ const SCHEMAS = {
     { k: "_spreadAngle", label: "발사 각도", type: "number" }, { k: "_shieldAmount", label: "보호막량", type: "number" },
     { k: "_shieldSeconds", label: "보호막 지속", type: "number" }, { k: "_coneAngle", label: "부채꼴 각도", type: "number" },
     { k: "_expandSeconds", label: "확장 시간", type: "number" }, { k: "_warnSeconds", label: "예고 시간", type: "number" },
+    { k: "_speedMultiplier", label: "속도 배율", type: "number" }, { k: "_durationMultiplier", label: "지속 배율", type: "number" },
+    { k: "_beamWidth", label: "빔 폭(Beam Shape)", type: "number" }, { k: "_beamLength", label: "빔 길이(Beam Shape)", type: "number" },
   ],
   enemies: {
     columns: ["_id", "_movement", "_attack", "_hp", "_damage", "_reward"],
@@ -333,3 +345,10 @@ const SCHEMAS = {
 
 // 휴지통 없는 select 보조 어휘다. _status처럼 빈 값이 의미 있는 선택지는 여기 둔다.
 VOCAB.portStatus = ["active", "deprecated"];
+
+// Modifier 등급 값의 형식이다. 게임(ModifierGradeTable)이 효과 종류마다 받는 값 형식과 같다. 없는 등급은 모두 null이다.
+// decimal: 배율 소수, integer: 0 이상 정수, integerOrAll: 0 이상 정수 또는 "ALL"(무제한), homingTier: mod.homing의 유도 단계 이름.
+const GRADE_VALUE_KINDS = {
+  effectMultiplier: "decimal", radiusMultiplier: "decimal", durationMultiplier: "decimal", speedMultiplier: "decimal",
+  multipleCount: "integer", pierceCount: "integerOrAll", homingTier: "homingTier",
+};

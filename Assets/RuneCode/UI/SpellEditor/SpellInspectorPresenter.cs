@@ -48,7 +48,7 @@ namespace RuneCode
             ShowValidation();
         }
 
-        /// <summary>노드 이름·RAM, 편집 파라미터, 노드 유형별 설명·효과와 삭제 버튼을 표시한다.</summary>
+        /// <summary>Displays the selected rune, editable parameters, type-specific guidance and stats, and delete action.</summary>
         private void ShowNode(GraphNode node)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
@@ -102,7 +102,11 @@ namespace RuneCode
                 AddBehaviorStatNote(form, null, rune, node);
                 return;
             }
-            foreach (SpellAction action in actions) AddBehaviorStatNote(form, action, rune, node);
+            foreach (SpellAction action in actions)
+            {
+                AddBehaviorStatNote(form, action, rune, node);
+                AddBehaviorGeometryNote(spell, action);
+            }
         }
 
         /// <summary>행동 ID를 해당 행동이 사용하는 내부 효과 형태의 룬 ID로 바꾸고 지원하지 않으면 null을 반환한다.</summary>
@@ -465,11 +469,17 @@ namespace RuneCode
                     break;
             }
             RuneStats stats = rune.Stats;
+            values.Add(GameData.L("ui.costMultiplier") + " ×" + rune.EnergyMult.ToString("0.##"));
             if (rune.Id == "mod.multi")
             {
+                if (grades.TryGetCountValue(rune.Id, grade, SpellGrammar.FORM_BOLT, out int launchCount)
+                    && grades.TryGetLaunchGradeValues(rune.Id, out _))
+                    values.Add(GameData.L("ui.gradeLaunchCount") + " " + launchCount);
                 if (stats.OrbitCount > 0) values.Add(GameData.L("ui.gradeOrbitCount") + " " + stats.OrbitCount);
                 if (stats.DamageMultiplier != 1f) values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));
                 if (stats.SpreadAngle > 0f) values.Add(GameData.L("ui.gradeSpread") + " " + stats.SpreadAngle.ToString("0.#") + "°");
+                if (grades.TryGetLaunchSpreadAngle(rune.Id, grade, out float launchSpread))
+                    values.Add(GameData.L("ui.gradeLaunchSpread") + " " + launchSpread.ToString("0.#") + "°");
             }
             if (rune.Id == "mod.expand" && stats.DamageMultiplier != 1f)
                 values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));
@@ -511,6 +521,40 @@ namespace RuneCode
             }
         }
 
+        /// <summary>Appends compiled behavior range, spawn location, size, and applicable movement speed to the inspector.</summary>
+        private void AddBehaviorGeometryNote(CompiledSpell spell, SpellAction action)
+        {
+            if (action?.Stats == null) return;
+            SpellStats stats = action.Stats;
+            bool isAnchored = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE || action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
+                || action.SourceElement == "heal" || action.SourceElement == "protection";
+            bool isArea = action.Form == SpellGrammar.FORM_BURST || action.Form == SpellGrammar.FORM_ZONE || isAnchored;
+            var lines = new List<string>();
+            if (isArea && spell.IsEventAction(action.NodeId)) lines.Add(GameData.L("ui.spellSpawnAtHit"));
+            else if (isArea && isAnchored) lines.Add(GameData.L("ui.spellSpawnAtCaster"));
+            else
+            {
+                float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
+                    : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
+                if (reach > 0f) lines.Add(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px");
+            }
+
+            if (action.MagicType == SpellGrammar.MAGIC_TYPE_BOX && (stats.BoxWidth > 0f || stats.BoxLength > 0f))
+                lines.Add(GameData.L("ui.spellBeamSize") + " " + stats.BoxWidth.ToString("0.#") + " × " + stats.BoxLength.ToString("0.#") + "px");
+            else
+            {
+                float radius = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE ? stats.ShapeRadius : stats.Radius;
+                if (radius > 0f) lines.Add(GameData.L("ui.spellRadius") + " " + radius.ToString("0.#") + "px");
+            }
+
+            if (action.Form == SpellGrammar.FORM_ORBIT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+            else if (action.Form == SpellGrammar.FORM_BOLT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+            else if (action.Form == SpellGrammar.FORM_ZONE && stats.HomingRange > 0f)
+                lines.Add(GameData.L("ui.spellTrackSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+
+            if (lines.Count > 0) _view.AddNote(string.Join("\n", lines), 18 * lines.Count + 16, 6);
+        }
+
         /// <summary>컴파일 성공 여부, 오류·경고(누르면 해당 노드로 이동)와 조작 안내를 검증 목록에 표시한다.</summary>
         private void ShowValidation()
         {
@@ -548,11 +592,12 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 인스펙터에 파라미터를 표시할지 반환한다. 효과량·보호막 지속시간은 속성이 Functional(회복·보호)인 Shape·Apply에서만 표시한다.
+        /// 인스펙터에 파라미터를 표시할지 반환한다. 효과량·보호막 지속시간은 Functional(회복·보호) 속성 노드와 그 속성의 Apply에서만 표시한다.
         /// </summary>
         private static bool IsParameterVisible(GraphNode node, ParameterDefinition parameter)
         {
             if (parameter.Id != SpellGrammar.POWER_PARAM && parameter.Id != SpellGrammar.BUFF_DURATION_PARAM) return true;
+            if (GameData.Runes.TryGetRuneElement(node.RuneId, out ElementDefinition own)) return own.IsFunctional;
             return GameData.Runes.TryGetNodeElement(node, out ElementDefinition element) && element.IsFunctional;
         }
 

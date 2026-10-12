@@ -20,7 +20,8 @@ namespace RuneCode
 
     /// <summary>
     /// 룬을 배치할 때 문법상 자동 연결할 수 있는 대상과 연결 포트를 판단한다.
-    /// 효과는 효과를 받을 수 있는 노드의 효과 입력에, Behavior 블록(Apply 제외)은 Shape의 열린 체인 끝에 연결한다.
+    /// 효과는 효과를 받을 수 있는 노드의 효과 입력에, 속성은 속성이 비어 있는 Shape의 element 입력에,
+    /// Behavior 블록(Apply 제외)은 Shape의 열린 체인 끝에 연결한다.
     /// 거리·화면 배치 같은 편집기 정책은 호출부가 정한다.
     /// </summary>
     public static class SpellAutoConnect
@@ -29,6 +30,12 @@ namespace RuneCode
         public static bool IsModifier(RuneDefinition rune)
         {
             return rune.Category == SpellGrammar.CATEGORY_MODIFIER;
+        }
+
+        /// <summary>Shape의 element 입력에 붙는 속성 룬인지 반환한다.</summary>
+        public static bool IsElement(RuneDefinition rune)
+        {
+            return rune.Category == SpellGrammar.CATEGORY_ELEMENT;
         }
 
         /// <summary>Shape의 열린 체인 출력에 이어 붙는 Behavior(Apply 제외)인지 반환한다.</summary>
@@ -47,6 +54,10 @@ namespace RuneCode
             if (IsModifier(placed))
             {
                 return GraphCompiler.CanAttachModifier(placed, target);
+            }
+            if (IsElement(placed))
+            {
+                return target.Category == SpellGrammar.CATEGORY_SHAPE && HasOpenElementInput(graph, node);
             }
             if (IsChainLink(placed))
             {
@@ -70,7 +81,22 @@ namespace RuneCode
 
             connection = IsModifier(placedRune)
                 ? new AutoConnection(placed.Id, SpellGrammar.MODIFIER_PORT, candidate.Id, SpellGrammar.MODIFIER_PORT)
+                : IsElement(placedRune)
+                ? new AutoConnection(placed.Id, SpellGrammar.ELEMENT_PORT, candidate.Id, SpellGrammar.ELEMENT_PORT)
                 : new AutoConnection(candidate.Id, SpellGrammar.CHAIN_OUT, placed.Id, SpellGrammar.CHAIN_IN);
+            return true;
+        }
+
+        /// <summary>Shape 노드의 element 입력에 아직 속성이 붙지 않았는지 반환한다.</summary>
+        private static bool HasOpenElementInput(SpellGraph graph, GraphNode node)
+        {
+            foreach (GraphEdge edge in graph.Edges)
+            {
+                if (edge.ToNode == node.Id && edge.ToPort == SpellGrammar.ELEMENT_PORT)
+                {
+                    return false;
+                }
+            }
             return true;
         }
 
