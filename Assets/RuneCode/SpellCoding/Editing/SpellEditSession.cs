@@ -218,16 +218,16 @@ namespace RuneCode
             MarkChanged(); RaiseGraphChanged();
         }
 
-        /// <summary>후보 연결의 RAM·입력 수·종류·슬롯·순환 제한을 검사하고 연결을 저장한다.</summary>
-        public bool Connect(string fromNode, string fromPort, string toNode, string toPort)
+        /// <summary>필요하면 단일 포트의 기존 연결을 교체한 후보의 RAM·문법을 검사하고 성공할 때만 저장한다.</summary>
+        public bool Connect(string fromNode, string fromPort, string toNode, string toPort, bool replaceExisting = false)
         {
             if (!_isEditable) return false;
-            if (_editingGraph.Edges.Count >= GameData.Balance.Limits.MaxGraphEdges)
+            var candidate = CreateConnectionCandidate(fromNode, fromPort, toNode, toPort, replaceExisting);
+            if (candidate.Edges.Count >= GameData.Balance.Limits.MaxGraphEdges)
             { _policy.ReportStatus("editor.graphLimit"); return false; }
-            var candidate = _editingGraph.Clone();
             var edge = new GraphEdge(NewId("edge"), fromNode, fromPort, toNode, toPort,
-                _editingGraph.NextEdgeOrder(fromNode, fromPort));
-            if (!GraphCompiler.CanConnect(_editingGraph, edge, GameData.Runes, out _))
+                candidate.NextEdgeOrder(fromNode, fromPort));
+            if (!GraphCompiler.CanConnect(candidate, edge, GameData.Runes, out _))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
             candidate.AddEdge(edge);
             if (!_policy.IsWithinRam(candidate)) { _policy.ReportStatus("editor.ramBlocked"); return false; }
@@ -237,18 +237,46 @@ namespace RuneCode
                 context.MaxResourceCosts);
             if (result.Errors.Any(issue => issue.Code == "E2" || issue.Code == "E3" || issue.Code == "E4" || issue.Code == "E5" || issue.Code == "E6"))
             { _policy.ReportStatus("editor.invalidConnection"); return false; }
-            _editingGraph.AddEdge(edge);
+            _editingGraph = candidate;
             MarkChanged(); RaiseGraphChanged();
             return true;
         }
 
-        /// <summary>드래그 중 후보 연결의 포트·슬롯·수식 제한을 컴파일러 규칙으로 반환한다.</summary>
-        public bool CanConnectPorts(string fromNode, string fromPort, string toNode, string toPort)
+        /// <summary>기존 연결 교체 옵션을 반영한 후보의 포트·슬롯·수식 제한을 검사해 연결 가능 여부를 반환한다.</summary>
+        public bool CanConnectPorts(string fromNode, string fromPort, string toNode, string toPort, bool replaceExisting = false)
         {
-            if (!_isEditable || _editingGraph.Edges.Count >= GameData.Balance.Limits.MaxGraphEdges) return false;
+            if (!_isEditable) return false;
+            var candidate = CreateConnectionCandidate(fromNode, fromPort, toNode, toPort, replaceExisting);
+            if (candidate.Edges.Count >= GameData.Balance.Limits.MaxGraphEdges) return false;
             GraphEdge edge = new GraphEdge("preview", fromNode, fromPort, toNode, toPort,
-                _editingGraph.NextEdgeOrder(fromNode, fromPort));
-            return GraphCompiler.CanConnect(_editingGraph, edge, GameData.Runes, out _);
+                candidate.NextEdgeOrder(fromNode, fromPort));
+            return GraphCompiler.CanConnect(candidate, edge, GameData.Runes, out _);
+        }
+
+        /// <summary>연결 검사용 사본을 만들고 교체 요청 시 단일 연결 포트에 걸린 다른 엣지만 제거한다. 실제 그래프는 유지한다.</summary>
+        private SpellGraph CreateConnectionCandidate(string fromNode, string fromPort, string toNode, string toPort, bool replaceExisting)
+        {
+            SpellGraph candidate = _editingGraph.Clone();
+            if (!replaceExisting) return candidate;
+            GraphNode from = candidate.FindNode(fromNode);
+            GraphNode to = candidate.FindNode(toNode);
+            if (from == null || to == null) return candidate;
+            PortDefinition output = GameData.Runes.Get(from.RuneId).FindPort(fromPort, SpellGrammar.DIRECTION_OUT);
+            PortDefinition input = GameData.Runes.Get(to.RuneId).FindPort(toPort, SpellGrammar.DIRECTION_IN);
+            if (output == null || input == null) return candidate;
+            bool replaceOutput = output.Kind == SpellGrammar.CHAIN_KIND || output.Kind == SpellGrammar.ELEMENT_KIND
+                || (output.Kind == "mod" && output.Max == 1);
+            bool replaceInput = input.Kind == SpellGrammar.CHAIN_KIND || input.Kind == SpellGrammar.ELEMENT_KIND
+                || input.Kind == "exec" || (input.Kind == "mod" && input.Max == 1);
+            for (int i = candidate.Edges.Count - 1; i >= 0; i--)
+            {
+                GraphEdge current = candidate.Edges[i];
+                bool sameOutput = current.FromNode == fromNode && current.FromPort == fromPort;
+                bool sameInput = current.ToNode == toNode && current.ToPort == toPort;
+                if (sameOutput && sameInput) continue;
+                if ((replaceOutput && sameOutput) || (replaceInput && sameInput)) candidate.RemoveEdge(current.Id);
+            }
+            return candidate;
         }
 
         /// <summary>Core 이외의 지정 노드와 관련 엣지를 제거한다.</summary>
