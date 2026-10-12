@@ -2,6 +2,7 @@ using System;
 
 using UnityEngine;
 
+using TMPro;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -18,6 +19,16 @@ namespace RuneCode
 
         [Header("상태 표시: 잠금 / 개방 / 일부 강화 / MAX")]
         [SerializeField] private UiStateVisual _visual;
+
+        [Header("강화 레벨 표시")]
+        [SerializeField] private UpgradeTreeNodeFillGraphic _levelFill;
+        [SerializeField] private GameObject _levelBadge;
+        [SerializeField] private TextMeshProUGUI _levelText;
+
+        [Header("다음 구매 비용 표시")]
+        [SerializeField] private GameObject _costBadge;
+        [SerializeField] private UpgradeTreeNodeIconGraphic _costIcon;
+        [SerializeField] private TextMeshProUGUI _costText;
 
         private Action _purchaseAction;
         private Action<bool> _hoverAction;
@@ -36,10 +47,17 @@ namespace RuneCode
             _hoverAction = action;
         }
 
-        /// <summary>아이콘, 노드 개방 상태, 완료 강조와 구매 가능 여부를 화면에 반영한다.</summary>
-        public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, bool isAvailable, bool isComplete, bool canPurchase)
+        /// <summary>아이콘·구매 상태와 레벨 채움·레벨/MAX 문구를 반영하고 개방·일부 강화 상태에 다음 구매 비용 배지를 표시한다.</summary>
+        public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, int maxLevel, int nextCost, bool isAvailable, bool isComplete, bool canPurchase)
         {
             _visual.Show(!isAvailable ? 0 : isComplete ? 3 : level > 0 ? 2 : 1);
+            _levelFill.gameObject.SetActive(isAvailable && level > 0);
+            _levelFill.SetFill(maxLevel > 0 ? (float)level / maxLevel : 0);
+            _levelBadge.SetActive(isAvailable);
+            _levelText.text = isComplete ? "MAX" : level + "/" + maxLevel;
+            _costBadge.SetActive(isAvailable && !isComplete && nextCost >= 0);
+            _costText.text = nextCost >= 0 ? nextCost.ToString() : string.Empty;
+            _costIcon.Configure(UpgradeEffectType.ScrapGain, null);
             _spriteIcon.gameObject.SetActive(sprite != null);
             _icon.gameObject.SetActive(sprite == null);
             if (sprite == null)
