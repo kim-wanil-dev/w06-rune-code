@@ -26,7 +26,7 @@ namespace RuneCode
         private static readonly Color CoreColor = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color DummyColor = new Color(0.52f, 0.69f, 0.74f);
         private static readonly Color WarningColor = new Color(1f, 0.78f, 0.23f);
-        private static readonly Color AuraColor = new Color(0.65f, 0.37f, 0.95f, 0.22f);
+        private static readonly Color AuraColor = new Color(0.36f, 0.84f, 0.44f, 0.22f);
         private static readonly Color ShieldColor = new Color(0.95f, 0.77f, 0.40f);
         private static readonly Color PatchColor = new Color(0.83f, 0.57f, 1f);
         private static readonly Color ResistColor = new Color(0.77f, 0.69f, 1f);

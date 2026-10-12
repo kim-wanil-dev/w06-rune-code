@@ -19,6 +19,9 @@ namespace RuneCode
         private const double DAMAGE_EPSILON = 0.000001;
         private const int MAX_DAMAGE_NUMBERS = 64;
         private const int DAMAGE_NUMBER_TICKS = 40;
+        private const int MAX_HEAL_PULSES = 32;
+        private const int HEAL_PULSE_TICKS = 40;
+        private const int HEAL_PULSE_ORDER = 70;
         private const int MAX_ARC_LINKS = 32;
         private const float WALL_EDGE_WIDTH = 1f;
         private const float GRID_LINE_WIDTH = 1f;
@@ -29,6 +32,7 @@ namespace RuneCode
         private static readonly Color WallColor = new Color(0.13f, 0.20f, 0.27f);
         private static readonly Color WallEdgeColor = new Color(0.23f, 0.40f, 0.47f);
         private static readonly Color GridColor = new Color(0.15f, 0.22f, 0.29f);
+        private static readonly Color HealPulseColor = new Color(0.45f, 0.95f, 0.55f);
 
         [Header("연결")]
         [SerializeField] private MissionCamera _camera;
@@ -57,6 +61,7 @@ namespace RuneCode
         private readonly List<OrbView> _orbViews = new List<OrbView>();
         private readonly List<ItemDropView> _itemDropViews = new List<ItemDropView>();
         private readonly List<DamageNumberView> _damageNumberViews = new List<DamageNumberView>();
+        private readonly List<HealPulseView> _healPulseViews = new List<HealPulseView>();
         private readonly List<ArcLinkView> _arcLinkViews = new List<ArcLinkView>();
         private Func<RuneSimulation> _simulation;
         private Func<bool> _isShakeEnabled;
@@ -125,6 +130,14 @@ namespace RuneCode
                 GetView(_damageNumberViews, _damageNumberPrefab, count++).Apply(number, elapsed, origin);
             }
             HideFrom(_damageNumberViews, count);
+            count = 0;
+            foreach (HealPulse pulse in sim.HealPulses)
+            {
+                int elapsed = sim.Tick - pulse.Tick;
+                if (elapsed > HEAL_PULSE_TICKS || count >= MAX_HEAL_PULSES) continue;
+                GetHealPulseView(count++).Apply(pulse, elapsed, origin);
+            }
+            HideFrom(_healPulseViews, count);
             count = 0;
             foreach (ArcLink link in sim.ArcLinks)
             {
@@ -219,6 +232,20 @@ namespace RuneCode
             T view = views[index];
             MissionWorldSpace.SetVisible(view, true);
             return view;
+        }
+
+        /// <summary>목록의 index번째 체력 회복 표시를 반환하며 없으면 맵 스프라이트로 십자가를 새로 만든다.</summary>
+        private HealPulseView GetHealPulseView(int index)
+        {
+            if (index == _healPulseViews.Count)
+            {
+                var view = new GameObject("HealPulse", typeof(HealPulseView)).GetComponent<HealPulseView>();
+                view.Initialize(transform, _squareSprite, _spriteMaterial, HealPulseColor, HEAL_PULSE_ORDER);
+                _healPulseViews.Add(view);
+            }
+            HealPulseView pulse = _healPulseViews[index];
+            MissionWorldSpace.SetVisible(pulse, true);
+            return pulse;
         }
 
         /// <summary>목록에서 count번째 이후 뷰를 숨긴다.</summary>

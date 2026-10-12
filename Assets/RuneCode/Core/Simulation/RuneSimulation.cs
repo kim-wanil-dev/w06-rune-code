@@ -11,6 +11,8 @@ namespace RuneCode
     {
         public const int TICK_RATE = 60;
         public const int ARC_LINK_TICKS = 12;
+        private const int RELAY_REGEN_INTERVAL_TICKS = 60;
+        private const double MIN_KILL_ENERGY = 1;
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
         private const int STATUS_TYPE_COUNT = 4;
@@ -59,6 +61,7 @@ namespace RuneCode
         private readonly List<SimulationItemDrop> _pickedUpItems = new List<SimulationItemDrop>();
         private readonly List<SimulationItemDrop> _newPickedItems = new List<SimulationItemDrop>();
         private readonly List<DamageNumber> _damageNumbers = new List<DamageNumber>();
+        private readonly List<HealPulse> _healPulses = new List<HealPulse>();
         private readonly List<ArcLink> _arcLinks = new List<ArcLink>();
         private readonly List<NodeExecutionEvent> _nodeEvents = new List<NodeExecutionEvent>();
         private readonly List<ScheduledExecution> _scheduled = new List<ScheduledExecution>();
@@ -123,6 +126,7 @@ namespace RuneCode
         /// <summary>이번 전투에서 주워 확정한 Modifier 드롭의 누적 목록이다.</summary>
         public IReadOnlyList<SimulationItemDrop> PickedUpItems => _pickedUpItems;
         public IReadOnlyList<DamageNumber> DamageNumbers => _damageNumbers;
+        public IReadOnlyList<HealPulse> HealPulses => _healPulses;
 
         /// <summary>최근 ARC_LINK_TICKS 동안 발생한 전격 연쇄 구간 목록이다. 표시 전용이다.</summary>
         public IReadOnlyList<ArcLink> ArcLinks => _arcLinks;
@@ -311,6 +315,7 @@ namespace RuneCode
             if (input.CastB) TryCastTriggered(_loadout[1], SpellGrammar.TRIGGER_ON_ATTACK, 1);
             if (input.CastC) TryCastTriggered(_loadout[2], SpellGrammar.TRIGGER_ON_ATTACK, 2);
             AdvanceStatuses();
+            AdvanceRelayRegen();
             AdvanceEnemies();
             if (_isMission) _separation.Apply(_enemies, _map, _balance.Combat, _isSeparationFixed);
             RunEnemyShots();
@@ -347,7 +352,7 @@ namespace RuneCode
             if (_isMission) throw new InvalidOperationException("미션은 시험 도크로 초기화할 수 없습니다.");
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
-            _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _arcLinks.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
+            _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _healPulses.Clear(); _arcLinks.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
             _totalDamage = 0; _statusDamage = 0; _persistDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0;
             _nodeExecutionCount = 0; _collectedFragments = 0; _scrapRemainder = 0; _killCount = 0; _spawnedEnemies = 0;
@@ -911,12 +916,14 @@ namespace RuneCode
             double collisionRadius = entity.IsBox ? stats.BoxWidth * 0.5 : entity.Radius;
             double wallFraction = FirstWallFraction(previous + front, next + front, collisionRadius);
             double shieldFraction = double.PositiveInfinity;
+            SimulationEnemy shieldOwner = null;
             foreach (SimulationEnemy shield in _enemies)
             {
                 if (!shield.IsAlive || !shield.Definition.HasTrait(EnemyDefinition.TRAIT_CIRCLE_SHIELD)) continue;
                 SimVector fromShield = previous - shield.Position;
                 if (fromShield.Length < shield.Definition.ShieldRadius - COLLISION_EPSILON || SimVector.Dot(next - previous, fromShield) >= 0) continue;
-                shieldFraction = Math.Min(shieldFraction, SpellContactFraction(entity, previous, next, direction, shield.Position, shield.Definition.ShieldRadius));
+                double fraction = SpellContactFraction(entity, previous, next, direction, shield.Position, shield.Definition.ShieldRadius);
+                if (fraction < shieldFraction) { shieldFraction = fraction; shieldOwner = shield; }
             }
             double stopFraction = Math.Min(wallFraction, shieldFraction);
             entity.Move(next, direction);
@@ -951,6 +958,7 @@ namespace RuneCode
                 SimVector contact = previous + (next - previous) * stopFraction;
                 entity.Move(contact, direction); entity.HasDirectHit = true; entity.HasExpired = true;
                 if (wallFraction < shieldFraction) RaiseHitEvent(entity, contact + front, null);
+                else RaiseShieldHitEvent(entity, contact, shieldOwner);
             }
         }
 
@@ -1227,6 +1235,16 @@ namespace RuneCode
         }
 
         /// <summary>
+        /// 원형 쉴드에 막아 소멸한 발사체의 명중·소멸 이벤트를 모두 실행한다.
+        /// OnHit과 첫 이벤트는 접촉 위치와 쉴드 소유자 대상으로, OnExpire는 개체 위치와 대상 없이 낸다.
+        /// </summary>
+        private void RaiseShieldHitEvent(SimulationSpellEntity entity, SimVector contact, SimulationEnemy shieldOwner)
+        {
+            RaiseHitEvent(entity, contact, shieldOwner);
+            RaiseExpireEvent(entity);
+        }
+
+        /// <summary>
         /// 적중 후속 실행의 방향을 접촉 위치(시작점)에서 적중 대상의 위치(도착점)로 반환한다(백서 v7 6장).
         /// 대상이 없거나 두 위치가 같으면 개체의 진행 방향을 쓴다.
         /// </summary>
@@ -1253,21 +1271,19 @@ namespace RuneCode
             }
         }
 
-        /// <summary>피해 파이프라인에 적응, 이지스 방패, 릴레이 방어 및 보스 무적을 반영하고 실제 피해와 학습을 기록한다.</summary>
+        /// <summary>피해 파이프라인에 적응, 이지스 방패 및 보스 무적을 반영하고 실제 피해와 학습을 기록한다.</summary>
         private double ApplyDamage(SimulationEnemy enemy, double damage, string element, string form, bool noise, bool isDot, SimVector direction, bool applyStatus)
         {
             if (!enemy.IsAlive || enemy.IsPatching) return 0;
             double actual = damage * _damageMultiplier * Adaptation.GetMultiplier(element, form);
             if (enemy.Definition.HasTrait(EnemyDefinition.TRAIT_AEGIS_SHIELD) && !HasEnemyStatus(enemy, EnemyStatusType.Emp) && form == "bolt" && !isDot && SimVector.Dot(enemy.Facing, direction * -1) >= Math.Cos(_balance.Combat.AegisAngle * 0.5 * DEGREES_TO_RADIANS)) actual *= 1 - _balance.Combat.AegisReduction;
             bool relayAlive = false;
-            bool hasRelayAura = false;
             foreach (SimulationEnemy relay in _enemies)
             {
                 if (!relay.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA) || !relay.IsAlive) continue;
                 relayAlive = true;
-                if (relay != enemy && SimVector.Distance(relay.Position, enemy.Position) <= _balance.Combat.RelayRadius) hasRelayAura = true;
+                break;
             }
-            if (hasRelayAura) actual *= 1 - _balance.Combat.RelayReduction;
             actual = enemy.Hurt(actual, Time);
             if (applyStatus) ApplyStatus(enemy, element, form, noise);
             if (actual > 0)
@@ -1279,6 +1295,24 @@ namespace RuneCode
             }
             if (enemy.Boss != null && enemy.Boss.IsGovernorPattern && enemy.IsAlive) CheckBossPatch(enemy, enemy.Boss);
             return actual;
+        }
+
+        /// <summary>
+        /// 60틱마다 살아 있는 릴레이 반경 안의 다른 적 체력을 RelayRegen만큼 회복시킨다.
+        /// 릴레이 자신은 오라 대상이 아니고 최대 체력까지만 회복한다.
+        /// </summary>
+        private void AdvanceRelayRegen()
+        {
+            if (_tick % RELAY_REGEN_INTERVAL_TICKS != 0) return;
+            foreach (SimulationEnemy relay in _enemies)
+            {
+                if (!relay.IsAlive || !relay.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA)) continue;
+                foreach (SimulationEnemy enemy in _enemies)
+                {
+                    if (enemy == relay || !enemy.IsAlive || SimVector.Distance(relay.Position, enemy.Position) > _balance.Combat.RelayRadius) continue;
+                    if (enemy.Heal(_balance.Combat.RelayRegen) > 0) _healPulses.Add(new HealPulse(enemy.Position, _tick));
+                }
+            }
         }
 
         /// <summary>
@@ -1650,12 +1684,25 @@ namespace RuneCode
             if (entity.HasExpired) return;
             entity.HasExpired = true;
             if (entity.Kind == SpellGrammar.FORM_BURST || entity.HasDirectHit) return;
+            RaiseExpireEvent(entity);
+        }
+
+        /// <summary>소멸 이벤트를 개체 위치와 대상 없이 실행한다. OnExpire 다음 첫 이벤트, 호출부 onExpire 분기 순서다.</summary>
+        private void RaiseExpireEvent(SimulationSpellEntity entity)
+        {
             SpellContext context = new SpellContext(entity.Position, entity.Direction, null, true,
                 entity.CastNoiseElement, entity.Modifiers, entity.CallEvents, null, entity.CostMultiplier, entity.Caster, entity.Id);
             bool isFirstEvent = entity.Kind == SpellGrammar.FORM_BOLT && entity.TryMarkFirstEvent();
             Execute(entity.Action.OnExpire, context);
             if (isFirstEvent) Execute(entity.Action.OnFirstHitOrExpire, context);
             ExecuteCallEvent(entity, false, isFirstEvent, entity.Position, null);
+        }
+
+        /// <summary>적 처치 보상으로 플레이어 에너지를 회복시킨다. 적이 떨어뜨린 크레딧의 설정 비율만큼 회복하며 소수부분은 버리고 최소 1은 채운다.</summary>
+        private void GrantKillEnergy(int droppedCredits)
+        {
+            double amount = Math.Floor(droppedCredits * _balance.Economy.KillEnergyCreditRatio);
+            _player.RestoreEnergy(Math.Max(MIN_KILL_ENERGY, amount));
         }
 
         /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계, 목표 처치 수 집계, 보스 처치 판정과 RAM 오브를 생성한다. 분열형은 미션 중 처치되면 자식 생성을 예약한다.</summary>
@@ -1665,16 +1712,23 @@ namespace RuneCode
             while (_deadEnemies.Count > 0)
             {
                 SimulationEnemy enemy = _deadEnemies.Dequeue();
+                int droppedCredits = 0;
                 if (_isMission)
                 {
                     if (enemy.IsKillTarget) _targetKills++;
                     if (enemy.Boss != null) _isBossDefeated = true;
                     if (enemy.Definition.CanSplit) EnqueueSplits(enemy);
-                    if (enemy.Reward > 0) _orbs.Add(new FragmentOrb(enemy.Position, ScaleKillScrap(enemy.Reward)));
+                    if (enemy.Reward > 0)
+                    {
+                        // 오브에 실제로 담기는 크레딧을 한 번만 산출해 나머지 누적이 이중 반영되지 않게 한다.
+                        droppedCredits = ScaleKillScrap(enemy.Reward);
+                        _orbs.Add(new FragmentOrb(enemy.Position, droppedCredits));
+                    }
                     string dropTableId = enemy.CarrierOwnerId == 0 ? GetDropTableId(enemy) : null;
                     if (dropTableId != null) RollDropTable(_drops.Get(dropTableId), enemy.Position);
                     _killCounts.TryGetValue(enemy.Kind, out int count); _killCounts[enemy.Kind] = count + 1; _killCount++;
                 }
+                GrantKillEnergy(droppedCredits);
                 RemoveEnemyStatuses(enemy.Id);
                 if (canExplode && enemy.Definition.HasTrait(EnemyDefinition.TRAIT_DEATH_EXPLOSION))
                 { ExplodeEnemy(enemy); CollectDeadEnemies(); }
@@ -1701,12 +1755,7 @@ namespace RuneCode
             foreach (SimulationEnemy target in _enemies)
             {
                 if (!target.IsAlive || target.IsPatching || SimVector.Distance(source.Position, target.Position) > radius + target.Radius) continue;
-                double actual = damage;
-                foreach (SimulationEnemy relay in _enemies)
-                    if (relay != target && relay.IsAlive && relay.Definition.HasTrait(EnemyDefinition.TRAIT_RELAY_AURA)
-                        && SimVector.Distance(relay.Position, target.Position) <= _balance.Combat.RelayRadius)
-                    { actual *= 1 - _balance.Combat.RelayReduction; break; }
-                actual = target.Hurt(actual, Time);
+                double actual = target.Hurt(damage, Time);
                 if (actual > 0) _damageNumbers.Add(new DamageNumber(target.Position, actual, "raw", _tick));
                 if (target.IsAlive && target.Boss != null && target.Boss.IsGovernorPattern) CheckBossPatch(target, target.Boss);
             }
@@ -1882,10 +1931,8 @@ namespace RuneCode
             foreach (EliteSpawnDefinition elite in _stageDefinition.EliteTypes) largestRadius = Math.Max(largestRadius, _enemyCatalog.Get(elite.EnemyId).Radius * elite.RadiusMultiplier);
             _separation.Resize(_map.Width, _map.Height, EnemyLimit, largestRadius * 2);
             _spawnRadius = (double)bolt.Speed * bolt.Lifetime + largestRadius + _stages.Spawn.RingMargin;
-            // 단일 스테이지 항목은 데이터 값을 그대로 쓰고, 범위 항목만 스테이지 성장 배율을 적용한다.
-            _killTarget = _stageDefinition.IsBoss ? 0
-                : _stageDefinition.IsSingle ? _stageDefinition.KillTarget
-                : _stages.Growth.GetKillTarget(_stageDefinition.KillTarget, _stageNumber);
+            // 보스 스테이지는 처치로 종료하고, 일반 스테이지는 11스테이지부터 목표 처치 수를 50으로 고정한다.
+            _killTarget = _stages.GetKillTarget(_stageDefinition, _stageNumber);
             _targetKills = 0; _isBossDefeated = false;
             _director = new SpawnDirector(_stageDefinition, _stageNumber, _formations, TICK_RATE);
             AdvanceSpawns();
@@ -2030,7 +2077,7 @@ namespace RuneCode
             EnemyDefinition definition = _enemyCatalog.Get(id);
             if (definition.HasTrait(EnemyDefinition.TRAIT_CARRIER) && _carrier == null)
                 throw new InvalidOperationException("캐리어 Prefab 생성 설정을 시뮬레이션에 전달해야 합니다.");
-            double hpMultiplier = _isMission ? _stages.Growth.GetHpMultiplier(_stageNumber) : 1;
+            double hpMultiplier = _isMission ? _stages.GetHpMultiplier(_stageNumber) : 1;
             if (elite != null) hpMultiplier *= elite.HpMultiplier;
             double damageMultiplier = _isMission ? _stages.Growth.GetDamageMultiplier(_stageNumber) : 1;
             int reward = _isMission ? _stages.GetReward(id, definition.Reward) : definition.Reward;
@@ -2055,10 +2102,11 @@ namespace RuneCode
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>
         private void RecordNode(string nodeId) { _nodeEvents.Add(new NodeExecutionEvent(nodeId, _tick)); _nodeExecutionCount++; }
 
-        /// <summary>표시 수명이 지난 피해 숫자, 전격 연쇄 구간, 노드 이벤트 및 5초 DPS 샘플을 제거한다.</summary>
+        /// <summary>표시 수명이 지난 피해 숫자, 체력 회복 표시, 전격 연쇄 구간, 노드 이벤트 및 5초 DPS 샘플을 제거한다.</summary>
         private void TrimFeedback()
         {
             for (int i = _damageNumbers.Count - 1; i >= 0; i--) if (_tick - _damageNumbers[i].Tick > _balance.Sim.DamageNumberSeconds * TICK_RATE) _damageNumbers.RemoveAt(i);
+            for (int i = _healPulses.Count - 1; i >= 0; i--) if (_tick - _healPulses[i].Tick > _balance.Sim.DamageNumberSeconds * TICK_RATE) _healPulses.RemoveAt(i);
             for (int i = _arcLinks.Count - 1; i >= 0; i--) if (_tick - _arcLinks[i].Tick > ARC_LINK_TICKS) _arcLinks.RemoveAt(i);
             for (int i = _nodeEvents.Count - 1; i >= 0; i--) if (_tick - _nodeEvents[i].Tick > TICK_RATE) _nodeEvents.RemoveAt(i);
             while (_damageWindow.Count > 0 && _tick - _damageWindow.Peek().Tick > 5 * TICK_RATE) _rollingDamage -= _damageWindow.Dequeue().Amount;

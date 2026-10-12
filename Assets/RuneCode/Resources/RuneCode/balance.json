@@ -50,7 +50,7 @@
     "_aegisAngle": 120,
     "_aegisReduction": 0.7,
     "_relayRadius": 200,
-    "_relayReduction": 0.2,
+    "_relayRegen": 1,
     "_separationAllowance": 0.8,
     "_separationStrength": 0.5,
     "_separationMaxStep": 4
@@ -63,7 +63,8 @@
     "_modifierStartStock": 0,
     "_orbAbsorbRadius": 80,
     "_pickupAttractSpeed": 480,
-    "_terminalHeal": 0.3
+    "_terminalHeal": 0.3,
+    "_killEnergyCreditRatio": 0.3
   },
   "_sim": {
     "_tickRate": 60,
