@@ -115,7 +115,11 @@ namespace RuneCode
         public void SetMetrics(string text) => _metricsText.text = text;
 
         /// <summary>도구줄 툴팁 문구를 표시한다.</summary>
-        public void SetTooltip(string text) => _tooltipText.text = text;
+        public void SetTooltip(string text)
+        {
+            _tooltipText.richText = true;
+            _tooltipText.text = text;
+        }
 
         /// <summary>현재 팔레트 검색어다.</summary>
         public string SearchQuery => _searchField.text;

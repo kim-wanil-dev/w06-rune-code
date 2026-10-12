@@ -79,6 +79,7 @@ namespace RuneCode
         /// <summary>결과 문구와 스테이지·진행 문구를 채우고 승리 결과일 때만 승리 전용 버튼을 표시한다.</summary>
         public void SetContent(string summary, string stage, string progress, bool isVictory)
         {
+            _summaryLabel.richText = true;
             _summaryLabel.text = summary;
             _stageLabel.text = stage;
             _progressLabel.text = progress;
@@ -107,6 +108,8 @@ namespace RuneCode
                 return;
             }
             _hoveredRewardItem = item;
+            _rewardTooltipTitle.richText = true;
+            _rewardTooltipDescription.richText = true;
             _rewardTooltipTitle.text = item.Title;
             _rewardTooltipDescription.text = item.Description;
             _rewardTooltip.SetActive(true);
@@ -160,6 +163,8 @@ namespace RuneCode
                 Color gradeColor = GetClearModifierGradeColor(grade);
                 _clearChoiceGradeLabels[i].text = grade + "급";
                 _clearChoiceGradeLabels[i].color = gradeColor;
+                _clearChoiceNameLabels[i].richText = true;
+                _clearChoiceDescriptionLabels[i].richText = true;
                 _clearChoiceNameLabels[i].text = names[i];
                 _clearChoiceDescriptionLabels[i].text = descriptions != null && i < descriptions.Count ? descriptions[i] : string.Empty;
             }

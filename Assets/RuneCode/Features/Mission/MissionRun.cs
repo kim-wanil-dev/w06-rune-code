@@ -175,15 +175,27 @@ namespace RuneCode
             if (count > 0) _rewards.Add(new MissionReward(false, null, null, count));
         }
 
-        /// <summary>이번 전투에서 주운 Modifier를 룬 ID별로 합산해 결과 문구에 더한다.</summary>
+        /// <summary>이번 전투에서 주운 Modifier를 룬 ID와 등급별로 합산해 결과 문구에 더한다.</summary>
         private void AppendPickedModifiers()
         {
             if (_pickedModifiers.Count == 0) return;
-            var totals = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            var totals = new SortedDictionary<string, SortedDictionary<string, int>>(StringComparer.Ordinal);
             foreach (SimulationItemDrop drop in _pickedModifiers)
-                totals[drop.RuneId] = (totals.TryGetValue(drop.RuneId, out int count) ? count : 0) + drop.Count;
+            {
+                if (!totals.TryGetValue(drop.RuneId, out SortedDictionary<string, int> grades))
+                {
+                    grades = new SortedDictionary<string, int>(StringComparer.Ordinal);
+                    totals.Add(drop.RuneId, grades);
+                }
+                string grade = drop.Grade ?? string.Empty;
+                grades[grade] = (grades.TryGetValue(grade, out int count) ? count : 0) + drop.Count;
+            }
             foreach (var pair in totals)
-                _lastResult += "\n" + GameData.L("result.modifierPickup") + " " + GameData.Runes.Get(pair.Key).Name + " +" + pair.Value;
+            {
+                foreach (var gradePair in pair.Value)
+                    _lastResult += "\n" + GameData.L("result.modifierPickup") + " "
+                        + ModifierGradeText.FormatName(GameData.Runes.Get(pair.Key).Name, gradePair.Key) + " +" + gradePair.Value;
+            }
         }
 
         /// <summary>클리어 보상을 포함한 클리어, 사망 또는 보스 제한시간 초과 보상을 한 번만 정산하고 결과 문구(첫 클리어 Modifier 보상 포함)와 텔레메트리를 남긴다. 세이브 반영은 세션의 SettleMission이 한다.</summary>
@@ -209,7 +221,12 @@ namespace RuneCode
             _lastResult = GameData.L(resultKey) + "\n" + GameData.L("result.fragments") + " " + fragments;
             if (cleared) _lastResult += "  ·  " + GameData.L("result.clearReward") + " " + _simulation.ClearReward;
             foreach (var reward in modifierRewards)
-                _lastResult += "\n" + GameData.L("result.modifierReward") + " " + GameData.Runes.Get(reward.RuneId).Name + " +" + reward.Count;
+            {
+                string grade = string.IsNullOrEmpty(reward.Grade)
+                    ? GameData.ModifierGrades.GetLowestAvailableGrade(reward.RuneId) : reward.Grade;
+                _lastResult += "\n" + GameData.L("result.modifierReward") + " "
+                    + ModifierGradeText.FormatName(GameData.Runes.Get(reward.RuneId).Name, grade) + " +" + reward.Count;
+            }
             AppendPickedModifiers();
             SetClearModifierChoices(cleared, isFirstClear);
             _isPaused = false;
@@ -236,7 +253,8 @@ namespace RuneCode
             _session.GrantModifier(_clearModifierChoices[index], _clearModifierGrade, 1);
             AddModifierReward(_clearModifierChoices[index], _clearModifierGrade, 1);
             _isClearModifierChosen = true;
-            _lastResult += "\n" + GameData.L("result.modifierReward") + " " + GameData.Runes.Get(_clearModifierChoices[index]).Name + " +1";
+            _lastResult += "\n" + GameData.L("result.modifierReward") + " "
+                + ModifierGradeText.FormatName(GameData.Runes.Get(_clearModifierChoices[index]).Name, _clearModifierGrade) + " +1";
             return true;
         }
 
