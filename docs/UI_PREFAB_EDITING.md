@@ -41,6 +41,10 @@
 
 강화 노드 원본은 `Assets/RuneCode/Prefabs/UI/UpgradeTreeNode.prefab`이다. Locked / Available / Partial / Max 자식의 Image를 각각 편집한다. Available / Partial / Max의 기본 이미지는 동일한 파란색이며, 레벨에 따른 노란색은 공통 LevelFill 자식에서 그린다. 루트 Image는 Source Image 없이 Alpha 0인 투명 클릭 영역으로 유지한다. 표시용 이미지를 루트에 넣지 말고 상태 자식과 LevelFill에서 편집한다. 효과 아이콘은 기존 Icon / SpriteIcon과 강화 트리 SO의 아이콘 연결을 사용한다.
 
+SO의 Icon이 비어 있으면 `UpgradeTreeNodeIconGraphic.cs`가 벡터 아이콘을 그린다. 강화는 EffectType, 해금은 RuneId로 구분한다. 메인보드는 회로 기판, 파워는 배터리, RAM은 메모리 모듈, GPU는 팬이 달린 보드, CPU는 칩, HP는 하트, 이동속도는 부츠, 스크랩 획득량은 조각과 더하기, 획득범위는 자석, 처치 전력은 쓰러진 적과 번개다. 화염·얼음·전격은 각각 불꽃·눈송이·번개, 폭발·공전·반복·빔·부채꼴은 각각 폭발 윤곽·궤도·순환 화살표·평행 광선·부채꼴이다. 같은 효과가 반복되는 강화 노드는 같은 상징을 사용한다. 배치하지 않은 기존 해금 룬도 개별 아이콘을 지원한다.
+
+직접 만든 이미지로 교체하려면 `UpgradeTree.asset`의 해당 노드 Icon에 Sprite를 지정한다. 지정한 Sprite가 벡터보다 우선한다. 공통 크기와 색은 노드 프리팹의 Icon / SpriteIcon에서 변경한다. 새로운 룬의 기본 벡터 모양은 `DrawRune`에 해당 RuneId 분기를 추가하며, Presenter → Panel → NodeView가 RuneId를 전달한다.
+
 강화 노드는 회색 테두리와 채도를 높인 배경색을 포함한 `Tree_FourCorners_Locked_Vivid_128.png`, `Tree_FourCorners_Available_Vivid_128.png`를 사용한다. 상태 자식의 Image Color는 흰색이다. UiStateVisual의 States 순서는 Locked(0), Available(1), Partial(2), Max(3)이며 Selectable은 루트 Button을 참조한다. 비용 부족 전용 상태는 제거했다. 비용이 부족해도 개방 여부와 학습 레벨에 맞는 모습을 유지하며 구매는 차단하고 툴팁에 필요한 비용을 표시한다. 이전 보라색 Partial·초록색 Max 이미지 파일은 보존하지만 현재 프리팹에서는 사용하지 않는다.
 
 LevelFill의 `UpgradeTreeNodeFillGraphic` 컴포넌트에서 Color를 바꾸면 일부 강화와 MAX의 채움 색이 함께 바뀐다. 현재 노란색은 `#F4CC47`이다. Inset과 Corner Cut은 테두리를 가리지 않도록 채움 내부 영역의 여백·모서리를 조정한다. 실행 중 코드는 색을 덮어쓰지 않고 `현재 레벨 / 최대 레벨`에 따라 아래에서 위로 채움 높이만 갱신한다. 1/3·2/3은 파란 바탕 위에 노란색이 각각 1/3·2/3만큼 표시되고 MAX는 전체 내부가 노란색이 된다.

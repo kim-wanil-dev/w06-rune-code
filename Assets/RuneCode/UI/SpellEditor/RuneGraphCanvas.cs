@@ -22,6 +22,9 @@ namespace RuneCode
         private const float HIGHLIGHT_DURATION = 0.2f;
         private const float NODE_DRAG_THRESHOLD = 1f;
 
+        [Header("연결 판정")]
+        [SerializeField, Min(0f)] private float _connectionSnapPadding = 24f;
+
         private readonly GraphPointerState _state = new GraphPointerState();
         private readonly List<string> _expiredHighlights = new List<string>();
 
@@ -282,20 +285,60 @@ namespace RuneCode
                 {
                     if (ports[i].Direction != oppositeDirection) continue;
                     connectable[i] = _state.IsSourceOutput
-                        ? _editor.CanConnectPorts(_state.SourceNode, _state.SourcePort, node.Id, ports[i].Id)
-                        : _editor.CanConnectPorts(node.Id, ports[i].Id, _state.SourceNode, _state.SourcePort);
+                        ? _editor.CanConnectPorts(_state.SourceNode, _state.SourcePort, node.Id, ports[i].Id, true)
+                        : _editor.CanConnectPorts(node.Id, ports[i].Id, _state.SourceNode, _state.SourcePort, true);
                 }
                 _state.ConnectablePorts[node.Id] = connectable;
             }
         }
 
-        /// <summary>포인터 위치의 포트가 시작 노드가 아닌 다른 노드에 있으면 방향에 맞춰 연결한다.</summary>
+        /// <summary>포인터 근처의 유효 포트를 찾아 방향에 맞춰 연결하고 점유된 단일 포트의 연결을 교체한다.</summary>
         private void TryCompleteConnection()
         {
             if (!_state.IsConnecting) return;
-            if (!_layout.FindPort(_state.Pointer, out GraphNode node, out PortDefinition port) || node.Id == _state.SourceNode) return;
-            if (_state.IsSourceOutput) _editor.Connect(_state.SourceNode, _state.SourcePort, node.Id, port.Id);
-            else _editor.Connect(node.Id, port.Id, _state.SourceNode, _state.SourcePort);
+            if (!rectTransform.rect.Contains(_state.Pointer) || !TryFindConnectionTarget(out GraphNode node, out PortDefinition port)) return;
+            if (_state.IsSourceOutput) _editor.Connect(_state.SourceNode, _state.SourcePort, node.Id, port.Id, true);
+            else _editor.Connect(node.Id, port.Id, _state.SourceNode, _state.SourcePort, true);
+        }
+
+        /// <summary>정확히 가리킨 포트를 우선하며 노드 본체와 주변 여백에서는 가장 가까운 연결 가능 포트를 반환한다.</summary>
+        private bool TryFindConnectionTarget(out GraphNode foundNode, out PortDefinition foundPort)
+        {
+            if (_layout.FindPort(_state.Pointer, out foundNode, out foundPort) && foundNode.Id != _state.SourceNode)
+            {
+                return _state.IsSourceOutput
+                    ? _editor.CanConnectPorts(_state.SourceNode, _state.SourcePort, foundNode.Id, foundPort.Id, true)
+                    : _editor.CanConnectPorts(foundNode.Id, foundPort.Id, _state.SourceNode, _state.SourcePort, true);
+            }
+
+            foundNode = null;
+            foundPort = null;
+            float closestNodeDistance = float.PositiveInfinity;
+            float closestPortDistance = float.PositiveInfinity;
+            IReadOnlyList<GraphNode> nodes = _editor.Graph.Nodes;
+            for (int n = nodes.Count - 1; n >= 0; n--)
+            {
+                GraphNode node = nodes[n];
+                if (node.Id == _state.SourceNode || !_state.ConnectablePorts.TryGetValue(node.Id, out bool[] connectable)) continue;
+                RuneDefinition rune = GameData.Runes.Get(node.RuneId);
+                Rect rect = _layout.NodeRect(node, rune);
+                Vector2 nearest = new Vector2(Mathf.Clamp(_state.Pointer.x, rect.xMin, rect.xMax),
+                    Mathf.Clamp(_state.Pointer.y, rect.yMin, rect.yMax));
+                float nodeDistance = (_state.Pointer - nearest).sqrMagnitude;
+                if (nodeDistance > _connectionSnapPadding * _connectionSnapPadding || nodeDistance > closestNodeDistance) continue;
+                for (int p = 0; p < rune.Ports.Count; p++)
+                {
+                    PortDefinition port = rune.Ports[p];
+                    if (!connectable[p] || !_layout.IsPortShown(node, port)) continue;
+                    float portDistance = (_state.Pointer - _layout.PortPosition(rect, node, rune, port.Id)).sqrMagnitude;
+                    if (nodeDistance == closestNodeDistance && portDistance >= closestPortDistance) continue;
+                    closestNodeDistance = nodeDistance;
+                    closestPortDistance = portDistance;
+                    foundNode = node;
+                    foundPort = port;
+                }
+            }
+            return foundNode != null;
         }
 
         /// <summary>클릭한 노드로 선택을 갱신하고 선택된 노드들의 드래그 시작 좌표를 저장한다.</summary>

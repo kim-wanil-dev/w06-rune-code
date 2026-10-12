@@ -53,7 +53,7 @@ namespace RuneCode
         }
 
         /// <summary>아이콘·구매 상태와 레벨 채움·레벨/MAX 문구를 반영하고 개방·일부 강화 상태에 다음 구매 비용 배지를 표시한다.</summary>
-        public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, int maxLevel, int nextCost, bool isAvailable, bool isComplete, bool canPurchase)
+        public void SetContent(UpgradeEffectType effectType, string runeCategory, Sprite sprite, int level, int maxLevel, int nextCost, bool isAvailable, bool isComplete, bool canPurchase, string runeId = null)
         {
             _visual.Show(!isAvailable ? 0 : isComplete ? 3 : level > 0 ? 2 : 1);
             _levelFill.gameObject.SetActive(isAvailable && level > 0);
@@ -67,7 +67,7 @@ namespace RuneCode
             _icon.gameObject.SetActive(sprite == null);
             if (sprite == null)
             {
-                _icon.Configure(effectType, runeCategory);
+                _icon.Configure(effectType, runeCategory, runeId);
             }
             else
             {

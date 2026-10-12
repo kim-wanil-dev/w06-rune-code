@@ -35,11 +35,11 @@ namespace RuneCode
         /// <summary>지정 좌표에 룬 노드를 배치하고 Modifier이면 지정 문자열 등급을 저장한다.</summary>
         void AddRune(string runeId, float x, float y, string grade = null);
 
-        /// <summary>포트 연결을 검증하고 성공하면 엣지를 추가한다.</summary>
-        bool Connect(string fromNode, string fromPort, string toNode, string toPort);
+        /// <summary>포트 연결을 검증하고 성공하면 엣지를 추가한다. replaceExisting이면 단일 포트의 기존 연결을 교체한다.</summary>
+        bool Connect(string fromNode, string fromPort, string toNode, string toPort, bool replaceExisting = false);
 
-        /// <summary>드래그 중 후보 연결이 규칙상 가능한지 반환한다.</summary>
-        bool CanConnectPorts(string fromNode, string fromPort, string toNode, string toPort);
+        /// <summary>기존 연결 교체 옵션을 반영하여 드래그 중 후보 연결이 규칙상 가능한지 반환한다.</summary>
+        bool CanConnectPorts(string fromNode, string fromPort, string toNode, string toPort, bool replaceExisting = false);
 
         /// <summary>Core가 아닌 노드와 연결된 엣지를 제거한다.</summary>
         void RemoveNode(string nodeId);

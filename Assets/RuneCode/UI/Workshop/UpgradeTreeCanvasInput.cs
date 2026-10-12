@@ -18,14 +18,15 @@ namespace RuneCode
         private bool _isPanning;
         private Vector2 _lastPointerPosition;
 
-        /// <summary>우클릭 드래그가 시작되면 마지막 포인터 위치를 저장해 이동을 준비한다.</summary>
+        /// <summary>우클릭 또는 휠 클릭 드래그가 시작되면 마지막 포인터 위치를 저장해 이동을 준비한다.</summary>
         public void OnBeginDrag(PointerEventData eventData)
         {
-            _isPanning = eventData.button == PointerEventData.InputButton.Right;
+            _isPanning = eventData.button == PointerEventData.InputButton.Right
+                || eventData.button == PointerEventData.InputButton.Middle;
             _lastPointerPosition = eventData.position;
         }
 
-        /// <summary>우클릭 드래그 거리를 뷰포트 좌표로 변환해 트리 전체를 이동한다.</summary>
+        /// <summary>우클릭 또는 휠 클릭 드래그 거리를 뷰포트 좌표로 변환해 트리 전체를 이동한다.</summary>
         public void OnDrag(PointerEventData eventData)
         {
             if (!_isPanning || !TryGetViewportPosition(eventData.position, eventData.pressEventCamera, out Vector2 currentPosition) ||
