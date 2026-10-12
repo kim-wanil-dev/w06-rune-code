@@ -28,12 +28,17 @@ namespace RuneCode
             _view.DebugGrantClicked += DebugGrant;
             _view.DebugUnlockClicked += DebugUnlock;
             _view.DebugTreeResetClicked += ResetDebugTree;
+            _view.AutoSaveClicked += ToggleAutoSave;
+            _view.ManualSaveClicked += SaveManually;
+            _view.ManualLoadClicked += OpenSaveSlots;
         }
 
         /// <summary>화면 흔들림과 히트스톱 설정의 현재 값을 표시한다.</summary>
         public void Refresh()
         {
             _view.SetFeedback(_session.Save.ScreenShake, _session.Save.HitStop);
+            _view.SetSaveOptions(SaveStore.AutoSaveEnabled, _session.IsSaveDirty,
+                !_session.IsDebugEnabled, !_session.IsDebugEnabled);
         }
 
         /// <summary>화면 흔들림 설정을 반전시켜 저장하고 문구를 갱신한다.</summary>
@@ -82,5 +87,36 @@ namespace RuneCode
             _session.ResetDebugTree();
             _onProgressionChanged();
         }
+
+        /// <summary>자동 저장 설정을 바꾸고 저장 실패 시 경고를 알린다.</summary>
+        private void ToggleAutoSave()
+        {
+            bool enabled = !SaveStore.AutoSaveEnabled;
+            if (!_session.SetAutoSaveEnabled(enabled))
+                _ui.Alert(GameData.L("save.autoSave"), GameData.L("save.unavailable"));
+            Refresh();
+        }
+
+        /// <summary>현재 진행과 편집 중인 마법을 수동 저장하고 결과를 알린다.</summary>
+        private void SaveManually()
+        {
+            bool isSaved = _session.SaveManually();
+            _ui.Alert(GameData.L("save.save"), GameData.L(isSaved ? "save.saved" : "save.unavailable"));
+            Refresh();
+        }
+
+        /// <summary>저장 슬롯 목록을 열어 선택한 저장 진행으로 전환할 수 있게 한다.</summary>
+        private void OpenSaveSlots()
+        {
+            _ui.OpenPopup<SaveSlotsPopup>().Configure(_session, _ui, true, SaveSlotChanged);
+        }
+
+        /// <summary>슬롯 전환 후 작업실 진행 표시와 설정의 활성 슬롯 문구를 갱신한다.</summary>
+        private void SaveSlotChanged()
+        {
+            _onProgressionChanged();
+            Refresh();
+        }
+
     }
 }

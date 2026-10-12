@@ -21,6 +21,7 @@ namespace RuneCode
         private bool _isDebugEnabled;
         private readonly SpellEditSession _spells;
         private string _statusMessage;
+        private bool _isSaveDirty;
 
         private string _dockScenario = "dummy_single";
         private bool _dockAutoFire;
@@ -30,6 +31,7 @@ namespace RuneCode
         public PlayerSave Save => _save;
         public ISpellEditor Spells => _spells;
         public bool IsDebugEnabled => _isDebugEnabled;
+        public bool IsSaveDirty => _isSaveDirty;
         public string StatusMessage => _statusMessage;
 
         public string DockScenario => _dockScenario;
@@ -68,7 +70,7 @@ namespace RuneCode
             _isDebugEnabled = isDebugEnabled;
             _statusMessage = initialStatus;
             if (isDebugEnabled) UnlockDebugRunes();
-            var storage = new SessionSpellStorage(() => _save, () => !_isDebugEnabled);
+            var storage = new SessionSpellStorage(() => _save, PersistSpellStorage);
             var policy = new SessionSpellPolicy(this);
             _spells = new SpellEditSession(storage, policy);
         }
@@ -81,9 +83,90 @@ namespace RuneCode
         {
             _isDebugEnabled = isDebug;
             _save = isDebug ? PlayerSave.CreateNew() : _normalSave;
+            if (!isDebug && !SaveStore.HasSlot(SaveStore.ActiveSlot))
+            {
+                if (!SaveStore.WriteToSlot(SaveStore.ActiveSlot, _save)) SetStatusText(SaveStore.LastWarning);
+                else _isSaveDirty = false;
+            }
             if (isDebug) UnlockDebugRunes();
             _spells.Reload();
             RequestScreen(AppScreen.Workshop);
+        }
+
+        /// <summary>타이틀에서 선택한 저장 슬롯을 읽어 일반 진행으로 설정하고 성공 여부를 반환한다.</summary>
+        public bool SelectSaveSlot(int slot)
+        {
+            if (!SaveStore.TryLoadSlot(slot, out PlayerSave loaded)) return false;
+            SaveStore.SetActiveSlot(slot);
+            _normalSave = loaded;
+            if (!_isDebugEnabled)
+            {
+                _save = loaded;
+                _isSaveDirty = false;
+                _spells.Reload();
+            }
+            return true;
+        }
+
+        /// <summary>빈 타이틀 슬롯에 새 진행을 만들고 현재 일반 세션에도 적용한다.</summary>
+        public bool CreateSaveSlot(int slot)
+        {
+            if (!SaveStore.CreateSlot(slot, out PlayerSave created)) return false;
+            _normalSave = created;
+            if (!_isDebugEnabled)
+            {
+                _save = created;
+                _isSaveDirty = false;
+                _spells.Reload();
+            }
+            return true;
+        }
+
+        /// <summary>지정 저장 슬롯을 삭제하고 활성 슬롯이면 새 시작 진행으로 바꾼다.</summary>
+        public bool DeleteSaveSlot(int slot)
+        {
+            if (!SaveStore.DeleteSlot(slot)) return false;
+            if (SaveStore.ActiveSlot == slot)
+            {
+                _normalSave = PlayerSave.CreateNew();
+                if (!_isDebugEnabled)
+                {
+                    _save = _normalSave;
+                    _isSaveDirty = false;
+                    _spells.Reload();
+                }
+            }
+            return true;
+        }
+
+        /// <summary>현재 진행과 편집 중인 마법을 즉시 저장하고 성공 여부를 반환한다.</summary>
+        public bool SaveManually()
+        {
+            if (_isDebugEnabled) return false;
+            _spells.Save();
+            if (!_isSaveDirty) return true;
+            _isSaveDirty = true;
+            return WriteCurrentSave(_save);
+        }
+
+        /// <summary>현재 슬롯의 저장 데이터를 다시 읽어 미저장 진행과 편집 사본을 교체한다.</summary>
+        public bool LoadActiveSave()
+        {
+            if (_isDebugEnabled || !SaveStore.TryLoadSlot(SaveStore.ActiveSlot, out PlayerSave loaded)) return false;
+            _save = loaded;
+            _normalSave = loaded;
+            _isSaveDirty = false;
+            _spells.Reload();
+            return true;
+        }
+
+        /// <summary>자동 저장 설정을 변경하고 켤 때 현재 진행을 즉시 기록한다.</summary>
+        public bool SetAutoSaveEnabled(bool isEnabled)
+        {
+            SaveStore.SetAutoSaveEnabled(isEnabled);
+            if (!isEnabled || _isDebugEnabled) return true;
+            _spells.Save();
+            return !_isSaveDirty;
         }
 
         /// <summary>문자열 키를 번역해 상태 문구로 저장한다.</summary>
@@ -324,16 +407,39 @@ namespace RuneCode
             _spells.Recompile();
         }
 
-        /// <summary>편집 중인 마법과 세이브를 저장한다. 앱 종료 시 호출한다.</summary>
+        /// <summary>편집 중인 마법을 반영하고 자동 저장 설정에 맞춰 저장한다. 앱 종료 시 호출한다.</summary>
         public void SaveAll()
         {
             _spells.Save();
         }
 
-        /// <summary>일반 모드의 진행만 저장 파일에 기록하고 디버그 진행은 메모리에만 둔다.</summary>
+        /// <summary>마법 보관함 변경을 일반 세션의 저장·자동 저장 정책에 맞춰 반영한다.</summary>
+        private bool PersistSpellStorage(PlayerSave save)
+        {
+            if (_isDebugEnabled) return true;
+            _isSaveDirty = true;
+            if (!SaveStore.AutoSaveEnabled) return true;
+            return WriteCurrentSave(save);
+        }
+
+        /// <summary>진행 변경을 미저장으로 표시하고 자동 저장이 켜졌을 때 현재 슬롯에 기록한다.</summary>
         private void PersistProgress()
         {
-            if (!_isDebugEnabled) SaveStore.Write(_save);
+            if (_isDebugEnabled) return;
+            _isSaveDirty = true;
+            if (SaveStore.AutoSaveEnabled && !WriteCurrentSave(_save)) SetStatusText(SaveStore.LastWarning);
+        }
+
+        /// <summary>일반 진행을 활성 슬롯에 기록하고 성공하면 미저장 상태를 해제한다.</summary>
+        private bool WriteCurrentSave(PlayerSave save)
+        {
+            if (SaveStore.WriteToSlot(SaveStore.ActiveSlot, save))
+            {
+                _isSaveDirty = false;
+                return true;
+            }
+            _isSaveDirty = true;
+            return false;
         }
 
         /// <summary>새 디버그 진행에 SO의 모든 룬 해금을 적용하고 유효한 Modifier 등급별 소지량을 9개로 채운다.</summary>
