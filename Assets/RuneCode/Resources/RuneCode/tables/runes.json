@@ -188,7 +188,7 @@
       "_name": "오비트",
       "_category": "internal",
       "_ram": 2,
-      "_energy": 14,
+      "_energy": 15,
       "_energyMult": 1,
       "_unlockType": "start",
       "_stats": {
@@ -198,7 +198,7 @@
         "_lifetime": 4,
         "_count": 2,
         "_orbitRadius": 52,
-        "_angularSpeed": 240,
+        "_angularSpeed": 210,
         "_hitInterval": 0.4,
         "_damageMultiplier": 1,
         "_radiusMultiplier": 1,
