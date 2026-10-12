@@ -87,7 +87,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -349,6 +349,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn0
@@ -385,6 +389,14 @@ PrefabInstance:
     - target: {fileID: 1589036622568036755, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
       propertyPath: m_Name
       value: Card
+      objectReference: {fileID: 0}
+    - target: {fileID: 1656388761840003713, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: -1962472336, guid: 4c94ad3709e806f46b7014c7c1de6cbb, type: 3}
+    - target: {fileID: 1656388761840003713, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
+      propertyPath: m_PixelsPerUnitMultiplier
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7184848222494748046, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
       propertyPath: m_Pivot.x
@@ -637,6 +649,10 @@ PrefabInstance:
       propertyPath: m_fontColor.r
       value: 0.9411765
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: GrantButton
@@ -753,6 +769,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_text
       value: "\uBB34\uC801"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
@@ -879,6 +899,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn2
@@ -995,6 +1019,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_text
       value: "\uC5D8\uB9AC\uD2B8 \uBD84\uC5F4\uD615 \uC18C\uD658"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
@@ -1121,6 +1149,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn1
@@ -1238,6 +1270,10 @@ PrefabInstance:
       propertyPath: m_text
       value: "\uC804\uCCB4 \uB8EC \uD574\uAE08"
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: UnlockButton
@@ -1354,6 +1390,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_text
       value: "\uBD84\uC5F4\uD615 \uC18C\uD658"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
@@ -1480,6 +1520,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn3
@@ -1605,6 +1649,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn5
@@ -1721,6 +1769,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_text
       value: "\uC801 \uC18C\uD658"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
@@ -1847,6 +1899,10 @@ PrefabInstance:
       propertyPath: m_fontSizeBase
       value: 11
       objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
+      objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
       value: AdditionalSpawn4
@@ -1963,6 +2019,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_text
       value: "\uC5D8\uB9AC\uD2B8 \uC18C\uD658"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name
@@ -2088,6 +2148,10 @@ PrefabInstance:
     - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_fontSizeBase
       value: 23
+      objectReference: {fileID: 0}
+    - target: {fileID: 5579562545692236185, guid: 0c38440755903e6479644e3872006499, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293324528
       objectReference: {fileID: 0}
     - target: {fileID: 8208534833691763984, guid: 0c38440755903e6479644e3872006499, type: 3}
       propertyPath: m_Name

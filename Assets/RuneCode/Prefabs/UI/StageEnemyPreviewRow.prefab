@@ -263,6 +263,10 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8597441649242730954, guid: 964253ca612f3d7418844c5542fbb488, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8597441649242730954, guid: 964253ca612f3d7418844c5542fbb488, type: 3}
       propertyPath: m_VerticalAlignment
       value: 512
       objectReference: {fileID: 0}
@@ -371,6 +375,10 @@ PrefabInstance:
     - target: {fileID: 1589036622568036755, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
       propertyPath: m_Name
       value: Background
+      objectReference: {fileID: 0}
+    - target: {fileID: 1656388761840003713, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
+      propertyPath: m_PixelsPerUnitMultiplier
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 7184848222494748046, guid: a54aead6086afbf409fa3e4c84b3f427, type: 3}
       propertyPath: m_Pivot.x
@@ -509,6 +517,10 @@ PrefabInstance:
     - target: {fileID: 8597441649242730954, guid: 964253ca612f3d7418844c5542fbb488, type: 3}
       propertyPath: m_enableAutoSizing
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8597441649242730954, guid: 964253ca612f3d7418844c5542fbb488, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 8597441649242730954, guid: 964253ca612f3d7418844c5542fbb488, type: 3}
       propertyPath: m_VerticalAlignment

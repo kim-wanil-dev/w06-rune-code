@@ -56,7 +56,7 @@ namespace RuneCode
             _editor.SetEditable(false);
         }
 
-        /// <summary>프레임마다 튜토리얼 진행을 표시하고, 팝업·문자 입력이 없으면 단축키를 처리한다.</summary>
+        /// <summary>프레임마다 활성 튜토리얼의 완료 조건을 확인하고, 팝업·문자 입력이 없으면 단축키를 처리한다.</summary>
         public void Tick()
         {
             UpdateTutorial();
@@ -185,7 +185,7 @@ namespace RuneCode
             _ui.OpenPopup<TutorialPopup>();
         }
 
-        /// <summary>Shape→발사 체인 연결, Shape에 붙인 화염 속성 노드, 시험 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시하고 완료를 저장한다.</summary>
+        /// <summary>Shape→발사 체인 연결, Shape에 붙인 화염 속성 노드, 시험 시전을 모두 마친 활성 튜토리얼을 완료 처리한다.</summary>
         private void UpdateTutorial()
         {
             bool hasCastShape = false;
@@ -203,7 +203,6 @@ namespace RuneCode
             }
             bool hasChain = hasCastShape && hasLaunch;
             bool hasTested = _host.TestExecutionCount > (_isTutorialActive ? _tutorialStartExecutions : 0);
-            _view.SetTutorial(GameData.L(!hasChain ? "ui.tutorial1" : !hasFire ? "ui.tutorial2" : !hasTested ? "ui.tutorial3" : "ui.complete"));
             if (!_isTutorialActive || !hasChain || !hasFire || !hasTested) return;
             _isTutorialActive = false;
             _host.CompleteTutorial();
