@@ -697,8 +697,25 @@
           ]
         }
       ],
-      "_eliteEvery": 0,
-      "_eliteTypes": []
+      "_eliteEvery": 8,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.splitter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.bomb_seed",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        }
+      ]
     },
     {
       "_fromStage": 7,
@@ -850,8 +867,33 @@
           ]
         }
       ],
-      "_eliteEvery": 0,
-      "_eliteTypes": []
+      "_eliteEvery": 8,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.shield_melee",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.sentry",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.shield_ranged",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        }
+      ]
     },
     {
       "_fromStage": 8,
@@ -956,8 +998,25 @@
           ]
         }
       ],
-      "_eliteEvery": 0,
-      "_eliteTypes": []
+      "_eliteEvery": 8,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.clock_sniper",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.aegis",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        }
+      ]
     },
     {
       "_fromStage": 9,
@@ -1057,8 +1116,33 @@
           ]
         }
       ],
-      "_eliteEvery": 0,
-      "_eliteTypes": []
+      "_eliteEvery": 8,
+      "_eliteTypes": [
+        {
+          "_enemyId": "enemy.relay",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.hunter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        },
+        {
+          "_enemyId": "enemy.splitter",
+          "_hpMultiplier": 2,
+          "_rewardMultiplier": 2,
+          "_speedMultiplier": 1.2,
+          "_radiusMultiplier": 1.5,
+          "_dropTable": "drop.elite.basic"
+        }
+      ]
     },
     {
       "_fromStage": 10,
