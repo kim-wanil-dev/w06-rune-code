@@ -1149,7 +1149,7 @@
       "_energy": 0,
       "_energyMult": 1,
       "_executionSeconds": 0.05,
-      "_executionSecondsPerArea": 0.000009744,
+      "_executionSecondsPerArea": 0,
       "_shapeCostRates": [
         {
           "_resource": "mana",
@@ -1195,7 +1195,7 @@
       "_energy": 0,
       "_energyMult": 1,
       "_executionSeconds": 0.05,
-      "_executionSecondsPerArea": 0.000009744,
+      "_executionSecondsPerArea": 0,
       "_shapeCostRates": [
         {
           "_resource": "mana",
@@ -1244,7 +1244,7 @@
       "_energy": 0,
       "_energyMult": 1,
       "_executionSeconds": 0.05,
-      "_executionSecondsPerArea": 0.000009744,
+      "_executionSecondsPerArea": 0,
       "_shapeCostRates": [
         {
           "_resource": "mana",

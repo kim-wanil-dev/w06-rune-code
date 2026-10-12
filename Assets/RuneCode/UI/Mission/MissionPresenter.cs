@@ -207,13 +207,14 @@ namespace RuneCode
             {
                 var names = new List<string>();
                 var descriptions = new List<string>();
-                foreach (string runeId in _run.ClearModifierChoices)
+                for (int i = 0; i < _run.ClearModifierChoices.Count; i++)
                 {
-                    RuneDefinition rune = GameData.Runes.Get(runeId);
-                    names.Add(ModifierGradeText.Colorize(rune.Name, _run.ClearModifierGrade));
-                    descriptions.Add(ModifierGradeText.Colorize(FormatClearModifierDescription(rune, _run.ClearModifierGrade), _run.ClearModifierGrade));
+                    RuneDefinition rune = GameData.Runes.Get(_run.ClearModifierChoices[i]);
+                    string grade = _run.ClearModifierGrades[i];
+                    names.Add(ModifierGradeText.Colorize(rune.Name, grade));
+                    descriptions.Add(ModifierGradeText.Colorize(FormatClearModifierDescription(rune, grade), grade));
                 }
-                _result.ShowClearModifierChoices(GameData.L("result.clearModifierChoice"), names, descriptions, _run.ClearModifierGrade);
+                _result.ShowClearModifierChoices(GameData.L("result.clearModifierChoice"), names, descriptions, _run.ClearModifierGrades);
             }
             else _result.HideClearModifierChoices();
         }

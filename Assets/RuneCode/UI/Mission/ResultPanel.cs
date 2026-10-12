@@ -142,8 +142,8 @@ namespace RuneCode
             tooltipRect.anchoredPosition = new Vector2(x - parent.rect.xMin, y - parent.rect.yMax);
         }
 
-        /// <summary>클리어 Modifier 후보 이름·효과·등급을 팝업 카드에 표시하고 선택 입력을 받는다.</summary>
-        public void ShowClearModifierChoices(string title, IReadOnlyList<string> names, IReadOnlyList<string> descriptions, string grade)
+        /// <summary>클리어 Modifier 후보 이름·효과와 후보별 등급(grades, 후보와 같은 순서)을 팝업 카드에 표시하고 선택 입력을 받는다.</summary>
+        public void ShowClearModifierChoices(string title, IReadOnlyList<string> names, IReadOnlyList<string> descriptions, IReadOnlyList<string> grades)
         {
             HideRewardTooltip();
             _clearChoicePopup.SetActive(true);
@@ -160,6 +160,7 @@ namespace RuneCode
                 if (!hasChoice) continue;
                 if (firstChoice == null) firstChoice = _clearChoiceButtons[i].gameObject;
                 _clearChoiceButtons[i].interactable = true;
+                string grade = grades != null && i < grades.Count ? grades[i] : string.Empty;
                 Color gradeColor = GetClearModifierGradeColor(grade);
                 _clearChoiceGradeLabels[i].text = grade + "급";
                 _clearChoiceGradeLabels[i].color = gradeColor;

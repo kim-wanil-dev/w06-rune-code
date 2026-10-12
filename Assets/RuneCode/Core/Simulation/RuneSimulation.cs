@@ -251,20 +251,43 @@ namespace RuneCode
             return items;
         }
 
-        /// <summary>보스 스테이지 클리어 Modifier 선택 정보와 결정적 난수로 중복 없이 뽑은 후보를 반환한다. 선택 보상이 없으면 false를 반환한다.</summary>
-        public bool TryDrawClearModifierChoices(out EliteModifierClearChoice choice, out List<string> candidates)
+        /// <summary>
+        /// 보스 스테이지 클리어 Modifier 선택 정보와 결정적 난수로 후보와 후보별 등급을 뽑아 반환한다. 선택 보상이 없으면 false를 반환한다.
+        /// 슬롯별 등급 확률이 있으면 슬롯마다 등급을 따로 굴리고, 없으면 모든 슬롯이 설정 등급을 쓴다. 같은 Modifier는 다시 뽑지 않는다.
+        /// </summary>
+        public bool TryDrawClearModifierChoices(out EliteModifierClearChoice choice, out List<string> candidates, out List<string> grades)
         {
             choice = _eliteDrops.GetClearChoice(_stageNumber);
             candidates = new List<string>();
+            grades = new List<string>();
             if (choice == null || choice.ChoiceCount <= 0) return false;
-            var pool = new List<string>(_eliteDrops.GetModifiersWithGrade(choice.Grade));
-            for (int i = 0; i < choice.ChoiceCount && pool.Count > 0; i++)
+            for (int i = 0; i < choice.ChoiceCount; i++)
             {
-                int index = Math.Min(pool.Count - 1, (int)(NextRandom() * pool.Count));
-                candidates.Add(pool[index]);
-                pool.RemoveAt(index);
+                string grade = choice.SlotGradeChances != null ? RollSlotGrade(choice.SlotGradeChances) : choice.Grade;
+                var pool = new List<string>();
+                foreach (string runeId in _eliteDrops.GetModifiersWithGrade(grade))
+                    if (!candidates.Contains(runeId)) pool.Add(runeId);
+                // 이 등급에 남은 후보가 없으면 슬롯을 비운다.
+                if (pool.Count == 0) continue;
+                candidates.Add(pool[Math.Min(pool.Count - 1, (int)(NextRandom() * pool.Count))]);
+                grades.Add(grade);
             }
             return candidates.Count > 0;
+        }
+
+        /// <summary>등급 확률 목록(퍼센트)으로 등급 하나를 굴려 반환한다. 확률 0인 등급은 뽑지 않는다.</summary>
+        private string RollSlotGrade(IReadOnlyList<EliteModifierGradeChance> chances)
+        {
+            double roll = NextRandom() * 100;
+            string last = null;
+            foreach (EliteModifierGradeChance chance in chances)
+            {
+                if (chance.Percent <= 0) continue;
+                last = chance.Grade;
+                roll -= chance.Percent;
+                if (roll < 0) return chance.Grade;
+            }
+            return last;
         }
 
         /// <summary>

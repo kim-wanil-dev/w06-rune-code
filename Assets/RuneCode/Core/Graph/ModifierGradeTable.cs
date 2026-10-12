@@ -10,6 +10,7 @@ namespace RuneCode
         private const string TABLE_FILE = "elite_modifier_drops.json";
         private const string LAUNCH_COUNT_KEY = "_launchGradeValues";
         private const string LAUNCH_SPREAD_KEY = "_launchSpreadAngles";
+        private const string SLOT_GRADE_CHANCES_KEY = "_slotGradeChancesPercent";
         private const double MAX_LAUNCH_SPREAD_ANGLE = 90d;
         private static readonly IReadOnlyDictionary<string, int> EMPTY_CHANCES = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -411,11 +412,13 @@ namespace RuneCode
                 int selectCount = 0;
                 string drawMethod = string.Empty;
                 string candidateRule = string.Empty;
+                IReadOnlyDictionary<string, int> slotChances = null;
                 if (hasReward)
                 {
                     if (TryObject(row["_stageClearModifierRewardChoice"], out Dictionary<string, object> reward))
                     {
                         rewardGrade = ReadString(reward, "_grade", string.Empty, log, stageField);
+                        slotChances = ReadSlotGradeChances(Get(reward, SLOT_GRADE_CHANCES_KEY), gradeOrder, stageField, log);
                         choiceCount = ReadNonNegativeInteger(reward, "_choiceCount", stageField, log);
                         selectCount = ReadNonNegativeInteger(reward, "_selectCount", stageField, log);
                         drawMethod = ReadString(reward, "_drawMethod", string.Empty, log, stageField);
@@ -430,8 +433,39 @@ namespace RuneCode
                 if (stageType == "boss" && !hasReward) log.Add(stageField, "_stageClearModifierRewardChoice", "보스 스테이지에는 선택 보상이 필요합니다.");
                 if (stageType == "normal" && hasReward) log.Add(stageField, "_stageClearModifierRewardChoice", "일반 스테이지에는 보스 선택 보상을 둘 수 없습니다.");
                 result.Add(stage, new ModifierStageDropTable(stage, stageType, chances, hasReward,
-                    rewardGrade, choiceCount, selectCount, drawMethod, candidateRule));
+                    rewardGrade, choiceCount, selectCount, drawMethod, candidateRule, slotChances));
             }
+            return result;
+        }
+
+        /// <summary>
+        /// 선택 보상의 후보 슬롯별 등급 확률(선택 필드)을 읽는다. 키는 _gradeOrder와 같고 값은 0~100 정수이며 합계는 100이어야 한다.
+        /// 필드가 없거나 null이면 null을 반환하고, 이때 모든 슬롯은 _grade 등급을 쓴다.
+        /// </summary>
+        private static IReadOnlyDictionary<string, int> ReadSlotGradeChances(object value, IReadOnlyList<string> gradeOrder,
+            string stageField, TableErrorLog log)
+        {
+            if (value == null) return null;
+            if (!TryObject(value, out Dictionary<string, object> rows))
+            {
+                log.Add(stageField, SLOT_GRADE_CHANCES_KEY, "등급별 확률 객체여야 합니다.");
+                return null;
+            }
+            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            int total = 0;
+            foreach (string grade in gradeOrder)
+            {
+                if (!rows.TryGetValue(grade, out object chanceValue) || !TryInteger(chanceValue, out int chance) || chance < 0 || chance > 100)
+                {
+                    log.Add(stageField, SLOT_GRADE_CHANCES_KEY + "." + grade, "0에서 100 사이의 정수여야 합니다.");
+                    continue;
+                }
+                result[grade] = chance;
+                total += chance;
+            }
+            foreach (string grade in rows.Keys)
+                if (!gradeOrder.Contains(grade)) log.Add(stageField, SLOT_GRADE_CHANCES_KEY + "." + grade, "_gradeOrder에 없는 등급 키입니다.");
+            if (total != 100) log.Add(stageField, SLOT_GRADE_CHANCES_KEY, "확률 합계는 100이어야 합니다.");
             return result;
         }
 
@@ -574,10 +608,15 @@ namespace RuneCode
         public string DrawMethod { get; }
         public string CandidateRule { get; }
 
+        /// <summary>선택 보상 후보 슬롯마다 따로 굴리는 등급 확률이다. 없으면 null이며 모든 슬롯이 RewardGrade를 쓴다.</summary>
+        public IReadOnlyDictionary<string, int> RewardSlotGradeChancesPercent { get; }
+
         /// <summary>검증이 끝난 스테이지 드롭 및 선택 보상 값을 보관한다.</summary>
         internal ModifierStageDropTable(int stage, string stageType, IReadOnlyDictionary<string, int> chances,
-            bool hasReward, string rewardGrade, int choiceCount, int selectCount, string drawMethod, string candidateRule)
+            bool hasReward, string rewardGrade, int choiceCount, int selectCount, string drawMethod, string candidateRule,
+            IReadOnlyDictionary<string, int> slotGradeChances = null)
         {
+            RewardSlotGradeChancesPercent = slotGradeChances;
             Stage = stage;
             StageType = stageType;
             EliteModifierGradeChancesPercent = chances;

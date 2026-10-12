@@ -53,7 +53,7 @@ namespace RuneCode
         private readonly List<SimulationItemDrop> _pickedModifiers = new List<SimulationItemDrop>();
         private readonly List<MissionReward> _rewards = new List<MissionReward>();
         private List<string> _clearModifierChoices;
-        private string _clearModifierGrade;
+        private List<string> _clearModifierGrades;
         private bool _isClearModifierChosen;
 
         /// <summary>현재 전투 시뮬레이션을 반환한다. 경기장 그래픽과 HUD가 읽는다.</summary>
@@ -86,8 +86,8 @@ namespace RuneCode
         /// <summary>보스 클리어 Modifier 선택 후보 룬 ID 목록을 반환하고 선택 보상이 없으면 빈 목록이다.</summary>
         public IReadOnlyList<string> ClearModifierChoices => _clearModifierChoices ?? (IReadOnlyList<string>)Array.Empty<string>();
 
-        /// <summary>보스 클리어 Modifier 선택 후보의 등급 문자를 반환한다.</summary>
-        public string ClearModifierGrade => _clearModifierGrade;
+        /// <summary>보스 클리어 Modifier 선택 후보별 등급 문자를 후보와 같은 순서로 반환하고 선택 보상이 없으면 빈 목록이다.</summary>
+        public IReadOnlyList<string> ClearModifierGrades => _clearModifierGrades ?? (IReadOnlyList<string>)Array.Empty<string>();
 
         /// <summary>보스 클리어 Modifier 선택 후보가 있는지 반환한다.</summary>
         public bool HasClearModifierChoices => _clearModifierChoices != null && _clearModifierChoices.Count > 0;
@@ -233,16 +233,16 @@ namespace RuneCode
             LocalTelemetry.Record(_simulation.Tick, "mission.result", result + ":" + fragments);
         }
 
-        /// <summary>보스 클리어 Modifier 선택 후보를 결정적 난수로 뽑아 결과에 담는다. 현재는 매 클리어 지급이며 상수로 첫 클리어만 지급하도록 바꿀 수 있다.</summary>
+        /// <summary>보스 클리어 Modifier 선택 후보와 후보별 등급을 결정적 난수로 뽑아 결과에 담는다. 현재는 매 클리어 지급이며 상수로 첫 클리어만 지급하도록 바꿀 수 있다.</summary>
         private void SetClearModifierChoices(bool cleared, bool isFirstClear)
         {
             _clearModifierChoices = null;
-            _clearModifierGrade = null;
+            _clearModifierGrades = null;
             _isClearModifierChosen = false;
             if (!cleared || (!CLEAR_MODIFIER_CHOICE_EVERY_CLEAR && !isFirstClear)) return;
-            if (!_simulation.TryDrawClearModifierChoices(out EliteModifierClearChoice choice, out List<string> candidates)) return;
+            if (!_simulation.TryDrawClearModifierChoices(out _, out List<string> candidates, out List<string> grades)) return;
             _clearModifierChoices = candidates;
-            _clearModifierGrade = choice.Grade;
+            _clearModifierGrades = grades;
             _lastResult += "\n" + GameData.L("result.clearModifierChoice");
         }
 
@@ -250,11 +250,12 @@ namespace RuneCode
         public bool ChooseClearModifier(int index)
         {
             if (_clearModifierChoices == null || _isClearModifierChosen || index < 0 || index >= _clearModifierChoices.Count) return false;
-            _session.GrantModifier(_clearModifierChoices[index], _clearModifierGrade, 1);
-            AddModifierReward(_clearModifierChoices[index], _clearModifierGrade, 1);
+            string grade = _clearModifierGrades[index];
+            _session.GrantModifier(_clearModifierChoices[index], grade, 1);
+            AddModifierReward(_clearModifierChoices[index], grade, 1);
             _isClearModifierChosen = true;
             _lastResult += "\n" + GameData.L("result.modifierReward") + " "
-                + ModifierGradeText.FormatName(GameData.Runes.Get(_clearModifierChoices[index]).Name, _clearModifierGrade) + " +1";
+                + ModifierGradeText.FormatName(GameData.Runes.Get(_clearModifierChoices[index]).Name, grade) + " +1";
             return true;
         }
 

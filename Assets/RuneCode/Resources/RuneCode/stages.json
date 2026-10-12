@@ -158,7 +158,8 @@
             }
           ]
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 2,
@@ -623,9 +624,9 @@
       "_waves": [
         {
           "_at": 0,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
-            "_id": "surround",
+            "_id": "doubleSurround",
             "_angle": "",
             "_spacing": 0,
             "_interval": 0,
@@ -648,7 +649,7 @@
         },
         {
           "_at": 3,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -700,7 +701,7 @@
       "_eliteEvery": 8,
       "_eliteTypes": [
         {
-          "_enemyId": "enemy.splitter",
+          "_enemyId": "enemy.bomb_seed",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
           "_speedMultiplier": 1.2,
@@ -708,14 +709,15 @@
           "_dropTable": "drop.elite.basic"
         },
         {
-          "_enemyId": "enemy.bomb_seed",
+          "_enemyId": "enemy.hunter",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
           "_speedMultiplier": 1.2,
           "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 7,
@@ -754,7 +756,7 @@
           {
             "_enemyId": "enemy.shield_melee",
             "_firstStage": 7,
-            "_weight": 1.5
+            "_weight": 1
           },
           {
             "_enemyId": "enemy.shield_ranged",
@@ -772,9 +774,9 @@
       "_waves": [
         {
           "_at": 0,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
-            "_id": "surround",
+            "_id": "doubleSurround",
             "_angle": "",
             "_spacing": 0,
             "_interval": 0,
@@ -793,7 +795,7 @@
         },
         {
           "_at": 3,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -814,7 +816,7 @@
         },
         {
           "_at": 6,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -859,10 +861,6 @@
             {
               "_enemyId": "enemy.shield_melee",
               "_count": 1
-            },
-            {
-              "_enemyId": "enemy.shield_ranged",
-              "_count": 1
             }
           ]
         }
@@ -893,7 +891,8 @@
           "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 8,
@@ -945,19 +944,15 @@
       "_waves": [
         {
           "_at": 0,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
-            "_id": "surround",
+            "_id": "doubleSurround",
             "_angle": "",
             "_spacing": 0,
             "_interval": 0,
             "_slots": 0
           },
           "_units": [
-            {
-              "_enemyId": "enemy.clock_sniper",
-              "_count": 1
-            },
             {
               "_enemyId": "enemy.scout",
               "_count": 6
@@ -970,7 +965,7 @@
         },
         {
           "_at": 10,
-          "_repeatInterval": 24,
+          "_repeatInterval": 30,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -980,16 +975,33 @@
           },
           "_units": [
             {
-              "_enemyId": "enemy.clock_sniper",
-              "_count": 1
-            },
-            {
               "_enemyId": "enemy.sentry",
               "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
               "_count": 4
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
+            }
+          ]
+        },
+        {
+          "_at": 15,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
@@ -1016,7 +1028,8 @@
           "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 9,
@@ -1063,9 +1076,9 @@
       "_waves": [
         {
           "_at": 0,
-          "_repeatInterval": 0,
+          "_repeatInterval": 20,
           "_formation": {
-            "_id": "surround",
+            "_id": "doubleSurround",
             "_angle": "",
             "_spacing": 0,
             "_interval": 0,
@@ -1087,8 +1100,8 @@
           ]
         },
         {
-          "_at": 20,
-          "_repeatInterval": 45,
+          "_at": 10,
+          "_repeatInterval": 20,
           "_formation": {
             "_id": "surround",
             "_angle": "",
@@ -1104,6 +1117,31 @@
             {
               "_enemyId": "enemy.scout",
               "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 1
+            }
+          ]
+        },
+        {
+          "_at": 15,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "surround",
+            "_angle": "",
+            "_spacing": 0,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
@@ -1135,14 +1173,15 @@
           "_dropTable": "drop.elite.basic"
         },
         {
-          "_enemyId": "enemy.splitter",
+          "_enemyId": "enemy.carrier",
           "_hpMultiplier": 2,
           "_rewardMultiplier": 2,
           "_speedMultiplier": 1.2,
           "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 10,

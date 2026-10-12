@@ -14,19 +14,24 @@ namespace RuneCode
         internal EliteModifierGradeChance(string grade, int percent) { _grade = grade; _percent = percent; }
     }
 
-    /// <summary>스테이지 클리어 Modifier 선택 보상 설정이다. 후보 등급과 제시 수, 선택 수를 담는다.</summary>
+    /// <summary>스테이지 클리어 Modifier 선택 보상 설정이다. 후보 등급과 제시 수, 선택 수, 슬롯별 등급 확률을 담는다.</summary>
     public sealed class EliteModifierClearChoice
     {
         private readonly string _grade;
         private readonly int _choiceCount;
         private readonly int _selectCount;
+        private readonly IReadOnlyList<EliteModifierGradeChance> _slotGradeChances;
         public string Grade => _grade;
         public int ChoiceCount => _choiceCount;
         public int SelectCount => _selectCount;
 
-        /// <summary>후보 등급, 제시 수, 선택 수로 선택 보상 설정을 만든다.</summary>
-        internal EliteModifierClearChoice(string grade, int choiceCount, int selectCount)
-        { _grade = grade; _choiceCount = choiceCount; _selectCount = selectCount; }
+        /// <summary>후보 슬롯마다 따로 굴리는 등급 확률(C→S 순서)이다. null이면 모든 슬롯이 Grade를 쓴다.</summary>
+        public IReadOnlyList<EliteModifierGradeChance> SlotGradeChances => _slotGradeChances;
+
+        /// <summary>후보 등급, 제시 수, 선택 수와 선택적인 슬롯별 등급 확률로 선택 보상 설정을 만든다.</summary>
+        internal EliteModifierClearChoice(string grade, int choiceCount, int selectCount,
+            IReadOnlyList<EliteModifierGradeChance> slotGradeChances = null)
+        { _grade = grade; _choiceCount = choiceCount; _selectCount = selectCount; _slotGradeChances = slotGradeChances; }
     }
 
     /// <summary>
@@ -78,8 +83,15 @@ namespace RuneCode
         public EliteModifierClearChoice GetClearChoice(int stage)
         {
             ModifierStageDropTable table = _table.GetStageDropTable(stage);
-            return table != null && table.HasStageClearModifierReward
-                ? new EliteModifierClearChoice(table.RewardGrade, table.ChoiceCount, table.SelectCount) : null;
+            if (table == null || !table.HasStageClearModifierReward) return null;
+            List<EliteModifierGradeChance> slotChances = null;
+            if (table.RewardSlotGradeChancesPercent != null)
+            {
+                slotChances = new List<EliteModifierGradeChance>();
+                foreach (string grade in _table.GradeOrder)
+                    if (table.RewardSlotGradeChancesPercent.TryGetValue(grade, out int percent)) slotChances.Add(new EliteModifierGradeChance(grade, percent));
+            }
+            return new EliteModifierClearChoice(table.RewardGrade, table.ChoiceCount, table.SelectCount, slotChances);
         }
 
         /// <summary>스테이지 표의 등급 확률을 등급 순서의 목록으로 바꾸고, 확률이 없는(보스) 스테이지면 null을 반환한다.</summary>
