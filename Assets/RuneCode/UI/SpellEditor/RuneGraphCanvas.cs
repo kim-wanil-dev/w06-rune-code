@@ -56,7 +56,8 @@ namespace RuneCode
             _quickPlacement = quickPlacement;
             _viewport = new GraphViewport(rectTransform);
             _layout = new GraphNodeLayout(_viewport, () => _editor.Graph);
-            _painter = new GraphMeshPainter(_viewport, _layout, _state, Resources.Load<GraphVisualStyle>("RuneCode/UI/Elements/GraphVisualStyle"));
+            _painter = new GraphMeshPainter(_viewport, _layout, _state,
+                Resources.Load<GraphVisualStyle>("RuneCode/UI/Elements/GraphVisualStyle"), _editor.IsRuneUnlocked);
             _labels = new GraphNodeLabels(rectTransform, font, _viewport, _layout, _painter);
             _overlayLayer = GraphMeshLayer.Create(rectTransform, "GraphInteractionOverlay");
             _overlayLayer.Initialize(_painter);

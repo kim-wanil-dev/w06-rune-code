@@ -1,3 +1,5 @@
+using System;
+
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -41,19 +43,24 @@ namespace RuneCode
         private const float EDGE_ARROW_POSITION = 0.68f;
         private const float SELECTION_LINE_WIDTH = 1f;
 
+        private static readonly Color LOCKED_NODE_COLOR = new Color(1f, 0.25f, 0.25f);
+        private static readonly Color LOCKED_NODE_FILL_COLOR = new Color(0.24f, 0.07f, 0.08f);
 
         private readonly GraphVisualStyle _style;
         private readonly GraphViewport _viewport;
         private readonly GraphNodeLayout _layout;
         private readonly GraphPointerState _state;
+        private readonly Func<string, bool> _isRuneUnlocked;
 
-        /// <summary>뷰포트·노드 배치·편집 상태로 그리기 도구를 만든다.</summary>
-        public GraphMeshPainter(GraphViewport viewport, GraphNodeLayout layout, GraphPointerState state, GraphVisualStyle style)
+        /// <summary>뷰포트·노드 배치·편집 상태와 룬 해금 판정으로 그래프 그리기 도구를 만든다.</summary>
+        public GraphMeshPainter(GraphViewport viewport, GraphNodeLayout layout, GraphPointerState state, GraphVisualStyle style,
+            Func<string, bool> isRuneUnlocked)
         {
             _style = style;
             _viewport = viewport;
             _layout = layout;
             _state = state;
+            _isRuneUnlocked = isRuneUnlocked;
         }
 
         /// <summary>배경과 연결선을 기본 레이어 메시에 그린다.</summary>
@@ -113,13 +120,17 @@ namespace RuneCode
         {
             float zoom = _viewport.Zoom;
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            Color accent = _style.GetCategoryColor(rune.Category);
+            bool isRuneUnlocked = _isRuneUnlocked(node.RuneId);
+            Color accent = isRuneUnlocked ? _style.GetCategoryColor(rune.Category) : LOCKED_NODE_COLOR;
             Rect rect = _layout.NodeRect(node, rune);
             bool isExecuted = _state.ExecutedUntil.TryGetValue(node.Id, out float until) && until > Time.unscaledTime;
 
             Rect border = new Rect(rect.x - NODE_BORDER, rect.y - NODE_BORDER, rect.width + NODE_BORDER * 2, rect.height + NODE_BORDER * 2);
-            RuneMesh.Rect(mesh, border, NodeBorderColor(node, accent, isExecuted));
-            RuneMesh.Rect(mesh, rect, isExecuted ? _style.GetColor(EXECUTED_FILL_COLOR) : _style.GetColor(NODE_FILL_COLOR));
+            RuneMesh.Rect(mesh, border, NodeBorderColor(node, accent, isExecuted, isRuneUnlocked));
+            Color fill = isRuneUnlocked
+                ? isExecuted ? _style.GetColor(EXECUTED_FILL_COLOR) : _style.GetColor(NODE_FILL_COLOR)
+                : LOCKED_NODE_FILL_COLOR;
+            RuneMesh.Rect(mesh, rect, fill);
             RuneMesh.Rect(mesh, new Rect(rect.x, rect.yMax - NODE_ACCENT_HEIGHT * zoom, rect.width, NODE_ACCENT_HEIGHT * zoom), accent);
             Vector2 iconCenter = new Vector2(rect.x + ICON_OFFSET_X * zoom, rect.yMax - ICON_OFFSET_Y * zoom);
             RuneMesh.Polygon(mesh, iconCenter, ICON_RADIUS * zoom, accent, CategoryIconSides(rune.Category));
@@ -158,9 +169,10 @@ namespace RuneCode
             RuneMesh.Line(mesh, new Vector2(selection.xMin, selection.yMax), new Vector2(selection.xMax, selection.yMax), SELECTION_LINE_WIDTH, _style.GetColor(SELECTION_BORDER_COLOR));
         }
 
-        /// <summary>실행 하이라이트, 선택 여부 순으로 노드 테두리 색을 반환한다.</summary>
-        private Color NodeBorderColor(GraphNode node, Color accent, bool isExecuted)
+        /// <summary>미해금 표시를 실행 하이라이트와 선택 표시보다 우선해 노드 테두리 색을 반환한다.</summary>
+        private Color NodeBorderColor(GraphNode node, Color accent, bool isExecuted, bool isRuneUnlocked)
         {
+            if (!isRuneUnlocked) return LOCKED_NODE_COLOR;
             if (isExecuted) return _style.GetColor(EXECUTED_BORDER_COLOR);
             return _state.Selected.Contains(node.Id) ? accent : _style.GetColor(NODE_BORDER_COLOR);
         }
