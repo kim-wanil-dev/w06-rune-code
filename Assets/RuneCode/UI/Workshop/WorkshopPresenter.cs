@@ -52,6 +52,7 @@ namespace RuneCode
         public void Enter()
         {
             ShowEditorTab();
+            if (_session.ConsumeFirstRunHelpRequest()) OpenHelp();
         }
 
         /// <summary>작업실을 떠날 때 편집 패널을 닫고 도크 누적 시간을 버린다.</summary>
