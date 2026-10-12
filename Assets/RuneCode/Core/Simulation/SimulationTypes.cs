@@ -69,6 +69,7 @@ namespace RuneCode
     public sealed class SimulationPlayer
     {
         private readonly double[] _cooldowns = new double[3];
+        private readonly double[] _cooldownDurations = new double[3];
         private readonly bool[] _isSpellRunning = new bool[3];
         private readonly double[] _executionRemaining = new double[3];
         private readonly Dictionary<string, double> _otherResources = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -83,6 +84,7 @@ namespace RuneCode
         private double _shield;
         private double _shieldUntil;
         private double _dashCooldown;
+        private double _dashCooldownDuration;
         private double _dashRemaining;
         private double _invulnerableUntil;
         private double _burnUntil;
@@ -95,8 +97,10 @@ namespace RuneCode
         public double MaxEnergy => _maxEnergy;
         public double Shield => _shield;
         public double DashCooldown => _dashCooldown;
+        public double DashCooldownDuration => _dashCooldownDuration;
         public double DashRemaining => _dashRemaining;
         public IReadOnlyList<double> Cooldowns => _cooldowns;
+        public IReadOnlyList<double> CooldownDurations => _cooldownDurations;
 
         /// <summary>지정 슬롯의 루트 체인이 아직 실행 중인지 반환한다.</summary>
         public bool IsSpellRunning(int slot) => _isSpellRunning[slot];
@@ -113,21 +117,22 @@ namespace RuneCode
         /// <summary>입력 방향으로 조준 상태를 갱신한다.</summary>
         internal void Aim(SimVector direction) { if (direction.LengthSquared > 0.000001) _aimDirection = direction.Normalized(); }
 
-        /// <summary>쿨다운 중이 아니고 루트 체인이 없으면 실행 상태와 예상 시간을 시작한다.</summary>
-        internal bool TryBeginSpell(int slot, double executionSeconds)
+        /// <summary>쿨다운이 끝났을 때 주문을 시작하고 예상 실행시간과 실행에 포함된 쿨다운을 설정한다.</summary>
+        internal bool TryBeginSpell(int slot, double executionSeconds, double cooldownSeconds)
         {
             if (_cooldowns[slot] > 0.000001 || _isSpellRunning[slot]) return false;
             _isSpellRunning[slot] = true;
             _executionRemaining[slot] = Math.Max(0, executionSeconds);
+            _cooldowns[slot] = Math.Max(0, cooldownSeconds);
+            _cooldownDurations[slot] = _cooldowns[slot];
             return true;
         }
 
-        /// <summary>루트 체인이 끝난 슬롯의 실행 상태를 지우고 쿨다운을 시작한다.</summary>
-        internal void FinishSpell(int slot, double cooldown)
+        /// <summary>주문 실행 상태를 끝내고 이미 감소 중인 쿨다운은 계속 유지한다.</summary>
+        internal void FinishSpell(int slot)
         {
             _isSpellRunning[slot] = false;
             _executionRemaining[slot] = 0;
-            _cooldowns[slot] = cooldown;
         }
 
         /// <summary>전투가 끝나거나 취소될 때 진행 중 루트 시전을 중단하고 환급 없이 상태를 지운다.</summary>
@@ -181,7 +186,7 @@ namespace RuneCode
 
         /// <summary>대시가 가능한 경우 방향, 지속 시간, 무적 및 쿨다운을 설정한다.</summary>
         internal bool StartDash(SimVector direction, double seconds, double cooldown, double time)
-        { if (_dashCooldown > 0.000001) return false; _dashDirection = direction.Normalized(); _dashRemaining = seconds; _dashCooldown = cooldown; _invulnerableUntil = Math.Max(_invulnerableUntil, time + seconds); return true; }
+        { if (_dashCooldown > 0.000001) return false; _dashDirection = direction.Normalized(); _dashRemaining = seconds; _dashCooldown = cooldown; _dashCooldownDuration = cooldown; _invulnerableUntil = Math.Max(_invulnerableUntil, time + seconds); return true; }
 
         /// <summary>진행 중인 대시의 이동 방향을 반환한다.</summary>
         internal SimVector GetDashDirection() => _dashDirection;

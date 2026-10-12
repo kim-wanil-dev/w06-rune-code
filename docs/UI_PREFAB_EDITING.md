@@ -33,6 +33,7 @@
 | InspectorButton / InspectorDeleteButton | 인스펙터 조작 버튼과 삭제 버튼 |
 | UiText / UiInput / UiScrollList | 공통 생성 텍스트, 입력창, 스크롤 목록 원본 |
 | MissionTimer | 일반 TimerLabel / Warning 표시. 타이머 문구는 두 텍스트에 동일하게 갱신됨 |
+| CooldownRadial | 원형 Fill, Track, Background, Caption, Remaining 표시. 공격·대쉬의 색상과 모양은 각 인스턴스의 프리팹 이미지에서 편집 |
 | UpgradeTreeConnection | 양 끝 노드 중 미학습 노드가 있는 Locked / 양쪽을 모두 배운 Satisfied 연결선 |
 | GraphNodeLabel | 그래프 노드의 라벨 원본 |
 | GraphVisualStyle | 그래프 배경, 격자, 노드, 연결선, 포트, 선택 표시의 색상 템플릿 |
@@ -51,6 +52,8 @@ CostBadge는 오른쪽 위 모서리의 다음 구매 비용 표시다. Availabl
 연결선은 양 끝 노드가 모두 1레벨 이상일 때만 Satisfied로 바뀐다. 선행 노드를 배우기만 했거나 디버그 모드로 선행 조건을 무시할 수 있어도, 다음 노드를 배우기 전에는 기본 Locked 표시를 유지한다. MAX까지 강화할 필요는 없다.
 
 화면 전체 배치는 기존 `Assets/RuneCode/Resources/RuneCode/UI/WorkshopScreen.prefab`, `MissionScreen.prefab` 및 각 Popup 프리팹에서 편집한다. 공통 일반 버튼과 패널은 기존 `Assets/RuneCode/Prefabs/UI/UiButton.prefab`, `UiPanel.prefab`을 사용한다.
+
+전투 HUD의 공격·대쉬 원형 쿨다운 게이지는 `Assets/RuneCode/Prefabs/UI/CooldownRadial.prefab`을 중첩 사용한다. `MissionScreen.prefab`의 `AttackCooldownRadial` / `DashCooldownRadial` 인스턴스에서 위치와 캡션을 바꾸고, `Fill` 이미지의 색상은 인스턴스별로 조정한다. 공통 링 두께·배경·글꼴은 원본 프리팹에서 편집한다.
 
 ## 강화 트리 데이터와 시작 레벨
 

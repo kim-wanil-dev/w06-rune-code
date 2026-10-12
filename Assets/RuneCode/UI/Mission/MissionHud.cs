@@ -32,6 +32,10 @@ namespace RuneCode
         [SerializeField] private TextMeshProUGUI _spellLabel;
         [SerializeField] private TextMeshProUGUI _fragmentToast;
 
+        [Header("Cooldown gauges")]
+        [SerializeField] private CooldownRadialView _attackCooldown;
+        [SerializeField] private CooldownRadialView _dashCooldown;
+
         [Header("버튼")]
         [SerializeField] private Button _pauseButton;
         [SerializeField] private Button _debugButton;
@@ -81,6 +85,13 @@ namespace RuneCode
 
         /// <summary>하단 마법 정보 줄을 표시한다.</summary>
         public void SetSpellLine(string text) => _spellLabel.text = text;
+
+        /// <summary>Updates attack and dash cooldown gauges using their remaining time and full duration.</summary>
+        public void SetCooldowns(double attackRemaining, double attackDuration, double dashRemaining, double dashDuration)
+        {
+            _attackCooldown.SetCooldown(attackRemaining, attackDuration);
+            _dashCooldown.SetCooldown(dashRemaining, dashDuration);
+        }
 
         /// <summary>조각 획득 토스트 문구를 표시한다. 빈 문자열이면 숨긴 것과 같다.</summary>
         public void SetToast(string text) => _fragmentToast.text = text;
