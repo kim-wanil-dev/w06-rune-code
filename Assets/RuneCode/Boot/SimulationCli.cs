@@ -22,7 +22,7 @@ namespace RuneCode
             var output = Argument(arguments, "--output", Path.Combine(Application.persistentDataPath, "runecode.sim.json"));
             try
             {
-                var spell = Argument(arguments, "--spell", "firebolt");
+                var spell = Argument(arguments, "--spell", "energybolt");
                 var scenario = Argument(arguments, "--scenario", "dummy_line");
                 var ticks = int.Parse(Argument(arguments, "--ticks", "600"), CultureInfo.InvariantCulture);
                 var seed = int.Parse(Argument(arguments, "--seed", "1"), CultureInfo.InvariantCulture);

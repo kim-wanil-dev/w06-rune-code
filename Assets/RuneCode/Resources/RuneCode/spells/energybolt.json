@@ -1,6 +1,6 @@
 {
-  "_id": "shockwave",
-  "_name": "충격파",
+  "_id": "energybolt",
+  "_name": "에너지볼트",
   "_version": 3,
   "_nodes": [
     {
@@ -11,7 +11,7 @@
       "_params": [
         {
           "_key": "trigger",
-          "_number": 0.0,
+          "_number": 0,
           "_text": "onAttack"
         }
       ]
@@ -25,23 +25,10 @@
     },
     {
       "_id": "form",
-      "_runeId": "behavior.burst",
+      "_runeId": "behavior.launch",
       "_x": 380,
       "_y": 150,
       "_params": []
-    },
-    {
-      "_id": "mod0",
-      "_runeId": "mod.amplify",
-      "_x": 380,
-      "_y": 330,
-      "_params": [
-        {
-          "_key": "grade",
-          "_number": 0.0,
-          "_text": "C"
-        }
-      ]
     }
   ],
   "_edges": [
@@ -59,14 +46,6 @@
       "_fromPort": "next",
       "_toNode": "form",
       "_toPort": "in",
-      "_order": 0
-    },
-    {
-      "_id": "attach0",
-      "_fromNode": "mod0",
-      "_fromPort": "mod",
-      "_toNode": "form",
-      "_toPort": "mod",
       "_order": 0
     }
   ]

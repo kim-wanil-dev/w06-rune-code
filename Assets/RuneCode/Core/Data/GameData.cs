@@ -60,11 +60,8 @@ namespace RuneCode
             foreach (RuneDefinition rune in runes.All) allRuneIds.Add(rune.Id);
             List<SpellGraph> spells = new List<SpellGraph>
             {
-                ShareCodec.Deserialize(ReadResource("spells/firebolt"), modifierGrades),
-                ShareCodec.Deserialize(ReadResource("spells/shockwave"), modifierGrades),
-                ShareCodec.Deserialize(ReadResource("spells/triplefire"), modifierGrades),
-                ShareCodec.Deserialize(ReadResource("spells/magicmissile"), modifierGrades),
-                ShareCodec.Deserialize(ReadResource("spells/barrier"), modifierGrades)
+                ShareCodec.Deserialize(ReadResource("spells/energybolt"), modifierGrades),
+                ShareCodec.Deserialize(ReadResource("spells/triplemissile"), modifierGrades)
             };
             foreach (SpellGraph graph in spells)
             {

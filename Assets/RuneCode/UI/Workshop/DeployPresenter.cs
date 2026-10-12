@@ -25,15 +25,13 @@ namespace RuneCode
             _view.LaunchClicked += Launch;
         }
 
-    /// <summary>해금 최고 단계, 선택 스테이지, 제한시간, 출현 적과 현재 마법 문구를 다시 표시한다.</summary>
+    /// <summary>해금 최고 단계, 선택 스테이지, 제한시간과 출현 적을 다시 표시한다.</summary>
         public void Refresh()
         {
             _view.SetContent(
                 GameData.L("ui.highestStage") + "  " + _session.HighestClearedStage,
                 GameData.L("ui.stage") + " " + _session.SelectedStage,
-                GameData.L("ui.duration") + "  " + _session.BattleDuration.ToString("0") + "s",
-                GameData.L("ui.singleSpell") + "  " + _session.Spells.SpellName + "  ·  " + GameData.L("ui.capacity") + " "
-                    + _session.EquippedRam + "/" + _session.Capacity);
+                GameData.L("ui.duration") + "  " + _session.BattleDuration.ToString("0") + "s");
             RefreshEnemyPreview();
         }
 

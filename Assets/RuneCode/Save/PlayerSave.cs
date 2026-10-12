@@ -10,7 +10,8 @@ namespace RuneCode
     public sealed class PlayerSave : ISerializationCallbackReceiver
     {
         private static readonly string[] STARTER_RUNE_IDS = { "shape.sphere", "behavior.launch", "element.neutral" };
-        private static readonly string[] DEFAULT_METHOD_IDS = { "magic_missile", "barrier" };
+        // 기본 마법 메소드 템플릿 ID다. 매직 미사일은 시작 마법 에너지 볼트와 같아 통합했으므로 지금은 비어 있다.
+        private static readonly string[] DEFAULT_METHOD_IDS = Array.Empty<string>();
 
         [Header("저장 버전")]
         [SerializeField] private int _version = 4;
@@ -152,7 +153,7 @@ namespace RuneCode
             }
         }
 
-        /// <summary>시작 룬, 계속 강화할 파이어 볼트와 기본 마법 메소드(매직 미사일·방어막)를 가진 새 진행 데이터를 반환한다.</summary>
+        /// <summary>시작 룬, 계속 강화할 에너지 볼트와 기본 마법 메소드를 가진 새 진행 데이터를 반환한다.</summary>
         public static PlayerSave CreateNew()
         {
             var save = new PlayerSave();
