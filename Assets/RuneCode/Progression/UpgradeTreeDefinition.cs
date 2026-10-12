@@ -53,6 +53,7 @@ namespace RuneCode
         [Header("강화 효과")]
         [SerializeField] private UpgradeEffectType _effectType;
         [SerializeField] private string _runeId;
+        [SerializeField, Min(0), Tooltip("구매 기록이 없어도 적용되는 시작 레벨. 룬 해금 노드는 0을 사용한다.")] private int _initialLevel;
         [SerializeField] private List<UpgradeTreePrerequisite> _prerequisites = new List<UpgradeTreePrerequisite>();
         [SerializeField] private List<UpgradeTreeLevel> _levels = new List<UpgradeTreeLevel>();
 
@@ -64,6 +65,7 @@ namespace RuneCode
         public Sprite Icon => _icon;
         public UpgradeEffectType EffectType => _effectType;
         public string RuneId => _runeId;
+        public int InitialLevel => _initialLevel;
         public IReadOnlyList<UpgradeTreePrerequisite> Prerequisites => _prerequisites;
         public IReadOnlyList<UpgradeTreeLevel> Levels => _levels;
         public int MaxLevel => _levels == null ? 0 : _levels.Count;
@@ -201,16 +203,18 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>두 목록에서 공통으로 쓰는 노드 ID·효과·레벨·룬 해금 데이터를 검사하고 등록된 ID를 누적한다.</summary>
+        /// <summary>두 목록에서 공통으로 쓰는 노드 ID·효과·시작 레벨·룬 해금 데이터를 검사하고 등록된 ID를 누적한다.</summary>
         private static bool ValidateNodeData(UpgradeTreeNodeDefinition node, HashSet<string> nodeIds, HashSet<string> runeIds, out string error)
         {
             error = null;
             if (node == null || string.IsNullOrWhiteSpace(node.Id) || !nodeIds.Add(node.Id) || node.RequiredStage != 1 ||
                 string.IsNullOrWhiteSpace(node.TitleKey) || string.IsNullOrWhiteSpace(node.DescriptionKey) ||
                 node.Position.x < 0 || node.Position.y < 0 || node.Levels == null || node.Levels.Count == 0 ||
-                node.Prerequisites == null || !Enum.IsDefined(typeof(UpgradeEffectType), node.EffectType))
+                node.Prerequisites == null || !Enum.IsDefined(typeof(UpgradeEffectType), node.EffectType) ||
+                node.InitialLevel < 0 || node.InitialLevel > node.MaxLevel ||
+                (node.EffectType == UpgradeEffectType.RuneUnlock && node.InitialLevel != 0))
             {
-                error = "업그레이드 노드 식별·위치·레벨 데이터가 유효하지 않거나 스테이지 잠금이 설정되어 있습니다.";
+                error = "업그레이드 노드 식별·위치·레벨·시작 레벨 데이터가 유효하지 않거나 스테이지 잠금이 설정되어 있습니다.";
                 return false;
             }
             foreach (UpgradeTreeLevel level in node.Levels)

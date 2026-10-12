@@ -312,9 +312,9 @@ namespace RuneCode
             _version = 4;
         }
 
-        /// <summary>해금한 범위 안의 전투 스테이지를 선택하고 저장 상태를 변경한다.</summary>
-        public void SelectStage(int stage)
-        { if (stage >= 1 && stage <= _highestClearedStage + 1) _selectedStage = stage; }
+        /// <summary>전투 스테이지 선택 상태를 변경한다. canSelectLockedStage가 참이면 해금 범위 제한을 무시한다.</summary>
+        public void SelectStage(int stage, bool canSelectLockedStage = false)
+        { if (stage >= 1 && (canSelectLockedStage || stage <= _highestClearedStage + 1)) _selectedStage = stage; }
 
         /// <summary>제한시간을 완주한 스테이지 기록을 갱신하고 다음 스테이지를 선택한다.</summary>
         public void RecordStageClear(int stage)

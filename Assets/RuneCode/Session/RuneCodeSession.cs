@@ -12,6 +12,8 @@ namespace RuneCode
     /// </summary>
     public sealed class RuneCodeSession
     {
+        private const int DEBUG_MODIFIER_STOCK = 9;
+
         private PlayerSave _save;
         private PlayerSave _normalSave;
         private readonly StageCatalog _stages;
@@ -46,6 +48,7 @@ namespace RuneCode
         public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
+        public StageDefinition SelectedStageDefinition => _stages.Get(SelectedStage);
         public int HighestClearedStage => _save.HighestClearedStage;
 
         /// <summary>화면 전환 요청을 받는 콜백이다. RuneCodeApp만 등록한다.</summary>
@@ -109,13 +112,13 @@ namespace RuneCode
             return elements;
         }
 
-        /// <summary>노드의 구매 단계를 반환하고, 기존 해금 화면에서 이미 얻은 룬은 트리에서도 완료로 처리한다.</summary>
+        /// <summary>SO의 시작 레벨과 저장된 구매 단계 중 높은 값을 최대 레벨 이내로 반환한다. 이미 얻은 룬은 완료로 처리한다.</summary>
         public int GetUpgradeNodeLevel(string nodeId)
         {
             UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
             if (node == null) return 0;
             if (node.EffectType == UpgradeEffectType.RuneUnlock && _save.UnlockedRunes.Contains(node.RuneId)) return node.MaxLevel;
-            return Math.Min(_save.GetUpgradeNodeLevel(nodeId), node.MaxLevel);
+            return Math.Min(Math.Max(node.InitialLevel, _save.GetUpgradeNodeLevel(nodeId)), node.MaxLevel);
         }
 
         /// <summary>노드의 다음 강화 비용을 반환하고 최대 레벨이거나 등록되지 않은 노드는 -1을 반환한다.</summary>
@@ -193,11 +196,11 @@ namespace RuneCode
             return true;
         }
 
-        /// <summary>해금 범위 안의 출격 스테이지를 선택하고 저장한다.</summary>
+        /// <summary>출격 스테이지를 선택하고 저장한다. 디버그 모드에서는 클리어에 따른 선택 제한을 무시한다.</summary>
         public void SelectStage(int stage)
         {
-            if (stage < 1 || stage > HighestClearedStage + 1) return;
-            _save.SelectStage(stage);
+            if (stage < 1 || (!_isDebugEnabled && stage > HighestClearedStage + 1)) return;
+            _save.SelectStage(stage, _isDebugEnabled);
             PersistProgress();
         }
 
@@ -234,7 +237,7 @@ namespace RuneCode
             PersistProgress();
         }
 
-        /// <summary>디버그 진행의 배치·미배치 스탯 레벨을 0으로 되돌리고 룬과 일반 저장은 유지한다.</summary>
+        /// <summary>디버그 진행의 배치·미배치 스탯 구매 기록을 0으로 되돌린다. SO 시작 레벨·룬·일반 저장은 유지한다.</summary>
         public void ResetDebugTree()
         {
             if (!_isDebugEnabled) return;
@@ -332,7 +335,7 @@ namespace RuneCode
             if (!_isDebugEnabled) SaveStore.Write(_save);
         }
 
-        /// <summary>디버그 진행에 배치 여부와 관계없이 SO의 모든 룬 해금 노드를 적용한다.</summary>
+        /// <summary>새 디버그 진행에 SO의 모든 룬 해금을 적용하고 유효한 Modifier 등급별 소지량을 9개로 채운다.</summary>
         private void UnlockDebugRunes()
         {
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
@@ -341,6 +344,12 @@ namespace RuneCode
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.UnplacedNodes)
                 if (node != null && node.EffectType == UpgradeEffectType.RuneUnlock)
                     _save.Unlock(node.RuneId);
+            foreach (RuneDefinition rune in GameData.Runes.All)
+            {
+                if (rune.Category != SpellGrammar.CATEGORY_MODIFIER) continue;
+                foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
+                    _save.AddModifierStock(rune.Id, grade, DEBUG_MODIFIER_STOCK - _save.GetModifierStock(rune.Id, grade));
+            }
         }
 
         /// <summary>배치된 모든 룬의 RAM을 합산한다.</summary>
