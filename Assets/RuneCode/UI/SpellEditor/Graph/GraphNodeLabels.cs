@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 
 using UnityEngine;
@@ -86,16 +85,18 @@ namespace RuneCode
                 textRect.localScale = scale;
                 List<TextMeshProUGUI> ports = _portLabels[node.Id];
                 int rows = _layout.PortRowCount(node, rune);
-                for (int row = 0; row < rows; row++)
+                for (int index = 0; index < rows * 2; index++)
                 {
-                    PortDefinition port = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_IN, row)
-                        ?? _layout.PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
+                    bool isOutput = index % 2 != 0;
+                    PortDefinition port = _layout.PortAt(node, rune,
+                        isOutput ? SpellGrammar.DIRECTION_OUT : SpellGrammar.DIRECTION_IN, index / 2);
+                    RectTransform portRect = ports[index].rectTransform;
+                    portRect.gameObject.SetActive(port != null);
+                    if (port == null) continue;
                     Vector2 point = _layout.PortPosition(rect, node, rune, port.Id);
-                    RectTransform portRect = ports[row].rectTransform;
                     portRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * zoom, point.y - _parent.rect.yMax);
                     portRect.sizeDelta = new Vector2(LABEL_WIDTH, PORT_LABEL_HEIGHT);
                     portRect.localScale = scale;
-                    portRect.gameObject.SetActive(true);
                     portRect.SetAsLastSibling();
                 }
             }
@@ -155,21 +156,29 @@ namespace RuneCode
             return label;
         }
 
-        /// <summary>표시 포트 행의 라벨을 재사용해 입력·출력 이름을 갱신하고 사라진 행은 숨긴다.</summary>
+        /// <summary>행마다 입력·출력 라벨을 따로 재사용해 이름과 좌우 정렬을 지정하고 없는 포트는 숨긴다.</summary>
         private void RefreshPortLabels(GraphNode node)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             List<TextMeshProUGUI> labels = _portLabels[node.Id];
             int rows = _layout.PortRowCount(node, rune);
-            for (int row = 0; row < rows; row++)
+            for (int index = 0; index < rows * 2; index++)
             {
-                if (row == labels.Count) labels.Add(CreateLabel(PORT_FONT_SIZE, true));
-                TextMeshProUGUI label = labels[row];
-                label.gameObject.SetActive(true);
-                string text = BuildPortText(node, rune, row, label);
+                bool isOutput = index % 2 != 0;
+                if (index == labels.Count)
+                {
+                    TextMeshProUGUI portLabel = CreateLabel(PORT_FONT_SIZE, true);
+                    portLabel.horizontalAlignment = isOutput ? HorizontalAlignmentOptions.Right : HorizontalAlignmentOptions.Left;
+                    labels.Add(portLabel);
+                }
+                TextMeshProUGUI label = labels[index];
+                PortDefinition port = _layout.PortAt(node, rune,
+                    isOutput ? SpellGrammar.DIRECTION_OUT : SpellGrammar.DIRECTION_IN, index / 2);
+                label.gameObject.SetActive(port != null);
+                string text = BuildPortText(port);
                 if (label.text != text) label.text = text;
             }
-            for (int row = rows; row < labels.Count; row++) labels[row].gameObject.SetActive(false);
+            for (int index = rows * 2; index < labels.Count; index++) labels[index].gameObject.SetActive(false);
         }
 
         /// <summary>그래프에서 사라진 노드의 라벨 오브젝트를 파괴하고 목록에서 뺀다.</summary>
@@ -210,21 +219,11 @@ namespace RuneCode
             return _builder.ToString();
         }
 
-        /// <summary>지정 포트 행의 입력 이름과 오른쪽 정렬한 출력 이름을 반환하며 지원 중단 출력에는 취소선을 붙인다.</summary>
-        private string BuildPortText(GraphNode node, RuneDefinition rune, int row, TextMeshProUGUI label)
+        /// <summary>포트 이름을 반환하며 없는 포트는 빈 문자열, 지원 중단 포트는 취소선을 붙인 이름으로 반환한다.</summary>
+        private static string BuildPortText(PortDefinition port)
         {
-            _builder.Clear();
-            PortDefinition input = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_IN, row);
-            PortDefinition output = _layout.PortAt(node, rune, SpellGrammar.DIRECTION_OUT, row);
-            _builder.Append(input?.Id);
-            if (output != null)
-            {
-                string outputText = output.IsDeprecated ? "<s>" + output.Id + "</s>" : output.Id;
-                float outputWidth = label.GetPreferredValues(outputText).x;
-                float outputStart = Mathf.Max(0, LABEL_WIDTH - outputWidth);
-                _builder.Append("<pos=").Append(outputStart.ToString("0.#", CultureInfo.InvariantCulture)).Append('>').Append(outputText);
-            }
-            return _builder.ToString();
+            if (port == null) return string.Empty;
+            return port.IsDeprecated ? "<s>" + port.Id + "</s>" : port.Id;
         }
 
         /// <summary>Trigger·Apply·프리셋 호출의 핵심 값(시작 조건, 속성, 호출 대상)을 반환하며 해당 없으면 null을 반환한다. Shape 속성은 붙은 속성 노드로 보인다.</summary>
