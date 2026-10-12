@@ -193,6 +193,7 @@
       "_unlockType": "start",
       "_stats": {
         "_damage": 6,
+        "_speed": 480,
         "_radius": 8,
         "_lifetime": 4,
         "_count": 2,
@@ -549,6 +550,7 @@
       ],
       "_modifierTargets": [
         "behavior.launch",
+        "behavior.orbit",
         "behavior.persist",
         "spell.call"
       ]

@@ -547,7 +547,12 @@ namespace RuneCode
                 if (radius > 0f) lines.Add(GameData.L("ui.spellRadius") + " " + radius.ToString("0.#") + "px");
             }
 
-            if (action.Form == SpellGrammar.FORM_ORBIT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+            if (action.Form == SpellGrammar.FORM_ORBIT)
+            {
+                lines.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+                if (stats.HomingRange > 0f && action.SourceElement != "protection")
+                    lines.Add(GameData.L("ui.spellTrackSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+            }
             else if (action.Form == SpellGrammar.FORM_BOLT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
             else if (action.Form == SpellGrammar.FORM_ZONE && stats.HomingRange > 0f)
                 lines.Add(GameData.L("ui.spellTrackSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");

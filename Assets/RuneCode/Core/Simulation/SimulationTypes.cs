@@ -377,6 +377,8 @@ namespace RuneCode
         private bool _hasExpired;
         private bool _hasFiredFirstEvent;
         private bool _hasDirectHit;
+        private int _homingTargetId;
+        private bool _isReturning;
         public int Id => _id;
         public string Kind => _action.Form;
         public string Element => _element;
@@ -445,6 +447,12 @@ namespace RuneCode
 
         /// <summary>발사체가 적·벽·지형에 한 번이라도 직접 충돌했는지 나타낸다. 직접 충돌한 발사체는 OnExpire를 내지 않는다.</summary>
         internal bool HasDirectHit { get => _hasDirectHit; set => _hasDirectHit = value; }
+
+        /// <summary>유도 공전이 돌진 중인 적 ID다. 0이면 궤도 위에 있거나 궤도로 돌아오는 중이다.</summary>
+        internal int HomingTargetId { get => _homingTargetId; set => _homingTargetId = value; }
+
+        /// <summary>유도 공전이 적과 부딪친 뒤 궤도 자리로 날아 돌아오는 중인지 나타낸다.</summary>
+        internal bool IsReturning { get => _isReturning; set => _isReturning = value; }
 
         /// <summary>부채꼴 발사체 중심(center)과 진행 방향, 반경으로 꼭짓점(중심에서 반경만큼 뒤)을 반환한다.</summary>
         internal static SimVector GetConeApex(SimVector center, SimVector direction, double radius) => center - direction.Normalized() * radius;
@@ -518,7 +526,7 @@ namespace RuneCode
         internal void WriteState(StringBuilder state)
         {
             state.Append(_id).Append('|').Append(_action.NodeId).Append('|').Append(_element).Append('|').Append(_castNoiseElement).Append('|').Append(_fromEvent);
-            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}"));
+            state.Append(FormattableString.Invariant($"|{_anchor.X:R}|{_anchor.Y:R}|{_position.X:R}|{_position.Y:R}|{_direction.X:R}|{_direction.Y:R}|{_age:R}|{_angle:R}|{_hits}|{_hasExpired}|{_hasFiredFirstEvent}|{_hasDirectHit}|{_costMultiplier:R}|{_homingTargetId}|{_isReturning}"));
             state.Append(FormattableString.Invariant($"|{_stats.Damage:R}|{_stats.Speed:R}|{_stats.Radius:R}|{_stats.Lifetime:R}|{_stats.Pierce}|{_stats.HomingTurn:R}|{_stats.HomingRange:R}"));
             _modifiers.AppendState(state);
             _callEvents?.AppendState(state);

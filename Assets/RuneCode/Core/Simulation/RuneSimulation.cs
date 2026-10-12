@@ -26,6 +26,7 @@ namespace RuneCode
         private const double COLLISION_EPSILON = 0.000001;
         private const int SHAPE_CONTACT_REFINEMENT_STEPS = 16;
         private const int WALL_CONTACT_REFINEMENT_STEPS = 12;
+        private const double ORBIT_CONTACT_OVERLAP = 1;
         private static readonly Dictionary<int, double> NoExcludedTargets = new Dictionary<int, double>();
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
@@ -792,8 +793,11 @@ namespace RuneCode
                 {
                     entity.Angle += entity.Stats.AngularSpeed * DEGREES_TO_RADIANS * STEP_SECONDS;
                     SimVector anchor = entity.FromEvent ? entity.Anchor : _player.Position;
-                    SimVector position = anchor + new SimVector(Math.Cos(entity.Angle), Math.Sin(entity.Angle)) * entity.Stats.OrbitRadius;
-                    entity.Move(position, new SimVector(-Math.Sin(entity.Angle), Math.Cos(entity.Angle)));
+                    SimVector slot = anchor + new SimVector(Math.Cos(entity.Angle), Math.Sin(entity.Angle)) * entity.Stats.OrbitRadius;
+                    SimVector tangent = new SimVector(-Math.Sin(entity.Angle), Math.Cos(entity.Angle));
+                    // 보호 공전(방벽)은 시전자를 막는 역할이라 유도가 있어도 궤도를 떠나지 않는다.
+                    if (entity.Stats.HomingRange > 0 && entity.Action.SourceElement != "protection") AdvanceHomingOrbit(entity, anchor, slot, tangent);
+                    else entity.Move(slot, tangent);
                     if (entity.Action.SourceElement != "protection") HitArea(entity, false);
                 }
                 else if (entity.Kind == "zone" && !entity.IsWarning)
@@ -822,6 +826,66 @@ namespace RuneCode
             double step = Math.Min(entity.Stats.Speed * STEP_SECONDS, offset.Length);
             if (step <= COLLISION_EPSILON) return;
             entity.Move(_map.Move(entity.Position, offset.Normalized() * step, entity.Radius), entity.Direction);
+        }
+
+        /// <summary>
+        /// 유도 공전을 궤도 위 → 적에게 돌진 → 궤도 자리로 복귀 순서로 반복해 움직인다. 궤도 중심(anchor)에서 유도 거리 안의 가장 가까운 적을 노리고,
+        /// 이동 속도로 직선 추적해 부딪치면 그 자리에서 궤도 자리(slot, 계속 회전함)로 날아 돌아온다. 돌아온 다음 틱에 다시 대상을 고른다.
+        /// 대상이 죽거나 유도 거리를 벗어나면 바로 복귀하고, 대상이 없으면 궤도를 그대로 돈다. 벽은 일반 공전처럼 무시한다.
+        /// </summary>
+        private void AdvanceHomingOrbit(SimulationSpellEntity entity, SimVector anchor, SimVector slot, SimVector tangent)
+        {
+            double step = entity.Stats.Speed * STEP_SECONDS;
+            double range = entity.Stats.HomingRange;
+            if (entity.HomingTargetId == 0 && !entity.IsReturning)
+            {
+                SimulationEnemy next = NearestEnemy(anchor, range, NoExcludedTargets);
+                if (next == null)
+                {
+                    entity.Move(slot, tangent);
+                    return;
+                }
+                entity.HomingTargetId = next.Id;
+            }
+            if (entity.HomingTargetId != 0)
+            {
+                SimulationEnemy target = null;
+                foreach (SimulationEnemy enemy in _enemies)
+                {
+                    if (enemy.Id == entity.HomingTargetId && enemy.IsAlive) { target = enemy; break; }
+                }
+                if (target == null || SimVector.Distance(anchor, target.Position) > range)
+                {
+                    entity.HomingTargetId = 0;
+                    entity.IsReturning = true;
+                }
+                else
+                {
+                    SimVector offset = target.Position - entity.Position;
+                    double contact = entity.Radius + target.Radius;
+                    SimVector heading = offset.Normalized();
+                    if (offset.Length - step <= contact)
+                    {
+                        // 이번 틱에 닿으므로 접촉 위치(살짝 겹치게)까지만 가고 복귀로 바꾼다. 피해·OnHit은 이어지는 범위 판정이 처리한다.
+                        double stop = Math.Max(0, contact - ORBIT_CONTACT_OVERLAP);
+                        SimVector touch = offset.Length > stop ? target.Position - heading * stop : entity.Position;
+                        entity.Move(touch, heading);
+                        entity.HomingTargetId = 0;
+                        entity.IsReturning = true;
+                        return;
+                    }
+                    entity.Move(entity.Position + heading * step, heading);
+                    return;
+                }
+            }
+            SimVector back = slot - entity.Position;
+            if (back.Length <= step)
+            {
+                entity.Move(slot, tangent);
+                entity.IsReturning = false;
+                return;
+            }
+            entity.Move(entity.Position + back.Normalized() * step, back.Normalized());
         }
 
         /// <summary>볼트의 유도 방향, 벽 충돌 및 가장 가까운 순서의 관통 적중을 처리한다.</summary>

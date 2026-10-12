@@ -277,8 +277,8 @@ namespace RuneCode
                     _pierce = SpellModifierValues.AddPierce(_pierce, pierceCount);
                     if (stats.PierceLoss > 0f) _pierceLoss = stats.PierceLoss;
                 }
-                // 유도는 발사체의 방향 전환과 잔류의 대상 추적 이동에 쓴다.
-                if (formKind == "bolt" || formKind == "zone")
+                // 유도는 발사체의 방향 전환, 잔류의 대상 추적 이동, 공전의 돌진·복귀 반복에 쓴다.
+                if (formKind == "bolt" || formKind == "zone" || formKind == "orbit")
                 {
                     if (modifierGrades != null && modifierGrades.GetEffectType(mod.Id) == "homingTier")
                     {
