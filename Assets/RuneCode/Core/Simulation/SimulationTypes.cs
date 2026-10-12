@@ -614,6 +614,18 @@ namespace RuneCode
         internal DamageNumber(SimVector position, double amount, string element, int tick) { _position = position; _amount = amount; _element = element; _tick = tick; }
     }
 
+    public readonly struct ArcLink
+    {
+        private readonly SimVector _from;
+        private readonly SimVector _to;
+        private readonly int _tick;
+        public SimVector From => _from;
+        public SimVector To => _to;
+        public int Tick => _tick;
+        /// <summary>전격 연쇄가 이어진 두 위치와 틱을 표시용 기록으로 보관한다.</summary>
+        internal ArcLink(SimVector from, SimVector to, int tick) { _from = from; _to = to; _tick = tick; }
+    }
+
     public readonly struct NodeExecutionEvent
     {
         private readonly string _nodeId;

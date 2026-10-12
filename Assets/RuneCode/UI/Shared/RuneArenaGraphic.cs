@@ -25,6 +25,12 @@ namespace RuneCode
         private const double DAMAGE_EPSILON = 0.000001;
         private const int DAMAGE_NUMBER_TICKS = 40;
         private const int MAX_DAMAGE_NUMBERS = 64;
+        private const float ARC_GLOW_WIDTH = 6f;
+        private const float ARC_CORE_WIDTH = 2f;
+        private const float ARC_GLOW_ALPHA = 0.55f;
+        private const float ARC_AMPLITUDE = 0.18f;
+        private const int ARC_FLICKER_TICKS = 3;
+        private const int ARC_SEGMENTS = 4;
 
         private static readonly Color BACKGROUND_COLOR = new Color(0.02f, 0.04f, 0.075f);
         private static readonly Color WALL_COLOR = new Color(0.13f, 0.20f, 0.27f);
@@ -60,8 +66,10 @@ namespace RuneCode
         private static readonly Color PATCH_COLOR = new Color(0.83f, 0.57f, 1);
         private static readonly Color RESISTANT_COLOR = new Color(0.77f, 0.69f, 1);
         private static readonly Color HP_TRACK_COLOR = new Color(0.24f, 0.16f, 0.20f);
+        private static readonly Color ARC_CORE_COLOR = new Color(0.95f, 0.92f, 1f);
 
         private readonly List<TextMeshProUGUI> _damageLabels = new List<TextMeshProUGUI>();
+        private readonly Vector2[] _arcPoints = new Vector2[ARC_SEGMENTS + 1];
         private Func<RuneSimulation> _simulation;
         private Func<bool> _screenShake;
         private Func<bool> _hitStop;
@@ -124,7 +132,22 @@ namespace RuneCode
             foreach (FragmentOrb orb in sim.Orbs) DrawOrb(mesh, orb);
             foreach (SimulationItemDrop drop in sim.ItemDrops) DrawItemDrop(mesh, drop);
             foreach (SimulationEnemy enemy in sim.Enemies) DrawEnemy(mesh, enemy, sim);
+            foreach (ArcLink link in sim.ArcLinks) DrawArcLink(mesh, link, sim.Tick - link.Tick);
             DrawPlayer(mesh, sim);
+        }
+
+        /// <summary>전격 연쇄 구간을 경과 틱에 따라 흐려지는 속성 색 빛과 흰 심선의 지그재그 번개로 그린다.</summary>
+        private void DrawArcLink(UnityEngine.UI.VertexHelper mesh, ArcLink link, int elapsedTicks)
+        {
+            RuneMesh.ArcPoints(Point(link.From), Point(link.To), link.Tick + elapsedTicks / ARC_FLICKER_TICKS, ARC_AMPLITUDE, _arcPoints);
+            float fade = 1f - (float)elapsedTicks / (RuneSimulation.ARC_LINK_TICKS + 1);
+            Color glow = RuneMesh.ElementColor("arc"); glow.a = ARC_GLOW_ALPHA * fade;
+            Color core = ARC_CORE_COLOR; core.a = fade;
+            for (int i = 0; i < _arcPoints.Length - 1; i++)
+            {
+                RuneMesh.Line(mesh, _arcPoints[i], _arcPoints[i + 1], ARC_GLOW_WIDTH * _scale, glow);
+                RuneMesh.Line(mesh, _arcPoints[i], _arcPoints[i + 1], ARC_CORE_WIDTH * _scale, core);
+            }
         }
 
         /// <summary>시뮬레이션 위치를 경기장 RectTransform의 로컬 좌표로 변환한다.</summary>

@@ -10,6 +10,7 @@ namespace RuneCode
     public sealed class RuneSimulation
     {
         public const int TICK_RATE = 60;
+        public const int ARC_LINK_TICKS = 12;
         private const double STEP_SECONDS = 1.0 / TICK_RATE;
         private const double DEGREES_TO_RADIANS = Math.PI / 180;
         private const int STATUS_TYPE_COUNT = 4;
@@ -56,6 +57,7 @@ namespace RuneCode
         private readonly List<SimulationItemDrop> _pickedUpItems = new List<SimulationItemDrop>();
         private readonly List<SimulationItemDrop> _newPickedItems = new List<SimulationItemDrop>();
         private readonly List<DamageNumber> _damageNumbers = new List<DamageNumber>();
+        private readonly List<ArcLink> _arcLinks = new List<ArcLink>();
         private readonly List<NodeExecutionEvent> _nodeEvents = new List<NodeExecutionEvent>();
         private readonly List<ScheduledExecution> _scheduled = new List<ScheduledExecution>();
         private readonly List<PendingEnemyShot> _pendingEnemyShots = new List<PendingEnemyShot>();
@@ -119,6 +121,9 @@ namespace RuneCode
         /// <summary>이번 전투에서 주워 확정한 Modifier 드롭의 누적 목록이다.</summary>
         public IReadOnlyList<SimulationItemDrop> PickedUpItems => _pickedUpItems;
         public IReadOnlyList<DamageNumber> DamageNumbers => _damageNumbers;
+
+        /// <summary>최근 ARC_LINK_TICKS 동안 발생한 전격 연쇄 구간 목록이다. 표시 전용이다.</summary>
+        public IReadOnlyList<ArcLink> ArcLinks => _arcLinks;
         public IReadOnlyList<NodeExecutionEvent> NodeEvents => _nodeEvents;
         public IReadOnlyDictionary<string, int> KillCounts => _killCounts;
         public AdaptationNet Adaptation { get; }
@@ -340,7 +345,7 @@ namespace RuneCode
             if (_isMission) throw new InvalidOperationException("미션은 시험 도크로 초기화할 수 없습니다.");
             if (scenario != "dummy_single" && scenario != "dummy_line" && scenario != "dummy_swarm" && scenario != "aegis" && scenario != "adapt_loop") throw new ArgumentException("알 수 없는 시험 시나리오입니다.", nameof(scenario));
             _scenario = scenario; _stage = MissionStage.Bench; _tick = 0; _nextEntityId = 0; _rngState = (uint)_initialSeed;
-            _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
+            _enemies.Clear(); _orbs.Clear(); _itemDrops.Clear(); _pickedUpItems.Clear(); _newPickedItems.Clear(); _damageNumbers.Clear(); _arcLinks.Clear(); _nodeEvents.Clear(); _damageWindow.Clear(); _killCounts.Clear(); CancelCombat();
             _enemyStatuses.Clear(); _statusIndex.Clear(); _statusTime = 0;
             _totalDamage = 0; _statusDamage = 0; _persistDamage = 0; _rollingDamage = 0; _resourceCostsSpent.Clear(); _peakSpellEntities = 0;
             _nodeExecutionCount = 0; _collectedFragments = 0; _scrapRemainder = 0; _killCount = 0; _spawnedEnemies = 0;
@@ -1111,7 +1116,11 @@ namespace RuneCode
                     int distanceOrder = (a.Position - enemy.Position).LengthSquared.CompareTo((b.Position - enemy.Position).LengthSquared);
                     return distanceOrder != 0 ? distanceOrder : a.Id.CompareTo(b.Id);
                 });
-                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++) actual += ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
+                for (int i = 0; i < Math.Min(arc.ArcTargets, chain.Count); i++)
+                {
+                    actual += ApplyDamage(chain[i], damage * arc.ArcMultiplier, "arc", entity.Kind, entity.Action.Noise, isDot, (chain[i].Position - enemy.Position).Normalized(), true);
+                    _arcLinks.Add(new ArcLink(enemy.Position, chain[i].Position, _tick));
+                }
             }
             if (entity.Kind == SpellGrammar.FORM_ZONE) _persistDamage += actual;
         }
@@ -1949,10 +1958,11 @@ namespace RuneCode
         /// <summary>노드 실행 틱을 기록하고 누적 실행 수를 증가시킨다.</summary>
         private void RecordNode(string nodeId) { _nodeEvents.Add(new NodeExecutionEvent(nodeId, _tick)); _nodeExecutionCount++; }
 
-        /// <summary>표시 수명이 지난 피해 숫자, 노드 이벤트 및 5초 DPS 샘플을 제거한다.</summary>
+        /// <summary>표시 수명이 지난 피해 숫자, 전격 연쇄 구간, 노드 이벤트 및 5초 DPS 샘플을 제거한다.</summary>
         private void TrimFeedback()
         {
             for (int i = _damageNumbers.Count - 1; i >= 0; i--) if (_tick - _damageNumbers[i].Tick > _balance.Sim.DamageNumberSeconds * TICK_RATE) _damageNumbers.RemoveAt(i);
+            for (int i = _arcLinks.Count - 1; i >= 0; i--) if (_tick - _arcLinks[i].Tick > ARC_LINK_TICKS) _arcLinks.RemoveAt(i);
             for (int i = _nodeEvents.Count - 1; i >= 0; i--) if (_tick - _nodeEvents[i].Tick > TICK_RATE) _nodeEvents.RemoveAt(i);
             while (_damageWindow.Count > 0 && _tick - _damageWindow.Peek().Tick > 5 * TICK_RATE) _rollingDamage -= _damageWindow.Dequeue().Amount;
         }

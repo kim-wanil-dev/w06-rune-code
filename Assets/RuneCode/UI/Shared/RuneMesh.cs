@@ -16,6 +16,23 @@ namespace RuneCode
             mesh.AddTriangle(index, index + 2, index + 3);
         }
 
+        /// <summary>
+        /// 두 점 사이를 지그재그 번개 모양으로 나눈 꺾임점을 points에 채운다. 양 끝은 고정하고 안쪽 점은 진행 방향에 수직으로
+        /// 구간 길이 대비 amplitude 비율만큼 흔든다. seed가 같으면 같은 모양이 나온다.
+        /// </summary>
+        internal static void ArcPoints(Vector2 from, Vector2 to, int seed, float amplitude, Vector2[] points)
+        {
+            Vector2 delta = to - from;
+            Vector2 normal = new Vector2(-delta.y, delta.x).normalized * delta.magnitude * amplitude;
+            int last = points.Length - 1;
+            for (int i = 0; i <= last; i++)
+            {
+                // 끝점은 고정하고 안쪽 점은 seed로 정한 -1~1 의사 난수만큼 흔든다.
+                float offset = i == 0 || i == last ? 0f : Mathf.Repeat(Mathf.Sin((seed * 31 + i) * 12.9898f) * 43758.5453f, 2f) - 1f;
+                points[i] = from + delta * ((float)i / last) + normal * offset;
+            }
+        }
+
         /// <summary>두 점 사이에 지정 두께와 색상의 선분 메시를 추가한다.</summary>
         internal static void Line(UnityEngine.UI.VertexHelper mesh, Vector2 from, Vector2 to, float width, Color color)
         {
