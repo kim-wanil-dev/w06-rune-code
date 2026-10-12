@@ -576,8 +576,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 0/3
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}
-  m_sharedMaterial: {fileID: -4499354403446525325, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6e22b7e028833a74aaf22c6466fb8f2f, type: 2}
+  m_sharedMaterial: {fileID: -5937850424648672293, guid: 6e22b7e028833a74aaf22c6466fb8f2f, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -713,8 +713,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 10
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}
-  m_sharedMaterial: {fileID: -4499354403446525325, guid: 94d0ab89350446e4081ef1b8a2c045e0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6e22b7e028833a74aaf22c6466fb8f2f, type: 2}
+  m_sharedMaterial: {fileID: -5937850424648672293, guid: 6e22b7e028833a74aaf22c6466fb8f2f, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -883,6 +883,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 93d0bbf04972b5647a375e8b6ac2afbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeNodeView
+  _nodeId: 
   _background: {fileID: 5711717376521497241}
   _outline: {fileID: 5244494695430378782}
   _icon: {fileID: 194870601476831786}

@@ -13,12 +13,12 @@ namespace RuneCode
     /// </summary>
     internal sealed class GraphNodeLabels
     {
-        private const float LABEL_FONT_SIZE = 12f;
+        private const float LABEL_FONT_SIZE = 15f;
         private const float LABEL_PADDING_X = 24f;
         private const float LABEL_PADDING_RIGHT = 14f;
-        private const float LABEL_PADDING_TOP = 12f;
-        private const float HEADER_HEIGHT = 28f;
-        private const float PORT_FONT_SIZE = 10f;
+        private const float LABEL_PADDING_TOP = 9f;
+        private const float HEADER_HEIGHT = 40f;
+        private const float PORT_FONT_SIZE = 12f;
         private const float PORT_LABEL_HEIGHT = 16f;
         private const float LABEL_WIDTH = GraphNodeLayout.NODE_WIDTH - LABEL_PADDING_X - LABEL_PADDING_RIGHT;
 
@@ -216,7 +216,7 @@ namespace RuneCode
             }
             _builder.Append("<b>").Append(name).Append("</b>  ").Append(GameData.Runes.NodeRam(node)).Append(" RAM");
             string summary = Summary(node, rune, library);
-            if (!string.IsNullOrEmpty(summary)) _builder.Append("\n<size=10>").Append(summary).Append("</size>");
+            if (!string.IsNullOrEmpty(summary)) _builder.Append("\n<size=12>").Append(summary).Append("</size>");
             return _builder.ToString();
         }
 
