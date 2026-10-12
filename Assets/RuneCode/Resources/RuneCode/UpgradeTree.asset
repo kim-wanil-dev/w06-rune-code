@@ -2344,7 +2344,6 @@ MonoBehaviour:
       _amount: 0.05
     - _cost: 2120
       _amount: 0.05
-  _unplacedNodes:
   - _id: unlock.behavior.persist
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
@@ -2353,10 +2352,13 @@ MonoBehaviour:
     _effectType: 8
     _runeId: behavior.persist
     _initialLevel: 0
-    _prerequisites: []
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.secondary
+      _requiredLevel: 1
     _levels:
-    - _cost: 250
+    - _cost: 100
       _amount: 0
+  _unplacedNodes:
   - _id: unlock.mod.amplify
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
