@@ -13,6 +13,9 @@ namespace RuneCode
     /// </summary>
     public sealed class SpellEditorPresenter : IDisposable
     {
+        private const string RAM_HIGHLIGHT_OPEN = "<b><color=#FFD54A>";
+        private const string RAM_HIGHLIGHT_CLOSE = "</color></b>";
+
         private readonly ISpellEditor _editor;
         private readonly ISpellEditorHost _host;
         private readonly UIManager _ui;
@@ -137,7 +140,9 @@ namespace RuneCode
             CompiledSpell spell = _editor.CompileResult.Spell;
             int ram = 0;
             foreach (GraphNode node in _editor.Graph.Nodes) ram += GameData.Runes.NodeRam(node);
-            string text = GameData.L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM";
+            // RAM 구간만 노란색 굵게 강조한다.
+            string text = RAM_HIGHLIGHT_OPEN + GameData.L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM"
+                + RAM_HIGHLIGHT_CLOSE;
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
                 : "  ·  " + GameData.L("ui.cost") + " " + (HasUnboundedCost(spell.ResourceCosts)
