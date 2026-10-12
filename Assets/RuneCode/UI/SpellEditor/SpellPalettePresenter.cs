@@ -6,7 +6,7 @@ namespace RuneCode
 {
     /// <summary>
     /// 룬 팔레트와 빠른 검색 팝업의 Presenter다. 분류·검색어로 배치 가능한 룬을 골라 표시하고,
-    /// 행을 누르면 제안 위치(팔레트) 또는 더블클릭 위치(빠른 검색)에 룬을 배치한다. 미해금 룬은 비활성 표시하고 남은 소지량이 0인 Modifier 등급은 숨긴다.
+    /// 행을 누르면 제안 위치(팔레트) 또는 더블클릭 위치(빠른 검색)에 룬을 배치한다. 미해금 룬과 남은 소지량이 0인 Modifier 등급은 숨긴다.
     /// </summary>
     public sealed class SpellPalettePresenter
     {
@@ -32,7 +32,7 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 현재 분류·검색어에 맞는 룬 이름을 표시하고 미해금인 경우에만 둘째 줄을 추가한다. Modifier는 이름·등급과 남은 소지량/소지량을 표시한다.
+        /// 현재 분류·검색어에 맞는 해금 룬을 표시한다. Modifier는 이름·등급과 남은 소지량/소지량을 표시한다.
         /// </summary>
         public void Refresh()
         {
@@ -41,23 +41,17 @@ namespace RuneCode
             string query = _view.SearchQuery;
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (!IsPaletteRune(rune) || (_category != "all" && TabCategory(rune) != _category) || !MatchesSearch(rune, query)) continue;
-                bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
-                if (!isUnlocked)
-                {
-                    string lockedLabel = rune.Name + "\n" + GameData.L("ui.locked");
-                    AddPaletteRune(rune, null, lockedLabel, false);
-                    continue;
-                }
+                if (!IsPaletteRune(rune) || !_editor.IsRuneUnlocked(rune.Id)
+                    || (_category != "all" && TabCategory(rune) != _category) || !MatchesSearch(rune, query)) continue;
                 if (rune.Category != SpellGrammar.CATEGORY_MODIFIER)
                 {
-                    AddPaletteRune(rune, null, rune.Name, true);
+                    AddPaletteRune(rune, null, rune.Name);
                     continue;
                 }
                 foreach (string grade in GameData.ModifierGrades.GetAvailableGrades(rune.Id))
                 {
                     if (!TryGetRemaining(rune.Id, grade, out int remaining, out int owned)) continue;
-                    AddPaletteRune(rune, grade, ModifierLabel(rune, grade, remaining, owned), true);
+                    AddPaletteRune(rune, grade, ModifierLabel(rune, grade, remaining, owned));
                 }
             }
         }
@@ -92,13 +86,12 @@ namespace RuneCode
             }
         }
 
-        /// <summary>룬 팔레트 행을 만든다. 잠긴 행은 비활성화하고, 배치 가능한 행은 지정 등급으로 그래프에 추가한다.</summary>
-        private void AddPaletteRune(RuneDefinition rune, string grade, string label, bool canPlace)
+        /// <summary>해금 룬의 팔레트 행을 만들고 누르면 지정 등급으로 그래프에 추가한다.</summary>
+        private void AddPaletteRune(RuneDefinition rune, string grade, string label)
         {
             string runeId = rune.Id;
-            Action onClick = null;
-            if (canPlace) onClick = () => _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade);
-            _view.AddPaletteRow(label, ROW_HEIGHT, onClick, runeId, grade, canPlace);
+            Action onClick = () => _view.GraphCanvas.PlaceRune(runeId, _view.GraphCanvas.SuggestPlacement(runeId), grade);
+            _view.AddPaletteRow(label, ROW_HEIGHT, onClick, runeId, grade, true);
         }
 
         /// <summary>Modifier 등급의 남은 소지량(remaining)과 소지량(owned)을 구하고 남은 소지량이 1 이상이면 true를 반환한다.</summary>
@@ -129,13 +122,13 @@ namespace RuneCode
             }, rune.Category);
         }
 
-        /// <summary>룬이 표시될 팔레트 탭 계열을 반환한다. 속성은 Shape에 붙이므로 형상 탭에 함께 둔다.</summary>
+        /// <summary>룬이 표시될 팔레트 탭 계열을 반환한다.</summary>
         private static string TabCategory(RuneDefinition rune)
         {
-            return rune.Category == SpellGrammar.CATEGORY_ELEMENT ? SpellGrammar.CATEGORY_SHAPE : rune.Category;
+            return rune.Category;
         }
 
-        /// <summary>팔레트에 놓을 수 있는 룬인지 반환한다. 시전 코어·내부 룬·속성(드롭다운 값)은 제외한다.</summary>
+        /// <summary>팔레트에 놓을 수 있는 룬인지 반환한다. 시전 코어·내부 룬·기본 중립 속성은 제외한다.</summary>
         private static bool IsPaletteRune(RuneDefinition rune)
         {
             return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL

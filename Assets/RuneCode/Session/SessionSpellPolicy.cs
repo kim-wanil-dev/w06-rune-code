@@ -118,13 +118,13 @@ namespace RuneCode
             _session.SetStatusText(text);
         }
 
-        /// <summary>그래프에 배치된 모든 룬의 RAM을 합산한다.</summary>
+        /// <summary>그래프에서 엣지에 연결된 룬의 RAM만 합산한다.</summary>
         private int GetGraphRam(SpellGraph graph)
         {
             if (graph == null) return 0;
             var ram = 0;
             foreach (var node in graph.Nodes)
-                ram += GameData.Runes.NodeRam(node);
+                if (graph.IsNodeConnected(node.Id)) ram += GameData.Runes.NodeRam(node);
             return ram;
         }
 

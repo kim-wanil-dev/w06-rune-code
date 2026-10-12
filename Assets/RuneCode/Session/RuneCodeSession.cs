@@ -352,11 +352,14 @@ namespace RuneCode
             }
         }
 
-        /// <summary>배치된 모든 룬의 RAM을 합산한다.</summary>
+        /// <summary>그래프에서 엣지에 연결된 룬의 RAM만 합산한다.</summary>
         private int GetGraphRam(SpellGraph graph)
         {
             if (graph == null) return 0;
-            return graph.Nodes.Sum(node => GameData.Runes.NodeRam(node));
+            var ram = 0;
+            foreach (GraphNode node in graph.Nodes)
+                if (graph.IsNodeConnected(node.Id)) ram += GameData.Runes.NodeRam(node);
+            return ram;
         }
 
         /// <summary>해당 강화 유형에 속한 트리 노드의 저장 레벨까지 효과량을 합산한다.</summary>

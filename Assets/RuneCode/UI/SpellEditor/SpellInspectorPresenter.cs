@@ -48,11 +48,17 @@ namespace RuneCode
             ShowValidation();
         }
 
-        /// <summary>노드 이름·RAM, 표시 대상 파라미터, 효과 범위 안내, 노드 비용·피해, 행동 수치, 삭제 버튼을 표시한다.</summary>
+        /// <summary>Displays the selected rune, editable parameters, type-specific guidance and stats, and delete action.</summary>
         private void ShowNode(GraphNode node)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
-            _view.AddTitle(rune.Name + " / " + GameData.Runes.NodeRam(node) + " RAM");
+            string title = rune.Name;
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
+                if (!string.IsNullOrEmpty(grade)) title += "(" + grade + ")";
+            }
+            _view.AddTitle(title + " / " + GameData.Runes.NodeRam(node) + " RAM");
             foreach (ParameterDefinition parameter in rune.Params)
             {
                 if (IsParameterVisible(node, parameter)) ShowParameter(node, rune, parameter);
@@ -60,25 +66,347 @@ namespace RuneCode
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
                 ShowModifierGrade(node, rune);
-                if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), 52, 6);
+                ShowModifierHint(rune);
             }
-            bool isShape = SpellGrammar.MagicTypeOf(node.RuneId) != null;
-            if ((rune.Params.Count == 0 || isShape) && rune.Category != SpellGrammar.CATEGORY_MODIFIER) ShowNodeCost(node, rune);
-            if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) ShowBehaviorStats(node);
+            else if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
+            {
+                ShowShapeHint(rune);
+            }
+            else
+            {
+                ShowElementInfo(node);
+                if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) ShowBehaviorStats(node, rune);
+                else ShowCompiledStats(node, rune);
+            }
             if (rune.Category != SpellGrammar.CATEGORY_CORE) _view.AddButton(GameData.L("ui.delete"), "InspectorDeleteButton", () => _editor.RemoveNode(node.Id));
         }
 
-        /// <summary>
-        /// 컴파일된 명령 기준의 노드 비용과 피해를 표시한다. Shape 노드는 합쳐진 Behavior 명령을 쓰고,
-        /// 컴파일 결과가 없으면 룬 표의 기본 비용·피해를 쓴다. 피해가 없는 노드는 비용만 표시한다.
-        /// </summary>
-        private void ShowNodeCost(GraphNode node, RuneDefinition rune)
+        /// <summary>형태 노드별 역할을 한 줄 설명으로 표시한다.</summary>
+        private void ShowShapeHint(RuneDefinition rune)
         {
-            SpellAction action = _editor.CompileResult.Spell?.FindNodeAction(_editor.Graph, node.Id);
-            float damage = action != null ? action.Stats?.Damage ?? 0f : rune.Stats.Damage;
-            string text = GameData.L("ui.nodeCost") + " " + SpellCostText.Format(action?.OwnCosts ?? rune.Costs);
-            if (damage > 0f) text += "  /  " + GameData.L("ui.damage") + " " + damage.ToString("0.#");
-            _view.AddNote(text, 34, 8);
+            string key = "ui." + rune.Id + "Hint";
+            string hint = GameData.L(key);
+            if (hint != key) _view.AddNote(hint, 24, 4);
+        }
+
+        /// <summary>선택 행동에 대응하는 내부 형태의 기본값과 Modifier 적용 후 컴파일값을 표시한다.</summary>
+        private void ShowBehaviorStats(GraphNode node, RuneDefinition rune)
+        {
+            string formId = GetBehaviorFormId(rune.Id);
+            if (formId == null || !GameData.Runes.TryGet(formId, out RuneDefinition form)) return;
+
+            CompiledSpell spell = _editor.CompileResult.Spell;
+            List<SpellAction> actions = spell == null ? new List<SpellAction>() : FindActionsForNode(spell.Root, node.Id);
+            if (actions.Count == 0)
+            {
+                AddBehaviorStatNote(form, null, rune, node);
+                return;
+            }
+            foreach (SpellAction action in actions)
+            {
+                AddBehaviorStatNote(form, action, rune, node);
+                AddBehaviorGeometryNote(spell, action);
+            }
+        }
+
+        /// <summary>행동 ID를 해당 행동이 사용하는 내부 효과 형태의 룬 ID로 바꾸고 지원하지 않으면 null을 반환한다.</summary>
+        private static string GetBehaviorFormId(string behaviorId)
+        {
+            switch (behaviorId)
+            {
+                case "behavior.launch": return "form.bolt";
+                case "behavior.burst": return "form.burst";
+                case "behavior.orbit": return "form.orbit";
+                case "behavior.persist":
+                case "behavior.apply": return "form.zone";
+                default: return null;
+            }
+        }
+
+        /// <summary>내부 형태의 기본 전력·피해·발사 수·지속시간과 행동의 최종값을 한 줄씩 비교해 표시한다.</summary>
+        private void AddBehaviorStatNote(RuneDefinition form, SpellAction action, RuneDefinition behavior, GraphNode node)
+        {
+            var lines = new List<string>
+            {
+                FormatTransition(GameData.L("ui.runeUsedEnergy"), form.Energy, action == null ? form.Energy : action.OwnEnergy)
+            };
+
+            if (behavior.Id == SpellGrammar.APPLY_RUNE)
+            {
+                AddApplyStats(lines, action, behavior, node);
+            }
+            else
+            {
+                SpellStats stats = action?.Stats;
+                lines.Add(FormatTransition(GameData.L("ui.runeDamageAmount"), form.Stats.Damage, stats == null ? form.Stats.Damage : stats.Damage));
+                lines.Add(FormatTransition(GameData.L("ui.runeCount"), form.Stats.Count, action == null ? form.Stats.Count : action.Count));
+                lines.Add(FormatTransition(GameData.L("ui.runeLifetime"), form.Stats.Lifetime, stats == null ? form.Stats.Lifetime : stats.Lifetime, "s"));
+            }
+            _view.AddNote(string.Join("\n", lines), 34, 6);
+        }
+
+        /// <summary>Apply 행동의 효과 강도와 보호막 지속시간을 기본값에서 Modifier 적용값까지 표시한다.</summary>
+        private static void AddApplyStats(List<string> lines, SpellAction action, RuneDefinition behavior, GraphNode node)
+        {
+            string sourceElement = action?.SourceElement;
+            if (string.IsNullOrEmpty(sourceElement) && GameData.Runes.TryGetNodeElement(node, out ElementDefinition element))
+                sourceElement = element.InternalValue;
+            if (sourceElement == "heal" || sourceElement == "protection")
+            {
+                float basePower = action == null ? GetDefaultNumber(behavior, node, SpellGrammar.POWER_PARAM) : action.Power;
+                float damageMultiplier = action?.ModifierValues?.DamageMultiplier ?? 1f;
+                lines.Add(FormatTransition(GameData.L("ui.runePower"), basePower, basePower * damageMultiplier));
+            }
+            if (sourceElement == "protection")
+            {
+                float baseDuration = action == null ? GetDefaultNumber(behavior, node, SpellGrammar.BUFF_DURATION_PARAM) : action.BuffDuration;
+                float durationMultiplier = action?.ModifierValues?.DurationMultiplier ?? 1f;
+                lines.Add(FormatTransition(GameData.L("ui.runeBuffDuration"), baseDuration, baseDuration * durationMultiplier, "s"));
+            }
+        }
+
+        /// <summary>행동 노드에서 지정 파라미터 값을 읽고 없으면 룬 정의의 기본값을 반환한다.</summary>
+        private static float GetDefaultNumber(RuneDefinition rune, GraphNode node, string parameterId)
+        {
+            foreach (ParameterDefinition parameter in rune.Params)
+                if (parameter.Id == parameterId) return node.GetNumber(parameterId, parameter.DefaultNumber);
+            return 0f;
+        }
+
+        /// <summary>숫자 두 개를 지정 라벨과 기본값→적용값 형태로 묶어 반환한다.</summary>
+        private static string FormatTransition(string label, double baseValue, double effectiveValue, string suffix = "")
+        {
+            return label + " " + baseValue.ToString("0.##") + suffix + " → " + effectiveValue.ToString("0.##") + suffix;
+        }
+
+        /// <summary>Modifier의 등급별 수치가 어떤 효과에 적용되는지 짧은 설명을 표시한다.</summary>
+        private void ShowModifierHint(RuneDefinition rune)
+        {
+            string modifierName = rune.Id.Substring("mod.".Length);
+            string key = "ui.mod." + modifierName + "Hint";
+            string hint = GameData.L(key);
+            if (hint != key) _view.AddNote(hint, 52, 6);
+        }
+
+        /// <summary>Shape·Apply에 선택된 속성의 이름과 원소·기능 효과 구분을 표시한다.</summary>
+        private void ShowElementInfo(GraphNode node)
+        {
+            if (!GameData.Runes.TryGetNodeElement(node, out ElementDefinition element)) return;
+            string classification = element.IsFunctional ? GameData.L("ui.runeFunctionalElement") : GameData.L("ui.runeElementalElement");
+            _view.AddNote(OptionLabel("element", element.Id) + " · " + classification, 24, 4);
+        }
+
+        /// <summary>선택 노드가 포함된 컴파일 행동의 자원 비용과 비시간 전투 수치를 표시한다.</summary>
+        private void ShowCompiledStats(GraphNode node, RuneDefinition rune)
+        {
+            CompiledSpell spell = _editor.CompileResult.Spell;
+            if (spell == null)
+            {
+                ShowUncompiledRuneStats(rune);
+                return;
+            }
+
+            List<SpellAction> actions = FindCompiledActions(node, rune, spell);
+            if (actions.Count == 0)
+            {
+                ShowUncompiledRuneStats(rune);
+                return;
+            }
+            foreach (SpellAction action in actions)
+            {
+                var lines = new List<string>();
+                if (action.Kind == "spawn" || action.Kind == "buff")
+                    lines.Add(GameData.L("ui.runeEffectiveCost") + " " + FormatCosts(action.OwnCosts));
+                else if (action.Kind == "call")
+                    lines.Add(GameData.L("ui.runeEffectiveCost") + " " + FormatCosts(action.OwnCosts));
+                if (action.EnergyMultiplier != 1f)
+                    lines.Add(GameData.L("ui.runeAppliedMultiplier") + " ×" + action.EnergyMultiplier.ToString("0.##"));
+
+                AddActionStats(lines, action, rune);
+                if (lines.Count > 0) _view.AddNote(string.Join("\n", lines), 34, 6);
+            }
+        }
+
+        /// <summary>선택 노드의 실행을 찾고, 컴파일 과정에서 행동 노드에 합쳐지는 Shape는 연결된 Behavior 실행으로 연결한다.</summary>
+        private List<SpellAction> FindCompiledActions(GraphNode node, RuneDefinition rune, CompiledSpell spell)
+        {
+            List<SpellAction> actions = FindActionsForNode(spell.Root, node.Id);
+            if (actions.Count > 0 || rune.Category != SpellGrammar.CATEGORY_SHAPE) return actions;
+
+            foreach (GraphEdge edge in _editor.Graph.Edges)
+            {
+                if (edge.FromNode != node.Id) continue;
+                GraphNode target = _editor.Graph.FindNode(edge.ToNode);
+                if (target == null || GameData.Runes.Get(target.RuneId).Category != SpellGrammar.CATEGORY_BEHAVIOR) continue;
+                return FindActionsForNode(spell.Root, target.Id);
+            }
+            return actions;
+        }
+
+        /// <summary>아직 실행에 연결되지 않은 룬의 테이블 기본 전투 수치와 형상 비용률을 표시한다.</summary>
+        private void ShowUncompiledRuneStats(RuneDefinition rune)
+        {
+            RuneStats stats = rune.Stats;
+            var lines = new List<string>();
+            var impact = new List<string>();
+            if (stats.Damage > 0f) impact.Add(GameData.L("ui.runeDamage") + " " + stats.Damage.ToString("0.##"));
+            if (stats.Count > 0) impact.Add(GameData.L("ui.runeCount") + " " + stats.Count);
+            if (stats.OrbitCount > 0) impact.Add(GameData.L("ui.gradeOrbitCount") + " " + stats.OrbitCount);
+            if (impact.Count > 0) lines.Add(string.Join(" · ", impact));
+
+            if (stats.BeamWidth > 0f || stats.BeamLength > 0f)
+                lines.Add(GameData.L("ui.spellBeamSize") + " " + stats.BeamWidth.ToString("0.#") + " × " + stats.BeamLength.ToString("0.#") + "px");
+            else if (stats.ConeAngle > 0f)
+                lines.Add(GameData.L("ui.runeConeAngle") + " " + stats.ConeAngle.ToString("0.#") + "°");
+            else if (stats.Radius > 0f)
+                lines.Add(GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px");
+
+            var movement = new List<string>();
+            if (stats.Speed > 0f) movement.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+            if (stats.Lifetime > 0f) movement.Add(GameData.L("ui.runeLifetime") + " " + stats.Lifetime.ToString("0.##") + "s");
+            if (stats.Offset > 0f) movement.Add(GameData.L("ui.runeOffset") + " " + stats.Offset.ToString("0.#") + "px");
+            if (stats.OrbitRadius > 0f) movement.Add(GameData.L("ui.runeOrbitRadius") + " " + stats.OrbitRadius.ToString("0.#") + "px");
+            if (stats.AngularSpeed > 0f) movement.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+            if (movement.Count > 0) lines.Add(string.Join(" · ", movement));
+
+            var secondary = new List<string>();
+            if (stats.Pierce > 0) secondary.Add(GameData.L("ui.runePierce") + " " + stats.Pierce);
+            if (stats.HomingTurn > 0f || stats.HomingRange > 0f)
+                secondary.Add(GameData.L("ui.runeHoming") + " " + stats.HomingTurn.ToString("0.#") + "° / " + stats.HomingRange.ToString("0.#") + "px");
+            if (stats.HitInterval > 0f) secondary.Add(GameData.L("ui.runeInterval") + " " + stats.HitInterval.ToString("0.##") + "s");
+            if (stats.TickInterval > 0f) secondary.Add(GameData.L("ui.runeInterval") + " " + stats.TickInterval.ToString("0.##") + "s");
+            if (stats.ArcTargets > 0)
+                secondary.Add(GameData.L("ui.runeArc") + " " + stats.ArcTargets + " · " + stats.ArcRange.ToString("0.#") + "px · ×" + stats.ArcMultiplier.ToString("0.##"));
+            if (stats.SpreadAngle > 0f) secondary.Add(GameData.L("ui.gradeSpread") + " " + stats.SpreadAngle.ToString("0.#") + "°");
+            if (stats.PierceLoss > 0f) secondary.Add(GameData.L("ui.gradePierceLoss") + " " + stats.PierceLoss.ToString("0.##"));
+            if (stats.ExpandSeconds > 0f) secondary.Add(GameData.L("ui.runeExpand") + " " + stats.ExpandSeconds.ToString("0.##") + "s");
+            if (stats.WarnSeconds > 0f) secondary.Add(GameData.L("ui.runeWarning") + " " + stats.WarnSeconds.ToString("0.##") + "s");
+            if (stats.ShieldAmount > 0f)
+                secondary.Add(GameData.L("ui.runeShield") + " " + stats.ShieldAmount.ToString("0.##") + " · " + stats.ShieldSeconds.ToString("0.##") + "s");
+            if (secondary.Count > 0) lines.Add(string.Join(" · ", secondary));
+
+            var rates = new List<string>();
+            foreach (ShapeCostRateDefinition rate in rune.ShapeCostRates)
+                rates.Add(ResourceName(rate.Resource) + " " + rate.Rate.ToString("0.######") + "/px²");
+            if (rates.Count > 0) lines.Add(GameData.L("ui.runeAreaCost") + " " + string.Join(" · ", rates));
+            if (lines.Count > 0) _view.AddNote(string.Join("\n", lines), 34, 6);
+        }
+
+        /// <summary>실행 행동 목록에서 노드 자체 또는 해당 노드를 부착 데이터로 사용하는 행동을 깊이 우선으로 찾는다.</summary>
+        private static List<SpellAction> FindActionsForNode(IReadOnlyList<SpellAction> actions, string nodeId)
+        {
+            var matches = new List<SpellAction>();
+            foreach (SpellAction action in actions)
+            {
+                bool isAttached = action.NodeId == nodeId || action.AttachedNodeIds.Contains(nodeId);
+                if (isAttached) matches.Add(action);
+                foreach (IReadOnlyList<SpellAction> branch in action.Branches)
+                    matches.AddRange(FindActionsForNode(branch, nodeId));
+            }
+            return matches;
+        }
+
+        /// <summary>행동 종류에 맞는 비시간 전투 수치, 제어 흐름 조건 또는 호출 마법 요약을 목록에 추가한다.</summary>
+        private static void AddActionStats(List<string> lines, SpellAction action, RuneDefinition rune)
+        {
+            SpellStats stats = action.Stats;
+            if (stats != null)
+            {
+                var impact = new List<string>();
+                if (stats.Damage > 0f) impact.Add(GameData.L("ui.runeDamage") + " " + stats.Damage.ToString("0.##"));
+                if (action.Kind == "spawn" && action.Count > 0) impact.Add(GameData.L("ui.runeCount") + " " + action.Count);
+                if (impact.Count > 0) lines.Add(string.Join(" · ", impact));
+
+                if (action.MagicType == SpellGrammar.MAGIC_TYPE_BOX)
+                    lines.Add(GameData.L("ui.spellBeamSize") + " " + stats.BoxWidth.ToString("0.#") + " × " + stats.BoxLength.ToString("0.#") + "px");
+                else if (action.MagicType == SpellGrammar.MAGIC_TYPE_CONE)
+                    lines.Add(GameData.L("ui.spellRadius") + " " + stats.ShapeRadius.ToString("0.#") + "px"
+                        + " · " + GameData.L("ui.runeConeAngle") + " " + action.ConeAngle.ToString("0.#") + "°");
+                else if (stats.Radius > 0f)
+                    lines.Add(GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px");
+
+                var movement = new List<string>();
+                if (action.Form == "bolt")
+                {
+                    if (stats.Speed > 0f) movement.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+                    if (stats.Lifetime > 0f)
+                        movement.Add(GameData.L("ui.runeRange") + " " + (stats.Speed * stats.Lifetime).ToString("0.#") + "px"
+                            + " · " + GameData.L("ui.runeLifetime") + " " + stats.Lifetime.ToString("0.##") + "s");
+                }
+                else if (action.Form == "orbit" && stats.AngularSpeed > 0f)
+                    movement.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+
+                if (stats.Offset > 0f) movement.Add(GameData.L("ui.runeOffset") + " " + stats.Offset.ToString("0.#") + "px");
+                if (stats.OrbitRadius > 0f) movement.Add(GameData.L("ui.runeOrbitRadius") + " " + stats.OrbitRadius.ToString("0.#") + "px");
+                if (action.Form != "bolt" && stats.Lifetime > 0f)
+                    movement.Add(GameData.L("ui.runeLifetime") + " " + stats.Lifetime.ToString("0.##") + "s");
+                if (movement.Count > 0) lines.Add(string.Join(" · ", movement));
+
+                var secondary = new List<string>();
+                if (stats.Pierce > 0) secondary.Add(GameData.L("ui.runePierce") + " " + stats.Pierce);
+                if (stats.HomingTurn > 0f || stats.HomingRange > 0f)
+                    secondary.Add(GameData.L("ui.runeHoming") + " " + stats.HomingTurn.ToString("0.#") + "° / " + stats.HomingRange.ToString("0.#") + "px");
+                if (stats.HitInterval > 0f) secondary.Add(GameData.L("ui.runeInterval") + " " + stats.HitInterval.ToString("0.##") + "s");
+                if (stats.TickInterval > 0f) secondary.Add(GameData.L("ui.runeInterval") + " " + stats.TickInterval.ToString("0.##") + "s");
+                if (stats.ArcTargets > 0)
+                    secondary.Add(GameData.L("ui.runeArc") + " " + stats.ArcTargets + " · " + stats.ArcRange.ToString("0.#") + "px · ×" + stats.ArcMultiplier.ToString("0.##"));
+                if (stats.SpreadAngle > 0f) secondary.Add(GameData.L("ui.gradeSpread") + " " + stats.SpreadAngle.ToString("0.#") + "°");
+                if (secondary.Count > 0) lines.Add(string.Join(" · ", secondary));
+            }
+
+            var effect = new List<string>();
+            if (rune.Stats.ExpandSeconds > 0f) effect.Add(GameData.L("ui.runeExpand") + " " + rune.Stats.ExpandSeconds.ToString("0.##") + "s");
+            if (rune.Stats.WarnSeconds > 0f) effect.Add(GameData.L("ui.runeWarning") + " " + rune.Stats.WarnSeconds.ToString("0.##") + "s");
+            if (action.Power > 0f) effect.Add(GameData.L("ui.runePower") + " " + action.Power.ToString("0.##"));
+            if (action.BuffDuration > 0f) effect.Add(GameData.L("ui.runeBuffDuration") + " " + action.BuffDuration.ToString("0.##") + "s");
+            if (action.ShieldAmount > 0f)
+                effect.Add(GameData.L("ui.runeShield") + " " + action.ShieldAmount.ToString("0.##") + " · " + action.ShieldSeconds.ToString("0.##") + "s");
+            if (effect.Count > 0) lines.Add(string.Join(" · ", effect));
+
+            if (action.Kind == "delay")
+                lines.Add(GameData.L("ui.runeDelay") + " " + action.Seconds.ToString("0.##") + "s");
+            else if (action.Kind == "repeat")
+                lines.Add(GameData.L("ui.runeRepeat") + " " + action.Times + " · " + action.Interval.ToString("0.##") + "s");
+            else if (action.Kind == "if" && action.Condition != null)
+                lines.Add(GameData.L("ui.runeCondition") + " " + FormatCondition(action.Condition));
+
+            if (action.CalledSpell != null)
+                lines.Add(GameData.L("ui.runeCalledSpell") + " " + action.CalledSpell.Name + " · "
+                    + action.CalledSpell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.##") + "s");
+        }
+
+        /// <summary>조건 유형에 맞는 퍼센트·거리·상태 값만 붙여 사용자용 조건 요약을 반환한다.</summary>
+        private static string FormatCondition(SpellCondition condition)
+        {
+            string value = OptionLabel("type", condition.Type);
+            switch (condition.Type)
+            {
+                case "targetHpBelow":
+                case "selfHpBelow":
+                    return value + " " + condition.Pct.ToString("0.#") + "%";
+                case "targetDistanceBelow":
+                    return value + " " + condition.Px.ToString("0.#") + "px";
+                case "targetHasStatus":
+                    return value + " " + OptionLabel("status", condition.Status);
+                default:
+                    return value;
+            }
+        }
+
+        /// <summary>자원별 비용을 현지화 이름과 수치로 반환하고 비용이 없으면 0을 반환한다.</summary>
+        private static string FormatCosts(ResourceCostSet costs)
+        {
+            if (costs == null || costs.Amounts.Count == 0) return "0";
+            return costs.Format(ResourceName);
+        }
+
+        /// <summary>자원 ID를 인스펙터 표시 이름으로 바꾸고 마나 비용은 전력으로 표기한다.</summary>
+        private static string ResourceName(string resource)
+        {
+            if (resource == "mana") return GameData.L("ui.energy");
+            string key = "resource." + resource;
+            string value = GameData.L(key);
+            return value == key ? resource : value;
         }
 
         /// <summary>Modifier 등급 선택 버튼과 현재 등급의 고정 수치 안내를 표시한다.</summary>
@@ -193,20 +521,14 @@ namespace RuneCode
             }
         }
 
-        /// <summary>
-        /// 컴파일된 행동의 사거리(또는 생성 위치)·크기·속도를 표시한다. 폭발·잔류는 이벤트 후속이면 명중 지점, 부채꼴·Beam·회복·보호이면
-        /// 시전 지점에서 생기므로 배치 거리 대신 생성 위치를 표시한다. 속도는 발사·공전과 유도가 붙은 잔류만 표시한다.
-        /// 컴파일 결과가 없으면 표시하지 않는다.
-        /// </summary>
-        private void ShowBehaviorStats(GraphNode node)
+        /// <summary>Appends compiled behavior range, spawn location, size, and applicable movement speed to the inspector.</summary>
+        private void AddBehaviorGeometryNote(CompiledSpell spell, SpellAction action)
         {
-            CompiledSpell spell = _editor.CompileResult.Spell;
-            SpellAction action = spell?.FindAction(node.Id);
             if (action?.Stats == null) return;
             SpellStats stats = action.Stats;
-            bool isArea = action.Form == SpellGrammar.FORM_BURST || action.Form == SpellGrammar.FORM_ZONE;
             bool isAnchored = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE || action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
                 || action.SourceElement == "heal" || action.SourceElement == "protection";
+            bool isArea = action.Form == SpellGrammar.FORM_BURST || action.Form == SpellGrammar.FORM_ZONE || isAnchored;
             var lines = new List<string>();
             if (isArea && spell.IsEventAction(action.NodeId)) lines.Add(GameData.L("ui.spellSpawnAtHit"));
             else if (isArea && isAnchored) lines.Add(GameData.L("ui.spellSpawnAtCaster"));
@@ -214,17 +536,23 @@ namespace RuneCode
             {
                 float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
                     : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
-                lines.Add(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px");
+                if (reach > 0f) lines.Add(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px");
             }
-            // Beam Shape는 반경 대신 고정 폭 × 길이(Expand 반영)를 표시한다.
-            lines.Add(action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
-                ? GameData.L("ui.spellBeamSize") + " " + stats.BoxWidth.ToString("0.#") + " × " + stats.BoxLength.ToString("0.#") + "px"
-                : GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px");
+
+            if (action.MagicType == SpellGrammar.MAGIC_TYPE_BOX && (stats.BoxWidth > 0f || stats.BoxLength > 0f))
+                lines.Add(GameData.L("ui.spellBeamSize") + " " + stats.BoxWidth.ToString("0.#") + " × " + stats.BoxLength.ToString("0.#") + "px");
+            else
+            {
+                float radius = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE ? stats.ShapeRadius : stats.Radius;
+                if (radius > 0f) lines.Add(GameData.L("ui.spellRadius") + " " + radius.ToString("0.#") + "px");
+            }
+
             if (action.Form == SpellGrammar.FORM_ORBIT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
             else if (action.Form == SpellGrammar.FORM_BOLT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
             else if (action.Form == SpellGrammar.FORM_ZONE && stats.HomingRange > 0f)
                 lines.Add(GameData.L("ui.spellTrackSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
-            _view.AddNote(string.Join("\n", lines), 18 * lines.Count + 16, 6);
+
+            if (lines.Count > 0) _view.AddNote(string.Join("\n", lines), 18 * lines.Count + 16, 6);
         }
 
         /// <summary>컴파일 성공 여부, 오류·경고(누르면 해당 노드로 이동)와 조작 안내를 검증 목록에 표시한다.</summary>

@@ -26,7 +26,7 @@ MonoBehaviour:
     _prerequisites: []
     _levels:
     - _cost: 0
-      _amount: 0.5
+      _amount: 1
   - _id: unlock.element.fire
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
@@ -42,6 +42,25 @@ MonoBehaviour:
     _levels:
     - _cost: 50
       _amount: 0
+  - _id: upgrade.maxEnergy
+    _requiredStage: 1
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _position: {x: 1200, y: 230}
+    _icon: {fileID: 0}
+    _effectType: 1
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard
+      _requiredLevel: 1
+    _levels:
+    - _cost: 10
+      _amount: 5
+    - _cost: 15
+      _amount: 5
+    - _cost: 30
+      _amount: 5
   - _id: upgrade.ram
     _requiredStage: 1
     _titleKey: ui.tree.ramCapacity
@@ -114,13 +133,13 @@ MonoBehaviour:
       _amount: 0.1
     - _cost: 60
       _amount: 0.1
-  - _id: upgrade.maxEnergy
+  - _id: upgrade.mainboard.secondary
     _requiredStage: 1
-    _titleKey: ui.tree.maxEnergy
-    _descriptionKey: ui.tree.maxEnergyDescription
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
     _position: {x: 800, y: 610}
     _icon: {fileID: 0}
-    _effectType: 1
+    _effectType: 0
     _runeId: 
     _initialLevel: 0
     _prerequisites:
@@ -128,11 +147,11 @@ MonoBehaviour:
       _requiredLevel: 1
     _levels:
     - _cost: 30
-      _amount: 5
+      _amount: 1.5
     - _cost: 45
-      _amount: 5
+      _amount: 1.5
     - _cost: 90
-      _amount: 5
+      _amount: 1.5
   - _id: unlock.element.ice
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
@@ -148,24 +167,20 @@ MonoBehaviour:
     _levels:
     - _cost: 150
       _amount: 0
-  - _id: upgrade.cpu
+  - _id: unlock.shape.cone
     _requiredStage: 1
-    _titleKey: ui.tree.cpu
-    _descriptionKey: ui.tree.cpuDescription
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
     _position: {x: 1000, y: 610}
     _icon: {fileID: 0}
-    _effectType: 3
-    _runeId: 
+    _effectType: 8
+    _runeId: shape.cone
     _initialLevel: 0
     _prerequisites:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
-    - _cost: 30
-      _amount: 0
-    - _cost: 45
-      _amount: 0
-    - _cost: 90
+    - _cost: 150
       _amount: 0
   - _id: unlock.flow.repeat
     _requiredStage: 1
@@ -177,22 +192,41 @@ MonoBehaviour:
     _runeId: flow.repeat
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.cpu
+    - _nodeId: unlock.shape.cone
       _requiredLevel: 1
     _levels:
     - _cost: 200
       _amount: 0
+  - _id: upgrade.ram.secondary
+    _requiredStage: 1
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _position: {x: 1200, y: 800}
+    _icon: {fileID: 0}
+    _effectType: 2
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.shape.cone
+      _requiredLevel: 1
+    _levels:
+    - _cost: 40
+      _amount: 1
+    - _cost: 60
+      _amount: 1
+    - _cost: 120
+      _amount: 1
   - _id: upgrade.maxHp
     _requiredStage: 1
     _titleKey: ui.tree.maxHp
     _descriptionKey: ui.tree.maxHpDescription
-    _position: {x: 1200, y: 800}
+    _position: {x: 1400, y: 800}
     _icon: {fileID: 0}
     _effectType: 6
     _runeId: 
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.cpu
+    - _nodeId: unlock.shape.cone
       _requiredLevel: 1
     _levels:
     - _cost: 40
@@ -211,7 +245,7 @@ MonoBehaviour:
     _runeId: 
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.cpu
+    - _nodeId: unlock.shape.cone
       _requiredLevel: 1
     _levels:
     - _cost: 40
@@ -220,11 +254,30 @@ MonoBehaviour:
       _amount: 0.1
     - _cost: 120
       _amount: 0.1
+  - _id: upgrade.mainboard.final
+    _requiredStage: 1
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
+    _position: {x: 800, y: 990}
+    _icon: {fileID: 0}
+    _effectType: 0
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.scrapPickupRange
+      _requiredLevel: 1
+    _levels:
+    - _cost: 50
+      _amount: 2
+    - _cost: 75
+      _amount: 2
+    - _cost: 150
+      _amount: 2
   - _id: unlock.behavior.burst
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 800, y: 990}
+    _position: {x: 1200, y: 990}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.burst
@@ -233,7 +286,7 @@ MonoBehaviour:
     - _nodeId: upgrade.scrapPickupRange
       _requiredLevel: 1
     _levels:
-    - _cost: 250
+    - _cost: 200
       _amount: 0
   - _id: upgrade.moveSpeed
     _requiredStage: 1
@@ -254,13 +307,13 @@ MonoBehaviour:
       _amount: 0.05
     - _cost: 150
       _amount: 0.05
-  - _id: upgrade.mainboard.final
+  - _id: upgrade.maxEnergy.final
     _requiredStage: 1
-    _titleKey: ui.tree.mainboard
-    _descriptionKey: ui.tree.mainboardDescription
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
     _position: {x: 800, y: 1180}
     _icon: {fileID: 0}
-    _effectType: 0
+    _effectType: 1
     _runeId: 
     _initialLevel: 0
     _prerequisites:
@@ -268,11 +321,11 @@ MonoBehaviour:
       _requiredLevel: 1
     _levels:
     - _cost: 60
-      _amount: 0.5
+      _amount: 5
     - _cost: 90
-      _amount: 0.5
+      _amount: 5
     - _cost: 180
-      _amount: 0.5
+      _amount: 5
   - _id: upgrade.gpu.final
     _requiredStage: 1
     _titleKey: ui.tree.gpu
@@ -293,36 +346,6 @@ MonoBehaviour:
     - _cost: 180
       _amount: 0.1
   _unplacedNodes:
-  - _id: upgrade.mainboard.secondary
-    _requiredStage: 1
-    _titleKey: ui.tree.mainboard
-    _descriptionKey: ui.tree.mainboardDescription
-    _position: {x: 0, y: 0}
-    _icon: {fileID: 0}
-    _effectType: 0
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites: []
-    _levels:
-    - _cost: 40
-      _amount: 0.5
-    - _cost: 80
-      _amount: 0.5
-    - _cost: 160
-      _amount: 0.5
-  - _id: unlock.shape.cone
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: shape.cone
-    _initialLevel: 0
-    _prerequisites: []
-    _levels:
-    - _cost: 200
-      _amount: 0
   - _id: unlock.behavior.persist
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
@@ -530,4 +553,21 @@ MonoBehaviour:
     _prerequisites: []
     _levels:
     - _cost: 35
+      _amount: 0
+  - _id: upgrade.cpu
+    _requiredStage: 1
+    _titleKey: ui.tree.cpu
+    _descriptionKey: ui.tree.cpuDescription
+    _position: {x: 0, y: 0}
+    _icon: {fileID: 0}
+    _effectType: 3
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites: []
+    _levels:
+    - _cost: 30
+      _amount: 0
+    - _cost: 45
+      _amount: 0
+    - _cost: 90
       _amount: 0

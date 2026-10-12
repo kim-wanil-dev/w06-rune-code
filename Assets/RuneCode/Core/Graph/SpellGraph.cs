@@ -210,6 +210,15 @@ namespace RuneCode
             return null;
         }
 
+        /// <summary>지정한 노드에 연결된 그래프 엣지가 하나라도 있는지 반환한다.</summary>
+        public bool IsNodeConnected(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            foreach (GraphEdge edge in _edges)
+                if (edge != null && (edge.FromNode == id || edge.ToNode == id)) return true;
+            return false;
+        }
+
         /// <summary>중복 ID를 차단하면서 노드를 그래프에 배치한다.</summary>
         public bool AddNode(GraphNode node)
         {

@@ -29,17 +29,21 @@ namespace RuneCode
         private readonly GraphNodeLayout _layout;
         private readonly Dictionary<string, TextMeshProUGUI> _labels = new Dictionary<string, TextMeshProUGUI>();
         private readonly Dictionary<string, List<TextMeshProUGUI>> _portLabels = new Dictionary<string, List<TextMeshProUGUI>>();
+        private readonly GraphMeshPainter _painter;
+        private readonly Dictionary<string, GraphMeshLayer> _nodeLayers = new Dictionary<string, GraphMeshLayer>();
         private readonly HashSet<string> _existingNodes = new HashSet<string>();
         private readonly List<string> _staleIds = new List<string>();
         private readonly StringBuilder _builder = new StringBuilder();
+        private string _frontNodeId;
 
         /// <summary>라벨을 둘 캔버스, 글꼴, 뷰포트와 노드 배치로 라벨 관리자를 만든다.</summary>
-        public GraphNodeLabels(RectTransform parent, TMP_FontAsset font, GraphViewport viewport, GraphNodeLayout layout)
+        public GraphNodeLabels(RectTransform parent, TMP_FontAsset font, GraphViewport viewport, GraphNodeLayout layout, GraphMeshPainter painter)
         {
             _parent = parent;
             _font = font;
             _viewport = viewport;
             _layout = layout;
+            _painter = painter;
         }
 
         /// <summary>
@@ -53,6 +57,7 @@ namespace RuneCode
             {
                 _existingNodes.Add(node.Id);
                 TextMeshProUGUI label = GetOrCreate(node.Id);
+                _nodeLayers[node.Id].Initialize(_painter, node);
                 string text = BuildText(node, library);
                 if (label.text != text) label.text = text;
                 RefreshPortLabels(node);
@@ -61,16 +66,20 @@ namespace RuneCode
             return _existingNodes;
         }
 
-        /// <summary>화면 이동·확대 배율에 맞춰 라벨 위치·크기·스케일만 갱신한다.</summary>
+        /// <summary>화면 이동·확대 배율에 맞춰 라벨을 배치하고 노드 본체·제목·포트를 노드 순서대로 겹쳐 그린다.</summary>
         public void Layout(SpellGraph graph)
         {
             float zoom = _viewport.Zoom;
             Vector3 scale = new Vector3(zoom, zoom, 1);
-            foreach (GraphNode node in graph.Nodes)
+            for (int nodeIndex = 0; nodeIndex < graph.Nodes.Count; nodeIndex++)
             {
+                GraphNode node = graph.Nodes[nodeIndex];
                 if (!_labels.TryGetValue(node.Id, out TextMeshProUGUI label)) continue;
                 RuneDefinition rune = GameData.Runes.Get(node.RuneId);
                 Rect rect = _layout.NodeRect(node, rune);
+                _nodeLayers[node.Id].transform.SetAsLastSibling();
+                label.gameObject.SetActive(true);
+                label.transform.SetAsLastSibling();
                 RectTransform textRect = label.rectTransform;
                 textRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * zoom, rect.yMax - _parent.rect.yMax - LABEL_PADDING_TOP * zoom);
                 textRect.sizeDelta = new Vector2(LABEL_WIDTH, HEADER_HEIGHT);
@@ -86,21 +95,50 @@ namespace RuneCode
                     portRect.anchoredPosition = new Vector2(rect.x + LABEL_PADDING_X * zoom, point.y - _parent.rect.yMax);
                     portRect.sizeDelta = new Vector2(LABEL_WIDTH, PORT_LABEL_HEIGHT);
                     portRect.localScale = scale;
+                    portRect.gameObject.SetActive(true);
+                    portRect.SetAsLastSibling();
                 }
             }
+            BringFrontNodeToTop();
+        }
+
+        /// <summary>드래그 중인 노드 ID를 저장해 다음 레이아웃에서도 해당 노드를 가장 앞에 배치한다.</summary>
+        public void SetFrontNode(string nodeId)
+        {
+            _frontNodeId = nodeId;
+        }
+
+        /// <summary>선택·실행·연결 표시가 변했을 때 모든 노드 본체의 메시 갱신을 예약한다.</summary>
+        public void RefreshMeshes()
+        {
+            foreach (GraphMeshLayer layer in _nodeLayers.Values) layer.SetVerticesDirty();
+        }
+
+        /// <summary>지정된 노드의 본체, 제목, 포트 라벨을 형제 순서의 맨 앞으로 옮긴다.</summary>
+        private void BringFrontNodeToTop()
+        {
+            if (string.IsNullOrEmpty(_frontNodeId)) return;
+            if (!_nodeLayers.TryGetValue(_frontNodeId, out GraphMeshLayer nodeLayer)) return;
+            if (!_labels.TryGetValue(_frontNodeId, out TextMeshProUGUI label)) return;
+            if (!_portLabels.TryGetValue(_frontNodeId, out List<TextMeshProUGUI> ports)) return;
+
+            nodeLayer.transform.SetAsLastSibling();
+            label.transform.SetAsLastSibling();
+            foreach (TextMeshProUGUI portLabel in ports) portLabel.transform.SetAsLastSibling();
         }
 
         /// <summary>노드 ID의 라벨을 반환하며 없으면 고정 글꼴 크기와 좌상단 기준점으로 새로 만든다.</summary>
         private TextMeshProUGUI GetOrCreate(string nodeId)
         {
             if (_labels.TryGetValue(nodeId, out TextMeshProUGUI label)) return label;
+            _nodeLayers.Add(nodeId, GraphMeshLayer.Create(_parent, "GraphNodeVisual"));
             label = CreateLabel(LABEL_FONT_SIZE, false);
             _labels.Add(nodeId, label);
             _portLabels.Add(nodeId, new List<TextMeshProUGUI>());
             return label;
         }
 
-        /// <summary>프리팹으로 라벨을 만들고 글꼴 크기·세로 정렬·좌상단 기준점을 지정한다.</summary>
+        /// <summary>프리팹으로 라벨을 만들고 글꼴 크기·세로 정렬·좌상단 기준점과 텍스트 잘림을 지정한다.</summary>
         private TextMeshProUGUI CreateLabel(float fontSize, bool isPort)
         {
             TextMeshProUGUI label = Object.Instantiate(Resources.Load<TextMeshProUGUI>("RuneCode/UI/Elements/GraphNodeLabel"), _parent, false);
@@ -108,7 +146,7 @@ namespace RuneCode
             label.fontSize = fontSize;
             label.raycastTarget = false;
             label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.overflowMode = TextOverflowModes.Overflow;
+            label.overflowMode = TextOverflowModes.Ellipsis;
             label.horizontalAlignment = HorizontalAlignmentOptions.Left;
             label.verticalAlignment = isPort ? VerticalAlignmentOptions.Middle : VerticalAlignmentOptions.Top;
             RectTransform textRect = label.rectTransform;
@@ -146,19 +184,27 @@ namespace RuneCode
             {
                 Object.Destroy(_labels[id].gameObject);
                 _labels.Remove(id);
+                Object.Destroy(_nodeLayers[id].gameObject);
+                _nodeLayers.Remove(id);
                 foreach (TextMeshProUGUI label in _portLabels[id]) Object.Destroy(label.gameObject);
                 _portLabels.Remove(id);
             }
         }
 
         /// <summary>
-        /// 룬 이름·RAM과 핵심 설정 요약을 담은 제목 라벨 rich text를 반환한다. 포트 이름은 별도 행 라벨로 표시한다.
+        /// 룬 이름·Modifier 등급·RAM과 핵심 설정 요약을 담은 제목 라벨을 반환한다. 포트 이름은 별도 행 라벨로 표시한다.
         /// </summary>
         private string BuildText(GraphNode node, IEnumerable<SpellGraph> library)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             _builder.Clear();
-            _builder.Append("<b>").Append(rune.Name).Append("</b>  ").Append(GameData.Runes.NodeRam(node)).Append(" RAM");
+            string name = rune.Name;
+            if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
+            {
+                string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
+                if (!string.IsNullOrEmpty(grade)) name += "(" + grade + ")";
+            }
+            _builder.Append("<b>").Append(name).Append("</b>  ").Append(GameData.Runes.NodeRam(node)).Append(" RAM");
             string summary = Summary(node, rune, library);
             if (!string.IsNullOrEmpty(summary)) _builder.Append("\n<size=10>").Append(summary).Append("</size>");
             return _builder.ToString();

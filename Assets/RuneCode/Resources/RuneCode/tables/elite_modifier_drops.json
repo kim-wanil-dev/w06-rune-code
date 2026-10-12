@@ -47,10 +47,10 @@
       "_name": "관통",
       "_effectType": "pierceCount",
       "_gradeValues": {
-        "C": 2,
-        "B": 3,
-        "A": 5,
-        "S": "ALL"
+        "C": 3,
+        "B": 5,
+        "A": 999,
+        "S": null
       }
     },
     {
@@ -58,10 +58,10 @@
       "_name": "확장",
       "_effectType": "radiusMultiplier",
       "_gradeValues": {
-        "C": 1.2,
-        "B": 1.5,
-        "A": 2,
-        "S": 3
+        "C": 1.5,
+        "B": 2,
+        "A": 2.7,
+        "S": 4
       }
     },
     {
@@ -80,10 +80,10 @@
       "_name": "속도",
       "_effectType": "speedMultiplier",
       "_gradeValues": {
-        "C": 1.2,
-        "B": 1.5,
-        "A": 2,
-        "S": 3
+        "C": 1.5,
+        "B": 2,
+        "A": 2.7,
+        "S": 4
       }
     },
     {
@@ -91,8 +91,8 @@
       "_name": "유도",
       "_effectType": "homingTier",
       "_gradeValues": {
-        "C": null,
-        "B": "하급",
+        "C": "하급",
+        "B": "중급",
         "A": "상급",
         "S": null
       }
@@ -133,10 +133,10 @@
       "_stage": 4,
       "_stageType": "normal",
       "_eliteModifierGradeChancesPercent": {
-        "C": 80,
-        "B": 15,
-        "A": 4,
-        "S": 1
+        "C": 73,
+        "B": 20,
+        "A": 5,
+        "S": 2
       }
     },
     {
