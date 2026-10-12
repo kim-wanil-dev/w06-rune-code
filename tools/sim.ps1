@@ -1,5 +1,5 @@
 param(
-    [string]$Spell = 'firebolt',
+    [string]$Spell = 'energybolt',
     [string]$Scenario = 'dummy_line',
     [int]$Ticks = 600,
     [int]$Seed = 1,

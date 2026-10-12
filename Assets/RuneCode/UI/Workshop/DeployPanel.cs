@@ -8,14 +8,13 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>출격 탭 View다. 스테이지 정보·출현 적·마법 문구를 표시하고 스테이지 이동·출격 클릭을 알린다.</summary>
+    /// <summary>출격 탭 View다. 스테이지 정보와 출현 적을 표시하고 스테이지 이동·출격 클릭을 알린다.</summary>
     public sealed class DeployPanel : MonoBehaviour
     {
         [Header("표시")]
         [SerializeField] private TextMeshProUGUI _highestText;
         [SerializeField] private TextMeshProUGUI _stageText;
         [SerializeField] private TextMeshProUGUI _durationText;
-        [SerializeField] private TextMeshProUGUI _spellText;
 
         [Header("출현 적 미리보기")]
         [SerializeField] private GameObject _enemyPreviewRoot;
@@ -41,13 +40,12 @@ namespace RuneCode
             _launchButton.onClick.AddListener(() => LaunchClicked?.Invoke());
         }
 
-        /// <summary>최고 단계·선택 스테이지·제한시간·마법 문구를 표시한다.</summary>
-        public void SetContent(string highest, string stage, string duration, string spell)
+        /// <summary>최고 단계·선택 스테이지·제한시간을 표시한다.</summary>
+        public void SetContent(string highest, string stage, string duration)
         {
             _highestText.text = highest;
             _stageText.text = stage;
             _durationText.text = duration;
-            _spellText.text = spell;
         }
 
         /// <summary>선택 스테이지의 출현 적 카드를 표시하고 보스 스테이지 배너를 전환한다. 11스테이지부터는 6~10스테이지 구성을 순환하므로 같은 목록을 그대로 표시한다.</summary>

@@ -1,6 +1,6 @@
 {
-  "_id": "magicmissile",
-  "_name": "매직 미사일",
+  "_id": "triplemissile",
+  "_name": "삼연 미사일",
   "_version": 3,
   "_nodes": [
     {
@@ -29,6 +29,19 @@
       "_x": 380,
       "_y": 150,
       "_params": []
+    },
+    {
+      "_id": "mod0",
+      "_runeId": "mod.multi",
+      "_x": 380,
+      "_y": 330,
+      "_params": [
+        {
+          "_key": "grade",
+          "_number": 0.0,
+          "_text": "B"
+        }
+      ]
     }
   ],
   "_edges": [
@@ -46,6 +59,14 @@
       "_fromPort": "next",
       "_toNode": "form",
       "_toPort": "in",
+      "_order": 0
+    },
+    {
+      "_id": "attach0",
+      "_fromNode": "mod0",
+      "_fromPort": "mod",
+      "_toNode": "form",
+      "_toPort": "mod",
       "_order": 0
     }
   ]
