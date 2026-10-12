@@ -59,6 +59,23 @@ namespace RuneCode
             }
         }
 
+        /// <summary>중심, 가로·세로 반경과 회전(라디안)으로 채워진 타원 메시를 추가한다.</summary>
+        internal static void Ellipse(UnityEngine.UI.VertexHelper mesh, Vector2 center, float radiusX, float radiusY,
+            float rotation, Color color, int segments = 16)
+        {
+            int index = mesh.currentVertCount;
+            mesh.AddVert(center, color, Vector2.zero);
+            for (int i = 0; i <= segments; i++)
+            {
+                float angle = i * Mathf.PI * 2 / segments;
+                Vector2 offset = new Vector2(Mathf.Cos(angle) * radiusX, Mathf.Sin(angle) * radiusY);
+                Vector2 rotated = new Vector2(offset.x * Mathf.Cos(rotation) - offset.y * Mathf.Sin(rotation),
+                    offset.x * Mathf.Sin(rotation) + offset.y * Mathf.Cos(rotation));
+                mesh.AddVert(center + rotated, color, Vector2.zero);
+                if (i > 0) mesh.AddTriangle(index, index + i, index + i + 1);
+            }
+        }
+
         /// <summary>중심, 반 변 길이와 회전(라디안)으로 채워진 정사각형 메시를 추가한다. 회전 0이면 화면 축에 맞춰 선다.</summary>
         internal static void Square(UnityEngine.UI.VertexHelper mesh, Vector2 center, float halfSize, float rotation, Color color)
         {

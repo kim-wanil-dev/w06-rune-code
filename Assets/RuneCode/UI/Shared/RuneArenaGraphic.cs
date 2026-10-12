@@ -25,6 +25,9 @@ namespace RuneCode
         private const double DAMAGE_EPSILON = 0.000001;
         private const int DAMAGE_NUMBER_TICKS = 40;
         private const int MAX_DAMAGE_NUMBERS = 64;
+        private const int HEAL_PULSE_TICKS = 40;
+        private const float HEAL_PULSE_ARM = 4.9f;
+        private const float HEAL_PULSE_THICKNESS = 1.75f;
         private const float ARC_GLOW_WIDTH = 6f;
         private const float ARC_CORE_WIDTH = 2f;
         private const float ARC_GLOW_ALPHA = 0.55f;
@@ -52,12 +55,12 @@ namespace RuneCode
         private static readonly Color PLAYER_AIM_COLOR = new Color(0.92f, 0.83f, 0.49f);
         private static readonly Color SHIELD_COLOR = new Color(0.65f, 0.53f, 1);
         private static readonly Color ENEMY_COLOR = new Color(0.94f, 0.34f, 0.40f);
-        private static readonly Color RELAY_COLOR = new Color(0.62f, 0.39f, 0.97f);
-        private static readonly Color RELAY_AURA_COLOR = new Color(0.65f, 0.37f, 0.95f, 0.22f);
+        private static readonly Color RELAY_COLOR = new Color(0.36f, 0.84f, 0.44f);
+        private static readonly Color RELAY_AURA_COLOR = new Color(0.36f, 0.84f, 0.44f, 0.22f);
         private static readonly Color AEGIS_COLOR = new Color(0.96f, 0.69f, 0.29f);
         private static readonly Color AEGIS_SHIELD_COLOR = new Color(0.95f, 0.77f, 0.40f);
         private static readonly Color BOSS_COLOR = new Color(0.89f, 0.35f, 0.92f);
-        private static readonly Color SPLITTER_COLOR = new Color(0.36f, 0.84f, 0.44f);
+        private static readonly Color SPLITTER_COLOR = new Color(0.62f, 0.39f, 0.97f);
         private static readonly Color DUMMY_COLOR = new Color(0.52f, 0.69f, 0.74f);
         private static readonly Color ENEMY_CORE_COLOR = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color WARNING_COLOR = new Color(1, 0.78f, 0.23f);
@@ -66,6 +69,7 @@ namespace RuneCode
         private static readonly Color PATCH_COLOR = new Color(0.83f, 0.57f, 1);
         private static readonly Color RESISTANT_COLOR = new Color(0.77f, 0.69f, 1);
         private static readonly Color HP_TRACK_COLOR = new Color(0.24f, 0.16f, 0.20f);
+        private static readonly Color HEAL_COLOR = new Color(0.45f, 0.95f, 0.55f);
         private static readonly Color ARC_CORE_COLOR = new Color(0.95f, 0.92f, 1f);
 
         private readonly List<TextMeshProUGUI> _damageLabels = new List<TextMeshProUGUI>();
@@ -132,6 +136,7 @@ namespace RuneCode
             foreach (FragmentOrb orb in sim.Orbs) DrawOrb(mesh, orb);
             foreach (SimulationItemDrop drop in sim.ItemDrops) DrawItemDrop(mesh, drop);
             foreach (SimulationEnemy enemy in sim.Enemies) DrawEnemy(mesh, enemy, sim);
+            foreach (HealPulse pulse in sim.HealPulses) DrawHealPulse(mesh, pulse, sim.Tick - pulse.Tick);
             foreach (ArcLink link in sim.ArcLinks) DrawArcLink(mesh, link, sim.Tick - link.Tick);
             DrawPlayer(mesh, sim);
         }
@@ -382,8 +387,22 @@ namespace RuneCode
             Color tint = EnemyColor(enemy);
             int sides = enemy.Definition.Sides;
             float facing = Mathf.Atan2(-(float)enemy.Facing.Y, (float)enemy.Facing.X);
-            RuneMesh.Polygon(mesh, point, radius, tint, sides, facing);
-            RuneMesh.Polygon(mesh, point, radius * 0.48f, ENEMY_CORE_COLOR, sides, facing);
+            // 캐리어는 앞뒤로 긴 타원, 요격기는 좌우로 길고 얇은 직사각형으로 그리고 나머지는 변 수대로 그린다.
+            if (enemy.Kind == "enemy.carrier")
+            {
+                RuneMesh.Ellipse(mesh, point, radius * 1.5f, radius, facing, tint);
+                RuneMesh.Ellipse(mesh, point, radius * 1.5f * 0.48f, radius * 0.48f, facing, ENEMY_CORE_COLOR);
+            }
+            else if (enemy.Kind == "enemy.interceptor")
+            {
+                RuneMesh.Rectangle(mesh, point, radius * 1.2f, radius * 0.8f, facing, tint);
+                RuneMesh.Rectangle(mesh, point, radius * 1.2f * 0.48f, radius * 0.8f * 0.48f, facing, ENEMY_CORE_COLOR);
+            }
+            else
+            {
+                RuneMesh.Polygon(mesh, point, radius, tint, sides, facing);
+                RuneMesh.Polygon(mesh, point, radius * 0.48f, ENEMY_CORE_COLOR, sides, facing);
+            }
             // 엘리트는 강화형 금색, 신속형 청록색 링으로 구분한다. 두 배율을 모두 가지면 속도 색을 우선한다.
             if (enemy.IsElite) RuneMesh.Ring(mesh, point, radius + 5 * _scale, 2 * _scale, enemy.SpeedMultiplier > 1 ? ELITE_SPEED_COLOR : ELITE_HP_COLOR);
             if (enemy.IsWarning) RuneMesh.Ring(mesh, point, radius + (6 + Mathf.Sin(Time.unscaledTime * 16) * 3) * _scale, 2 * _scale, WARNING_COLOR);
@@ -413,8 +432,8 @@ namespace RuneCode
                 case "enemy.clock_sniper": return new Color(0.8f, 0.15f, 0.24f);
                 case "enemy.shield_melee":
                 case "enemy.shield_ranged": return new Color(0.3f, 0.95f, 0.85f);
-                case "enemy.carrier": return new Color(0.3f, 0.4f, 0.8f);
-                case "enemy.interceptor": return new Color(1f, 0.45f, 0.5f);
+                case "enemy.carrier":
+                case "enemy.interceptor": return new Color(1f, 0.9f, 0.3f);
                 case "enemy.splitter":
                 case "enemy.splitter_mid":
                 case "enemy.splitter_small": return SPLITTER_COLOR;
@@ -451,6 +470,17 @@ namespace RuneCode
             bool isResistant = sim.Adaptation.Enabled
                 && (sim.Adaptation.GetValue(enemy.LastDamageElement) >= threshold || sim.Adaptation.GetValue(enemy.LastDamageForm) >= threshold);
             if (isResistant) RuneMesh.Ring(mesh, point + new Vector2(radius + 8 * _scale, radius), iconSize, 1.5f * _scale, RESISTANT_COLOR, 6);
+        }
+
+        /// <summary>최근 체력 회복을 위로 떠오르며 흐려지는 초록 십자가로 그린다.</summary>
+        private void DrawHealPulse(UnityEngine.UI.VertexHelper mesh, HealPulse pulse, int elapsedTicks)
+        {
+            if (elapsedTicks > HEAL_PULSE_TICKS) return;
+            Color tint = HEAL_COLOR; tint.a = 1 - elapsedTicks / 42f;
+            Vector2 point = Point(pulse.Position) + new Vector2(0, (10 + elapsedTicks * 0.6f) * _scale);
+            float arm = HEAL_PULSE_ARM * _scale, thickness = HEAL_PULSE_THICKNESS * _scale;
+            RuneMesh.Rect(mesh, new Rect(point.x - thickness / 2, point.y - arm, thickness, arm * 2), tint);
+            RuneMesh.Rect(mesh, new Rect(point.x - arm, point.y - thickness / 2, arm * 2, thickness), tint);
         }
 
         /// <summary>적 아래에 체력 막대(배경과 남은 비율)를 그린다.</summary>

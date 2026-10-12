@@ -50,10 +50,10 @@ namespace RuneCode
             _spellText.text = spell;
         }
 
-        /// <summary>1~10스테이지의 실제 출현 적 카드만 표시하고 보스 스테이지 배너를 전환한다.</summary>
+        /// <summary>선택 스테이지의 출현 적 카드를 표시하고 보스 스테이지 배너를 전환한다. 11스테이지부터는 6~10스테이지 구성을 순환하므로 같은 목록을 그대로 표시한다.</summary>
         public void SetEnemyPreview(int stage, bool isBoss, ISet<string> enemyIds)
         {
-            bool isVisible = stage >= 1 && stage <= 10;
+            bool isVisible = stage >= 1;
             _enemyPreviewRoot.SetActive(isVisible);
             _bossStageBanner.SetActive(isVisible && isBoss);
             foreach (EnemyPreview preview in _enemyPreviews)

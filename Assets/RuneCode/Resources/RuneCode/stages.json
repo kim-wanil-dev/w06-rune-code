@@ -67,109 +67,6 @@
   "_stages": [
     {
       "_fromStage": 1,
-      "_toStage": 0,
-      "_kind": "normal",
-      "_timeLimit": 0,
-      "_clearReward": 20,
-      "_killTarget": 10,
-      "_stream": {
-        "_candidates": [
-          {
-            "_enemyId": "enemy.scout",
-            "_firstStage": 1,
-            "_weight": 7
-          },
-          {
-            "_enemyId": "enemy.hunter",
-            "_firstStage": 2,
-            "_weight": 2
-          },
-          {
-            "_enemyId": "enemy.aegis",
-            "_firstStage": 3,
-            "_weight": 1.5
-          },
-          {
-            "_enemyId": "enemy.splitter",
-            "_firstStage": 3,
-            "_weight": 1
-          },
-          {
-            "_enemyId": "enemy.sentry",
-            "_firstStage": 4,
-            "_weight": 1
-          },
-          {
-            "_enemyId": "enemy.relay",
-            "_firstStage": 5,
-            "_weight": 0.5
-          }
-        ],
-        "_baseInterval": 1.6,
-        "_minInterval": 0.35,
-        "_stageScale": 0.08,
-        "_intraRamp": 0.5,
-        "_rampSeconds": 60,
-        "_formation": "scatter"
-      },
-      "_waves": [
-        {
-          "_at": 8,
-          "_repeatInterval": 20,
-          "_formation": {
-            "_id": "surround",
-            "_angle": "",
-            "_spacing": 0,
-            "_interval": 0,
-            "_slots": 0
-          },
-          "_units": [
-            {
-              "_enemyId": "enemy.scout",
-              "_count": 8
-            }
-          ]
-        },
-        {
-          "_at": 18,
-          "_repeatInterval": 20,
-          "_formation": {
-            "_id": "line",
-            "_angle": "ahead",
-            "_spacing": 40,
-            "_interval": 0,
-            "_slots": 0
-          },
-          "_units": [
-            {
-              "_enemyId": "enemy.scout",
-              "_count": 5
-            }
-          ]
-        }
-      ],
-      "_eliteEvery": 10,
-      "_eliteTypes": [
-        {
-          "_enemyId": "enemy.hunter",
-          "_hpMultiplier": 2,
-          "_rewardMultiplier": 2,
-          "_speedMultiplier": 1.2,
-          "_radiusMultiplier": 1.5,
-          "_dropTable": "drop.elite.basic"
-        },
-        {
-          "_enemyId": "enemy.scout",
-          "_hpMultiplier": 2,
-          "_rewardMultiplier": 2,
-          "_speedMultiplier": 1.2,
-          "_radiusMultiplier": 1.5,
-          "_dropTable": "drop.elite.basic"
-        }
-      ]
-    },
-    {
-      "_fromStage": 1,
       "_toStage": 1,
       "_kind": "normal",
       "_timeLimit": 0,
@@ -742,6 +639,10 @@
             {
               "_enemyId": "enemy.splitter",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
             }
           ]
         },
@@ -758,11 +659,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 1
+              "_count": 4
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 1
+              "_count": 2
             }
           ]
         },
@@ -778,20 +679,20 @@
           },
           "_units": [
             {
-              "_enemyId": "enemy.scout",
-              "_count": 1
-            },
-            {
-              "_enemyId": "enemy.hunter",
-              "_count": 1
-            },
-            {
               "_enemyId": "enemy.bomb_seed",
               "_count": 1
             },
             {
               "_enemyId": "enemy.splitter",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 4
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             }
           ]
         }
@@ -864,8 +765,12 @@
           },
           "_units": [
             {
-              "_enemyId": "enemy.shield_melee",
-              "_count": 1
+              "_enemyId": "enemy.hunter",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
             }
           ]
         },
@@ -882,7 +787,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 1
+              "_count": 6
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 2
             }
           ]
         },
@@ -898,8 +807,16 @@
           },
           "_units": [
             {
-              "_enemyId": "enemy.shield_ranged",
+              "_enemyId": "enemy.aegis",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             }
           ]
         },
@@ -916,11 +833,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 2
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 1
+              "_count": 4
             },
             {
               "_enemyId": "enemy.shield_melee",
@@ -998,6 +915,14 @@
             {
               "_enemyId": "enemy.clock_sniper",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 2
             }
           ]
         },
@@ -1013,12 +938,20 @@
           },
           "_units": [
             {
-              "_enemyId": "enemy.hunter",
+              "_enemyId": "enemy.clock_sniper",
               "_count": 1
             },
             {
-              "_enemyId": "enemy.clock_sniper",
-              "_count": 1
+              "_enemyId": "enemy.sentry",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 4
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             }
           ]
         }
@@ -1083,6 +1016,14 @@
             {
               "_enemyId": "enemy.carrier",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             }
           ]
         },
@@ -1099,6 +1040,18 @@
           "_units": [
             {
               "_enemyId": "enemy.carrier",
+              "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.sentry",
               "_count": 1
             }
           ]
@@ -1205,11 +1158,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 1
+              "_count": 4
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.bomb_seed",
@@ -1250,11 +1203,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 1
+              "_count": 5
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 1
+              "_count": 3
             },
             {
               "_enemyId": "enemy.bomb_seed",
@@ -1279,7 +1232,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 1
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             },
             {
               "_enemyId": "enemy.shield_melee",
@@ -1305,6 +1262,14 @@
             {
               "_enemyId": "enemy.clock_sniper",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 2
             }
           ]
         },
@@ -1322,6 +1287,14 @@
             {
               "_enemyId": "enemy.carrier",
               "_count": 1
+            },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
             }
           ]
         }

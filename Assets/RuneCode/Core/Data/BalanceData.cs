@@ -95,7 +95,7 @@ namespace RuneCode
         [SerializeField] private float _aegisAngle;
         [SerializeField] private float _aegisReduction;
         [SerializeField] private float _relayRadius;
-        [SerializeField] private float _relayReduction;
+        [SerializeField] private float _relayRegen;
         [SerializeField] private float _separationAllowance;
         [SerializeField] private float _separationStrength;
         [SerializeField] private float _separationMaxStep;
@@ -114,7 +114,9 @@ namespace RuneCode
         public float AegisAngle => _aegisAngle;
         public float AegisReduction => _aegisReduction;
         public float RelayRadius => _relayRadius;
-        public float RelayReduction => _relayReduction;
+
+        /// <summary>릴레이 오라가 60틱마다 반경 안의 다른 적을 회복시키는 체력량이다.</summary>
+        public float RelayRegen => _relayRegen;
         public float SeparationAllowance => _separationAllowance;
         public float SeparationStrength => _separationStrength;
         public float SeparationMaxStep => _separationMaxStep;
@@ -132,6 +134,7 @@ namespace RuneCode
         [SerializeField] private float _orbAbsorbRadius;
         [SerializeField] private float _pickupAttractSpeed = 480f;
         [SerializeField] private float _terminalHeal;
+        [SerializeField] private float _killEnergyCreditRatio;
         public int SlotCost => _slotCost;
         public float DeathRetention => _deathRetention;
         public int BaseCapacity => _baseCapacity;
@@ -144,6 +147,9 @@ namespace RuneCode
         /// <summary>자석 이동 중 아이템이 플레이어를 향해 이동하는 초당 거리다.</summary>
         public float PickupAttractSpeed => _pickupAttractSpeed;
         public float TerminalHeal => _terminalHeal;
+
+        /// <summary>적을 처치했을 때 떨어뜨린 크레딧에서 회복하는 에너지 비율이다.</summary>
+        public float KillEnergyCreditRatio => _killEnergyCreditRatio;
     }
 
     [Serializable]
@@ -254,8 +260,8 @@ namespace RuneCode
                 data.Adaptation.DecayPerSecond, data.Adaptation.ResistanceThreshold, data.Combat.BurnDps, data.Combat.BurnInterval,
                 data.Combat.BurnSeconds, data.Combat.ChillSlow, data.Combat.ChillSeconds, data.Combat.FreezeSeconds,
                 data.Combat.FreezeImmunity, data.Combat.EmpSeconds, data.Combat.AegisAngle, data.Combat.AegisReduction,
-                data.Combat.RelayRadius, data.Combat.RelayReduction, data.Economy.DeathRetention, data.Economy.OrbAbsorbRadius,
-                data.Economy.TerminalHeal, data.Economy.PickupAttractSpeed, data.Ram.CooldownBase, data.Ram.CooldownPerRam, data.Sim.MultiOffset,
+                data.Combat.RelayRadius, data.Combat.RelayRegen, data.Economy.DeathRetention, data.Economy.OrbAbsorbRadius,
+                data.Economy.TerminalHeal, data.Economy.KillEnergyCreditRatio, data.Economy.PickupAttractSpeed, data.Ram.CooldownBase, data.Ram.CooldownPerRam, data.Sim.MultiOffset,
                 data.Sim.TelemetryHighlightSeconds, data.Sim.BenchPlayerX, data.Sim.BenchPlayerY, data.Sim.BenchDummyX,
                 data.Sim.BenchDummyY, data.Sim.BenchHp, data.Sim.BenchLineStartX, data.Sim.BenchLineGap, data.Sim.BenchSwarmX,
                 data.Sim.BenchSwarmY, data.Sim.BenchSwarmGapX, data.Sim.BenchSwarmGapY, data.Sim.SpellVisualSeconds,
@@ -269,7 +275,7 @@ namespace RuneCode
                 || data.Combat.ChillMaxStacks <= 0 || data.Combat.ChillImmuneMaxStacks <= 0
                 || data.Combat.ChillImmuneMaxStacks >= data.Combat.ChillMaxStacks
                 || data.Adaptation.ElementCap > 1f || data.Adaptation.FormCap > 1f
-                || data.Combat.AegisReduction > 1f || data.Combat.RelayReduction > 1f || data.Combat.ChillSlow > 1f
+                || data.Combat.AegisReduction > 1f || data.Combat.ChillSlow > 1f
                 || data.Economy.DeathRetention > 1f || data.Economy.TerminalHeal > 1f || data.Economy.MaxLibrary <= 0
                 || data.Economy.ModifierStartStock < 0 || data.Economy.SlotCost <= 0 || data.Economy.PickupAttractSpeed <= 0f
                 || data.Combat.SeparationAllowance <= 0f || data.Combat.SeparationAllowance > 1f

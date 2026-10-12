@@ -176,6 +176,9 @@ namespace RuneCode
         internal void Advance(double dt, double time, double regen)
         { _energy = Math.Min(_maxEnergy, _energy + dt * regen); for (int i = 0; i < _cooldowns.Length; i++) { _cooldowns[i] = Math.Max(0, _cooldowns[i] - dt); _executionRemaining[i] = Math.Max(0, _executionRemaining[i] - dt); } _dashCooldown = Math.Max(0, _dashCooldown - dt); _dashRemaining = Math.Max(0, _dashRemaining - dt); if (time >= _shieldUntil) _shield = 0; }
 
+        /// <summary>에너지를 지정량만큼 회복하고 최대 에너지를 넘지 않게 한다.</summary>
+        internal void RestoreEnergy(double amount) { _energy = Math.Min(_maxEnergy, _energy + Math.Max(0, amount)); }
+
         /// <summary>대시가 가능한 경우 방향, 지속 시간, 무적 및 쿨다운을 설정한다.</summary>
         internal bool StartDash(SimVector direction, double seconds, double cooldown, double time)
         { if (_dashCooldown > 0.000001) return false; _dashDirection = direction.Normalized(); _dashRemaining = seconds; _dashCooldown = cooldown; _invulnerableUntil = Math.Max(_invulnerableUntil, time + seconds); return true; }
@@ -332,6 +335,9 @@ namespace RuneCode
 
         /// <summary>피해를 체력에 적용하고 실제 감소량을 반환하며 피격 표시 시간을 설정한다.</summary>
         internal double Hurt(double damage, double time) { double actual = Math.Min(_hp, Math.Max(0, damage)); _hp -= actual; _flashUntil = time + _hitFlashSeconds; return actual; }
+
+        /// <summary>체력을 회복량만큼 올리고 최대 체력을 넘지 않게 하며 실제 회복량을 반환한다.</summary>
+        internal double Heal(double amount) { double actual = Math.Min(_maxHp - _hp, Math.Max(0, amount)); _hp += actual; return actual; }
 
         /// <summary>보스 페이즈를 변경하고 패치 무적 만료 시간을 설정한다.</summary>
         internal void Patch(int phase, double time, double duration) { _phase = phase; _patchUntil = time + duration; }
@@ -632,6 +638,16 @@ namespace RuneCode
         public int Tick => _tick;
         /// <summary>전격 연쇄가 이어진 두 위치와 틱을 표시용 기록으로 보관한다.</summary>
         internal ArcLink(SimVector from, SimVector to, int tick) { _from = from; _to = to; _tick = tick; }
+    }
+
+    public readonly struct HealPulse
+    {
+        private readonly SimVector _position;
+        private readonly int _tick;
+        public SimVector Position => _position;
+        public int Tick => _tick;
+        /// <summary>적이 실제로 체력을 회복한 위치와 틱을 표시용 기록으로 보관한다.</summary>
+        internal HealPulse(SimVector position, int tick) { _position = position; _tick = tick; }
     }
 
     public readonly struct NodeExecutionEvent

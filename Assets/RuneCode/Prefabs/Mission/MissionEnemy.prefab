@@ -653,19 +653,19 @@ MonoBehaviour:
     _tint: {r: 0.96, g: 0.69, b: 0.29, a: 1}
   - _enemyId: enemy.relay
     _shape: {fileID: 21300000, guid: a29ba10078257f341aadbad1fb020fd6, type: 3}
-    _tint: {r: 0.62, g: 0.39, b: 0.97, a: 1}
+    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
   - _enemyId: boss.governor
     _shape: {fileID: 21300000, guid: 5b723bbbe2965e0469fb773b091ea451, type: 3}
     _tint: {r: 0.89, g: 0.35, b: 0.92, a: 1}
   - _enemyId: enemy.splitter
     _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
-    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
+    _tint: {r: 0.62, g: 0.39, b: 0.97, a: 1}
   - _enemyId: enemy.splitter_mid
     _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
-    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
+    _tint: {r: 0.62, g: 0.39, b: 0.97, a: 1}
   - _enemyId: enemy.splitter_small
     _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
-    _tint: {r: 0.36, g: 0.84, b: 0.44, a: 1}
+    _tint: {r: 0.62, g: 0.39, b: 0.97, a: 1}
   - _enemyId: enemy.bomb_seed
     _shape: {fileID: 21300000, guid: 61a3b8c8c0a882f448bce80ad9fdec03, type: 3}
     _tint: {r: 1, g: 0.55, b: 0.2, a: 1}
@@ -679,11 +679,11 @@ MonoBehaviour:
     _shape: {fileID: 21300000, guid: 2643626be2a0ac24bb80b4e383df738d, type: 3}
     _tint: {r: 0.3, g: 0.95, b: 0.85, a: 1}
   - _enemyId: enemy.carrier
-    _shape: {fileID: 21300000, guid: a29ba10078257f341aadbad1fb020fd6, type: 3}
-    _tint: {r: 0.3, g: 0.4, b: 0.8, a: 1}
+    _shape: {fileID: 21300000, guid: e1e11c706a3f48de9c4e3719e4a5cc14, type: 3}
+    _tint: {r: 1, g: 0.9, b: 0.3, a: 1}
   - _enemyId: enemy.interceptor
-    _shape: {fileID: 21300000, guid: fdc8cfd60003e3b4484ea9fcff66e40a, type: 3}
-    _tint: {r: 1, g: 0.45, b: 0.5, a: 1}
+    _shape: {fileID: 21300000, guid: e2101f9c1e3c4c228dd29a2e5c85fdc1, type: 3}
+    _tint: {r: 1, g: 0.9, b: 0.3, a: 1}
   _defaultShape: {fileID: 21300000, guid: 5b723bbbe2965e0469fb773b091ea451, type: 3}
   _defaultTint: {r: 0.94, g: 0.34, b: 0.4, a: 1}
   _rotator: {fileID: 8850041539441466761}

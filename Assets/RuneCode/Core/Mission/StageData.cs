@@ -345,6 +345,12 @@ namespace RuneCode
     [Serializable]
     public sealed class StageCatalog
     {
+        internal const int ENDLESS_STAGE_START = 11;
+        internal const int ENDLESS_CYCLE_FIRST_STAGE = 6;
+        internal const int ENDLESS_CYCLE_LAST_STAGE = 10;
+        internal const double ENDLESS_HP_SCALE_MULTIPLIER = 1.5;
+        internal const int ENDLESS_KILL_TARGET = 50;
+
         [Header("스테이지 루트")]
         [SerializeField] private StageMapSettings _map;
         [SerializeField] private StageGrowth _growth;
@@ -359,14 +365,47 @@ namespace RuneCode
         public IReadOnlyList<EnemyReward> Rewards => _rewards;
         public IReadOnlyList<StageDefinition> Stages => _stages;
 
-        /// <summary>스테이지 번호의 정의를 반환한다. 단일 항목을 먼저 찾고 없으면 첫 범위 항목을 사용하며 둘 다 없으면 데이터 오류를 발생시킨다.</summary>
+        /// <summary>
+        /// 스테이지 번호의 정의를 반환한다. 단일 항목을 먼저 찾고 없으면 첫 범위 항목을 사용하며 둘 다 없으면 데이터 오류를 발생시킨다.
+        /// 11스테이지부터는 무한 모드로 6~10스테이지 정의를 순환해서 재사용한다.
+        /// </summary>
         public StageDefinition Get(int stage)
         {
+            if (stage >= ENDLESS_STAGE_START) stage = ResolveEndlessStage(stage);
             for (int i = 0; i < _stages.Length; i++)
                 if (_stages[i].IsSingle && _stages[i].FromStage == stage) return _stages[i];
             for (int i = 0; i < _stages.Length; i++)
                 if (_stages[i].Contains(stage)) return _stages[i];
             throw new FormatException("스테이지 정의가 없습니다: " + stage);
+        }
+
+        /// <summary>무한 모드 스테이지 번호를 6~10스테이지 정의 하나로 순환 배치한다. 11→6, 12→7, … 15→10, 16→6 순서다.</summary>
+        private static int ResolveEndlessStage(int stage)
+        {
+            int cycleLength = ENDLESS_CYCLE_LAST_STAGE - ENDLESS_CYCLE_FIRST_STAGE + 1;
+            return ENDLESS_CYCLE_FIRST_STAGE + (stage - ENDLESS_STAGE_START) % cycleLength;
+        }
+
+        /// <summary>
+        /// 스테이지 체력 배율을 반환한다. 10스테이지까지는 성장표의 스테이지당 증가율을 쓰고,
+        /// 11스테이지부터는 같은 증가율의 1.5배를 10스테이지 값에 더한다.
+        /// </summary>
+        public double GetHpMultiplier(int stage)
+        {
+            if (stage < ENDLESS_STAGE_START) return Growth.GetHpMultiplier(stage);
+            return Growth.GetHpMultiplier(ENDLESS_CYCLE_LAST_STAGE)
+                + (stage - ENDLESS_CYCLE_LAST_STAGE) * Growth.HpStageScale * ENDLESS_HP_SCALE_MULTIPLIER;
+        }
+
+        /// <summary>
+        /// 스테이지 목표 처치 수를 반환한다. 보스 스테이지는 0이고, 11스테이지부터는 50으로 고정하며,
+        /// 그 외에는 단일 항목은 데이터 값을, 범위 항목은 스테이지 성장 배율을 적용한 값을 쓴다.
+        /// </summary>
+        public int GetKillTarget(StageDefinition stage, int stageNumber)
+        {
+            if (stage.IsBoss) return 0;
+            if (stageNumber >= ENDLESS_STAGE_START) return ENDLESS_KILL_TARGET;
+            return stage.IsSingle ? stage.KillTarget : Growth.GetKillTarget(stage.KillTarget, stageNumber);
         }
 
         /// <summary>적 ID의 보상을 반환하고 보상표에 없는 적은 fallback 값을 돌려준다.</summary>
