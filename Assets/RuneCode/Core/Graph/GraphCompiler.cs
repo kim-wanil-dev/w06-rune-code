@@ -214,6 +214,7 @@ namespace RuneCode
             if (errors.Any(issue => issue.Code == "E11" || issue.Code == "E12" || issue.Code == "E14" || issue.Code == "E15"))
                 return new CompileResult(errors, warnings, null);
             ResourceCostSet resourceCosts = Cost(root);
+            ResourceCostSet castCosts = Cost(root, includeEvents: false);
             int entities = EntityCount(root);
             long actionCeiling = limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, actionCeiling + 1L), actionCeiling + 1L);
@@ -236,7 +237,7 @@ namespace RuneCode
             GatherTags(root, tags);
             string trigger = cores[0].GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
             CompiledSpell compiled = new CompiledSpell(graph.Name, Signature(graph, root), cores[0].Id, ramUsed, resourceCosts,
-                limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger);
+                limits.CooldownBase + limits.CooldownPerRam * ramUsed, entities, tags.ToList(), root, graph.Id, trigger, castCosts);
             return new CompileResult(errors, warnings, compiled);
         }
 
@@ -676,15 +677,21 @@ namespace RuneCode
         /// <summary>
         /// 최악 분기와 이벤트 횟수를 포함한 에너지 비용을 합산한다. 발사체는 명중 경로(OnHit)와 미명중 소멸 경로(OnExpire)가
         /// 서로 배타적이라 큰 쪽만 더하고, OnFirstHitOrExpire는 개체당 한 번 더한다. OnHit 횟수에 상한이 없으면 후속 비용을 산정 불가로 표시한다.
+        /// includeEvents가 false이면 적중·소멸 이벤트 분기를 빼고 시전만으로 차감되는 비용을 합산한다.
         /// </summary>
         private static ResourceCostSet Cost(IReadOnlyList<SpellAction> actions,
-            SpellModifierValues inheritedModifiers = null, double costMultiplier = 1d)
+            SpellModifierValues inheritedModifiers = null, double costMultiplier = 1d, bool includeEvents = true)
         {
             ResourceCostSet sum = ResourceCostSet.Empty;
             inheritedModifiers = inheritedModifiers ?? SpellModifierValues.None;
             foreach (SpellAction action in actions)
             {
                 ResourceCostSet ownCosts = action.GetNodeCosts(inheritedModifiers).Multiply(costMultiplier);
+                if (!includeEvents && (action.Kind == "spawn" || action.Kind == "buff"))
+                {
+                    sum = sum.Add(ownCosts);
+                    continue;
+                }
                 switch (action.Kind)
                 {
                     case "spawn":
@@ -704,19 +711,24 @@ namespace RuneCode
                         long eventCount = (long)action.Count * action.CalledSpell.WorstCaseEntities;
                         SpellModifierValues callModifiers = inheritedModifiers.Combine(action.ModifierValues);
                         double callCostMultiplier = costMultiplier * action.EnergyMultiplier;
-                        ResourceCostSet calledCosts = Cost(action.CalledSpell.Root, callModifiers, callCostMultiplier)
+                        ResourceCostSet calledCosts = Cost(action.CalledSpell.Root, callModifiers, callCostMultiplier, includeEvents)
                             .Multiply(action.Count);
+                        if (!includeEvents)
+                        {
+                            sum = sum.Add(ownCosts).Add(calledCosts);
+                            break;
+                        }
                         ResourceCostSet eventCosts = UnboundedCost(Cost(action.OnHit, inheritedModifiers, costMultiplier))
                             .Add(Cost(action.OnExpire, inheritedModifiers, costMultiplier))
                             .Add(Cost(action.OnFirstHitOrExpire, inheritedModifiers, costMultiplier));
                         sum = sum.Add(ownCosts).Add(calledCosts).Add(eventCosts.Multiply(eventCount));
                         break;
-                    case "delay": sum = sum.Add(Cost(action.Then, inheritedModifiers, costMultiplier)); break;
-                    case "repeat": sum = sum.Add(Cost(action.Body, inheritedModifiers, costMultiplier).Multiply(action.Times))
-                        .Add(Cost(action.OnComplete, inheritedModifiers, costMultiplier)); break;
-                    case "if": sum = sum.Add(ResourceCostSet.Max(Cost(action.Then, inheritedModifiers, costMultiplier),
-                        Cost(action.Else, inheritedModifiers, costMultiplier))); break;
-                    default: sum = sum.Add(ownCosts).Add(Cost(action.Next, inheritedModifiers, costMultiplier)); break;
+                    case "delay": sum = sum.Add(Cost(action.Then, inheritedModifiers, costMultiplier, includeEvents)); break;
+                    case "repeat": sum = sum.Add(Cost(action.Body, inheritedModifiers, costMultiplier, includeEvents).Multiply(action.Times))
+                        .Add(Cost(action.OnComplete, inheritedModifiers, costMultiplier, includeEvents)); break;
+                    case "if": sum = sum.Add(ResourceCostSet.Max(Cost(action.Then, inheritedModifiers, costMultiplier, includeEvents),
+                        Cost(action.Else, inheritedModifiers, costMultiplier, includeEvents))); break;
+                    default: sum = sum.Add(ownCosts).Add(Cost(action.Next, inheritedModifiers, costMultiplier, includeEvents)); break;
                 }
             }
             return sum;

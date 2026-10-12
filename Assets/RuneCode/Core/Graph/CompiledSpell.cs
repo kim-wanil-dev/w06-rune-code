@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace RuneCode
@@ -677,6 +678,7 @@ namespace RuneCode
         private readonly string _trigger;
         private readonly int _ramUsed;
         private readonly ResourceCostSet _resourceCosts;
+        private readonly ResourceCostSet _castCosts;
         private readonly float _cooldown;
         private readonly int _worstCaseEntities;
         private readonly IReadOnlyList<string> _tags;
@@ -688,6 +690,9 @@ namespace RuneCode
         public string Trigger => _trigger;
         public int RamUsed => _ramUsed;
         public ResourceCostSet ResourceCosts => _resourceCosts;
+
+        /// <summary>적중·소멸 이벤트 분기를 빼고 시전만으로 차감되는 자원별 비용이다. 조건 분기는 큰 쪽을 더한다.</summary>
+        public ResourceCostSet CastCosts => _castCosts;
         public float EnergyCost => (float)_resourceCosts.GetAmount("mana");
         public float Cooldown => _cooldown;
         public double EstimatedExecutionSeconds => GetEstimatedExecutionSeconds(1f);
@@ -704,7 +709,7 @@ namespace RuneCode
         /// <summary>검증된 그래프의 자원별 최대 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
         public CompiledSpell(string name, string signature, string coreNodeId, int ramUsed, ResourceCostSet resourceCosts,
             float cooldown, int worstCaseEntities, IReadOnlyList<string> tags, IReadOnlyList<SpellAction> root,
-            string id = "", string trigger = SpellGrammar.TRIGGER_ON_ATTACK)
+            string id = "", string trigger = SpellGrammar.TRIGGER_ON_ATTACK, ResourceCostSet castCosts = null)
         {
             _id = id;
             _name = name;
@@ -713,6 +718,7 @@ namespace RuneCode
             _trigger = trigger;
             _ramUsed = ramUsed;
             _resourceCosts = resourceCosts ?? ResourceCostSet.Empty;
+            _castCosts = castCosts ?? _resourceCosts;
             _cooldown = cooldown;
             _worstCaseEntities = worstCaseEntities;
             _tags = tags;
@@ -764,6 +770,61 @@ namespace RuneCode
         public SpellAction FindAction(string nodeId)
         {
             return FindAction(_root, nodeId);
+        }
+
+        /// <summary>
+        /// 편집 그래프의 노드가 속한 컴파일 명령을 반환한다. Shape 노드는 체인 출력을 따라 합쳐진 Behavior 명령을,
+        /// Modifier 노드는 자신이 붙은 명령을 찾는다. 없으면 null을 반환한다.
+        /// </summary>
+        public SpellAction FindNodeAction(SpellGraph graph, string nodeId)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            string current = nodeId;
+            while (current != null && visited.Add(current))
+            {
+                SpellAction found = FindAction(_root, current) ?? FindAttachedAction(_root, current);
+                if (found != null) return found;
+                string next = null;
+                foreach (GraphEdge edge in graph.Edges)
+                {
+                    if (edge.FromNode == current && edge.FromPort == SpellGrammar.CHAIN_OUT) { next = edge.ToNode; break; }
+                }
+                current = next;
+            }
+            return null;
+        }
+
+        /// <summary>노드 ID의 명령이 적중·소멸 이벤트 분기 안에 있어 사건 위치에서 실행되는지 반환한다.</summary>
+        public bool IsEventAction(string nodeId) => IsEventAction(_root, nodeId, false);
+
+        /// <summary>이벤트 분기 안인지(isEvent)를 이어 받으며 하위 분기를 깊이 우선으로 탐색해 노드의 이벤트 소속 여부를 반환한다.</summary>
+        private static bool IsEventAction(IReadOnlyList<SpellAction> actions, string nodeId, bool isEvent)
+        {
+            foreach (SpellAction action in actions)
+            {
+                if (action.NodeId == nodeId) return isEvent;
+                if (IsEventAction(action.OnHit, nodeId, true) || IsEventAction(action.OnExpire, nodeId, true)
+                    || IsEventAction(action.OnFirstHitOrExpire, nodeId, true)) return true;
+                if (IsEventAction(action.Then, nodeId, isEvent) || IsEventAction(action.Else, nodeId, isEvent)
+                    || IsEventAction(action.Body, nodeId, isEvent) || IsEventAction(action.OnComplete, nodeId, isEvent)
+                    || IsEventAction(action.Next, nodeId, isEvent)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Modifier 노드 ID가 붙은 첫 명령을 깊이 우선으로 찾아 반환하며 없으면 null을 반환한다.</summary>
+        private static SpellAction FindAttachedAction(IReadOnlyList<SpellAction> actions, string nodeId)
+        {
+            foreach (SpellAction action in actions)
+            {
+                if (action.AttachedNodeIds.Contains(nodeId)) return action;
+                foreach (IReadOnlyList<SpellAction> branch in action.Branches)
+                {
+                    SpellAction found = FindAttachedAction(branch, nodeId);
+                    if (found != null) return found;
+                }
+            }
+            return null;
         }
 
         /// <summary>명령 목록과 각 명령의 하위 분기를 깊이 우선으로 탐색해 노드 ID와 일치하는 명령을 반환한다.</summary>

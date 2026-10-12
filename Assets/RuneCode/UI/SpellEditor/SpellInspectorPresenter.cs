@@ -48,7 +48,7 @@ namespace RuneCode
             ShowValidation();
         }
 
-        /// <summary>노드 이름·RAM, 표시 대상 파라미터, 효과 범위 안내, 기본 정보, 행동 수치, 삭제 버튼을 표시한다.</summary>
+        /// <summary>노드 이름·RAM, 표시 대상 파라미터, 효과 범위 안내, 노드 비용·피해, 행동 수치, 삭제 버튼을 표시한다.</summary>
         private void ShowNode(GraphNode node)
         {
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
@@ -62,13 +62,23 @@ namespace RuneCode
                 ShowModifierGrade(node, rune);
                 if (rune.Id == "mod.expand") _view.AddNote(GameData.L("ui.mod.expandHint"), 52, 6);
             }
-            if (rune.Params.Count == 0 && rune.Category != SpellGrammar.CATEGORY_MODIFIER)
-            {
-                _view.AddNote(GameData.L("ui.energy") + " " + rune.Energy.ToString("0.#") + "  /  " + GameData.L("ui.damage") + " "
-                    + rune.Stats.Damage.ToString("0.#"), 34, 8);
-            }
+            bool isShape = SpellGrammar.MagicTypeOf(node.RuneId) != null;
+            if ((rune.Params.Count == 0 || isShape) && rune.Category != SpellGrammar.CATEGORY_MODIFIER) ShowNodeCost(node, rune);
             if (rune.Category == SpellGrammar.CATEGORY_BEHAVIOR) ShowBehaviorStats(node);
             if (rune.Category != SpellGrammar.CATEGORY_CORE) _view.AddButton(GameData.L("ui.delete"), "InspectorDeleteButton", () => _editor.RemoveNode(node.Id));
+        }
+
+        /// <summary>
+        /// 컴파일된 명령 기준의 노드 비용과 피해를 표시한다. Shape 노드는 합쳐진 Behavior 명령을 쓰고,
+        /// 컴파일 결과가 없으면 룬 표의 기본 비용·피해를 쓴다. 피해가 없는 노드는 비용만 표시한다.
+        /// </summary>
+        private void ShowNodeCost(GraphNode node, RuneDefinition rune)
+        {
+            SpellAction action = _editor.CompileResult.Spell?.FindNodeAction(_editor.Graph, node.Id);
+            float damage = action != null ? action.Stats?.Damage ?? 0f : rune.Stats.Damage;
+            string text = GameData.L("ui.nodeCost") + " " + SpellCostText.Format(action?.OwnCosts ?? rune.Costs);
+            if (damage > 0f) text += "  /  " + GameData.L("ui.damage") + " " + damage.ToString("0.#");
+            _view.AddNote(text, 34, 8);
         }
 
         /// <summary>Modifier 등급 선택 버튼과 현재 등급의 고정 수치 안내를 표시한다.</summary>
@@ -131,6 +141,7 @@ namespace RuneCode
                     break;
             }
             RuneStats stats = rune.Stats;
+            values.Add(GameData.L("ui.costMultiplier") + " ×" + rune.EnergyMult.ToString("0.##"));
             if (rune.Id == "mod.multi")
             {
                 if (stats.OrbitCount > 0) values.Add(GameData.L("ui.gradeOrbitCount") + " " + stats.OrbitCount);
@@ -177,22 +188,38 @@ namespace RuneCode
             }
         }
 
-        /// <summary>컴파일된 행동의 사거리·반경·속도를 표시한다. 컴파일 결과가 없으면 표시하지 않는다.</summary>
+        /// <summary>
+        /// 컴파일된 행동의 사거리(또는 생성 위치)·크기·속도를 표시한다. 폭발·잔류는 이벤트 후속이면 명중 지점, 부채꼴·Beam·회복·보호이면
+        /// 시전 지점에서 생기므로 배치 거리 대신 생성 위치를 표시한다. 속도는 발사·공전과 유도가 붙은 잔류만 표시한다.
+        /// 컴파일 결과가 없으면 표시하지 않는다.
+        /// </summary>
         private void ShowBehaviorStats(GraphNode node)
         {
-            SpellAction action = _editor.CompileResult.Spell?.FindAction(node.Id);
+            CompiledSpell spell = _editor.CompileResult.Spell;
+            SpellAction action = spell?.FindAction(node.Id);
             if (action?.Stats == null) return;
             SpellStats stats = action.Stats;
-            float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
-                : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
+            bool isArea = action.Form == SpellGrammar.FORM_BURST || action.Form == SpellGrammar.FORM_ZONE;
+            bool isAnchored = action.MagicType == SpellGrammar.MAGIC_TYPE_CONE || action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
+                || action.SourceElement == "heal" || action.SourceElement == "protection";
+            var lines = new List<string>();
+            if (isArea && spell.IsEventAction(action.NodeId)) lines.Add(GameData.L("ui.spellSpawnAtHit"));
+            else if (isArea && isAnchored) lines.Add(GameData.L("ui.spellSpawnAtCaster"));
+            else
+            {
+                float reach = action.Form == SpellGrammar.FORM_BOLT ? stats.Speed * stats.Lifetime
+                    : action.Form == SpellGrammar.FORM_ORBIT ? stats.OrbitRadius : stats.Offset;
+                lines.Add(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px");
+            }
             // Beam Shape는 반경 대신 고정 폭 × 길이(Expand 반영)를 표시한다.
-            string size = action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
+            lines.Add(action.MagicType == SpellGrammar.MAGIC_TYPE_BOX
                 ? GameData.L("ui.spellBeamSize") + " " + stats.BoxWidth.ToString("0.#") + " × " + stats.BoxLength.ToString("0.#") + "px"
-                : GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px";
-            string speed = action.Form == SpellGrammar.FORM_ORBIT ? stats.AngularSpeed.ToString("0.#") + "°/s" : stats.Speed.ToString("0.#") + "px/s";
-            _view.AddNote(GameData.L("ui.spellRange") + " " + reach.ToString("0.#") + "px\n"
-                + size + "\n"
-                + GameData.L("ui.spellSpeed") + " " + speed, 70, 6);
+                : GameData.L("ui.spellRadius") + " " + stats.Radius.ToString("0.#") + "px");
+            if (action.Form == SpellGrammar.FORM_ORBIT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.AngularSpeed.ToString("0.#") + "°/s");
+            else if (action.Form == SpellGrammar.FORM_BOLT) lines.Add(GameData.L("ui.spellSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+            else if (action.Form == SpellGrammar.FORM_ZONE && stats.HomingRange > 0f)
+                lines.Add(GameData.L("ui.spellTrackSpeed") + " " + stats.Speed.ToString("0.#") + "px/s");
+            _view.AddNote(string.Join("\n", lines), 18 * lines.Count + 16, 6);
         }
 
         /// <summary>컴파일 성공 여부, 오류·경고(누르면 해당 노드로 이동)와 조작 안내를 검증 목록에 표시한다.</summary>

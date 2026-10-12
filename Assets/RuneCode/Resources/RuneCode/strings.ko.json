@@ -359,6 +359,30 @@
       "_value": "최대 비용"
     },
     {
+      "_key": "ui.castCost",
+      "_value": "시전 비용"
+    },
+    {
+      "_key": "ui.nodeCost",
+      "_value": "노드 비용"
+    },
+    {
+      "_key": "ui.costMultiplier",
+      "_value": "비용 배율"
+    },
+    {
+      "_key": "ui.spellSpawnAtHit",
+      "_value": "생성 위치: 명중 지점"
+    },
+    {
+      "_key": "ui.spellSpawnAtCaster",
+      "_value": "생성 위치: 시전 지점"
+    },
+    {
+      "_key": "ui.spellTrackSpeed",
+      "_value": "추적 속도"
+    },
+    {
       "_key": "ui.unlock",
       "_value": "해금"
     },
