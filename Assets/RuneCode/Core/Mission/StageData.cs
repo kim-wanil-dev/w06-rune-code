@@ -349,6 +349,7 @@ namespace RuneCode
         internal const int ENDLESS_CYCLE_FIRST_STAGE = 6;
         internal const int ENDLESS_CYCLE_LAST_STAGE = 10;
         internal const double ENDLESS_HP_SCALE_MULTIPLIER = 1.5;
+        internal const double ENDLESS_HP_BASE_MULTIPLIER = 5;
         internal const int ENDLESS_KILL_TARGET = 50;
 
         [Header("스테이지 루트")]
@@ -388,12 +389,12 @@ namespace RuneCode
 
         /// <summary>
         /// 스테이지 체력 배율을 반환한다. 10스테이지까지는 성장표의 스테이지당 증가율을 쓰고,
-        /// 11스테이지부터는 같은 증가율의 1.5배를 10스테이지 값에 더한다.
+        /// 11스테이지부터는 무한 모드 기준 배율(ENDLESS_HP_BASE_MULTIPLIER)에 같은 증가율의 1.5배를 더한다.
         /// </summary>
         public double GetHpMultiplier(int stage)
         {
             if (stage < ENDLESS_STAGE_START) return Growth.GetHpMultiplier(stage);
-            return Growth.GetHpMultiplier(ENDLESS_CYCLE_LAST_STAGE)
+            return ENDLESS_HP_BASE_MULTIPLIER
                 + (stage - ENDLESS_CYCLE_LAST_STAGE) * Growth.HpStageScale * ENDLESS_HP_SCALE_MULTIPLIER;
         }
 

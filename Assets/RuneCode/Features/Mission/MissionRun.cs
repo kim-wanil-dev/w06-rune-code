@@ -101,13 +101,15 @@ namespace RuneCode
             _session = session;
             _spell = spell;
             _spellName = spellName;
-            _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen,
+            // 미션마다 시드를 바꿔 스폰·드롭·보상 순서가 매번 달라지게 한다. 재현용으로 시작 텔레메트리에 남긴다.
+            int seed = Environment.TickCount;
+            _simulation = new RuneSimulation(seed, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen,
                 session.DamageMultiplier, session.MoveSpeedMultiplier, session.ScrapGainMultiplier,
                 carrier: CarrierSpawnSettings.LoadDefinition(), scrapPickupRangeMultiplier: session.ScrapPickupRangeMultiplier,
                 killEnergyBonus: session.KillEnergyBonus);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
-            LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
+            LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature + ":seed=" + seed);
         }
 
         /// <summary>미션의 고정 시뮬레이션 갱신을 일시정지하거나 재개한다.</summary>

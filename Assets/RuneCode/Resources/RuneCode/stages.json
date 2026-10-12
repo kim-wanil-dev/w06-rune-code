@@ -137,7 +137,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 8
+              "_count": 12
             }
           ]
         },
@@ -154,7 +154,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             }
           ]
         }
@@ -222,7 +222,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 8
+              "_count": 12
             }
           ]
         },
@@ -239,7 +239,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             }
           ]
         },
@@ -256,11 +256,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 6
+              "_count": 9
             }
           ]
         }
@@ -331,7 +331,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 8
+              "_count": 12
             }
           ]
         },
@@ -348,7 +348,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             }
           ]
         }
@@ -424,7 +424,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 8
+              "_count": 12
             }
           ]
         },
@@ -441,7 +441,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             }
           ]
         }
@@ -544,7 +544,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 8
+              "_count": 12
             }
           ]
         },
@@ -561,7 +561,7 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             }
           ]
         }
@@ -635,15 +635,15 @@
           "_units": [
             {
               "_enemyId": "enemy.bomb_seed",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.splitter",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             }
           ]
         },
@@ -660,11 +660,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 4
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -681,18 +681,43 @@
           "_units": [
             {
               "_enemyId": "enemy.bomb_seed",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.splitter",
-              "_count": 1
+              "_count": 2
             },
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 6
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 3
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
             {
               "_enemyId": "enemy.scout",
               "_count": 4
             },
             {
               "_enemyId": "enemy.hunter",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.bomb_seed",
               "_count": 2
             }
           ]
@@ -785,11 +810,11 @@
           "_units": [
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             }
           ]
         },
@@ -806,11 +831,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             },
             {
               "_enemyId": "enemy.sentry",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -827,15 +852,15 @@
           "_units": [
             {
               "_enemyId": "enemy.aegis",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -852,14 +877,39 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 4
+              "_count": 6
             },
             {
               "_enemyId": "enemy.shield_melee",
+              "_count": 2
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 2
+            },
+            {
+              "_enemyId": "enemy.aegis",
               "_count": 1
             }
           ]
@@ -955,11 +1005,11 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             },
             {
               "_enemyId": "enemy.sentry",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -976,15 +1026,15 @@
           "_units": [
             {
               "_enemyId": "enemy.sentry",
-              "_count": 2
+              "_count": 3
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 4
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -1001,11 +1051,36 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 3
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
             },
             {
               "_enemyId": "enemy.hunter",
               "_count": 2
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 1
             }
           ]
         }
@@ -1087,15 +1162,15 @@
           "_units": [
             {
               "_enemyId": "enemy.carrier",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -1112,19 +1187,19 @@
           "_units": [
             {
               "_enemyId": "enemy.carrier",
-              "_count": 1
-            },
-            {
-              "_enemyId": "enemy.scout",
-              "_count": 5
-            },
-            {
-              "_enemyId": "enemy.hunter",
               "_count": 2
             },
             {
+              "_enemyId": "enemy.scout",
+              "_count": 8
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 3
+            },
+            {
               "_enemyId": "enemy.sentry",
-              "_count": 1
+              "_count": 2
             }
           ]
         },
@@ -1141,7 +1216,32 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 6
+              "_count": 9
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 3
+            },
+            {
+              "_enemyId": "enemy.sentry",
+              "_count": 2
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 5
             },
             {
               "_enemyId": "enemy.hunter",
@@ -1281,35 +1381,35 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 4
+              "_count": 6
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             },
             {
               "_enemyId": "enemy.bomb_seed",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.splitter",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.shield_melee",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.shield_ranged",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.clock_sniper",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.carrier",
-              "_count": 1
+              "_count": 2
             }
           ]
         },
@@ -1326,19 +1426,19 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 3
+              "_count": 5
             },
             {
               "_enemyId": "enemy.bomb_seed",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.splitter",
-              "_count": 1
+              "_count": 2
             }
           ]
         },
@@ -1355,19 +1455,19 @@
           "_units": [
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             },
             {
               "_enemyId": "enemy.hunter",
-              "_count": 2
+              "_count": 3
             },
             {
               "_enemyId": "enemy.shield_melee",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.shield_ranged",
-              "_count": 1
+              "_count": 2
             }
           ]
         },
@@ -1384,15 +1484,15 @@
           "_units": [
             {
               "_enemyId": "enemy.clock_sniper",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
             },
             {
               "_enemyId": "enemy.sentry",
-              "_count": 2
+              "_count": 3
             }
           ]
         },
@@ -1409,15 +1509,44 @@
           "_units": [
             {
               "_enemyId": "enemy.carrier",
-              "_count": 1
+              "_count": 2
             },
             {
               "_enemyId": "enemy.scout",
-              "_count": 5
+              "_count": 8
+            },
+            {
+              "_enemyId": "enemy.hunter",
+              "_count": 3
+            }
+          ]
+        },
+        {
+          "_at": 18,
+          "_repeatInterval": 20,
+          "_formation": {
+            "_id": "line",
+            "_angle": "ahead",
+            "_spacing": 40,
+            "_interval": 0,
+            "_slots": 0
+          },
+          "_units": [
+            {
+              "_enemyId": "enemy.scout",
+              "_count": 4
             },
             {
               "_enemyId": "enemy.hunter",
               "_count": 2
+            },
+            {
+              "_enemyId": "enemy.bomb_seed",
+              "_count": 1
+            },
+            {
+              "_enemyId": "enemy.splitter",
+              "_count": 1
             }
           ]
         }
