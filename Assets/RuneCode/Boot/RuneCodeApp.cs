@@ -92,7 +92,7 @@ namespace RuneCode
         {
             switch (screen)
             {
-                case AppScreen.Title: _ui.ShowScreen<TitleScreen>(view => view.Initialize(_session)); break;
+                case AppScreen.Title: _ui.ShowScreen<TitleScreen>(view => view.Initialize(_session, _ui)); break;
                 case AppScreen.Workshop: _ui.ShowScreen<WorkshopScreen>(view => view.Initialize(_session, _ui)); break;
                 case AppScreen.Mission: _ui.ShowScreen<MissionScreen>(view => view.Initialize(_session, _ui)); break;
             }

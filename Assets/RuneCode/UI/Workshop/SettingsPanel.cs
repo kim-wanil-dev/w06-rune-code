@@ -23,6 +23,10 @@ namespace RuneCode
         [SerializeField] private Button _debugUnlockButton;
         [SerializeField] private Button _debugResetTreeButton;
 
+        private Button _autoSaveButton;
+        private Button _manualSaveButton;
+        private Button _manualLoadButton;
+
         /// <summary>화면 흔들림 버튼을 눌렀을 때 알린다.</summary>
         public event Action ScreenShakeClicked;
 
@@ -41,6 +45,15 @@ namespace RuneCode
         /// <summary>디버그 강화 트리 초기화를 눌렀을 때 알린다.</summary>
         public event Action DebugTreeResetClicked;
 
+        /// <summary>자동 저장 전환을 눌렀을 때 알린다.</summary>
+        public event Action AutoSaveClicked;
+
+        /// <summary>수동 저장을 눌렀을 때 알린다.</summary>
+        public event Action ManualSaveClicked;
+
+        /// <summary>수동 불러오기를 눌렀을 때 알린다.</summary>
+        public event Action ManualLoadClicked;
+
         /// <summary>버튼 클릭을 이벤트로 연결하고 디버그 도구 표시 여부를 정한다. Presenter가 한 번만 호출한다.</summary>
         public void Bind(bool isDebugVisible)
         {
@@ -53,6 +66,7 @@ namespace RuneCode
             _debugUnlockButton.onClick.AddListener(() => DebugUnlockClicked?.Invoke());
             if (_debugResetTreeButton != null) _debugResetTreeButton.onClick.AddListener(() => DebugTreeResetClicked?.Invoke());
             _debugGroup.SetActive(isDebugVisible);
+            CreateSaveButtons(isDebugVisible);
         }
 
         /// <summary>화면 흔들림·히트스톱 설정의 켜짐 여부를 버튼 문구에 표시한다.</summary>
@@ -60,6 +74,52 @@ namespace RuneCode
         {
             _screenShakeLabel.text = GameData.L("ui.shake") + "  " + GameData.L(isScreenShake ? "ui.on" : "ui.off");
             _hitStopLabel.text = GameData.L("ui.hitstop") + "  " + GameData.L(isHitStop ? "ui.on" : "ui.off");
+        }
+
+        /// <summary>자동 저장 상태와 미저장 여부를 표시하고 저장·불러오기 가능 상태를 갱신한다.</summary>
+        public void SetSaveOptions(bool isAutoSaveEnabled, bool isDirty, bool canSave, bool canLoad)
+        {
+            SetButtonLabel(_autoSaveButton, GameData.L("save.autoSave") + "  " + GameData.L(isAutoSaveEnabled ? "ui.on" : "ui.off"));
+            SetButtonLabel(_manualSaveButton, GameData.L(isDirty ? "save.savePending" : "save.save"));
+            SetButtonLabel(_manualLoadButton, GameData.L("save.load"));
+            _manualSaveButton.interactable = canSave;
+            _manualLoadButton.interactable = canLoad;
+        }
+
+        /// <summary>기존 설정 버튼을 복제해 자동 저장·수동 저장·불러오기 버튼을 한 줄에 만들고 이벤트를 연결한다.</summary>
+        private void CreateSaveButtons(bool isDebugVisible)
+        {
+            if (_autoSaveButton != null) return;
+            Transform parent = _screenShakeButton.transform.parent;
+            _autoSaveButton = CreateSaveButton(parent, "AutoSaveButton", 0);
+            _manualSaveButton = CreateSaveButton(parent, "ManualSaveButton", 151);
+            _manualLoadButton = CreateSaveButton(parent, "ManualLoadButton", 302);
+            _autoSaveButton.onClick.AddListener(() => AutoSaveClicked?.Invoke());
+            _manualSaveButton.onClick.AddListener(() => ManualSaveClicked?.Invoke());
+            _manualLoadButton.onClick.AddListener(() => ManualLoadClicked?.Invoke());
+            _autoSaveButton.gameObject.SetActive(!isDebugVisible);
+            _manualSaveButton.gameObject.SetActive(!isDebugVisible);
+            _manualLoadButton.gameObject.SetActive(!isDebugVisible);
+        }
+
+        /// <summary>기존 피드백 버튼을 복제해 지정 위치에 144×48 크기의 새 버튼을 만든다.</summary>
+        private Button CreateSaveButton(Transform parent, string name, float x)
+        {
+            Button button = Instantiate(_screenShakeButton, parent, false);
+            button.name = name;
+            button.onClick.RemoveAllListeners();
+            RectTransform rect = (RectTransform)button.transform;
+            rect.anchoredPosition = new Vector2(x, -210);
+            rect.sizeDelta = new Vector2(144, 48);
+            return button;
+        }
+
+        /// <summary>버튼 안의 TMP 레이블이 있으면 표시 문구를 바꾼다.</summary>
+        private static void SetButtonLabel(Button button, string value)
+        {
+            if (button == null) return;
+            TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label != null) label.text = value;
         }
     }
 }
