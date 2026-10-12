@@ -22,6 +22,7 @@ namespace RuneCode
         private readonly SpellEditSession _spells;
         private string _statusMessage;
         private bool _isSaveDirty;
+        private bool _hasPendingFirstRunHelp;
 
         private string _dockScenario = "dummy_single";
         private bool _dockAutoFire;
@@ -81,9 +82,12 @@ namespace RuneCode
         /// <summary>타이틀에서 선택한 일반 저장 또는 새 메모리 디버그 진행을 열고 작업실로 전환한다.</summary>
         public void StartGame(bool isDebug)
         {
+            bool isFirstGameStart = !isDebug && !SaveStore.HasSlot(SaveStore.ActiveSlot);
+            if (isDebug) _hasPendingFirstRunHelp = false;
+            else _hasPendingFirstRunHelp |= isFirstGameStart;
             _isDebugEnabled = isDebug;
             _save = isDebug ? PlayerSave.CreateNew() : _normalSave;
-            if (!isDebug && !SaveStore.HasSlot(SaveStore.ActiveSlot))
+            if (isFirstGameStart)
             {
                 if (!SaveStore.WriteToSlot(SaveStore.ActiveSlot, _save)) SetStatusText(SaveStore.LastWarning);
                 else _isSaveDirty = false;
@@ -93,10 +97,19 @@ namespace RuneCode
             RequestScreen(AppScreen.Workshop);
         }
 
+        /// <summary>새 세이브로 처음 시작할 때 대기 중인 도움말 요청을 반환하고 한 번만 소비한다.</summary>
+        public bool ConsumeFirstRunHelpRequest()
+        {
+            bool hasPendingRequest = _hasPendingFirstRunHelp;
+            _hasPendingFirstRunHelp = false;
+            return hasPendingRequest;
+        }
+
         /// <summary>타이틀에서 선택한 저장 슬롯을 읽어 일반 진행으로 설정하고 성공 여부를 반환한다.</summary>
         public bool SelectSaveSlot(int slot)
         {
             if (!SaveStore.TryLoadSlot(slot, out PlayerSave loaded)) return false;
+            _hasPendingFirstRunHelp = false;
             SaveStore.SetActiveSlot(slot);
             _normalSave = loaded;
             if (!_isDebugEnabled)
@@ -112,6 +125,7 @@ namespace RuneCode
         public bool CreateSaveSlot(int slot)
         {
             if (!SaveStore.CreateSlot(slot, out PlayerSave created)) return false;
+            _hasPendingFirstRunHelp = true;
             _normalSave = created;
             if (!_isDebugEnabled)
             {
