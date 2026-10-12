@@ -218,8 +218,9 @@ namespace RuneCode
             int entities = EntityCount(root);
             long actionCeiling = limits.MaxCompiledActions;
             long expandedActions = AddBounded(1L, ActionCount(root, actionCeiling + 1L), actionCeiling + 1L);
-            // 최대 예상 비용은 시전을 막지 않는 정보다(백서 7.2). 실행 수 상한만 안전 제약으로 오류 처리한다.
-            if (expandedActions > actionCeiling) errors.Add(new CompileIssue("E8"));
+            // 최대 예상 비용·실행 수·동시 개체 수는 최악 분기 추정이라 시전을 막지 않고 경고만 낸다(백서 7.2).
+            // 실제 실행은 런타임의 틱당 실행 상한·예약 실행 상한·동시 개체 상한이 안전을 맡는다.
+            if (expandedActions > actionCeiling) warnings.Add(new CompileIssue("W11"));
             foreach (ResourceAmount cost in resourceCosts.Amounts)
             {
                 if (double.IsInfinity(cost.Amount) || double.IsNaN(cost.Amount))
@@ -232,7 +233,7 @@ namespace RuneCode
                         + cost.Amount.ToString("0.#", CultureInfo.InvariantCulture) + "/" + maximum.ToString("0.#", CultureInfo.InvariantCulture)));
                 }
             }
-            if (entities > limits.MaxLiveSpellEntities) errors.Add(new CompileIssue("E17"));
+            if (entities > limits.MaxLiveSpellEntities) warnings.Add(new CompileIssue("W10"));
             SortedSet<string> tags = new SortedSet<string>(StringComparer.Ordinal);
             GatherTags(root, tags);
             string trigger = cores[0].GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);

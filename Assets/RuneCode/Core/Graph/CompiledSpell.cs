@@ -149,7 +149,8 @@ namespace RuneCode
         internal static int AddPierce(int left, int right)
         {
             if (right > 0 && left > SpellGrammar.UNLIMITED_PIERCE_COUNT - right) return SpellGrammar.UNLIMITED_PIERCE_COUNT;
-            return left + right;
+            int sum = left + right;
+            return sum >= SpellGrammar.UNLIMITED_PIERCE_THRESHOLD ? SpellGrammar.UNLIMITED_PIERCE_COUNT : sum;
         }
     }
 

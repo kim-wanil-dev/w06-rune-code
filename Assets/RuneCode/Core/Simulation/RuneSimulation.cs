@@ -944,7 +944,7 @@ namespace RuneCode
                 double multiplier = Math.Max(0, 1 - entity.Hits * stats.PierceLoss);
                 entity.HitTimes[enemy.Id] = Time; Hit(entity, enemy, stats.Damage * multiplier, false); entity.Hits++;
                 RaiseHitEvent(entity, enemy.Position, enemy);
-                if (entity.Hits >= 1 + stats.Pierce) { entity.Move(enemy.Position, direction); entity.HasExpired = true; break; }
+                if (entity.Hits > stats.Pierce) { entity.Move(enemy.Position, direction); entity.HasExpired = true; break; }
             }
             if (!entity.HasExpired && !double.IsPositiveInfinity(stopFraction))
             {
