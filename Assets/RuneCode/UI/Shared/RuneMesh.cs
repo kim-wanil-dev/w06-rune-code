@@ -165,7 +165,7 @@ namespace RuneCode
                 case SpellGrammar.CATEGORY_LEGACY_FORM:
                 case SpellGrammar.CATEGORY_BEHAVIOR: return new Color(0.22f, 0.82f, 0.96f);
                 case SpellGrammar.CATEGORY_SHAPE: return new Color(0.95f, 0.88f, 0.55f);
-                case SpellGrammar.CATEGORY_ELEMENT: return new Color(0.99f, 0.43f, 0.34f);
+                case SpellGrammar.CATEGORY_ELEMENT: return new Color(0.30f, 0.86f, 0.54f);
                 case "method": return new Color(0.42f, 0.70f, 1f);
                 case SpellGrammar.CATEGORY_MODIFIER: return new Color(0.64f, 0.46f, 0.97f);
                 case SpellGrammar.CATEGORY_FLOW: return new Color(0.30f, 0.91f, 0.65f);
