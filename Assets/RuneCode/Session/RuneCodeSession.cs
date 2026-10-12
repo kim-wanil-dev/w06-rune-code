@@ -70,10 +70,12 @@ namespace RuneCode
             _upgradeTree = upgradeTree;
             _isDebugEnabled = isDebugEnabled;
             _statusMessage = initialStatus;
+            bool restoredRuneUnlocks = !isDebugEnabled && RestorePurchasedRuneUnlocks(_save);
             if (isDebugEnabled) UnlockDebugRunes();
             var storage = new SessionSpellStorage(() => _save, PersistSpellStorage);
             var policy = new SessionSpellPolicy(this);
             _spells = new SpellEditSession(storage, policy);
+            PersistRestoredRuneUnlocks(restoredRuneUnlocks);
         }
 
         /// <summary>등록된 전환 콜백으로 지정 화면 전환을 요청한다.</summary>
@@ -87,12 +89,14 @@ namespace RuneCode
             else _hasPendingFirstRunHelp |= isFirstGameStart;
             _isDebugEnabled = isDebug;
             _save = isDebug ? PlayerSave.CreateNew() : _normalSave;
+            bool restoredRuneUnlocks = !isDebug && RestorePurchasedRuneUnlocks(_save);
             if (isFirstGameStart)
             {
                 if (!SaveStore.WriteToSlot(SaveStore.ActiveSlot, _save)) SetStatusText(SaveStore.LastWarning);
                 else _isSaveDirty = false;
             }
             if (isDebug) UnlockDebugRunes();
+            else PersistRestoredRuneUnlocks(restoredRuneUnlocks);
             _spells.Reload();
             RequestScreen(AppScreen.Workshop);
         }
@@ -116,7 +120,9 @@ namespace RuneCode
             {
                 _save = loaded;
                 _isSaveDirty = false;
+                bool restoredRuneUnlocks = RestorePurchasedRuneUnlocks(_save);
                 _spells.Reload();
+                PersistRestoredRuneUnlocks(restoredRuneUnlocks);
             }
             return true;
         }
@@ -170,7 +176,9 @@ namespace RuneCode
             _save = loaded;
             _normalSave = loaded;
             _isSaveDirty = false;
+            bool restoredRuneUnlocks = RestorePurchasedRuneUnlocks(_save);
             _spells.Reload();
+            PersistRestoredRuneUnlocks(restoredRuneUnlocks);
             return true;
         }
 
@@ -440,6 +448,35 @@ namespace RuneCode
         private void PersistProgress()
         {
             if (_isDebugEnabled) return;
+            _isSaveDirty = true;
+            if (SaveStore.AutoSaveEnabled && !WriteCurrentSave(_save)) SetStatusText(SaveStore.LastWarning);
+        }
+
+        /// <summary>구매 레벨이 남은 룬 해금 노드의 룬을 저장 데이터에 복구하고 변경 여부를 반환한다.</summary>
+        private bool RestorePurchasedRuneUnlocks(PlayerSave save)
+        {
+            bool hasRestoredRune = false;
+            foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
+                hasRestoredRune |= RestorePurchasedRuneUnlock(save, node);
+            foreach (UpgradeTreeNodeDefinition node in _upgradeTree.UnplacedNodes)
+                hasRestoredRune |= RestorePurchasedRuneUnlock(save, node);
+            return hasRestoredRune;
+        }
+
+        /// <summary>구매 또는 시작 레벨이 있는 룬 해금 노드의 룬을 복구하고 실제 추가 여부를 반환한다.</summary>
+        private static bool RestorePurchasedRuneUnlock(PlayerSave save, UpgradeTreeNodeDefinition node)
+        {
+            if (node == null || node.EffectType != UpgradeEffectType.RuneUnlock) return false;
+            int level = Math.Min(Math.Max(node.InitialLevel, save.GetUpgradeNodeLevel(node.Id)), node.MaxLevel);
+            if (level <= 0 || save.UnlockedRunes.Contains(node.RuneId)) return false;
+            save.Unlock(node.RuneId);
+            return save.UnlockedRunes.Contains(node.RuneId);
+        }
+
+        /// <summary>복구한 룬 해금을 미저장으로 표시하고 자동 저장 설정에 맞춰 현재 슬롯에 반영한다.</summary>
+        private void PersistRestoredRuneUnlocks(bool hasRestoredRune)
+        {
+            if (!hasRestoredRune || _isDebugEnabled) return;
             _isSaveDirty = true;
             if (SaveStore.AutoSaveEnabled && !WriteCurrentSave(_save)) SetStatusText(SaveStore.LastWarning);
         }

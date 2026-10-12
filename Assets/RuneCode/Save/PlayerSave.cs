@@ -180,7 +180,7 @@ namespace RuneCode
 
         /// <summary>
         /// 이전 룬으로 만든 보관함 그래프를 문법 블록으로 변환하고, 해금 룬 ID를 새 블록으로 바꾸며
-        /// 카탈로그에 없는 ID를 정리한다. 기본 마법 메소드가 없으면 보관함 한도 안에서 추가한다. 여러 번 호출해도 결과가 같다.
+        /// 카탈로그에 없는 ID만 정리한다. 기본 마법 메소드가 없으면 보관함 한도 안에서 추가한다. 여러 번 호출해도 결과가 같다.
         /// </summary>
         public void MigrateSpellGrammar()
         {
@@ -189,7 +189,6 @@ namespace RuneCode
             var unlocked = new List<string>();
             foreach (var runeId in _unlockedRunes)
             {
-                if (runeId == "shape.box" || runeId == "shape.cone") continue;
                 foreach (var mapped in SpellGraphMigration.MapUnlockedRune(runeId))
                     if (GameData.Runes.TryGet(mapped, out var rune) && rune.Category != SpellGrammar.CATEGORY_INTERNAL && !unlocked.Contains(mapped)) unlocked.Add(mapped);
             }
