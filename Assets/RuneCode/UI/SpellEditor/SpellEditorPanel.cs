@@ -46,10 +46,6 @@ namespace RuneCode
         [SerializeField] private Button _pasteButton;
         [SerializeField] private TextMeshProUGUI _tooltipText;
 
-        [Header("튜토리얼")]
-        [SerializeField] private TextMeshProUGUI _tutorialText;
-        [SerializeField] private Button _tutorialButton;
-
         [Header("공용")]
         [SerializeField] private TMP_FontAsset _font;
         [SerializeField] private GameObject _panelPrefab;
@@ -121,9 +117,6 @@ namespace RuneCode
         /// <summary>도구줄 툴팁 문구를 표시한다.</summary>
         public void SetTooltip(string text) => _tooltipText.text = text;
 
-        /// <summary>튜토리얼 진행 문구를 표시한다.</summary>
-        public void SetTutorial(string text) => _tutorialText.text = text;
-
         /// <summary>현재 팔레트 검색어다.</summary>
         public string SearchQuery => _searchField.text;
 
@@ -179,7 +172,6 @@ namespace RuneCode
             _arrangeButton.onClick.AddListener(() => ArrangeClicked?.Invoke());
             _copyButton.onClick.AddListener(() => CopyClicked?.Invoke());
             _pasteButton.onClick.AddListener(() => PasteClicked?.Invoke());
-            _tutorialButton.onClick.AddListener(() => TutorialClicked?.Invoke());
             _searchField.onValueChanged.AddListener(query => SearchChanged?.Invoke(query));
             for (int i = 0; i < _categoryButtons.Length; i++)
             {

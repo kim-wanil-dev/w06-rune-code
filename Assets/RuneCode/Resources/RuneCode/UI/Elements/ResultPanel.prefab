@@ -487,10 +487,6 @@ MonoBehaviour:
   - {fileID: 1802863402429401252}
   - {fileID: 2843804917783276032}
   - {fileID: 4871037981380899500}
-  _clearChoiceGradeAccents:
-  - {fileID: 4817362644707618628}
-  - {fileID: 1564024846004731375}
-  - {fileID: 4070371534889774469}
   _clearChoiceGradeLabels:
   - {fileID: 3918052461639276324}
   - {fileID: 1241763235530917025}

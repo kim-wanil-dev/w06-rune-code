@@ -41,7 +41,6 @@ namespace RuneCode
         [Header("보상 카드")]
         [SerializeField] private GameObject[] _clearChoiceCards;
         [SerializeField] private Button[] _clearChoiceButtons;
-        [SerializeField] private Image[] _clearChoiceGradeAccents;
         [SerializeField] private TextMeshProUGUI[] _clearChoiceGradeLabels;
         [SerializeField] private TextMeshProUGUI[] _clearChoiceNameLabels;
         [SerializeField] private TextMeshProUGUI[] _clearChoiceDescriptionLabels;
@@ -161,7 +160,6 @@ namespace RuneCode
                 Color gradeColor = GetClearModifierGradeColor(grade);
                 _clearChoiceGradeLabels[i].text = grade + "급";
                 _clearChoiceGradeLabels[i].color = gradeColor;
-                _clearChoiceGradeAccents[i].color = gradeColor;
                 _clearChoiceNameLabels[i].text = names[i];
                 _clearChoiceDescriptionLabels[i].text = descriptions != null && i < descriptions.Count ? descriptions[i] : string.Empty;
             }
