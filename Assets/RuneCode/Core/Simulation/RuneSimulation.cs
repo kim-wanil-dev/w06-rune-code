@@ -9,7 +9,7 @@ namespace RuneCode
 {
     public sealed class RuneSimulation
     {
-        public const int TICK_RATE = 60;
+        public const int TICK_RATE = CompiledSpell.SIMULATION_TICK_RATE;
         public const int ARC_LINK_TICKS = 12;
         private const int RELAY_REGEN_INTERVAL_TICKS = 60;
         private const double MIN_KILL_ENERGY = 1;
@@ -275,13 +275,14 @@ namespace RuneCode
             if (spell == null || slot < 0 || slot >= _loadout.Length || (_stage != MissionStage.Bench && _stage != MissionStage.Combat)) return false;
             if (_isMission && slot != 0) return false;
             double executionSeconds = spell.GetEstimatedExecutionSeconds(_balance.Sim.ExecutionTimeScale);
-            if (!_player.TryBeginSpell(slot, executionSeconds)) return false;
+            double cooldownSeconds = spell.Cooldown + executionSeconds;
+            if (!_player.TryBeginSpell(slot, executionSeconds, cooldownSeconds)) return false;
             RecordNode(spell.CoreNodeId);
-            var rootCast = new RootSpellExecution(slot, spell);
+            var rootCast = new RootSpellExecution(slot);
             var context = new SpellContext(_player.Position + _player.AimDirection * (_sector.PlayerRadius + _balance.Sim.WandOffset), _player.AimDirection, null, false, null,
                 caster: _player, randomState: new SpellRandomState());
             var tracker = new ExecutionTracker(rootCast, () => CompleteRootSpell(rootCast));
-            Execute(spell.Root, context, tracker);
+            ExecuteRootBranches(spell.Root, context, tracker);
             return true;
         }
 
@@ -297,7 +298,7 @@ namespace RuneCode
         /// <summary>루트 체인의 모든 노드와 완료 분기가 끝난 슬롯에 쿨다운을 시작한다.</summary>
         private void CompleteRootSpell(RootSpellExecution rootCast)
         {
-            _player.FinishSpell(rootCast.Slot, rootCast.Spell.Cooldown);
+            _player.FinishSpell(rootCast.Slot);
         }
 
         /// <summary>입력, 예약된 적 스폰, 전투, 적응 및 전투 종료(전부 처치·사망·보스 제한시간)를 정확히 한 60Hz 틱만큼 갱신한다.</summary>
@@ -409,7 +410,9 @@ namespace RuneCode
             foreach (ScheduledExecution pending in _scheduled)
             {
                 state.Append(pending.Tick);
-                if (pending.IsIteration)
+                if (pending.IsBranchStart)
+                    state.Append("|branch:").Append(pending.Action.NodeId);
+                else if (pending.IsIteration)
                 {
                     state.Append("|iteration");
                     foreach (SpellAction action in pending.Actions) state.Append('|').Append(action.NodeId);
@@ -489,7 +492,12 @@ namespace RuneCode
                 ScheduledExecution pending = _scheduled[i];
                 if (pending.Tick > _tick) { i++; continue; }
                 _scheduled.RemoveAt(i);
-                if (pending.IsIteration)
+                if (pending.IsBranchStart)
+                {
+                    Execute(new[] { pending.Action }, pending.Context, pending.Tracker);
+                    pending.Tracker.Release();
+                }
+                else if (pending.IsIteration)
                 {
                     RepeatScope scope = pending.Context.Repeat;
                     if (scope == null) continue;
@@ -497,6 +505,31 @@ namespace RuneCode
                     else StartRepeatIteration(pending.Actions, pending.Context, scope);
                 }
                 else CompleteAction(pending.Action, pending.Context, pending.Tracker);
+            }
+        }
+
+        /// <summary>Starts root-connected branches in parallel with a 0.05-second offset between their start times.</summary>
+        private void ExecuteRootBranches(IReadOnlyList<SpellAction> actions, SpellContext context, ExecutionTracker tracker)
+        {
+            tracker.BeginDispatch();
+            try
+            {
+                int intervalTicks = GetExecutionDelayTicks(CompiledSpell.ROOT_BRANCH_INTERVAL_SECONDS);
+                for (int index = 1; index < actions.Count; index++)
+                {
+                    if (_scheduled.Count >= _balance.Limits.MaxScheduledExecutions)
+                    {
+                        _droppedExecutions++;
+                        continue;
+                    }
+                    tracker.Acquire();
+                    _scheduled.Add(new ScheduledExecution(_tick + intervalTicks * index, actions[index], context, tracker, true));
+                }
+                if (actions.Count > 0) Execute(new[] { actions[0] }, context, tracker);
+            }
+            finally
+            {
+                tracker.EndDispatch();
             }
         }
 
@@ -711,7 +744,7 @@ namespace RuneCode
                     callContext.Target, callContext.FromEvent, callContext.NoiseElement, callContext.Modifiers, callContext.CallEvents, callContext.Repeat,
                     callContext.CostMultiplier, callContext.Caster, callContext.SourceEntityId,
                     callContext.DirectionOffset + spread, callContext.RandomState);
-                Execute(action.CalledSpell.Root, instanceContext, tracker);
+                ExecuteRootBranches(action.CalledSpell.Root, instanceContext, tracker);
             }
         }
 
@@ -2223,12 +2256,10 @@ namespace RuneCode
         private sealed class RootSpellExecution
         {
             private readonly int _slot;
-            private readonly CompiledSpell _spell;
             public int Slot => _slot;
-            public CompiledSpell Spell => _spell;
 
-            /// <summary>시전 슬롯과 완료 시 쿨다운에 쓸 컴파일 마법을 저장한다.</summary>
-            public RootSpellExecution(int slot, CompiledSpell spell) { _slot = slot; _spell = spell; }
+            /// <summary>Tracks which player slot should be marked complete when the root execution finishes.</summary>
+            public RootSpellExecution(int slot) { _slot = slot; }
         }
 
         /// <summary>분기와 예약된 후속 노드의 대기 수를 세고 모두 끝나면 콜백을 한 번 호출한다.</summary>
@@ -2322,6 +2353,7 @@ namespace RuneCode
             private readonly SpellAction _action;
             private readonly SpellContext _context;
             private readonly bool _isIteration;
+            private readonly bool _isBranchStart;
             private readonly ExecutionTracker _tracker;
             public int Tick => _tick;
             public IReadOnlyList<SpellAction> Actions => _actions;
@@ -2331,14 +2363,19 @@ namespace RuneCode
 
             /// <summary>Repeat의 남은 회차 예약인지 나타낸다. 소속 Repeat가 실패하면 실행하지 않는다.</summary>
             public bool IsIteration => _isIteration;
+            public bool IsBranchStart => _isBranchStart;
 
             /// <summary>목표 틱, Repeat 실행 목록, 컨텍스트와 회차 여부를 예약 실행 데이터에 보관한다.</summary>
             public ScheduledExecution(int tick, IReadOnlyList<SpellAction> actions, SpellContext context, bool isIteration)
-            { _tick = tick; _actions = actions; _action = null; _context = context; _isIteration = isIteration; _tracker = null; }
+            { _tick = tick; _actions = actions; _action = null; _context = context; _isIteration = isIteration; _isBranchStart = false; _tracker = null; }
 
             /// <summary>목표 틱, 완료할 노드, 문맥과 실행 추적기를 저장한다.</summary>
             public ScheduledExecution(int tick, SpellAction action, SpellContext context, ExecutionTracker tracker)
-            { _tick = tick; _actions = null; _action = action; _context = context; _isIteration = false; _tracker = tracker; }
+            { _tick = tick; _actions = null; _action = action; _context = context; _isIteration = false; _isBranchStart = false; _tracker = tracker; }
+
+            /// <summary>Stores a root branch scheduled to start after the other root branches.</summary>
+            public ScheduledExecution(int tick, SpellAction action, SpellContext context, ExecutionTracker tracker, bool isBranchStart)
+            { _tick = tick; _actions = null; _action = action; _context = context; _isIteration = false; _isBranchStart = isBranchStart; _tracker = tracker; }
         }
 
         private readonly struct DamageSample

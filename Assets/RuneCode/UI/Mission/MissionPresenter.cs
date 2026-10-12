@@ -210,8 +210,8 @@ namespace RuneCode
                 foreach (string runeId in _run.ClearModifierChoices)
                 {
                     RuneDefinition rune = GameData.Runes.Get(runeId);
-                    names.Add(rune.Name);
-                    descriptions.Add(FormatClearModifierDescription(rune, _run.ClearModifierGrade));
+                    names.Add(ModifierGradeText.Colorize(rune.Name, _run.ClearModifierGrade));
+                    descriptions.Add(ModifierGradeText.Colorize(FormatClearModifierDescription(rune, _run.ClearModifierGrade), _run.ClearModifierGrade));
                 }
                 _result.ShowClearModifierChoices(GameData.L("result.clearModifierChoice"), names, descriptions, _run.ClearModifierGrade);
             }
@@ -282,8 +282,8 @@ namespace RuneCode
                     continue;
                 }
                 RuneDefinition rune = GameData.Runes.Get(reward.RuneId);
-                string description = reward.Grade + "급\n" + FormatClearModifierDescription(rune, reward.Grade);
-                rewards.Add(new ResultRewardContent(true, reward.Count, rune.Name, description));
+                string description = ModifierGradeText.Colorize(reward.Grade + "급\n" + FormatClearModifierDescription(rune, reward.Grade), reward.Grade);
+                rewards.Add(new ResultRewardContent(true, reward.Count, ModifierGradeText.FormatName(rune.Name, reward.Grade), description));
             }
             _result.SetRewards(rewards);
         }
@@ -320,6 +320,8 @@ namespace RuneCode
         {
             RuneSimulation sim = _run.Simulation;
             _hud.SetBars(sim.Player.Hp, sim.Player.MaxHp, sim.Player.Energy, sim.Player.MaxEnergy);
+            _hud.SetCooldowns(sim.Player.Cooldowns[0], sim.Player.CooldownDurations[0],
+                sim.Player.DashCooldown, sim.Player.DashCooldownDuration);
             _hud.SetStats(GameData.L("ui.kills") + " " + sim.KillCount + "  ·  " + GameData.L("ui.fragments") + " " + sim.EarnedFragments);
             string objective = sim.IsBossStage
                 ? GameData.L("ui.bossObjective") + " · " + sim.RemainingTime.ToString("0.0") + "s"

@@ -22,6 +22,7 @@ namespace RuneCode
         /// <summary>문구, 글자 크기와 행 높이를 적용하고 기존 클릭 리스너를 action으로 교체한다.</summary>
         public void Configure(string label, float height, Action action, float fontSize = 12)
         {
+            _label.richText = true;
             _label.text = label;
             bool canClick = action != null;
             _label.fontSize = fontSize;

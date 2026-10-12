@@ -106,7 +106,8 @@ namespace RuneCode
         /// <summary>Modifier의 첫 줄에 이름·등급, 둘째 줄에 남은 소지량/소지량을 담은 문구를 반환한다.</summary>
         private static string ModifierLabel(RuneDefinition rune, string grade, int remaining, int owned)
         {
-            return rune.Name + " " + grade + "\n" + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
+            string label = rune.Name + " " + grade + "\n" + GameData.L("ui.modifierStock") + " " + remaining + "/" + owned;
+            return ModifierGradeText.Colorize(label, grade);
         }
 
         /// <summary>빠른 검색에 등급과 남은 소지량을 표시하고 지정 등급으로 배치하는 결과를 추가한다.</summary>

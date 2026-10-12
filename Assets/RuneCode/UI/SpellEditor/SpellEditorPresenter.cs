@@ -147,7 +147,7 @@ namespace RuneCode
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
                 : "  ·  " + SpellCostText.FormatCastAndMax(spell.CastCosts, spell.ResourceCosts) + "  ·  " + GameData.L("ui.cooldown") + " "
-                    + spell.Cooldown.ToString("0.00") + "s  ·  " + GameData.L("ui.executionTime") + " "
+                    + spell.GetCooldownSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  " + GameData.L("ui.executionTime") + " "
                     + spell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  "
                     + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
             _view.SetMetrics(text);
@@ -167,7 +167,8 @@ namespace RuneCode
             RuneDefinition rune = GameData.Runes.Get(node.RuneId);
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
-                _view.SetTooltip(rune.Name + "  ·  " + GameData.L("ui.costMultiplier") + " ×" + rune.EnergyMult.ToString("0.##"));
+                string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
+                _view.SetTooltip(ModifierGradeText.FormatName(rune.Name, grade) + "  ·  " + GameData.L("ui.costMultiplier") + " ×" + rune.EnergyMult.ToString("0.##"));
                 return;
             }
             SpellAction action = _editor.CompileResult.Spell?.FindNodeAction(_editor.Graph, node.Id);

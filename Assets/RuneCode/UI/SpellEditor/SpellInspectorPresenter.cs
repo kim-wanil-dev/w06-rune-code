@@ -56,7 +56,7 @@ namespace RuneCode
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
                 string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
-                if (!string.IsNullOrEmpty(grade)) title += "(" + grade + ")";
+                title = ModifierGradeText.FormatName(title, grade);
             }
             _view.AddTitle(title + " / " + GameData.Runes.NodeRam(node) + " RAM");
             foreach (ParameterDefinition parameter in rune.Params)
@@ -66,7 +66,7 @@ namespace RuneCode
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
                 ShowModifierGrade(node, rune);
-                ShowModifierHint(rune);
+                ShowModifierHint(rune, SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades));
             }
             else if (rune.Category == SpellGrammar.CATEGORY_SHAPE)
             {
@@ -179,13 +179,13 @@ namespace RuneCode
             return label + " " + baseValue.ToString("0.##") + suffix + " → " + effectiveValue.ToString("0.##") + suffix;
         }
 
-        /// <summary>Modifier의 등급별 수치가 어떤 효과에 적용되는지 짧은 설명을 표시한다.</summary>
-        private void ShowModifierHint(RuneDefinition rune)
+        /// <summary>현재 등급 색을 적용해 Modifier 효과의 짧은 설명을 표시한다.</summary>
+        private void ShowModifierHint(RuneDefinition rune, string grade)
         {
             string modifierName = rune.Id.Substring("mod.".Length);
             string key = "ui.mod." + modifierName + "Hint";
             string hint = GameData.L(key);
-            if (hint != key) _view.AddNote(hint, 52, 6);
+            if (hint != key) _view.AddNote(ModifierGradeText.Colorize(hint, grade), 52, 6);
         }
 
         /// <summary>Shape·Apply에 선택된 속성의 이름과 원소·기능 효과 구분을 표시한다.</summary>
@@ -416,8 +416,8 @@ namespace RuneCode
             _editor.TryGetModifierUsage(rune.Id, grade, out int used, out int owned);
             string label = GameData.L("ui.modifierGrade") + " " + grade + " · " + GameData.L("ui.modifierStock")
                 + " " + Math.Max(0, owned - used) + "/" + owned;
-            _view.AddButton(label, "InspectorButton", () => SelectNextModifierGrade(node.Id, rune));
-            _view.AddNote(GameData.L("ui.gradeStats") + " " + FormatModifierStats(rune, grade), 70, 6);
+            _view.AddButton(ModifierGradeText.Colorize(label, grade), "InspectorButton", () => SelectNextModifierGrade(node.Id, rune));
+            _view.AddNote(ModifierGradeText.Colorize(GameData.L("ui.gradeStats") + " " + FormatModifierStats(rune, grade), grade), 70, 6);
         }
 
         /// <summary>소지량이 있는 다음 등급을 찾아 선택 노드에 저장한다.</summary>

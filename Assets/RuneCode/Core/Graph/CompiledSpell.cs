@@ -675,6 +675,9 @@ namespace RuneCode
 
     public sealed class CompiledSpell
     {
+        public const int SIMULATION_TICK_RATE = 60;
+        public const double ROOT_BRANCH_INTERVAL_SECONDS = 0.05d;
+        private const int MAX_ESTIMATED_EXECUTION_TICKS = int.MaxValue / 4;
         private readonly string _id;
         private readonly string _name;
         private readonly string _signature;
@@ -704,10 +707,17 @@ namespace RuneCode
         public IReadOnlyList<string> Tags => _tags;
         public IReadOnlyList<SpellAction> Root => _root;
 
-        /// <summary>현재 전역 시간 배율에서 루트 체인의 최대 경과 시간을 계산한다. 같은 출력 분기는 동시에 실행된다.</summary>
+        /// <summary>Returns the longest root path in simulation ticks, including staggered root branches, as seconds.</summary>
         public double GetEstimatedExecutionSeconds(float executionTimeScale, SpellModifierValues inheritedModifiers = null)
         {
-            return EstimateExecutionSeconds(_root, Math.Max(0f, executionTimeScale), inheritedModifiers ?? SpellModifierValues.None);
+            int ticks = EstimateRootExecutionTicks(Math.Max(0f, executionTimeScale), inheritedModifiers ?? SpellModifierValues.None);
+            return ticks / (double)SIMULATION_TICK_RATE;
+        }
+
+        /// <summary>Returns the base RAM cooldown plus the estimated execution time at the supplied scale.</summary>
+        public double GetCooldownSeconds(float executionTimeScale)
+        {
+            return _cooldown + GetEstimatedExecutionSeconds(executionTimeScale);
         }
 
         /// <summary>검증된 그래프의 자원별 최대 비용·실행 루트·적응 태그를 읽기 전용 마법으로 저장한다.</summary>
@@ -729,45 +739,99 @@ namespace RuneCode
             _root = root;
         }
 
-        /// <summary>병렬 출력 분기 중 가장 늦게 끝나는 경로의 예상 시간을 반환한다.</summary>
-        private static double EstimateExecutionSeconds(IReadOnlyList<SpellAction> actions, float executionTimeScale,
-            SpellModifierValues inheritedModifiers)
+        /// <summary>Estimates the latest completion tick after applying the root start interval to each connected branch.</summary>
+        private int EstimateRootExecutionTicks(float executionTimeScale, SpellModifierValues inheritedModifiers)
         {
-            double longest = 0;
-            foreach (SpellAction action in actions)
-                longest = Math.Max(longest, EstimateActionSeconds(action, executionTimeScale, inheritedModifiers));
+            int longest = 0;
+            int intervalTicks = GetExecutionDelayTicks(ROOT_BRANCH_INTERVAL_SECONDS);
+            for (int index = 0; index < _root.Count; index++)
+            {
+                int branchStartTicks = MultiplyTicks(intervalTicks, index);
+                int branchTicks = EstimateActionTicks(_root[index], executionTimeScale, inheritedModifiers);
+                longest = Math.Max(longest, AddTicks(branchStartTicks, branchTicks));
+            }
             return longest;
         }
 
-        /// <summary>노드 시간과 순차 후속 경로를 합산하고 Condition 분기는 더 긴 쪽을 선택한다.</summary>
-        private static double EstimateActionSeconds(SpellAction action, float executionTimeScale,
+        /// <summary>Returns the longest completion tick among parallel actions on one output.</summary>
+        private static int EstimateExecutionTicks(IReadOnlyList<SpellAction> actions, float executionTimeScale,
+            SpellModifierValues inheritedModifiers)
+        {
+            int longest = 0;
+            foreach (SpellAction action in actions)
+                longest = Math.Max(longest, EstimateActionTicks(action, executionTimeScale, inheritedModifiers));
+            return longest;
+        }
+
+        /// <summary>Adds a node's tick-rounded duration to the longest sequential path or selected condition branch.</summary>
+        private static int EstimateActionTicks(SpellAction action, float executionTimeScale,
             SpellModifierValues inheritedModifiers)
         {
             double nodeSeconds = action.Kind == "delay" ? action.Seconds : action.GetExecutionSeconds(inheritedModifiers);
-            double duration = nodeSeconds * executionTimeScale;
+            int nodeTicks = GetExecutionDelayTicks(nodeSeconds * executionTimeScale);
+            int nextTicks;
             switch (action.Kind)
             {
                 case "call":
                     SpellModifierValues callModifiers = inheritedModifiers.Combine(action.ModifierValues);
-                    return duration + (action.CalledSpell == null ? 0
-                        : action.CalledSpell.GetEstimatedExecutionSeconds(executionTimeScale, callModifiers));
+                    nextTicks = action.CalledSpell == null ? 0
+                        : action.CalledSpell.EstimateRootExecutionTicks(executionTimeScale, callModifiers);
+                    break;
                 case "delay":
-                    return duration + EstimateExecutionSeconds(action.Then, executionTimeScale, inheritedModifiers);
+                    nextTicks = EstimateExecutionTicks(action.Then, executionTimeScale, inheritedModifiers);
+                    break;
                 case "repeat":
-                    return duration + Math.Max(0, action.Times - 1) * action.Interval * executionTimeScale
-                        + EstimateExecutionSeconds(action.Body, executionTimeScale, inheritedModifiers)
-                        + EstimateExecutionSeconds(action.OnComplete, executionTimeScale, inheritedModifiers);
+                    int bodyTicks = EstimateExecutionTicks(action.Body, executionTimeScale, inheritedModifiers);
+                    int lastRepeatStartTicks = action.Times > 1
+                        ? GetRepeatStartDelayTicks((action.Times - 1) * action.Interval * executionTimeScale)
+                        : 0;
+                    int repeatTicks = action.Times > 0 ? AddTicks(lastRepeatStartTicks, bodyTicks) : 0;
+                    nextTicks = AddTicks(repeatTicks, EstimateExecutionTicks(action.OnComplete, executionTimeScale, inheritedModifiers));
+                    break;
                 case "if":
-                    return duration + Math.Max(EstimateExecutionSeconds(action.Then, executionTimeScale, inheritedModifiers),
-                        EstimateExecutionSeconds(action.Else, executionTimeScale, inheritedModifiers));
+                    nextTicks = Math.Max(EstimateExecutionTicks(action.Then, executionTimeScale, inheritedModifiers),
+                        EstimateExecutionTicks(action.Else, executionTimeScale, inheritedModifiers));
+                    break;
                 case "buff":
-                    return duration + EstimateExecutionSeconds(action.OnFirstHitOrExpire, executionTimeScale, inheritedModifiers);
+                    nextTicks = EstimateExecutionTicks(action.OnFirstHitOrExpire, executionTimeScale, inheritedModifiers);
+                    break;
                 case "blink":
                 case "shield":
-                    return duration + EstimateExecutionSeconds(action.Next, executionTimeScale, inheritedModifiers);
+                    nextTicks = EstimateExecutionTicks(action.Next, executionTimeScale, inheritedModifiers);
+                    break;
                 default:
-                    return duration + EstimateExecutionSeconds(action.Next, executionTimeScale, inheritedModifiers);
+                    nextTicks = EstimateExecutionTicks(action.Next, executionTimeScale, inheritedModifiers);
+                    break;
             }
+            return AddTicks(nodeTicks, nextTicks);
+        }
+
+        /// <summary>Rounds execution seconds up to the same bounded 60 Hz duration used by the simulation scheduler.</summary>
+        private static int GetExecutionDelayTicks(double seconds)
+        {
+            if (seconds <= 0) return 0;
+            double ticks = Math.Ceiling(seconds * SIMULATION_TICK_RATE - 0.000000001);
+            return (int)Math.Min(MAX_ESTIMATED_EXECUTION_TICKS, Math.Max(1, ticks));
+        }
+
+        /// <summary>Matches the rounded interval used when a Repeat node schedules its final iteration.</summary>
+        private static int GetRepeatStartDelayTicks(double seconds)
+        {
+            if (seconds <= 0) return 0;
+            double ticks = Math.Round(seconds * SIMULATION_TICK_RATE);
+            return (int)Math.Min(MAX_ESTIMATED_EXECUTION_TICKS, Math.Max(1, ticks));
+        }
+
+        /// <summary>Adds tick durations while keeping recursive estimates inside a safe integer range.</summary>
+        private static int AddTicks(int first, int second)
+        {
+            return (int)Math.Min(MAX_ESTIMATED_EXECUTION_TICKS, (long)first + second);
+        }
+
+        /// <summary>Multiplies a root branch offset while keeping recursive estimates inside a safe integer range.</summary>
+        private static int MultiplyTicks(int ticks, int multiplier)
+        {
+            return (int)Math.Min(MAX_ESTIMATED_EXECUTION_TICKS, (long)ticks * multiplier);
         }
 
         /// <summary>실행 트리 전체에서 지정 노드 ID로 컴파일된 첫 명령을 찾아 반환하며 없으면 null을 반환한다.</summary>

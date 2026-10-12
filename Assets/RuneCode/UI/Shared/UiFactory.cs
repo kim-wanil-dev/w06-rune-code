@@ -103,6 +103,7 @@ namespace RuneCode
             text.font = _font;
             text.fontSize = size;
             text.text = label;
+            text.richText = true;
             text.raycastTarget = false;
             text.alignment = TextAlignmentOptions.Midline;
             return button;
