@@ -15,7 +15,7 @@ namespace RuneCode
         private const float PARAMETER_ROW_HEIGHT = 64f;
         private const float SPELL_PARAMETER_ROW_HEIGHT = 76f;
         private const float VALIDATION_BOTTOM = 460f;
-        private const float MIN_VALIDATION_HEIGHT = 80f;
+        private const float MIN_VALIDATION_HEIGHT = 24f;
 
         private readonly RectTransform _panel;
         private readonly UiFactory _ui;
@@ -47,11 +47,14 @@ namespace RuneCode
             _top += 37;
         }
 
-        /// <summary>안내·정보 문구를 지정 높이로 추가하고 높이와 간격만큼 아래로 내려간다.</summary>
+        /// <summary>안내·정보 문구를 내용이 들어갈 높이로 추가하고 실제 높이와 간격만큼 아래로 내려간다.</summary>
         public void AddNote(string text, float height, float spacing)
         {
-            _ui.Text(_panel, LEFT, _top, WIDTH, height, text, 12, prefabName: "InspectorNote");
-            _top += height + spacing;
+            TextMeshProUGUI note = _ui.Text(_panel, LEFT, _top, WIDTH, height, text, 12, prefabName: "InspectorNote");
+            float contentHeight = note.GetPreferredValues(text, WIDTH, Mathf.Infinity).y;
+            float actualHeight = Mathf.Max(height, Mathf.Ceil(contentHeight) + 2f);
+            ((RectTransform)note.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, actualHeight);
+            _top += actualHeight + spacing;
         }
 
         /// <summary>노드 미선택 안내 문구를 추가한다.</summary>
@@ -115,7 +118,9 @@ namespace RuneCode
         {
             _ui.Text(_panel, LEFT, _top, WIDTH, 25, GameData.L("ui.validation"), 15, FontStyles.Bold, prefabName: "InspectorHeading");
             _top += 31;
-            return UiFactory.ScrollList(_panel, "Validation", 12, _top, 228, Mathf.Max(MIN_VALIDATION_HEIGHT, VALIDATION_BOTTOM - _top));
+            float availableHeight = _panel.rect.height - _top - 12f;
+            float height = Mathf.Max(MIN_VALIDATION_HEIGHT, Mathf.Min(VALIDATION_BOTTOM - _top, availableHeight));
+            return UiFactory.ScrollList(_panel, "Validation", 12, _top, 228, height);
         }
 
         /// <summary>검증 목록에 문구 행을 추가하고 클릭 동작을 연결한다.</summary>

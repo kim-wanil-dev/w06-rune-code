@@ -13,7 +13,7 @@ namespace RuneCode
     {
         /// <summary>
         /// 문법 블록을 Inline Magic으로 합친 컴파일용 그래프를 반환한다. 문법 블록이 없으면 원본을 그대로 반환한다.
-        /// Shape·속성·Behavior·Apply의 RAM 합계를 chainRam으로, 해금·연결·속성 값 오류와 미사용 경고를 각 목록에 추가한다.
+        /// 연결된 Shape·속성·Behavior·Apply의 RAM 합계를 chainRam으로, 해금·연결·속성 값 오류와 미사용 경고를 각 목록에 추가한다.
         /// </summary>
         public static SpellGraph Normalize(SpellGraph graph, RuneCatalog runes, HashSet<string> unlocked,
             List<CompileIssue> errors, List<CompileIssue> warnings, out int chainRam)
@@ -31,12 +31,13 @@ namespace RuneCode
                 definitions[node.Id] = rune;
                 if (!IsGrammarBlock(rune)) continue;
                 hasGrammar = true;
-                chainRam += rune.Ram;
+                bool isConnected = graph.IsNodeConnected(node.Id);
+                if (isConnected) chainRam += rune.Ram;
                 if (!unlocked.Contains(rune.Id)) errors.Add(new CompileIssue("E10", node.Id));
                 if (HasElement(rune) && TryResolveElement(node, rune, runes, errors, out ElementDefinition element, out RuneDefinition elementRune))
                 {
                     elements[node.Id] = element;
-                    chainRam += elementRune.Ram;
+                    if (isConnected) chainRam += elementRune.Ram;
                     if (!unlocked.Contains(elementRune.Id)) errors.Add(new CompileIssue("E10", node.Id));
                 }
             }

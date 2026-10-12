@@ -56,7 +56,7 @@ namespace RuneCode
             _state = state;
         }
 
-        /// <summary>배경과, 그래프가 있으면 연결선·노드·연결 미리보기·영역 선택을 메시에 그린다.</summary>
+        /// <summary>배경과 연결선을 기본 레이어 메시에 그린다.</summary>
         public void Paint(VertexHelper mesh, SpellGraph graph)
         {
             mesh.Clear();
@@ -64,7 +64,19 @@ namespace RuneCode
             if (graph == null) return;
             _layout.RebuildLookup();
             DrawEdges(mesh, graph);
-            foreach (GraphNode node in graph.Nodes) DrawNode(mesh, node);
+        }
+
+        /// <summary>지정 노드의 본체와 포트를 독립 레이어 메시에 그린다.</summary>
+        public void PaintNode(VertexHelper mesh, GraphNode node)
+        {
+            mesh.Clear();
+            DrawNode(mesh, node);
+        }
+
+        /// <summary>연결 미리보기와 영역 선택을 최상단 레이어 메시에 그린다.</summary>
+        public void PaintOverlay(VertexHelper mesh)
+        {
+            mesh.Clear();
             DrawConnectionPreview(mesh);
             DrawBoxSelection(mesh);
         }

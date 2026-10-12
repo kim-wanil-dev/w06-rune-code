@@ -182,7 +182,7 @@ namespace RuneCode
                     continue;
                 }
                 definitions[node.Id] = rune;
-                ramUsed += rune.Ram;
+                if (graph.IsNodeConnected(node.Id)) ramUsed += rune.Ram;
                 if (rune.Category == "core") cores.Add(node);
                 if (!context.UnlockedIds.Contains(rune.Id)) errors.Add(new CompileIssue("E10", node.Id));
                 ValidateParameters(node, rune, runes.ModifierGrades, errors);

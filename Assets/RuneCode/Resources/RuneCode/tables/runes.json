@@ -523,6 +523,11 @@
       "_homingTiers": [
         {
           "_tier": "하급",
+          "_homingTurn": 100,
+          "_homingRange": 220
+        },
+        {
+          "_tier": "중급",
           "_homingTurn": 140,
           "_homingRange": 300
         },

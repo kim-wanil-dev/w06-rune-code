@@ -33,6 +33,7 @@ namespace RuneCode
         private GraphNodeLayout _layout;
         private GraphMeshPainter _painter;
         private GraphNodeLabels _labels;
+        private GraphMeshLayer _overlayLayer;
         private GraphPlacement _placement;
         private GraphNode _hoveredNode;
         private bool _isHoverValid;
@@ -53,7 +54,9 @@ namespace RuneCode
             _viewport = new GraphViewport(rectTransform);
             _layout = new GraphNodeLayout(_viewport, () => _editor.Graph);
             _painter = new GraphMeshPainter(_viewport, _layout, _state, Resources.Load<GraphVisualStyle>("RuneCode/UI/Elements/GraphVisualStyle"));
-            _labels = new GraphNodeLabels(rectTransform, font, _viewport, _layout);
+            _labels = new GraphNodeLabels(rectTransform, font, _viewport, _layout, _painter);
+            _overlayLayer = GraphMeshLayer.Create(rectTransform, "GraphInteractionOverlay");
+            _overlayLayer.Initialize(_painter);
             _placement = new GraphPlacement(() => _editor, _viewport);
             raycastTarget = true;
             ResetView();
@@ -80,7 +83,7 @@ namespace RuneCode
         public void Highlight(string nodeId)
         {
             _state.ExecutedUntil[nodeId] = Time.unscaledTime + HIGHLIGHT_DURATION;
-            SetVerticesDirty();
+            RefreshMeshes();
         }
 
         /// <summary>지정 노드가 화면 가운데에 보이도록 화면 위치를 맞추고 선택한다.</summary>
@@ -128,10 +131,10 @@ namespace RuneCode
             }
             if (_expiredHighlights.Count == 0) return;
             foreach (string id in _expiredHighlights) _state.ExecutedUntil.Remove(id);
-            SetVerticesDirty();
+            RefreshMeshes();
         }
 
-        /// <summary>배경, 연결선, 노드, 드래그 표시 순서로 그래프 메시를 구성한다.</summary>
+        /// <summary>배경과 연결선의 기본 메시를 구성한다. 노드와 조작 표시는 자식 레이어가 그린다.</summary>
         protected override void OnPopulateMesh(VertexHelper mesh)
         {
             if (_painter == null)
@@ -163,7 +166,7 @@ namespace RuneCode
             if (_layout.FindPort(_state.Pointer, out GraphNode portNode, out PortDefinition port))
             {
                 BeginConnection(portNode, port);
-                SetVerticesDirty();
+                RefreshMeshes();
                 return;
             }
 
@@ -175,7 +178,7 @@ namespace RuneCode
                 return;
             }
             else BeginBoxSelection(IsShiftPressed());
-            SetVerticesDirty();
+            RefreshMeshes();
         }
 
         /// <summary>포인터 이동에 맞춰 화면 위치, 선택 노드 위치 또는 연결 미리보기·영역 선택을 갱신한다.</summary>
@@ -185,7 +188,7 @@ namespace RuneCode
             if (_state.IsPanning) _viewport.SetPan(_state.PanStart + _state.Pointer - _state.DragStart);
             if (_state.IsNodeDragging) MoveDraggedNodes();
             if (_state.IsPanning || _state.IsNodeDragging) LayoutLabels();
-            else SetVerticesDirty();
+            else RefreshMeshes();
         }
 
         /// <summary>연결 시도와 영역 선택을 확정하고, 노드를 실제로 옮겼으면 편집 세션에 변경을 알린다.</summary>
@@ -195,6 +198,7 @@ namespace RuneCode
             TryCompleteConnection();
             if (_state.IsBoxSelecting) SelectNodesInBox();
             if (_state.IsNodeDragging && Vector2.Distance(_state.Pointer, _state.DragStart) > NODE_DRAG_THRESHOLD) _editor.MarkChanged();
+            _labels.SetFrontNode(null);
             _state.ResetPointer();
             RefreshGraph();
         }
@@ -232,7 +236,16 @@ namespace RuneCode
         {
             if (!HasGraph) return;
             _labels.Layout(_editor.Graph);
+            _overlayLayer.transform.SetAsLastSibling();
+            RefreshMeshes();
+        }
+
+        /// <summary>배경·연결선·노드 본체·최상단 조작 표시의 메시 갱신을 함께 예약한다.</summary>
+        private void RefreshMeshes()
+        {
             SetVerticesDirty();
+            _labels.RefreshMeshes();
+            _overlayLayer.SetVerticesDirty();
         }
 
         /// <summary>포인터 근처 연결선을 찾아 삭제하고 삭제 여부를 반환한다.</summary>
@@ -302,6 +315,8 @@ namespace RuneCode
                 GraphNode node = _layout.FindNode(id);
                 if (node != null) _state.DragOrigins[id] = new Vector2(node.X, node.Y);
             }
+            _labels.SetFrontNode(_state.DragOrigins.ContainsKey(clicked.Id) ? clicked.Id : null);
+            LayoutLabels();
             _editor.BeginEdit();
         }
 

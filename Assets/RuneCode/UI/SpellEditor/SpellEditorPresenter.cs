@@ -139,7 +139,8 @@ namespace RuneCode
         {
             CompiledSpell spell = _editor.CompileResult.Spell;
             int ram = 0;
-            foreach (GraphNode node in _editor.Graph.Nodes) ram += GameData.Runes.NodeRam(node);
+            foreach (GraphNode node in _editor.Graph.Nodes)
+                if (_editor.Graph.IsNodeConnected(node.Id)) ram += GameData.Runes.NodeRam(node);
             // RAM 구간만 노란색 굵게 강조한다.
             string text = RAM_HIGHLIGHT_OPEN + GameData.L("ui.ram") + " " + _host.EquippedRam + "/" + _host.Capacity + "  ·  " + ram + " RAM"
                 + RAM_HIGHLIGHT_CLOSE;
