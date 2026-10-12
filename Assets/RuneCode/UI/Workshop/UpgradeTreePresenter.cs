@@ -47,7 +47,8 @@ namespace RuneCode
             string runeCategory = null;
             if (node.EffectType == UpgradeEffectType.RuneUnlock && GameData.Runes.TryGet(node.RuneId, out RuneDefinition rune))
                 runeCategory = rune.Category;
-            _view.SetNodeState(node.Id, node.EffectType, runeCategory, node.Icon, level, isAvailable, isComplete, canPurchase);
+            _view.SetNodeState(node.Id, node.EffectType, runeCategory, node.Icon, level, node.MaxLevel,
+                _session.GetUpgradeNodeCost(node.Id), isAvailable, isComplete, canPurchase);
         }
 
         /// <summary>호버 중인 노드 ID를 저장하고 그 노드의 툴팁을 표시하거나 닫는다.</summary>
