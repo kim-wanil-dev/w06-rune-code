@@ -273,6 +273,8 @@ namespace RuneCode
                 issue = new CompileIssue("E20", edge.FromNode);
             else if (input.Kind == "mod" && !CanAttachModifier(fromRune, toRune))
                 issue = new CompileIssue("E13", edge.ToNode);
+            else if (input.Kind == "mod" && !IsModifierEffective(fromRune, to, toRune, runes))
+                issue = new CompileIssue("E22", edge.ToNode);
             else if (fromRune.Id == "magic.inline" && from.GetText("magicType", "sphere") == "buff"
                 && (edge.FromPort == SpellGrammar.ON_HIT_PORT || edge.FromPort == SpellGrammar.ON_EXPIRE_PORT))
                 issue = new CompileIssue("E16", edge.FromNode);
@@ -338,7 +340,8 @@ namespace RuneCode
 
         /// <summary>
         /// 효과 룬이 대상 노드에 효과를 내는지 modifier_compat 테이블로 판정한다. 효과 룬이 아니거나 대상이 이전 형태 룬이면 true다.
-        /// 효과가 없는 효과 룬은 부착은 유지하되 실행 수치·비용 배율에서 제외한다.
+        /// 연결 검사(CanConnect)에서는 효과가 없는 조합의 연결을 E22로 막고, 컴파일 검사에서는
+        /// 기존 그래프 호환을 위해 부착을 유지하되 실행 수치·비용 배율에서 제외한다(W2).
         /// </summary>
         private static bool IsModifierEffective(RuneDefinition modifier, GraphNode target, RuneDefinition targetRune, RuneCatalog runes)
         {
