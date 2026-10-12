@@ -153,7 +153,7 @@ namespace RuneCode
         public string RoomName => _isMission ? GameData.L("incremental.stage") + " " + _stageNumber : GameData.L("scenario." + _scenario);
         public int CollectedFragments => _collectedFragments;
         public int Fragments => _collectedFragments;
-        /// <summary>플레이어가 획득 반경에 접근해 실제로 주운 스크랩 누계를 반환한다.</summary>
+        /// <summary>플레이어가 직접 줍거나 스테이지 클리어 시 회수한 스크랩 누계를 반환한다.</summary>
         public int EarnedFragments => _collectedFragments;
         public int ClearReward => Completed && _stageDefinition != null ? _stages.Growth.GetClearReward(_stageDefinition.ClearReward, _stageNumber) : 0;
         public int SettlementFragments => IsFailed ? (int)Math.Round(_collectedFragments * _balance.Economy.DeathRetention, MidpointRounding.AwayFromZero) : _collectedFragments + ClearReward;
@@ -1763,6 +1763,16 @@ namespace RuneCode
         /// <summary>전투 종료 시 획득하지 않은 스크랩 오브를 보상에 더하지 않고 정리한다.</summary>
         private void DiscardUncollectedOrbs() { _orbs.Clear(); }
 
+        /// <summary>클리어 시 남은 스크랩을 획득량에 더하고 Modifier를 누적·미지급 목록으로 옮긴 뒤 바닥 드롭을 비운다.</summary>
+        private void CollectRemainingDrops()
+        {
+            foreach (FragmentOrb orb in _orbs) _collectedFragments += orb.Amount;
+            _orbs.Clear();
+            _pickedUpItems.AddRange(_itemDrops);
+            _newPickedItems.AddRange(_itemDrops);
+            _itemDrops.Clear();
+        }
+
         /// <summary>처치된 적의 드롭 테이블 ID를 반환하고 없으면 null을 반환한다. 적·보스 드롭 연결 시 이 메서드에 분기를 모은다.</summary>
         private string GetDropTableId(SimulationEnemy enemy)
         {
@@ -1839,15 +1849,17 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 일반 스테이지는 목표 처치 수에 도달하면 클리어, 보스 스테이지는 보스 처치 시 클리어와 제한시간 초과 시 실패로 전투를 끝내고 획득하지 않은 스크랩 오브를 정리한다.
-        /// 클리어는 남은 적과 적 상태 이상을 모두 정리하며, 같은 틱에 시간 초과와 겹치면 클리어를 우선한다.
+        /// 일반 스테이지는 목표 처치 수, 보스 스테이지는 보스 처치로 클리어하고 남은 스크랩·Modifier를 모두 회수한다.
+        /// 보스 제한시간 초과는 미획득 스크랩을 버리며, 클리어는 남은 적·상태 이상도 정리하고 같은 틱의 시간 초과보다 우선한다.
         /// </summary>
         private void CheckBattleEnd()
         {
             if (IsBossStage ? _isBossDefeated : _targetKills >= _killTarget) _stage = MissionStage.Cleared;
             else if (IsBossStage && Time + 0.000001 >= TimeLimit) _stage = MissionStage.TimedOut;
             else return;
-            DiscardUncollectedOrbs(); CancelCombat();
+            if (_stage == MissionStage.Cleared) CollectRemainingDrops();
+            else DiscardUncollectedOrbs();
+            CancelCombat();
             if (_stage != MissionStage.Cleared) return;
             _enemies.Clear(); _enemyStatuses.Clear(); _statusIndex.Clear();
         }
