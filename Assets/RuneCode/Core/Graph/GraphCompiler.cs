@@ -263,6 +263,13 @@ namespace RuneCode
                 || graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort)
                 || graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort)))
                 issue = new CompileIssue("E18", edge.ToNode);
+            else if (input.Kind == SpellGrammar.ELEMENT_KIND && (fromRune.Category != SpellGrammar.CATEGORY_ELEMENT
+                || toRune.Category != SpellGrammar.CATEGORY_SHAPE))
+                issue = new CompileIssue("E3", edge.ToNode);
+            else if (input.Kind == SpellGrammar.ELEMENT_KIND && graph.Edges.Any(current => current.ToNode == edge.ToNode && current.ToPort == edge.ToPort))
+                issue = new CompileIssue("E6", edge.ToNode);
+            else if (output.Kind == SpellGrammar.ELEMENT_KIND && graph.Edges.Any(current => current.FromNode == edge.FromNode && current.FromPort == edge.FromPort))
+                issue = new CompileIssue("E20", edge.FromNode);
             else if (input.Kind == "mod" && !CanAttachModifier(fromRune, toRune))
                 issue = new CompileIssue("E13", edge.ToNode);
             else if (fromRune.Id == "magic.inline" && from.GetText("magicType", "sphere") == "buff"

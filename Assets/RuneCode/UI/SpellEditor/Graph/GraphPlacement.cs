@@ -53,7 +53,7 @@ namespace RuneCode
             return _viewport.GraphPoint(local);
         }
 
-        /// <summary>그래프 좌표에 룬을 지정 등급으로 배치하고 효과·Behavior를 가까운 대상에 자동 연결한다.</summary>
+        /// <summary>그래프 좌표에 룬을 지정 등급으로 배치하고 효과·속성·Behavior를 가까운 대상에 자동 연결한다.</summary>
         public void Place(string runeId, Vector2 position, string grade = null)
         {
             ISpellEditor editor = _editor();
@@ -63,7 +63,7 @@ namespace RuneCode
 
             RuneDefinition rune = GameData.Runes.Get(runeId);
             GraphNode placed = editor.Graph.Nodes[editor.Graph.Nodes.Count - 1];
-            if (SpellAutoConnect.IsModifier(rune)) AutoConnect(editor, placed, position, AUTO_CONNECT_DISTANCE);
+            if (SpellAutoConnect.IsModifier(rune) || SpellAutoConnect.IsElement(rune)) AutoConnect(editor, placed, position, AUTO_CONNECT_DISTANCE);
             else if (SpellAutoConnect.IsChainLink(rune)) AutoConnect(editor, placed, position, AUTO_CHAIN_DISTANCE);
         }
 

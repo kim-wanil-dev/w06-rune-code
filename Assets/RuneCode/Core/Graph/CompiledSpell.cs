@@ -773,7 +773,7 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 편집 그래프의 노드가 속한 컴파일 명령을 반환한다. Shape 노드는 체인 출력을 따라 합쳐진 Behavior 명령을,
+        /// 편집 그래프의 노드가 속한 컴파일 명령을 반환한다. 속성 노드는 붙은 Shape로, Shape 노드는 체인 출력을 따라 합쳐진 Behavior 명령을,
         /// Modifier 노드는 자신이 붙은 명령을 찾는다. 없으면 null을 반환한다.
         /// </summary>
         public SpellAction FindNodeAction(SpellGraph graph, string nodeId)
@@ -787,7 +787,11 @@ namespace RuneCode
                 string next = null;
                 foreach (GraphEdge edge in graph.Edges)
                 {
-                    if (edge.FromNode == current && edge.FromPort == SpellGrammar.CHAIN_OUT) { next = edge.ToNode; break; }
+                    if (edge.FromNode == current && (edge.FromPort == SpellGrammar.CHAIN_OUT || edge.FromPort == SpellGrammar.ELEMENT_PORT))
+                    {
+                        next = edge.ToNode;
+                        break;
+                    }
                 }
                 current = next;
             }

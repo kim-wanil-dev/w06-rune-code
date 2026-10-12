@@ -259,11 +259,12 @@ namespace RuneCode
         }
 
         /// <summary>
-        /// 인스펙터에 파라미터를 표시할지 반환한다. 효과량·보호막 지속시간은 속성이 Functional(회복·보호)인 Shape·Apply에서만 표시한다.
+        /// 인스펙터에 파라미터를 표시할지 반환한다. 효과량·보호막 지속시간은 Functional(회복·보호) 속성 노드와 그 속성의 Apply에서만 표시한다.
         /// </summary>
         private static bool IsParameterVisible(GraphNode node, ParameterDefinition parameter)
         {
             if (parameter.Id != SpellGrammar.POWER_PARAM && parameter.Id != SpellGrammar.BUFF_DURATION_PARAM) return true;
+            if (GameData.Runes.TryGetRuneElement(node.RuneId, out ElementDefinition own)) return own.IsFunctional;
             return GameData.Runes.TryGetNodeElement(node, out ElementDefinition element) && element.IsFunctional;
         }
 

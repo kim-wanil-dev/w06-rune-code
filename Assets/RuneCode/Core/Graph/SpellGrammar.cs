@@ -22,6 +22,8 @@ namespace RuneCode
         public const string EXEC_KIND = "exec";
         public const string MODIFIER_KIND = "mod";
         public const string CHAIN_KIND = "chain";
+        public const string ELEMENT_KIND = "element";
+        public const string ELEMENT_PORT = "element";
 
         public const string EXEC_PORT = "exec";
         public const string MODIFIER_PORT = "mod";

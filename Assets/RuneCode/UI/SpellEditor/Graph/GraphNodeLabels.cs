@@ -181,7 +181,7 @@ namespace RuneCode
             return _builder.ToString();
         }
 
-        /// <summary>Trigger·Shape·Apply·프리셋 호출의 핵심 값(시작 조건, 속성, 호출 대상)을 반환하며 해당 없으면 null을 반환한다.</summary>
+        /// <summary>Trigger·Apply·프리셋 호출의 핵심 값(시작 조건, 속성, 호출 대상)을 반환하며 해당 없으면 null을 반환한다. Shape 속성은 붙은 속성 노드로 보인다.</summary>
         private static string Summary(GraphNode node, RuneDefinition rune, IEnumerable<SpellGraph> library)
         {
             if (node.RuneId == SpellGrammar.CORE_RUNE)
@@ -189,10 +189,9 @@ namespace RuneCode
                 string trigger = node.GetText(SpellGrammar.TRIGGER_PARAM, SpellGrammar.TRIGGER_ON_ATTACK);
                 return LocalizedValue("trigger." + trigger, trigger);
             }
-            if (rune.Category == SpellGrammar.CATEGORY_SHAPE || rune.Id == SpellGrammar.APPLY_RUNE)
+            if (rune.Id == SpellGrammar.APPLY_RUNE)
             {
-                string fallback = rune.Id == SpellGrammar.APPLY_RUNE ? "healing" : SpellGrammar.ELEMENT_NEUTRAL;
-                string element = node.GetText(SpellGrammar.ELEMENT_PARAM, fallback);
+                string element = node.GetText(SpellGrammar.ELEMENT_PARAM, "healing");
                 return LocalizedValue("element." + element, element);
             }
             if (node.RuneId == SpellGrammar.CALL_RUNE)

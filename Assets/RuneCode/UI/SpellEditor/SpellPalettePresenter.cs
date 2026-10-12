@@ -41,7 +41,7 @@ namespace RuneCode
             string query = _view.SearchQuery;
             foreach (RuneDefinition rune in GameData.Runes.All)
             {
-                if (!IsPaletteRune(rune) || (_category != "all" && rune.Category != _category) || !MatchesSearch(rune, query)) continue;
+                if (!IsPaletteRune(rune) || (_category != "all" && TabCategory(rune) != _category) || !MatchesSearch(rune, query)) continue;
                 bool isUnlocked = _editor.IsRuneUnlocked(rune.Id);
                 if (!isUnlocked)
                 {
@@ -129,11 +129,17 @@ namespace RuneCode
             }, rune.Category);
         }
 
+        /// <summary>룬이 표시될 팔레트 탭 계열을 반환한다. 속성은 Shape에 붙이므로 형상 탭에 함께 둔다.</summary>
+        private static string TabCategory(RuneDefinition rune)
+        {
+            return rune.Category == SpellGrammar.CATEGORY_ELEMENT ? SpellGrammar.CATEGORY_SHAPE : rune.Category;
+        }
+
         /// <summary>팔레트에 놓을 수 있는 룬인지 반환한다. 시전 코어·내부 룬·속성(드롭다운 값)은 제외한다.</summary>
         private static bool IsPaletteRune(RuneDefinition rune)
         {
             return rune.Category != SpellGrammar.CATEGORY_CORE && rune.Category != SpellGrammar.CATEGORY_INTERNAL
-                && rune.Category != SpellGrammar.CATEGORY_ELEMENT;
+                && rune.Id != SpellGrammar.ElementRune(SpellGrammar.ELEMENT_NEUTRAL);
         }
 
         /// <summary>검색어가 비어 있거나 룬 이름·ID 중 하나와 대소문자 구분 없이 일치하는지 반환한다.</summary>

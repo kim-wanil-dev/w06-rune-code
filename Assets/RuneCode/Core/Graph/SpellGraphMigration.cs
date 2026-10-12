@@ -5,7 +5,7 @@ using System.Linq;
 namespace RuneCode
 {
     /// <summary>
-    /// 이전 저장 그래프를 현재 문법(그래프 버전 3: Trigger → Shape(Element) → Behavior, Apply(Element))으로 변환한다.
+    /// 이전 저장 그래프를 현재 문법(그래프 버전 3: Trigger → Shape(← 속성 노드) → Behavior, Apply(Element))으로 변환한다.
     /// 1단계는 이전 룬(단독 형태·속성, 직접 마법, 방벽, 점멸, 노이즈, 사거리)을 버전 2 체인으로, 2단계는 버전 2 체인을 버전 3으로 바꾼다.
     /// 버전 2→3은 이름·표현만 바뀌고 의미가 같은 변환이며, 구조가 깨진 체인은 바꾸지 않아 기존과 같은 컴파일 오류를 낸다.
     /// 의미가 바뀐 연결(이전 onComplete 등)은 다른 포트로 옮기지 않고 그대로 둔다. 컴파일러가 지원 중단·의미 변경 경고를 낸다.
@@ -100,6 +100,42 @@ namespace RuneCode
             if (MigrateModifierGrades(graph, modifierGrades)) isChanged = true;
             if (RemoveBeamBehaviors(graph)) isChanged = true;
             if (RemoveShapeSizes(graph)) isChanged = true;
+            if (SplitShapeElements(graph)) isChanged = true;
+            return isChanged;
+        }
+
+        /// <summary>
+        /// Shape 노드의 속성 드롭다운 값을 Shape element 포트에 붙는 속성 노드로 옮기고 변경 여부를 반환한다.
+        /// 무속성은 노드를 만들지 않는다. 회복·보호의 효과량·지속시간은 속성 노드로 옮기고 Shape에서는 지운다.
+        /// </summary>
+        private static bool SplitShapeElements(SpellGraph graph)
+        {
+            bool isChanged = false;
+            foreach (GraphNode shape in new List<GraphNode>(graph.Nodes))
+            {
+                if (shape == null || SpellGrammar.MagicTypeOf(shape.RuneId) == null || shape.RuneId == SpellGrammar.APPLY_RUNE) continue;
+                string element = shape.GetText(SpellGrammar.ELEMENT_PARAM, null);
+                bool hasPower = shape.Params.Any(param => param.Key == SpellGrammar.POWER_PARAM);
+                bool hasDuration = shape.Params.Any(param => param.Key == SpellGrammar.BUFF_DURATION_PARAM);
+                if (element == null && !hasPower && !hasDuration) continue;
+                isChanged = true;
+                float power = shape.GetNumber(SpellGrammar.POWER_PARAM);
+                float duration = shape.GetNumber(SpellGrammar.BUFF_DURATION_PARAM);
+                shape.RemoveParameter(SpellGrammar.ELEMENT_PARAM);
+                shape.RemoveParameter(SpellGrammar.POWER_PARAM);
+                shape.RemoveParameter(SpellGrammar.BUFF_DURATION_PARAM);
+                if (element == null || element == SpellGrammar.ELEMENT_NEUTRAL) continue;
+                string elementId = UniqueNodeId(graph, shape.Id + "-element");
+                var elementNode = new GraphNode(elementId, SpellGrammar.ElementRune(element), shape.X, shape.Y + BLOCK_DROP);
+                if (element == "healing" || element == "protection")
+                {
+                    if (hasPower) elementNode.SetNumber(SpellGrammar.POWER_PARAM, power);
+                    if (hasDuration) elementNode.SetNumber(SpellGrammar.BUFF_DURATION_PARAM, duration);
+                }
+                graph.AddNode(elementNode);
+                graph.AddEdge(new GraphEdge(UniqueEdgeId(graph, shape.Id + "-element"), elementId, SpellGrammar.ELEMENT_PORT,
+                    shape.Id, SpellGrammar.ELEMENT_PORT));
+            }
             return isChanged;
         }
 

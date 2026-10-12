@@ -1169,62 +1169,13 @@
           "_kind": "chain",
           "_direction": "out",
           "_max": 1
-        }
-      ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "element",
-          "_kind": "enum",
-          "_min": 0,
-          "_max": 0,
-          "_step": 0,
-          "_defaultNumber": 0,
-          "_defaultText": "neutral",
-          "_options": [
-            {
-              "_order": 0,
-              "_option": "neutral"
-            },
-            {
-              "_order": 1,
-              "_option": "fire"
-            },
-            {
-              "_order": 2,
-              "_option": "lightning"
-            },
-            {
-              "_order": 3,
-              "_option": "ice"
-            },
-            {
-              "_order": 4,
-              "_option": "healing"
-            },
-            {
-              "_order": 5,
-              "_option": "protection"
-            }
-          ]
-        },
-        {
-          "_order": 1,
-          "_paramId": "power",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 100,
-          "_step": 1,
-          "_defaultNumber": 20
         },
         {
           "_order": 2,
-          "_paramId": "buffDuration",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 30,
-          "_step": 0.5,
-          "_defaultNumber": 5
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "in",
+          "_max": 1
         }
       ]
 
@@ -1267,62 +1218,13 @@
           "_kind": "chain",
           "_direction": "out",
           "_max": 1
-        }
-      ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "element",
-          "_kind": "enum",
-          "_min": 0,
-          "_max": 0,
-          "_step": 0,
-          "_defaultNumber": 0,
-          "_defaultText": "neutral",
-          "_options": [
-            {
-              "_order": 0,
-              "_option": "neutral"
-            },
-            {
-              "_order": 1,
-              "_option": "fire"
-            },
-            {
-              "_order": 2,
-              "_option": "lightning"
-            },
-            {
-              "_order": 3,
-              "_option": "ice"
-            },
-            {
-              "_order": 4,
-              "_option": "healing"
-            },
-            {
-              "_order": 5,
-              "_option": "protection"
-            }
-          ]
-        },
-        {
-          "_order": 1,
-          "_paramId": "power",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 100,
-          "_step": 1,
-          "_defaultNumber": 20
         },
         {
           "_order": 2,
-          "_paramId": "buffDuration",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 30,
-          "_step": 0.5,
-          "_defaultNumber": 5
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "in",
+          "_max": 1
         }
       ]
 
@@ -1364,62 +1266,13 @@
           "_kind": "chain",
           "_direction": "out",
           "_max": 1
-        }
-      ],
-      "_params": [
-        {
-          "_order": 0,
-          "_paramId": "element",
-          "_kind": "enum",
-          "_min": 0,
-          "_max": 0,
-          "_step": 0,
-          "_defaultNumber": 0,
-          "_defaultText": "neutral",
-          "_options": [
-            {
-              "_order": 0,
-              "_option": "neutral"
-            },
-            {
-              "_order": 1,
-              "_option": "fire"
-            },
-            {
-              "_order": 2,
-              "_option": "lightning"
-            },
-            {
-              "_order": 3,
-              "_option": "ice"
-            },
-            {
-              "_order": 4,
-              "_option": "healing"
-            },
-            {
-              "_order": 5,
-              "_option": "protection"
-            }
-          ]
-        },
-        {
-          "_order": 1,
-          "_paramId": "power",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 100,
-          "_step": 1,
-          "_defaultNumber": 20
         },
         {
           "_order": 2,
-          "_paramId": "buffDuration",
-          "_kind": "number",
-          "_min": 1,
-          "_max": 30,
-          "_step": 0.5,
-          "_defaultNumber": 5
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "in",
+          "_max": 1
         }
       ]
 
@@ -1457,6 +1310,15 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
       "_element": {
         "_id": "fire",
         "_category": "elemental",
@@ -1477,6 +1339,15 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
       "_element": {
         "_id": "lightning",
         "_category": "elemental",
@@ -1497,6 +1368,15 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
       "_element": {
         "_id": "ice",
         "_category": "elemental",
@@ -1517,6 +1397,35 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [
+        {
+          "_order": 0,
+          "_paramId": "power",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 100,
+          "_step": 1,
+          "_defaultNumber": 20
+        },
+        {
+          "_order": 1,
+          "_paramId": "buffDuration",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 30,
+          "_step": 0.5,
+          "_defaultNumber": 5
+        }
+      ],
       "_element": {
         "_id": "healing",
         "_category": "functional",
@@ -1536,6 +1445,35 @@
         "_radiusMultiplier": 1,
         "_learningMultiplier": 1
       },
+      "_ports": [
+        {
+          "_order": 0,
+          "_portId": "element",
+          "_kind": "element",
+          "_direction": "out",
+          "_max": 1
+        }
+      ],
+      "_params": [
+        {
+          "_order": 0,
+          "_paramId": "power",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 100,
+          "_step": 1,
+          "_defaultNumber": 20
+        },
+        {
+          "_order": 1,
+          "_paramId": "buffDuration",
+          "_kind": "number",
+          "_min": 1,
+          "_max": 30,
+          "_step": 0.5,
+          "_defaultNumber": 5
+        }
+      ],
       "_element": {
         "_id": "protection",
         "_category": "functional",

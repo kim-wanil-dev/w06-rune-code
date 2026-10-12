@@ -183,7 +183,7 @@ namespace RuneCode
             _ui.OpenPopup<TutorialPopup>();
         }
 
-        /// <summary>Shape→발사 체인 연결, Shape의 화염 속성, 시험 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시하고 완료를 저장한다.</summary>
+        /// <summary>Shape→발사 체인 연결, Shape에 붙인 화염 속성 노드, 시험 시전 순서의 초보자 안내를 진행 상태에 맞춰 표시하고 완료를 저장한다.</summary>
         private void UpdateTutorial()
         {
             bool hasCastShape = false;
@@ -192,9 +192,9 @@ namespace RuneCode
             foreach (GraphNode node in _editor.Graph.Nodes)
             {
                 bool isShape = SpellGrammar.MagicTypeOf(node.RuneId) != null;
-                if (isShape && node.GetText(SpellGrammar.ELEMENT_PARAM) == "fire") hasFire = true;
                 foreach (GraphEdge edge in _editor.Graph.Edges)
                 {
+                    if (node.RuneId == SpellGrammar.ElementRune("fire") && edge.FromNode == node.Id && edge.FromPort == SpellGrammar.ELEMENT_PORT) hasFire = true;
                     if (isShape && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.EXEC_PORT) hasCastShape = true;
                     if (node.RuneId == "behavior.launch" && edge.ToNode == node.Id && edge.ToPort == SpellGrammar.CHAIN_IN) hasLaunch = true;
                 }
