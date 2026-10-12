@@ -1,17 +1,17 @@
 using System;
 
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace RuneCode
 {
     /// <summary>
-    /// 미션 적 하나의 몸체, 체력 막대, 엘리트 링, 공격 예고, 릴레이 오라, 이지스 방패, 보스 패치, 상태 이상·내성 표시를 갱신한다.
-    /// 몸체와 방패는 회전 자식에 두어 적이 바라보는 방향으로 돌리고, 나머지 표시는 회전하지 않는다.
+    /// 미션 적 하나의 몸체, 체력 막대, 엘리트 외곽선, 공격 예고, 릴레이 오라, 이지스 방패, 보스 패치, 상태 이상·내성 표시를 갱신한다.
+    /// 몸체와 방패는 회전 자식에 두고, 엘리트 외곽선은 몸체의 모양과 회전을 따른다. 나머지 표시는 회전하지 않는다.
     /// </summary>
     public sealed class EnemyView : MonoBehaviour
     {
         private const float CORE_SCALE = 0.48f;
-        private const float ELITE_GAP = 5f;
         private const float WARNING_GAP = 6f;
         private const float WARNING_PULSE = 3f;
         private const float WARNING_PULSE_SPEED = 16f;
@@ -25,8 +25,6 @@ namespace RuneCode
 
         private static readonly Color CoreColor = new Color(0.04f, 0.09f, 0.13f);
         private static readonly Color DummyColor = new Color(0.52f, 0.69f, 0.74f);
-        private static readonly Color EliteHpColor = new Color(1f, 0.76f, 0.24f);
-        private static readonly Color EliteSpeedColor = new Color(0.42f, 0.9f, 1f);
         private static readonly Color WarningColor = new Color(1f, 0.78f, 0.23f);
         private static readonly Color AuraColor = new Color(0.65f, 0.37f, 0.95f, 0.22f);
         private static readonly Color ShieldColor = new Color(0.95f, 0.77f, 0.40f);
@@ -43,6 +41,12 @@ namespace RuneCode
         [SerializeField] private Sprite _defaultShape;
         [SerializeField] private Color _defaultTint = new Color(0.94f, 0.34f, 0.40f);
 
+        [Header("엘리트 외곽선")]
+        [SerializeField] private Color _eliteOutlineColor = new Color(0.35f, 0.75f, 1f);
+        [SerializeField, Min(0f)] private float _eliteOutlinePadding = 2f;
+        [SerializeField, Min(0f)] private float _eliteOutlinePulseAmount = 2f;
+        [SerializeField, Min(0.1f)] private float _eliteOutlinePulsePeriod = 1f;
+
         [Header("표시")]
         [SerializeField] private Transform _rotator;
         [SerializeField] private SpriteRenderer _body;
@@ -51,7 +55,8 @@ namespace RuneCode
         [SerializeField] private SpriteRenderer _warningRing;
         [SerializeField] private SpriteRenderer _auraRing;
         [SerializeField] private SpriteRenderer _patchRing;
-        [SerializeField] private SpriteRenderer _eliteRing;
+        [FormerlySerializedAs("_eliteRing")]
+        [SerializeField] private SpriteRenderer _eliteOutline;
         [SerializeField] private SpriteRenderer _burnIcon;
         [SerializeField] private SpriteRenderer _chillIcon;
         [SerializeField] private SpriteRenderer _empIcon;
@@ -61,7 +66,7 @@ namespace RuneCode
         [SerializeField] private SpriteRenderer _circleShield;
         [SerializeField] private SpriteRenderer _sniperLine;
 
-        /// <summary>적 상태와 시뮬레이션의 상태 이상·적응 정보로 맵 중앙(origin) 기준 월드 표시를 갱신한다.</summary>
+        /// <summary>적 상태와 시뮬레이션의 시간·상태 이상·적응 정보로 맵 중앙(origin) 기준 월드 표시와 엘리트 외곽선의 맥동을 갱신한다.</summary>
         public void Apply(SimulationEnemy enemy, RuneSimulation sim, SimVector origin)
         {
             float radius = (float)enemy.Radius;
@@ -74,10 +79,15 @@ namespace RuneCode
             _body.sprite = _core.sprite = appearance != null ? appearance.Shape : _defaultShape;
             MissionWorldSpace.Place(_body, Vector2.zero, radius * 2, tint);
             MissionWorldSpace.Place(_core, Vector2.zero, radius * 2 * CORE_SCALE, CoreColor);
-            MissionWorldSpace.SetVisible(_eliteRing, enemy.IsElite);
-            // 강화형은 금색, 신속형은 청록색 링으로 구분한다. 두 배율을 모두 가지면 속도 색을 우선한다.
-            if (enemy.IsElite) MissionWorldSpace.Place(_eliteRing, Vector2.zero, (radius + ELITE_GAP) * 2,
-                enemy.SpeedMultiplier > 1 ? EliteSpeedColor : EliteHpColor);
+            MissionWorldSpace.SetVisible(_eliteOutline, enemy.IsElite);
+            if (enemy.IsElite)
+            {
+                _eliteOutline.sprite = _body.sprite;
+                _eliteOutline.transform.rotation = _body.transform.rotation;
+                float pulse = (Mathf.Sin((float)sim.Time * 2f * Mathf.PI / _eliteOutlinePulsePeriod) + 1f) * 0.5f;
+                float padding = _eliteOutlinePadding + pulse * _eliteOutlinePulseAmount;
+                MissionWorldSpace.Place(_eliteOutline, Vector2.zero, (radius + padding) * 2, _eliteOutlineColor);
+            }
 
             MissionWorldSpace.SetVisible(_warningRing, enemy.IsWarning);
             if (enemy.IsWarning)
