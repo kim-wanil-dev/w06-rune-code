@@ -10,6 +10,11 @@ namespace RuneCode
 {
     public sealed class UpgradeTreeNodeView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
+        [Header("트리 데이터 연결")]
+        [SerializeField, Tooltip("UpgradeTree SO에 배치된 노드의 ID와 일치해야 한다.")] private string _nodeId;
+
+        public string NodeId => _nodeId;
+
         [Header("정사각형 노드")]
         [SerializeField] private Image _background;
         [SerializeField] private Outline _outline;

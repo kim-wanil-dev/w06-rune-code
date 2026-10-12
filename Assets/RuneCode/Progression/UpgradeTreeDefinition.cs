@@ -16,7 +16,8 @@ namespace RuneCode
         MaxHp,
         MoveSpeed,
         RuneUnlock,
-        ScrapPickupRange
+        ScrapPickupRange,
+        KillEnergy
     }
 
     [Serializable]
@@ -47,7 +48,6 @@ namespace RuneCode
         [SerializeField] private int _requiredStage = 1;
         [SerializeField] private string _titleKey;
         [SerializeField] private string _descriptionKey;
-        [SerializeField] private Vector2 _position;
         [SerializeField] private Sprite _icon;
 
         [Header("강화 효과")]
@@ -61,7 +61,6 @@ namespace RuneCode
         public int RequiredStage => _requiredStage;
         public string TitleKey => _titleKey;
         public string DescriptionKey => _descriptionKey;
-        public Vector2 Position => _position;
         public Sprite Icon => _icon;
         public UpgradeEffectType EffectType => _effectType;
         public string RuneId => _runeId;
@@ -93,6 +92,7 @@ namespace RuneCode
     public sealed class UpgradeTreeDefinition : ScriptableObject
     {
         private const string MAINBOARD_NODE_ID = "upgrade.mainboard";
+        private const int MAX_UPGRADE_LEVEL = 99;
         private static readonly HashSet<string> _starterRuneIds = new HashSet<string>
         {
             "shape.sphere", "behavior.launch", "element.neutral"
@@ -209,12 +209,12 @@ namespace RuneCode
             error = null;
             if (node == null || string.IsNullOrWhiteSpace(node.Id) || !nodeIds.Add(node.Id) || node.RequiredStage != 1 ||
                 string.IsNullOrWhiteSpace(node.TitleKey) || string.IsNullOrWhiteSpace(node.DescriptionKey) ||
-                node.Position.x < 0 || node.Position.y < 0 || node.Levels == null || node.Levels.Count == 0 ||
+                node.Levels == null || node.Levels.Count == 0 ||
                 node.Prerequisites == null || !Enum.IsDefined(typeof(UpgradeEffectType), node.EffectType) ||
                 node.InitialLevel < 0 || node.InitialLevel > node.MaxLevel ||
                 (node.EffectType == UpgradeEffectType.RuneUnlock && node.InitialLevel != 0))
             {
-                error = "업그레이드 노드 식별·위치·레벨·시작 레벨 데이터가 유효하지 않거나 스테이지 잠금이 설정되어 있습니다.";
+                error = "업그레이드 노드 식별·레벨·시작 레벨 데이터가 유효하지 않거나 스테이지 잠금이 설정되어 있습니다.";
                 return false;
             }
             foreach (UpgradeTreeLevel level in node.Levels)
@@ -238,9 +238,9 @@ namespace RuneCode
                 return false;
             }
             if (node.EffectType != UpgradeEffectType.RuneUnlock &&
-                (node.Levels.Count > 3 || !string.IsNullOrEmpty(node.RuneId)))
+                (node.Levels.Count > MAX_UPGRADE_LEVEL || !string.IsNullOrEmpty(node.RuneId)))
             {
-                error = "강화 노드는 최대 3레벨이며 룬 ID를 가질 수 없습니다: " + node.Id;
+                error = "강화 노드는 최대 99레벨이며 룬 ID를 가질 수 없습니다: " + node.Id;
                 return false;
             }
             return true;

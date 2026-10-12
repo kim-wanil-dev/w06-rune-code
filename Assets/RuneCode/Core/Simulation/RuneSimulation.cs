@@ -51,6 +51,7 @@ namespace RuneCode
         private readonly double _moveSpeedMultiplier;
         private readonly double _scrapGainMultiplier;
         private readonly double _scrapPickupRangeMultiplier;
+        private readonly double _killEnergyBonus;
         private readonly double _burstExpandSeconds;
         private readonly double _persistWarnSeconds;
         private readonly List<SimulationEnemy> _enemies = new List<SimulationEnemy>();
@@ -183,12 +184,13 @@ namespace RuneCode
         /// <summary>명시적으로 열린 디버그 기능에서 플레이어 무적 상태를 변경한다.</summary>
         public void SetDebugInvulnerable(bool isInvulnerable) { _debugInvulnerable = isInvulnerable; }
 
-        /// <summary>시드, 스테이지와 트리 능력치를 받아 독립 전투 또는 시험 도크를 생성한다. 생략한 배율은 기본값 1을 사용한다.</summary>
+        /// <summary>시드, 스테이지와 트리 능력치·처치 전력 보너스를 받아 독립 전투 또는 시험 도크를 생성한다. 생략한 배율은 1, 보너스는 0을 사용한다.</summary>
         public RuneSimulation(int seed = 1, bool isMission = false, double maxHp = 0, double maxEnergy = 0, int stageNumber = 1, double energyRegen = 0,
             double damageMultiplier = 1, double moveSpeedMultiplier = 1, double scrapGainMultiplier = 1, CarrierDefinition carrier = null,
-            double scrapPickupRangeMultiplier = 1)
+            double scrapPickupRangeMultiplier = 1, double killEnergyBonus = 0)
         {
             GameData.Load();
+            _killEnergyBonus = Math.Max(0, killEnergyBonus);
             _balance = GameData.Balance;
             _enemyCatalog = EnemyCatalog.FromJson(LoadJson("enemies"));
             _carrier = carrier;
@@ -1698,11 +1700,11 @@ namespace RuneCode
             ExecuteCallEvent(entity, false, isFirstEvent, entity.Position, null);
         }
 
-        /// <summary>적 처치 보상으로 플레이어 에너지를 회복시킨다. 적이 떨어뜨린 크레딧의 설정 비율만큼 회복하며 소수부분은 버리고 최소 1은 채운다.</summary>
+        /// <summary>적의 처치 재화에 설정 비율을 곱해 내림한 기본 회복량을 최소 1로 보정하고 트리의 추가 전력을 더해 회복한다.</summary>
         private void GrantKillEnergy(int droppedCredits)
         {
             double amount = Math.Floor(droppedCredits * _balance.Economy.KillEnergyCreditRatio);
-            _player.RestoreEnergy(Math.Max(MIN_KILL_ENERGY, amount));
+            _player.RestoreEnergy(Math.Max(MIN_KILL_ENERGY, amount) + _killEnergyBonus);
         }
 
         /// <summary>처치된 적과 그 상태 이상을 제거하고 시간제 전투의 처치 통계, 목표 처치 수 집계, 보스 처치 판정과 RAM 오브를 생성한다. 분열형은 미션 중 처치되면 자식 생성을 예약한다.</summary>

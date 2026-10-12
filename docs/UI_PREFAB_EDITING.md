@@ -179,9 +179,21 @@ Color Multiplier는 1, Fade Duration은 0.08초이다. 상태별 배경 자식�
 
 디버그 모드로 새로 시작하거나 저장 초기화를 하면, 효과 표에 실제 값이 정의된 모든 Modifier 종류·등급을 각각 9개씩 가진다. 효과 값이 null인 등급은 지급하지 않는다. 디버그에서는 스테이지 변경 버튼으로 클리어 여부와 관계없이 이동할 수 있으며, 일반 모드의 보유량·스테이지 해금 기록과 저장 파일에는 영향을 주지 않는다.
 
+## 강화 트리 배치 편집
+
+`Assets/RuneCode/Prefabs/UI/UpgradeTreeLayout.prefab`을 Prefab Mode로 연다. 현재 트리의 노드 32개와 연결선 31개가 배치되어 있고, WorkshopScreen은 이 프리팹을 중첩해서 사용한다. 각 노드는 기존 `UpgradeTreeNode.prefab`의 인스턴스이므로 공통 디자인 변경도 유지된다.
+
+노드 이름은 `표시 이름 [노드 ID]` 형식이다. 옮길 노드를 선택하고 Rect Tool 또는 RectTransform의 Pos X / Pos Y로 위치를 수정한 뒤 저장한다. 실행할 때 노드를 재생성하거나 좌표를 덮어쓰지 않는다. 노드 위치의 원본은 이 프리팹이며 SO에는 좌표를 저장하지 않는다.
+
+연결선의 `UpgradeTreeConnectionView`는 Source / Target에 연결된 노드의 실제 중심을 따라 위치·길이·각도를 갱신한다. Prefab Mode에서도 노드를 옮기면 선이 따라온다. 선 자체를 이동하는 대신 끝점 노드를 옮긴다. 두께는 Line Width, 상태별 색상은 기존 `Elements/UpgradeTreeConnection.prefab`의 Locked / Satisfied에서 편집한다.
+
+비용·레벨·효과량·선행 구매 조건은 계속 `Assets/RuneCode/Resources/RuneCode/UpgradeTree.asset`에서 편집한다. 위치를 바꾸는 동안 `UpgradeTreeNodeView`의 Node Id는 유지한다. 새 노드를 추가하려면 SO에 배치 노드를 추가하고, 배치 프리팹에서 기존 노드를 복제해 Node Id를 맞춘다. 연결선도 복제해 Source / Target을 SO의 선행 관계와 동일하게 연결한다. 선행 관계를 변경할 때는 SO와 연결선의 끝점 참조를 함께 수정한다.
+
+강화 합계 표시는 `Assets/RuneCode/Prefabs/UI/UpgradeTreeStats.prefab`에서 디자인을 편집한다. Title은 제목, Values는 강화 수치 텍스트다. WorkshopScreen의 `UpgradeTreeViewport/UpgradeTreeStats` 인스턴스에서 화면 위치를 바꿀 수 있다. 콘텐츠 밖에 있어 우클릭 이동·휠 확대의 영향을 받지 않는다. 기본 능력치를 제외한 트리의 누적 증가량을 표시하며 루트의 시작 레벨 효과도 포함한다. 구매·디버그 초기화 후 다른 노드 표시와 함께 갱신된다.
+
 ## 코드가 계속 담당하는 항목
 
-- 강화 노드 위치·선행 관계·효과 아이콘은 Upgrade Tree SO, 연결선 길이·각도는 해당 노드 위치에 따라 결정된다.
+- 강화 노드의 비용·선행 조건·효과는 Upgrade Tree SO가 관리한다. 위치는 UpgradeTreeLayout 프리팹, 연결선 길이·각도는 연결된 노드의 실제 위치가 결정한다. 강화 합계의 표시 수치는 세션에서 계산한다.
 - 반복 목록과 인스펙터는 프리팹을 사용하되 행 높이, 표시 문자열, 입력값과 클릭 동작은 코드가 갱신한다.
 - 그래프의 노드·포트·연결선 모양은 메시로 그린다. GraphVisualStyle의 자식 Image는 색상 템플릿이며 직접 화면에 표시하지 않는다. 이 템플릿에 Sprite를 넣어도 메시 모양은 바뀌지 않는다. 자식 순서와 GraphVisualStyle의 Templates 참조 배열은 유지한다.
 - 적·마법·투사체·월드 이펙트 및 전투 피해 숫자의 색상 처리는 전투 그래픽이므로 유지한다.

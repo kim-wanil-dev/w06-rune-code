@@ -58,7 +58,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.54, g: 0.67, b: 0.77, a: 1}
+  m_Color: {r: 0.7340096, g: 0.81378096, b: 0.8742138, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -85,6 +85,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8757201994486030254}
   - component: {fileID: 5346952618048990110}
+  - component: {fileID: 2785981947695477698}
   m_Layer: 0
   m_Name: UpgradeTreeConnection
   m_TagString: Untagged
@@ -128,6 +129,23 @@ MonoBehaviour:
   _states:
   - {fileID: 913810206312648264}
   - {fileID: 7116191736725858999}
+  _selectable: {fileID: 0}
+--- !u!114 &2785981947695477698
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6772722050810372020}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 317e0c14e400fc740aaaa47cc8f0a8d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeConnectionView
+  _source: {fileID: 0}
+  _target: {fileID: 0}
+  _visual: {fileID: 5346952618048990110}
+  _lineWidth: 2.5
 --- !u!1 &7116191736725858999
 GameObject:
   m_ObjectHideFlags: 0
@@ -186,7 +204,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.24, g: 0.84, b: 0.94, a: 1}
+  m_Color: {r: 0.30838862, g: 0.9411765, b: 0.23921569, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

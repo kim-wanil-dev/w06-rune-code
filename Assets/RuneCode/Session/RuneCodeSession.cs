@@ -45,6 +45,7 @@ namespace RuneCode
         public float MoveSpeedMultiplier => 1 + GetUpgradeTreeEffectTotal(UpgradeEffectType.MoveSpeed);
         public float ScrapGainMultiplier => 1 + GetUpgradeTreeEffectTotal(UpgradeEffectType.ScrapGain);
         public float ScrapPickupRangeMultiplier => 1 + GetUpgradeTreeEffectTotal(UpgradeEffectType.ScrapPickupRange);
+        public float KillEnergyBonus => GetUpgradeTreeEffectTotal(UpgradeEffectType.KillEnergy);
         public float BattleDuration => (float)_stages.Get(1).Stream.RampSeconds;
         public int EquippedRam => CalculateEquippedRam(_spells.Graph);
         public int SelectedStage => _save.SelectedStage;
@@ -363,7 +364,7 @@ namespace RuneCode
         }
 
         /// <summary>해당 강화 유형에 속한 트리 노드의 저장 레벨까지 효과량을 합산한다.</summary>
-        private float GetUpgradeTreeEffectTotal(UpgradeEffectType effectType)
+        public float GetUpgradeTreeEffectTotal(UpgradeEffectType effectType)
         {
             float total = 0;
             foreach (UpgradeTreeNodeDefinition node in _upgradeTree.Nodes)
