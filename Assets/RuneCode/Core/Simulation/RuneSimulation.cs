@@ -2006,7 +2006,7 @@ namespace RuneCode
                 bool isStream = order.IsStream;
                 EliteSpawnDefinition elite = null;
                 if (isStream && _stageDefinition.TryGetElite(++_streamSpawns, out EliteSpawnDefinition found)) elite = found;
-                SpawnByFormation(order, elite != null ? elite.EnemyId : (isStream ? PickStreamEnemy() : order.EnemyId), elite, isStream);
+                SpawnByFormation(order, elite != null ? elite.EnemyId : (isStream ? PickStreamEnemy() : order.EnemyId), elite, isKillTarget: true);
             }
         }
 
@@ -2025,7 +2025,7 @@ namespace RuneCode
 
         /// <summary>
         /// 예약의 진형으로 플레이어 주변 원형 슬롯 중 위치를 정해 적을 생성한다. elite가 있으면 엘리트 배율로 생성하고,
-        /// isKillTarget은 기본 흐름 스폰에만 true로 받아 목표 처치 수 집계 대상으로 만든다.
+        /// isKillTarget은 기본 흐름과 웨이브 스폰에 true로 받아 목표 처치 수 집계 대상으로 만든다.
         /// 묶음의 첫 스폰에서 슬롯 시작 각도(무작위 또는 진행 방향)와 기준 슬롯을 정하고, 위치는 스폰 순간의 플레이어 위치 기준으로 계산한다.
         /// </summary>
         private void SpawnByFormation(SpawnOrder order, string enemyId, EliteSpawnDefinition elite, bool isKillTarget)
