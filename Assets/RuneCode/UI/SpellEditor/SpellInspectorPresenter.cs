@@ -133,9 +133,14 @@ namespace RuneCode
             RuneStats stats = rune.Stats;
             if (rune.Id == "mod.multi")
             {
+                if (grades.TryGetCountValue(rune.Id, grade, SpellGrammar.FORM_BOLT, out int launchCount)
+                    && grades.TryGetLaunchGradeValues(rune.Id, out _))
+                    values.Add(GameData.L("ui.gradeLaunchCount") + " " + launchCount);
                 if (stats.OrbitCount > 0) values.Add(GameData.L("ui.gradeOrbitCount") + " " + stats.OrbitCount);
                 if (stats.DamageMultiplier != 1f) values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));
                 if (stats.SpreadAngle > 0f) values.Add(GameData.L("ui.gradeSpread") + " " + stats.SpreadAngle.ToString("0.#") + "°");
+                if (grades.TryGetLaunchSpreadAngle(rune.Id, grade, out float launchSpread))
+                    values.Add(GameData.L("ui.gradeLaunchSpread") + " " + launchSpread.ToString("0.#") + "°");
             }
             if (rune.Id == "mod.expand" && stats.DamageMultiplier != 1f)
                 values.Add(GameData.L("ui.gradeDamage") + " ×" + stats.DamageMultiplier.ToString("0.##"));

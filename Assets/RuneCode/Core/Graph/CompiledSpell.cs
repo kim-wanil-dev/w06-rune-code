@@ -296,7 +296,10 @@ namespace RuneCode
                     }
                 }
                 _learningMultiplier *= stats.LearningMultiplier;
-                if (stats.SpreadAngle > 0f) _spreadAngle = stats.SpreadAngle;
+                // 발사는 등급표의 발사 전용 퍼짐 각도가 있으면 그 값을 쓴다.
+                if (formKind == SpellGrammar.FORM_BOLT && modifierGrades != null
+                    && modifierGrades.TryGetLaunchSpreadAngle(mod.Id, grade, out float launchSpread)) _spreadAngle = launchSpread;
+                else if (stats.SpreadAngle > 0f) _spreadAngle = stats.SpreadAngle;
             }
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
@@ -520,7 +523,7 @@ namespace RuneCode
                 energyMultiplier *= mod.EnergyMult;
                 if (mod.Id == "mod.multi")
                     _count = _form == "orbit" ? modifierStats.OrbitCount
-                        : modifierGrades != null && modifierGrades.TryGetIntegerValue(mod.Id, grade, out int count) ? count : modifierStats.Count;
+                        : modifierGrades != null && modifierGrades.TryGetCountValue(mod.Id, grade, _form, out int count) ? count : modifierStats.Count;
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;

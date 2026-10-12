@@ -1335,6 +1335,14 @@
       "_value": "궤도 수"
     },
     {
+      "_key": "ui.gradeLaunchCount",
+      "_value": "발사 행동 수"
+    },
+    {
+      "_key": "ui.gradeLaunchSpread",
+      "_value": "발사 행동 퍼짐"
+    },
+    {
       "_key": "ui.gradePierce",
       "_value": "관통"
     },
