@@ -1255,7 +1255,7 @@
       "_unlockCost": 200,
       "_stats": {
         "_damageMultiplier": 1,
-        "_radiusMultiplier": 1,
+        "_radiusMultiplier": 2.25,
         "_learningMultiplier": 1,
         "_coneAngle": 60
       },
