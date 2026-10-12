@@ -26,6 +26,7 @@ namespace RuneCode
         private const double COLLISION_EPSILON = 0.000001;
         private const int SHAPE_CONTACT_REFINEMENT_STEPS = 16;
         private const int WALL_CONTACT_REFINEMENT_STEPS = 12;
+        private static readonly Dictionary<int, double> NoExcludedTargets = new Dictionary<int, double>();
         private readonly BalanceData _balance;
         private readonly EnemyCatalog _enemyCatalog;
         private readonly SectorDefinition _sector;
@@ -761,7 +762,9 @@ namespace RuneCode
                 }
                 double angle = i * 2 * Math.PI / action.Count;
                 if (action.Form == "orbit") position = (context.FromEvent ? context.Origin : _player.Position) + new SimVector(Math.Cos(angle), Math.Sin(angle)) * stats.OrbitRadius;
-                double warmup = action.Form == SpellGrammar.FORM_BURST ? _burstExpandSeconds : action.Form == SpellGrammar.FORM_ZONE ? _persistWarnSeconds : 0;
+                // 잔류 예고는 속도 수식 배율만큼 빨리 끝난다.
+                double warmup = action.Form == SpellGrammar.FORM_BURST ? _burstExpandSeconds
+                    : action.Form == SpellGrammar.FORM_ZONE ? _persistWarnSeconds / stats.SpeedMultiplier : 0;
                 var entity = new SimulationSpellEntity(++_nextEntityId, action, stats, element, position, direction,
                     context.FromEvent, context.Origin, angle, context.NoiseElement, _balance.Sim.SpellVisualSeconds, warmup,
                     context.CallEvents, context.Modifiers, context.CostMultiplier, context.Caster);
@@ -793,7 +796,11 @@ namespace RuneCode
                     entity.Move(position, new SimVector(-Math.Sin(entity.Angle), Math.Cos(entity.Angle)));
                     if (entity.Action.SourceElement != "protection") HitArea(entity, false);
                 }
-                else if (entity.Kind == "zone" && !entity.IsWarning) HitArea(entity, false);
+                else if (entity.Kind == "zone" && !entity.IsWarning)
+                {
+                    if (entity.Stats.HomingRange > 0) AdvanceHomingZone(entity);
+                    HitArea(entity, false);
+                }
                 entity.Advance(STEP_SECONDS);
                 // Burst는 커진 반경으로 판정하도록 진행 후에 확장이 끝날 때까지 새 대상을 판정한다.
                 if (entity.Kind == SpellGrammar.FORM_BURST && entity.IsExpanding) HitArea(entity, true);
@@ -801,6 +808,20 @@ namespace RuneCode
                 { Expire(entity); _spellEntities.RemoveAt(i); }
                 else i++;
             }
+        }
+
+        /// <summary>
+        /// 유도 수식이 붙은 잔류를 유도 범위 안의 가장 가까운 적 쪽으로 이동 속도만큼 옮긴다. 대상에 닿으면 멈추고 벽은 통과하지 않는다.
+        /// 모양의 방향은 유지하며 예고 중에는 호출하지 않는다.
+        /// </summary>
+        private void AdvanceHomingZone(SimulationSpellEntity entity)
+        {
+            SimulationEnemy target = NearestEnemy(entity.Position, entity.Stats.HomingRange, NoExcludedTargets);
+            if (target == null) return;
+            SimVector offset = target.Position - entity.Position;
+            double step = Math.Min(entity.Stats.Speed * STEP_SECONDS, offset.Length);
+            if (step <= COLLISION_EPSILON) return;
+            entity.Move(_map.Move(entity.Position, offset.Normalized() * step, entity.Radius), entity.Direction);
         }
 
         /// <summary>볼트의 유도 방향, 벽 충돌 및 가장 가까운 순서의 관통 적중을 처리한다.</summary>

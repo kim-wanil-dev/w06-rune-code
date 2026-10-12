@@ -202,6 +202,7 @@ namespace RuneCode
     {
         private readonly float _damage;
         private readonly float _speed;
+        private readonly float _speedMultiplier;
         private readonly float _radius;
         private readonly float _shapeRadius;
         private readonly float _boxWidth;
@@ -223,6 +224,9 @@ namespace RuneCode
         private readonly float _spreadAngle;
         public float Damage => _damage;
         public float Speed => _speed;
+
+        /// <summary>속도 수식의 누적 배율이다. 잔류는 예고 시간을 이 배율로 나눈다.</summary>
+        public float SpeedMultiplier => _speedMultiplier;
         public float Radius => _radius;
         public float ShapeRadius => _shapeRadius;
         public float BoxWidth => _boxWidth;
@@ -271,6 +275,10 @@ namespace RuneCode
                         ? modifierGrades.GetPierceCount(mod.Id, grade, stats.Pierce) : stats.Pierce;
                     _pierce = SpellModifierValues.AddPierce(_pierce, pierceCount);
                     if (stats.PierceLoss > 0f) _pierceLoss = stats.PierceLoss;
+                }
+                // 유도는 발사체의 방향 전환과 잔류의 대상 추적 이동에 쓴다.
+                if (formKind == "bolt" || formKind == "zone")
+                {
                     if (modifierGrades != null && modifierGrades.GetEffectType(mod.Id) == "homingTier")
                     {
                         string tier = modifierGrades.GetGradeValue(mod.Id, grade) as string;
@@ -292,6 +300,7 @@ namespace RuneCode
             }
             _damage = form.Damage * damageMult;
             _speed = form.Speed * speedMult;
+            _speedMultiplier = speedMult;
             _shapeRadius = (shapeRadius >= 0f ? shapeRadius : form.Radius) * radiusMult;
             _boxWidth = (boxWidth >= 0f ? boxWidth : form.Radius * 2f) * radiusMult;
             _boxLength = (boxLength >= 0f ? boxLength : form.Radius * 2f) * radiusMult;
@@ -319,6 +328,7 @@ namespace RuneCode
         {
             _damage = source._damage * modifiers.DamageMultiplier;
             _speed = source._speed * modifiers.SpeedMultiplier;
+            _speedMultiplier = source._speedMultiplier * modifiers.SpeedMultiplier;
             _shapeRadius = source._shapeRadius * modifiers.RadiusMultiplier;
             _boxWidth = source._boxWidth * modifiers.RadiusMultiplier;
             _boxLength = source._boxLength * modifiers.RadiusMultiplier;
