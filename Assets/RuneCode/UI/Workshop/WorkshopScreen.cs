@@ -26,6 +26,7 @@ namespace RuneCode
 
         [Header("화면 이동")]
         [SerializeField] private Button _deployButton;
+        [SerializeField] private Button _helpButton;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _backButton;
 
@@ -52,6 +53,9 @@ namespace RuneCode
         /// <summary>시간제 전투의 스테이지 선택 화면 열기를 알린다.</summary>
         public event Action DeployClicked;
 
+        /// <summary>현재 화면 위에 게임 도움말 팝업 열기를 알린다.</summary>
+        public event Action HelpClicked;
+
         /// <summary>현재 화면 위에 설정 팝업 열기를 알린다.</summary>
         public event Action SettingsClicked;
 
@@ -68,6 +72,7 @@ namespace RuneCode
                 _tabButtons[i].onClick.AddListener(() => TabClicked?.Invoke(tab));
             }
             _deployButton.onClick.AddListener(() => DeployClicked?.Invoke());
+            _helpButton.onClick.AddListener(() => HelpClicked?.Invoke());
             _settingsButton.onClick.AddListener(() => SettingsClicked?.Invoke());
             _backButton.onClick.AddListener(() => BackClicked?.Invoke());
             _presenter = new WorkshopPresenter(session, ui, this);
