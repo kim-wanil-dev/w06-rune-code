@@ -524,8 +524,12 @@ namespace RuneCode
                 ids.Add(mod.Id);
                 energyMultiplier *= mod.EnergyMult;
                 if (mod.Id == "mod.multi")
-                    _count = modifierGrades != null && modifierGrades.TryGetCountValue(mod.Id, grade, _form, out int count) ? count
-                        : _form == "orbit" ? modifierStats.OrbitCount : modifierStats.Count;
+                {
+                    if (modifierGrades != null && modifierGrades.TryGetCountValue(mod.Id, grade, _form, out int count))
+                        _count = _form == "orbit" ? _count + count : count;
+                    else
+                        _count = _form == "orbit" ? modifierStats.OrbitCount : modifierStats.Count;
+                }
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;

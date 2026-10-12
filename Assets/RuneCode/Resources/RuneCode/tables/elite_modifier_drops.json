@@ -222,6 +222,7 @@
     "1~4스테이지와 6~9스테이지는 지정된 시작·끝 확률 사이를 선형 보간했습니다. 정수 확률 합계는 100으로 맞추고, 소수점 잔여가 같으면 높은 등급에 우선 배분했습니다.",
     "5·10스테이지는 보스 처치 드롭 없이, 스테이지 클리어 보상 화면에서 S급 MODIFIER 3종 중 1종을 선택합니다.",
     "multipleCount의 _launchGradeValues는 발사 Behavior에만 쓰는 개수입니다. 생략하면 발사도 _gradeValues를 쓰며, 값이 있는 등급은 _gradeValues와 같아야 합니다.",
-    "multipleCount의 _launchSpreadAngles는 발사 Behavior 다중 탄의 좌우 최대 퍼짐 각도(도)입니다. 생략하면 runes.json mod.multi의 _spreadAngle을 씁니다."
+    "multipleCount의 _launchSpreadAngles는 발사 Behavior 다중 탄의 좌우 최대 퍼짐 각도(도)입니다. 생략하면 runes.json mod.multi의 _spreadAngle을 씁니다.",
+    "공전에 다중을 연결하면 _gradeValues 등급값은 기본 궤도 수에 추가되는 궤도 수로 적용됩니다."
   ]
 }
