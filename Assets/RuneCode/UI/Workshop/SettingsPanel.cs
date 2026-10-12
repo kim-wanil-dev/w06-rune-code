@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace RuneCode
 {
-    /// <summary>설정 팝업의 내용 View다. 피드백 설정 문구를 표시하고 설정 전환·저장 초기화·디버그 클릭을 알린다.</summary>
+    /// <summary>설정 팝업의 내용 View다. 설정·저장·게임 종료·디버그 입력을 알린다.</summary>
     public sealed class SettingsPanel : MonoBehaviour
     {
         [Header("설정")]
@@ -54,7 +54,10 @@ namespace RuneCode
         /// <summary>수동 불러오기를 눌렀을 때 알린다.</summary>
         public event Action ManualLoadClicked;
 
-        /// <summary>버튼 클릭을 이벤트로 연결하고 디버그 도구 표시 여부를 정한다. Presenter가 한 번만 호출한다.</summary>
+        /// <summary>게임 종료를 눌렀을 때 알린다.</summary>
+        public event Action QuitClicked;
+
+        /// <summary>버튼 입력을 이벤트로 연결하고 디버그 도구와 종료 버튼을 구성한다. Presenter가 한 번만 호출한다.</summary>
         public void Bind(bool isDebugVisible)
         {
             _resetSaveButton.GetComponentInChildren<TextMeshProUGUI>().text =
@@ -67,6 +70,7 @@ namespace RuneCode
             if (_debugResetTreeButton != null) _debugResetTreeButton.onClick.AddListener(() => DebugTreeResetClicked?.Invoke());
             _debugGroup.SetActive(isDebugVisible);
             CreateSaveButtons(isDebugVisible);
+            CreateQuitButton();
         }
 
         /// <summary>화면 흔들림·히트스톱 설정의 켜짐 여부를 버튼 문구에 표시한다.</summary>
@@ -100,6 +104,23 @@ namespace RuneCode
             _autoSaveButton.gameObject.SetActive(!isDebugVisible);
             _manualSaveButton.gameObject.SetActive(!isDebugVisible);
             _manualLoadButton.gameObject.SetActive(!isDebugVisible);
+        }
+
+        /// <summary>저장 초기화 버튼을 반으로 줄이고 같은 줄에 게임 종료 버튼을 만든다.</summary>
+        private void CreateQuitButton()
+        {
+            Transform parent = _resetSaveButton.transform.parent;
+            RectTransform resetRect = (RectTransform)_resetSaveButton.transform;
+            resetRect.sizeDelta = new Vector2(216, resetRect.sizeDelta.y);
+
+            Button button = Instantiate(_resetSaveButton, parent, false);
+            button.name = "QuitButton";
+            button.onClick.RemoveAllListeners();
+            RectTransform rect = (RectTransform)button.transform;
+            rect.anchoredPosition = new Vector2(230, -280);
+            rect.sizeDelta = new Vector2(216, 48);
+            SetButtonLabel(button, GameData.L("ui.quit"));
+            button.onClick.AddListener(() => QuitClicked?.Invoke());
         }
 
         /// <summary>기존 피드백 버튼을 복제해 지정 위치에 144×48 크기의 새 버튼을 만든다.</summary>

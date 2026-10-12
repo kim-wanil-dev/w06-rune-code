@@ -1,8 +1,10 @@
 using System;
 
+using UnityEngine;
+
 namespace RuneCode
 {
-    /// <summary>설정 내용 Presenter다. 피드백 설정 저장, 공용 확인 팝업을 거친 저장 초기화, 디버그 지급·해금을 처리한다.</summary>
+    /// <summary>설정 내용 Presenter다. 저장·디버그 동작과 게임 종료 요청을 처리한다.</summary>
     public sealed class SettingsPresenter
     {
         private readonly RuneCodeSession _session;
@@ -31,6 +33,7 @@ namespace RuneCode
             _view.AutoSaveClicked += ToggleAutoSave;
             _view.ManualSaveClicked += SaveManually;
             _view.ManualLoadClicked += OpenSaveSlots;
+            _view.QuitClicked += QuitGame;
         }
 
         /// <summary>화면 흔들림과 히트스톱 설정의 현재 값을 표시한다.</summary>
@@ -116,6 +119,16 @@ namespace RuneCode
         {
             _onProgressionChanged();
             Refresh();
+        }
+
+        /// <summary>게임 프로세스 종료를 요청한다.</summary>
+        private void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
     }
