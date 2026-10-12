@@ -1,18 +1,18 @@
 namespace RuneCode
 {
     /// <summary>
-    /// 마법·노드 비용을 화면 문구로 만든다. 전력 단독 비용은 "N EN", 여러 자원은 자원 이름별 수치, 상한이 없으면 산정 불가로 표시한다.
+    /// 마법·노드 비용을 화면 문구로 만든다. 전력 단독 비용은 "N 전력", 여러 자원은 자원 이름별 수치, 상한이 없으면 산정 불가로 표시한다.
     /// 편집기 지표·노드 안내·전투 HUD가 같은 표기를 쓴다.
     /// </summary>
     public static class SpellCostText
     {
-        /// <summary>비용 묶음을 표시 문구로 반환한다. 비어 있으면 0 EN, 무한·NaN이 있으면 산정 불가를 반환한다.</summary>
+        /// <summary>비용 묶음을 표시 문구로 반환한다. 비어 있으면 0 전력, 무한·NaN이 있으면 산정 불가를 반환한다.</summary>
         public static string Format(ResourceCostSet costs)
         {
             if (IsUnbounded(costs)) return GameData.L("ui.costUnbounded");
-            if (costs.Amounts.Count == 0) return "0 EN";
+            if (costs.Amounts.Count == 0) return "0 전력";
             if (costs.Amounts.Count == 1 && costs.Amounts[0].Resource == "mana")
-                return costs.Amounts[0].Amount.ToString("0.#") + " EN";
+                return costs.Amounts[0].Amount.ToString("0.#") + " 전력";
             return costs.Format(ResourceName);
         }
 
@@ -38,6 +38,7 @@ namespace RuneCode
         /// <summary>자원 ID의 현지화 이름을 반환하고 번역이 없으면 ID를 반환한다.</summary>
         private static string ResourceName(string resource)
         {
+            if (resource == "mana") return GameData.L("ui.energy");
             string key = "resource." + resource;
             string value = GameData.L(key);
             return value == key ? resource : value;

@@ -134,7 +134,7 @@ namespace RuneCode
             RefreshAll();
         }
 
-        /// <summary>장착 RAM·그래프 RAM과 시전·최대 비용, 쿨다운·실행 시간·예상 동시 개체 수(컴파일 실패 시 주의)를 표시한다.</summary>
+        /// <summary>장착 RAM·그래프 RAM, 시전 비용, 쿨다운과 예상 실행 시간을 표시한다.</summary>
         private void RefreshMetrics()
         {
             CompiledSpell spell = _editor.CompileResult.Spell;
@@ -146,10 +146,9 @@ namespace RuneCode
                 + RAM_HIGHLIGHT_CLOSE;
             text += spell == null
                 ? "  ·  " + GameData.L("ui.warning")
-                : "  ·  " + SpellCostText.FormatCastAndMax(spell.CastCosts, spell.ResourceCosts) + "  ·  " + GameData.L("ui.cooldown") + " "
+                : "  ·  " + GameData.L("ui.castCost") + " " + SpellCostText.Format(spell.CastCosts) + "  ·  " + GameData.L("ui.cooldown") + " "
                     + spell.GetCooldownSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  " + GameData.L("ui.executionTime") + " "
-                    + spell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s  ·  "
-                    + GameData.L("ui.peak") + " " + spell.WorstCaseEntities;
+                    + spell.GetEstimatedExecutionSeconds(GameData.Balance.Sim.ExecutionTimeScale).ToString("0.00") + "s";
             _view.SetMetrics(text);
         }
 

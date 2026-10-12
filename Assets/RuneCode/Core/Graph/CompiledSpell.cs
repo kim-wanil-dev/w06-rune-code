@@ -344,7 +344,7 @@ namespace RuneCode
             _angularSpeed = source._angularSpeed * modifiers.SpeedMultiplier;
             _hitInterval = source._hitInterval;
             _tickInterval = source._tickInterval;
-            _pierce = source._pierce + modifiers.Pierce;
+            _pierce = SpellModifierValues.AddPierce(source._pierce, modifiers.Pierce);
             _pierceLoss = source._pierceLoss;
             _homingTurn = Math.Max(source._homingTurn, modifiers.HomingTurn);
             _homingRange = Math.Max(source._homingRange, modifiers.HomingRange);
@@ -524,8 +524,8 @@ namespace RuneCode
                 ids.Add(mod.Id);
                 energyMultiplier *= mod.EnergyMult;
                 if (mod.Id == "mod.multi")
-                    _count = _form == "orbit" ? modifierStats.OrbitCount
-                        : modifierGrades != null && modifierGrades.TryGetCountValue(mod.Id, grade, _form, out int count) ? count : modifierStats.Count;
+                    _count = modifierGrades != null && modifierGrades.TryGetCountValue(mod.Id, grade, _form, out int count) ? count
+                        : _form == "orbit" ? modifierStats.OrbitCount : modifierStats.Count;
                 if (mod.Id == "mod.noise") _isNoise = true;
             }
             _mods = ids;
