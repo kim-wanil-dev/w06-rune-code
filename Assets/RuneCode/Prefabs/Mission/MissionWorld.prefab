@@ -152,6 +152,7 @@ MonoBehaviour:
   _orbPrefab: {fileID: 8419963189922079988, guid: a2f1fcd356951124fb9f6358308071b7, type: 3}
   _itemDropPrefab: {fileID: 4608763262859233692, guid: ce8cb89c198d24243be0fefff08b0c20, type: 3}
   _damageNumberPrefab: {fileID: 6844022398535837662, guid: e194a831a998ee84186e3d7bf38a9855, type: 3}
+  _arcLinkPrefab: {fileID: 1441801061468820589, guid: 570f313f61d5ba4419deeb66b79e79d6, type: 3}
   _squareSprite: {fileID: 21300000, guid: aaed5b4e5cff1f045a9955578a1ea607, type: 3}
   _spriteMaterial: {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
   _gridSpacing: 64

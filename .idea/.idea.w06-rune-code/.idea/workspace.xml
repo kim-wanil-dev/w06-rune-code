@@ -9,11 +9,6 @@
   <component name="ChangeListManager">
     <list default="true" id="1e05dadf-7cfa-4551-bfb4-13a93fa3b3c9" name="변경" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.w06-rune-code/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.w06-rune-code/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Core/Simulation/RuneSimulation.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/enemies.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/enemies.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/stages.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/Resources/RuneCode/stages.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/World/MissionWorldView.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Mission/World/MissionWorldView.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/RuneCode/UI/Shared/RuneArenaGraphic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/RuneCode/UI/Shared/RuneArenaGraphic.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

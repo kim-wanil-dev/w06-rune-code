@@ -19,11 +19,26 @@
   },
   "_stationaryAdvanceSpeed": 55,
   "_rewards": [
-    { "_enemyId": "enemy.bomb_seed", "_reward": 3 },
-    { "_enemyId": "enemy.clock_sniper", "_reward": 5 },
-    { "_enemyId": "enemy.shield_melee", "_reward": 4 },
-    { "_enemyId": "enemy.shield_ranged", "_reward": 6 },
-    { "_enemyId": "enemy.carrier", "_reward": 8 },
+    {
+      "_enemyId": "enemy.bomb_seed",
+      "_reward": 3
+    },
+    {
+      "_enemyId": "enemy.clock_sniper",
+      "_reward": 5
+    },
+    {
+      "_enemyId": "enemy.shield_melee",
+      "_reward": 4
+    },
+    {
+      "_enemyId": "enemy.shield_ranged",
+      "_reward": 6
+    },
+    {
+      "_enemyId": "enemy.carrier",
+      "_reward": 8
+    },
     {
       "_enemyId": "enemy.scout",
       "_reward": 2
@@ -572,7 +587,8 @@
           "_radiusMultiplier": 1.5,
           "_dropTable": "drop.elite.basic"
         }
-      ]
+      ],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 5,
@@ -613,8 +629,8 @@
             "_weight": 0.5
           }
         ],
-        "_baseInterval": 1.6,
-        "_minInterval": 0.35,
+        "_baseInterval": 4,
+        "_minInterval": 4,
         "_stageScale": 0.08,
         "_intraRamp": 0.5,
         "_rampSeconds": 60,
@@ -672,7 +688,9 @@
             }
           ]
         }
-      ]
+      ],
+      "_eliteTypes": [],
+      "_modifierRewards": []
     },
     {
       "_fromStage": 6,
@@ -1007,8 +1025,8 @@
             "_weight": 0.5
           }
         ],
-        "_baseInterval": 2.4,
-        "_minInterval": 0.9,
+        "_baseInterval": 4,
+        "_minInterval": 4,
         "_stageScale": 0.08,
         "_intraRamp": 0.25,
         "_rampSeconds": 60,
@@ -1147,7 +1165,8 @@
         }
       ],
       "_eliteEvery": 0,
-      "_eliteTypes": []
+      "_eliteTypes": [],
+      "_modifierRewards": []
     }
   ]
 }

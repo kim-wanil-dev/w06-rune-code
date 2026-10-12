@@ -19,6 +19,7 @@ namespace RuneCode
         private const double DAMAGE_EPSILON = 0.000001;
         private const int MAX_DAMAGE_NUMBERS = 64;
         private const int DAMAGE_NUMBER_TICKS = 40;
+        private const int MAX_ARC_LINKS = 32;
         private const float WALL_EDGE_WIDTH = 1f;
         private const float GRID_LINE_WIDTH = 1f;
         private const int GRID_ORDER = 0;
@@ -40,6 +41,7 @@ namespace RuneCode
         [SerializeField] private OrbView _orbPrefab;
         [SerializeField] private ItemDropView _itemDropPrefab;
         [SerializeField] private DamageNumberView _damageNumberPrefab;
+        [SerializeField] private ArcLinkView _arcLinkPrefab;
 
         [Header("맵")]
         [SerializeField] private Sprite _squareSprite;
@@ -55,6 +57,7 @@ namespace RuneCode
         private readonly List<OrbView> _orbViews = new List<OrbView>();
         private readonly List<ItemDropView> _itemDropViews = new List<ItemDropView>();
         private readonly List<DamageNumberView> _damageNumberViews = new List<DamageNumberView>();
+        private readonly List<ArcLinkView> _arcLinkViews = new List<ArcLinkView>();
         private Func<RuneSimulation> _simulation;
         private Func<bool> _isShakeEnabled;
         private Func<bool> _isHitStopEnabled;
@@ -122,6 +125,13 @@ namespace RuneCode
                 GetView(_damageNumberViews, _damageNumberPrefab, count++).Apply(number, elapsed, origin);
             }
             HideFrom(_damageNumberViews, count);
+            count = 0;
+            foreach (ArcLink link in sim.ArcLinks)
+            {
+                if (count >= MAX_ARC_LINKS) break;
+                GetView(_arcLinkViews, _arcLinkPrefab, count++).Apply(link, sim.Tick - link.Tick, origin);
+            }
+            HideFrom(_arcLinkViews, count);
         }
 
         /// <summary>새 시뮬레이션의 맵을 다시 만들고 피해 감지 기준값을 현재 값으로 맞춘다.</summary>
