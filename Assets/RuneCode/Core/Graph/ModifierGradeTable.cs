@@ -8,6 +8,9 @@ namespace RuneCode
     public sealed class ModifierGradeTable
     {
         private const string TABLE_FILE = "elite_modifier_drops.json";
+        private const string LAUNCH_COUNT_KEY = "_launchGradeValues";
+        private const string LAUNCH_SPREAD_KEY = "_launchSpreadAngles";
+        private const double MAX_LAUNCH_SPREAD_ANGLE = 90d;
         private static readonly IReadOnlyDictionary<string, int> EMPTY_CHANCES = new Dictionary<string, int>(StringComparer.Ordinal);
 
         private readonly IReadOnlyList<string> _gradeOrder;
@@ -124,6 +127,42 @@ namespace RuneCode
             return true;
         }
 
+        /// <summary>
+        /// Form에 맞는 다중 개수 등급 값을 읽는다. 발사(bolt)이고 발사 전용 값이 있으면 그 값을, 아니면 공용 등급 값을 쓴다.
+        /// 숫자가 아니거나 null이면 false를 반환한다.
+        /// </summary>
+        public bool TryGetCountValue(string modifierId, string grade, string form, out int value)
+        {
+            value = 0;
+            if (form == SpellGrammar.FORM_BOLT && TryGetLaunchGradeValues(modifierId, out IReadOnlyDictionary<string, object> launchValues))
+            {
+                if (string.IsNullOrEmpty(grade) || !launchValues.TryGetValue(grade, out object launchValue) || !(launchValue is double launchNumber)) return false;
+                value = (int)launchNumber;
+                return true;
+            }
+            return TryGetIntegerValue(modifierId, grade, out value);
+        }
+
+        /// <summary>발사 Behavior 전용 등급 값이 있으면 반환한다. 없으면 false를 반환한다.</summary>
+        public bool TryGetLaunchGradeValues(string modifierId, out IReadOnlyDictionary<string, object> values)
+        {
+            values = null;
+            if (string.IsNullOrEmpty(modifierId) || !_effects.TryGetValue(modifierId, out ModifierGradeEffect effect)) return false;
+            values = effect.LaunchGradeValues;
+            return values != null;
+        }
+
+        /// <summary>발사 Behavior 다중 탄의 등급별 좌우 최대 퍼짐 각도(도)를 읽는다. 발사 전용 값이 없거나 null이면 false를 반환한다.</summary>
+        public bool TryGetLaunchSpreadAngle(string modifierId, string grade, out float value)
+        {
+            value = 0f;
+            if (string.IsNullOrEmpty(modifierId) || string.IsNullOrEmpty(grade)
+                || !_effects.TryGetValue(modifierId, out ModifierGradeEffect effect) || effect.LaunchSpreadAngles == null
+                || !effect.LaunchSpreadAngles.TryGetValue(grade, out object angle) || !(angle is double number)) return false;
+            value = (float)number;
+            return true;
+        }
+
         /// <summary>관통 등급 값을 반환하고 ALL은 명명된 무제한 상한으로 바꾼다.</summary>
         public int GetPierceCount(string modifierId, string grade, int fallback)
         {
@@ -216,7 +255,11 @@ namespace RuneCode
                 Dictionary<string, object> values = ReadGradeValues(row, modifierId, gradeOrder, log);
                 if (!HasAvailableValue(values)) log.Add(modifierId, "_gradeValues", "값이 있는 등급이 하나 이상 있어야 합니다.");
                 ValidateGradeValueTypes(modifierId, effectType, values, rune, log);
-                result.Add(modifierId, new ModifierGradeEffect(name, effectType, values));
+                Dictionary<string, object> launchValues = ReadLaunchGradeValues(row, modifierId, effectType, gradeOrder, values, log, LAUNCH_COUNT_KEY);
+                if (launchValues != null) ValidateGradeValueTypes(modifierId, effectType, launchValues, rune, log, LAUNCH_COUNT_KEY);
+                Dictionary<string, object> spreadAngles = ReadLaunchGradeValues(row, modifierId, effectType, gradeOrder, values, log, LAUNCH_SPREAD_KEY);
+                if (spreadAngles != null) ValidateSpreadAngles(modifierId, spreadAngles, log);
+                result.Add(modifierId, new ModifierGradeEffect(name, effectType, values, launchValues, spreadAngles));
                 modifierOrder.Add(modifierId);
             }
             return result;
@@ -231,21 +274,55 @@ namespace RuneCode
                     log.Add(rune.Id, "_modifierGradeEffects", "Modifier 등급 효과 정의가 없습니다.");
         }
 
-        /// <summary>등급 값 객체를 읽고 _gradeOrder와 키 집합이 같은지 검사한다.</summary>
+        /// <summary>등급 값 객체를 읽고 _gradeOrder와 키 집합이 같은지 검사한다. key로 읽을 필드를 지정한다.</summary>
         private static Dictionary<string, object> ReadGradeValues(Dictionary<string, object> row, string modifierId,
-            IReadOnlyList<string> gradeOrder, TableErrorLog log)
+            IReadOnlyList<string> gradeOrder, TableErrorLog log, string key = "_gradeValues")
         {
-            if (!TryObject(Get(row, "_gradeValues"), out Dictionary<string, object> values))
+            if (!TryObject(Get(row, key), out Dictionary<string, object> values))
             {
-                log.Add(modifierId, "_gradeValues", "등급 값은 객체여야 합니다.");
+                log.Add(modifierId, key, "등급 값은 객체여야 합니다.");
                 return new Dictionary<string, object>(StringComparer.Ordinal);
             }
             var expected = new HashSet<string>(gradeOrder, StringComparer.Ordinal);
             foreach (string grade in gradeOrder)
-                if (!values.ContainsKey(grade)) log.Add(modifierId, "_gradeValues." + grade, "등급 순서에 해당하는 키가 없습니다.");
+                if (!values.ContainsKey(grade)) log.Add(modifierId, key + "." + grade, "등급 순서에 해당하는 키가 없습니다.");
             foreach (string grade in values.Keys)
-                if (!expected.Contains(grade)) log.Add(modifierId, "_gradeValues." + grade, "_gradeOrder에 없는 등급 키입니다.");
+                if (!expected.Contains(grade)) log.Add(modifierId, key + "." + grade, "_gradeOrder에 없는 등급 키입니다.");
             return values;
+        }
+
+        /// <summary>
+        /// 선택 필드인 발사 전용 등급 값(key)을 읽는다. multipleCount에만 허용하고,
+        /// 값이 있는 등급은 _gradeValues와 같아야 한다. 필드가 없거나 null이면 null을 반환한다. 값 타입은 호출부가 검사한다.
+        /// </summary>
+        private static Dictionary<string, object> ReadLaunchGradeValues(Dictionary<string, object> row, string modifierId,
+            string effectType, IReadOnlyList<string> gradeOrder, Dictionary<string, object> gradeValues, TableErrorLog log, string key)
+        {
+            if (Get(row, key) == null) return null;
+            if (effectType != "multipleCount")
+            {
+                log.Add(modifierId, key, "multipleCount 효과에만 사용할 수 있습니다.");
+                return null;
+            }
+            Dictionary<string, object> values = ReadGradeValues(row, modifierId, gradeOrder, log, key);
+            foreach (string grade in gradeOrder)
+            {
+                bool hasShared = gradeValues.TryGetValue(grade, out object shared) && shared != null;
+                bool hasLaunch = values.TryGetValue(grade, out object launch) && launch != null;
+                if (hasShared != hasLaunch) log.Add(modifierId, key + "." + grade, "값이 있는 등급은 _gradeValues와 같아야 합니다.");
+            }
+            return values;
+        }
+
+        /// <summary>발사 다중 퍼짐 각도가 0 이상 MAX_LAUNCH_SPREAD_ANGLE 이하의 숫자인지 검사한다.</summary>
+        private static void ValidateSpreadAngles(string modifierId, Dictionary<string, object> values, TableErrorLog log)
+        {
+            foreach (KeyValuePair<string, object> pair in values)
+            {
+                if (pair.Value == null) continue;
+                if (!(pair.Value is double angle) || angle < 0d || angle > MAX_LAUNCH_SPREAD_ANGLE)
+                    log.Add(modifierId, LAUNCH_SPREAD_KEY + "." + pair.Key, "0에서 " + MAX_LAUNCH_SPREAD_ANGLE + " 사이의 숫자(도)여야 합니다.");
+            }
         }
 
         /// <summary>등급 값 객체에 null이 아닌 값이 하나라도 있는지 반환한다.</summary>
@@ -256,9 +333,9 @@ namespace RuneCode
             return false;
         }
 
-        /// <summary>각 등급 값의 JSON 타입과 효과 종류 규칙을 검사한다.</summary>
+        /// <summary>각 등급 값의 JSON 타입과 효과 종류 규칙을 검사한다. key는 오류에 표시할 필드 이름이다.</summary>
         private static void ValidateGradeValueTypes(string modifierId, string effectType, Dictionary<string, object> values,
-            RuneDefinition rune, TableErrorLog log)
+            RuneDefinition rune, TableErrorLog log, string key = "_gradeValues")
         {
             bool isKnownEffect = effectType == "effectMultiplier" || effectType == "multipleCount" || effectType == "pierceCount"
                 || effectType == "radiusMultiplier" || effectType == "durationMultiplier" || effectType == "speedMultiplier"
@@ -267,7 +344,7 @@ namespace RuneCode
             foreach (KeyValuePair<string, object> pair in values)
             {
                 if (pair.Value == null) continue;
-                string field = "_gradeValues." + pair.Key;
+                string field = key + "." + pair.Key;
                 if (effectType == "effectMultiplier" || effectType == "radiusMultiplier" || effectType == "durationMultiplier"
                     || effectType == "speedMultiplier")
                 {
@@ -459,19 +536,28 @@ namespace RuneCode
         }
     }
 
-    /// <summary>Modifier 하나의 등급 이름·효과 종류·등급값을 보관한다.</summary>
+    /// <summary>Modifier 하나의 등급 이름·효과 종류·등급값과 선택적인 발사 전용 등급값을 보관한다.</summary>
     internal sealed class ModifierGradeEffect
     {
         public string Name { get; }
         public string EffectType { get; }
         public IReadOnlyDictionary<string, object> GradeValues { get; }
 
+        /// <summary>발사 Behavior에만 쓰는 등급값이다. 없으면 null이며 발사도 GradeValues를 쓴다.</summary>
+        public IReadOnlyDictionary<string, object> LaunchGradeValues { get; }
+
+        /// <summary>발사 Behavior 다중 탄의 등급별 좌우 최대 퍼짐 각도다. 없으면 null이며 룬 기본 퍼짐 각도를 쓴다.</summary>
+        public IReadOnlyDictionary<string, object> LaunchSpreadAngles { get; }
+
         /// <summary>검증이 끝난 Modifier 효과 값을 보관한다.</summary>
-        public ModifierGradeEffect(string name, string effectType, IReadOnlyDictionary<string, object> gradeValues)
+        public ModifierGradeEffect(string name, string effectType, IReadOnlyDictionary<string, object> gradeValues,
+            IReadOnlyDictionary<string, object> launchGradeValues = null, IReadOnlyDictionary<string, object> launchSpreadAngles = null)
         {
             Name = name;
             EffectType = effectType;
             GradeValues = gradeValues;
+            LaunchGradeValues = launchGradeValues;
+            LaunchSpreadAngles = launchSpreadAngles;
         }
     }
 
