@@ -9,23 +9,20 @@ using UnityEngine.UI;
 namespace RuneCode
 {
     /// <summary>
-    /// 강화 트리 탭 View다. 트리 자산의 위치·선행 조건대로 노드 아이콘과 연결선을 만들고, 노드 클릭·포인터 진입을 알리며
+    /// 강화 트리 탭 View다. 배치 프리팹의 노드·연결선을 데이터 ID에 연결하고, 노드 클릭·포인터 진입을 알리며
     /// 요약·노드 상태·연결선 상태·정보 패널을 표시한다. 상태 계산과 구매는 UpgradeTreePresenter가 한다.
     /// </summary>
     public sealed class UpgradeTreePanel : MonoBehaviour
     {
-        private const float NODE_SIZE = 76;
         private const float INITIAL_ZOOM = 0.88f;
         private const float CONTENT_MARGIN = 42;
-        private const float LINE_WIDTH = 2.5f;
 
         [Header("트리 데이터")]
         [SerializeField] private UpgradeTreeDefinition _definition;
-        [SerializeField] private UpgradeTreeNodeView _nodePrefab;
-        [SerializeField] private UiStateVisual _connectionPrefab;
 
         [Header("트리 화면")]
         [SerializeField] private TextMeshProUGUI _summary;
+        [SerializeField] private TextMeshProUGUI _statsSummary;
         [SerializeField] private RectTransform _viewport;
         [SerializeField] private RectTransform _content;
         [SerializeField] private RectTransform _hoverPanel;
@@ -36,7 +33,7 @@ namespace RuneCode
         [SerializeField] private TextMeshProUGUI _hoverCost;
 
         private readonly Dictionary<string, UpgradeTreeNodeView> _nodeViews = new Dictionary<string, UpgradeTreeNodeView>();
-        private readonly List<TreeConnection> _connections = new List<TreeConnection>();
+        private UpgradeTreeConnectionView[] _connections = Array.Empty<UpgradeTreeConnectionView>();
         private readonly Vector3[] _tooltipCorners = new Vector3[4];
         private string _tooltipNodeId;
 
@@ -49,32 +46,25 @@ namespace RuneCode
         /// <summary>포인터가 노드에 들어오거나(true) 나갈 때(false) 노드 ID와 함께 알린다.</summary>
         public event Action<string, bool> NodeHovered;
 
-        /// <summary>트리 자산으로 연결선과 노드 아이콘을 배치하고 정보 패널을 닫아 둔다. Presenter가 한 번만 호출한다.</summary>
+        /// <summary>프리팹에 배치한 노드를 SO의 ID에 연결하고 기존 위치를 유지해 화면과 연결선을 준비한다.</summary>
         public void Build()
         {
-            UiFactory.ClearChildren(_content);
             _nodeViews.Clear();
-            _connections.Clear();
             _hoverPanel.gameObject.SetActive(false);
+            foreach (UpgradeTreeNodeView view in _content.GetComponentsInChildren<UpgradeTreeNodeView>(true)) BindNode(view);
+            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
+                if (node != null && !_nodeViews.ContainsKey(node.Id))
+                    Debug.LogError("[UpgradeTree] 배치 프리팹에 노드가 없습니다: " + node.Id, this);
+            _connections = _content.GetComponentsInChildren<UpgradeTreeConnectionView>(true);
             ResetContent();
-            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
-            {
-                if (node?.Prerequisites == null) continue;
-                foreach (UpgradeTreePrerequisite prerequisite in node.Prerequisites)
-                {
-                    UpgradeTreeNodeDefinition source = _definition.FindNode(prerequisite.NodeId);
-                    if (source != null) CreateConnection(source, node);
-                }
-            }
-            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
-            {
-                if (node == null || string.IsNullOrWhiteSpace(node.Id)) continue;
-                CreateNode(node);
-            }
+            foreach (UpgradeTreeConnectionView connection in _connections) connection.RefreshLayout();
         }
 
         /// <summary>상단 요약 문구를 표시한다.</summary>
         public void SetSummary(string text) => _summary.text = text;
+
+        /// <summary>기본 능력치를 제외한 트리 강화 합계를 화면 좌측 상단의 고정 텍스트에 표시한다.</summary>
+        public void SetStatsSummary(string text) => _statsSummary.text = text;
 
         /// <summary>노드 효과·룬 분류와 레벨 채움·다음 구매 비용·열림·완료·구매 가능 상태를 표시한다.</summary>
         public void SetNodeState(string nodeId, UpgradeEffectType effectType, string runeCategory, Sprite icon, int level, int maxLevel, int nextCost, bool isAvailable, bool isComplete, bool canPurchase)
@@ -85,8 +75,8 @@ namespace RuneCode
         /// <summary>노드 ID별 학습 여부를 받아 연결된 양쪽 노드를 모두 배웠을 때만 연결선을 강조한다.</summary>
         public void SetConnectionStates(Func<string, bool> isLearned)
         {
-            foreach (TreeConnection connection in _connections)
-                connection.Visual.Show(isLearned(connection.SourceNodeId) && isLearned(connection.TargetNodeId) ? 1 : 0);
+            foreach (UpgradeTreeConnectionView connection in _connections)
+                connection.SetLearned(isLearned(connection.SourceNodeId) && isLearned(connection.TargetNodeId));
         }
 
         /// <summary>노드 위 정보 상자에 이름·설명·강화 레벨·다음 상승량·비용을 표시한다.</summary>
@@ -137,73 +127,50 @@ namespace RuneCode
             UpgradeTreeNodeDefinition root = null;
             foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
                 if (node != null && node.Prerequisites.Count == 0) { root = node; break; }
-            float rootCenter = root == null ? 0 : root.Position.x + NODE_SIZE * 0.5f;
+            float rootCenter = root != null && _nodeViews.TryGetValue(root.Id, out UpgradeTreeNodeView rootView)
+                ? GetNodeBounds(rootView).center.x : 0;
             _content.anchoredPosition = new Vector2(_viewport.rect.width * 0.5f - rootCenter * INITIAL_ZOOM, 0);
             _content.localScale = Vector3.one * INITIAL_ZOOM;
             float rightEdge = 0;
             float bottomEdge = 0;
-            foreach (UpgradeTreeNodeDefinition node in _definition.Nodes)
+            foreach (UpgradeTreeNodeView view in _nodeViews.Values)
             {
-                if (node == null) continue;
-                rightEdge = Mathf.Max(rightEdge, node.Position.x + NODE_SIZE);
-                bottomEdge = Mathf.Max(bottomEdge, node.Position.y + NODE_SIZE);
+                Rect bounds = GetNodeBounds(view);
+                rightEdge = Mathf.Max(rightEdge, bounds.xMax);
+                bottomEdge = Mathf.Max(bottomEdge, -bounds.yMin);
             }
             _content.sizeDelta = new Vector2(Mathf.Max(_viewport.rect.width, rightEdge + CONTENT_MARGIN),
                 Mathf.Max(_viewport.rect.height, bottomEdge + CONTENT_MARGIN));
         }
 
-        /// <summary>노드 아이콘 Prefab을 자산 위치에 배치하고 클릭·포인터 진입을 이벤트로 연결한다.</summary>
-        private void CreateNode(UpgradeTreeNodeDefinition node)
+        /// <summary>배치한 노드의 사각형을 이동·확대 전 콘텐츠 로컬 좌표로 반환한다.</summary>
+        private Rect GetNodeBounds(UpgradeTreeNodeView view)
         {
-            UpgradeTreeNodeView view = Instantiate(_nodePrefab, _content, false);
-            view.name = node.Id;
             RectTransform rect = (RectTransform)view.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0, 1);
-            rect.pivot = new Vector2(0, 1);
-            rect.anchoredPosition = new Vector2(node.Position.x, -node.Position.y);
-            rect.sizeDelta = new Vector2(NODE_SIZE, NODE_SIZE);
-            string nodeId = node.Id;
+            rect.GetWorldCorners(_tooltipCorners);
+            Vector2 minimum = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 maximum = new Vector2(float.MinValue, float.MinValue);
+            foreach (Vector3 corner in _tooltipCorners)
+            {
+                Vector2 local = _content.InverseTransformPoint(corner);
+                minimum = Vector2.Min(minimum, local);
+                maximum = Vector2.Max(maximum, local);
+            }
+            return Rect.MinMaxRect(minimum.x, minimum.y, maximum.x, maximum.y);
+        }
+
+        /// <summary>프리팹 노드 ID의 데이터 존재·중복을 확인하고 클릭·호버 이벤트를 연결한다. 노드 위치는 변경하지 않는다.</summary>
+        private void BindNode(UpgradeTreeNodeView view)
+        {
+            string nodeId = view.NodeId;
+            if (string.IsNullOrEmpty(nodeId) || _definition.FindNode(nodeId) == null || _nodeViews.ContainsKey(nodeId))
+            {
+                Debug.LogError("[UpgradeTree] 배치 노드 ID가 비어 있거나 SO에 없거나 중복됩니다: " + nodeId, view);
+                return;
+            }
             view.SetPurchaseAction(() => NodeClicked?.Invoke(nodeId));
             view.SetHoverAction(isHovered => NodeHovered?.Invoke(nodeId, isHovered));
-            _nodeViews.Add(node.Id, view);
-        }
-
-        /// <summary>두 노드 중심을 잇는 직선을 노드 뒤에 만들고 양 끝의 노드 ID와 함께 저장한다.</summary>
-        private void CreateConnection(UpgradeTreeNodeDefinition source, UpgradeTreeNodeDefinition target)
-        {
-            Vector2 start = new Vector2(source.Position.x + NODE_SIZE * 0.5f, -source.Position.y - NODE_SIZE * 0.5f);
-            Vector2 end = new Vector2(target.Position.x + NODE_SIZE * 0.5f, -target.Position.y - NODE_SIZE * 0.5f);
-            Vector2 delta = end - start;
-            UiStateVisual visual = Instantiate(_connectionPrefab, _content);
-            GameObject lineObject = visual.gameObject;
-            lineObject.name = source.Id + "To" + target.Id;
-            RectTransform lineRect = lineObject.GetComponent<RectTransform>();
-            lineRect.anchorMin = lineRect.anchorMax = new Vector2(0, 1);
-            lineRect.pivot = new Vector2(0.5f, 0.5f);
-            lineRect.anchoredPosition = (start + end) * 0.5f;
-            lineRect.sizeDelta = new Vector2(delta.magnitude, LINE_WIDTH);
-            lineRect.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            _connections.Add(new TreeConnection(visual, source.Id, target.Id));
-            lineObject.transform.SetAsFirstSibling();
-        }
-
-        private sealed class TreeConnection
-        {
-            private readonly UiStateVisual _visual;
-            private readonly string _sourceNodeId;
-            private readonly string _targetNodeId;
-
-            public UiStateVisual Visual => _visual;
-            public string SourceNodeId => _sourceNodeId;
-            public string TargetNodeId => _targetNodeId;
-
-            /// <summary>연결선과 양 끝의 노드 ID를 저장하여 실제 학습 여부에 따른 강조에 사용한다.</summary>
-            public TreeConnection(UiStateVisual visual, string sourceNodeId, string targetNodeId)
-            {
-                _visual = visual;
-                _sourceNodeId = sourceNodeId;
-                _targetNodeId = targetNodeId;
-            }
+            _nodeViews.Add(nodeId, view);
         }
     }
 }

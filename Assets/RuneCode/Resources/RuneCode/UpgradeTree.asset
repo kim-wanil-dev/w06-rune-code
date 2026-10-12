@@ -10,62 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a2343644682447498979d1eb6777c66, type: 3}
-  m_Name: UpgradeTree
+  m_Name: UpgradeTree(Clone)
   m_EditorClassIdentifier: Assembly-CSharp::RuneCode.UpgradeTreeDefinition
-  _layoutVersion: 8
+  _layoutVersion: 9
   _nodes:
   - _id: upgrade.mainboard
     _requiredStage: 1
     _titleKey: ui.tree.mainboard
     _descriptionKey: ui.tree.mainboardDescription
-    _position: {x: 1000, y: 40}
     _icon: {fileID: 0}
     _effectType: 0
     _runeId: 
     _initialLevel: 1
     _prerequisites: []
     _levels:
-    - _cost: 0
-      _amount: 1
-  - _id: unlock.element.fire
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 800, y: 230}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.fire
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: upgrade.mainboard
-      _requiredLevel: 1
-    _levels:
-    - _cost: 50
-      _amount: 0
-  - _id: upgrade.maxEnergy
-    _requiredStage: 1
-    _titleKey: ui.tree.maxEnergy
-    _descriptionKey: ui.tree.maxEnergyDescription
-    _position: {x: 1200, y: 230}
-    _icon: {fileID: 0}
-    _effectType: 1
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: upgrade.mainboard
-      _requiredLevel: 1
-    _levels:
-    - _cost: 10
-      _amount: 5
-    - _cost: 15
-      _amount: 5
-    - _cost: 30
-      _amount: 5
+    - _cost: 20
+      _amount: 2
+    - _cost: 40
+      _amount: 2
+    - _cost: 60
+      _amount: 2
+    - _cost: 80
+      _amount: 2
+    - _cost: 100
+      _amount: 2
   - _id: upgrade.ram
     _requiredStage: 1
     _titleKey: ui.tree.ramCapacity
     _descriptionKey: ui.tree.ramDescription
-    _position: {x: 1000, y: 230}
     _icon: {fileID: 0}
     _effectType: 2
     _runeId: 
@@ -74,51 +46,100 @@ MonoBehaviour:
     - _nodeId: upgrade.mainboard
       _requiredLevel: 1
     _levels:
-    - _cost: 10
+    - _cost: 40
       _amount: 1
-    - _cost: 15
+    - _cost: 60
       _amount: 1
-    - _cost: 30
+    - _cost: 80
       _amount: 1
-  - _id: unlock.behavior.orbit
+    - _cost: 100
+      _amount: 1
+    - _cost: 120
+      _amount: 1
+  - _id: unlock.element.fire
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 800, y: 420}
     _icon: {fileID: 0}
     _effectType: 8
-    _runeId: behavior.orbit
+    _runeId: element.fire
     _initialLevel: 0
     _prerequisites:
     - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 100
+    - _cost: 30
       _amount: 0
-  - _id: upgrade.scrapGain
+  - _id: upgrade.maxEnergy
     _requiredStage: 1
-    _titleKey: ui.tree.scrapGain
-    _descriptionKey: ui.tree.scrapGainDescription
-    _position: {x: 1200, y: 420}
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
     _icon: {fileID: 0}
-    _effectType: 5
+    _effectType: 1
     _runeId: 
     _initialLevel: 0
     _prerequisites:
     - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 20
-      _amount: 0.1
-    - _cost: 30
-      _amount: 0.1
     - _cost: 60
+      _amount: 5
+    - _cost: 80
+      _amount: 5
+    - _cost: 100
+      _amount: 5
+    - _cost: 120
+      _amount: 5
+    - _cost: 140
+      _amount: 5
+  - _id: upgrade.scrapPickupRange
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _icon: {fileID: 0}
+    _effectType: 9
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.maxEnergy
+      _requiredLevel: 1
+    _levels:
+    - _cost: 80
       _amount: 0.1
+    - _cost: 100
+      _amount: 0.1
+    - _cost: 120
+      _amount: 0.1
+    - _cost: 140
+      _amount: 0.1
+    - _cost: 160
+      _amount: 0.1
+  - _id: upgrade.maxHp
+    _requiredStage: 1
+    _titleKey: ui.tree.maxHp
+    _descriptionKey: ui.tree.maxHpDescription
+    _icon: {fileID: 0}
+    _effectType: 6
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.scrapPickupRange
+      _requiredLevel: 1
+    _levels:
+    - _cost: 100
+      _amount: 10
+    - _cost: 120
+      _amount: 10
+    - _cost: 140
+      _amount: 10
+    - _cost: 160
+      _amount: 10
+    - _cost: 180
+      _amount: 10
   - _id: upgrade.gpu
     _requiredStage: 1
     _titleKey: ui.tree.gpu
     _descriptionKey: ui.tree.gpuDescription
-    _position: {x: 1000, y: 420}
     _icon: {fileID: 0}
     _effectType: 4
     _runeId: 
@@ -127,51 +148,34 @@ MonoBehaviour:
     - _nodeId: upgrade.ram
       _requiredLevel: 1
     _levels:
-    - _cost: 20
-      _amount: 0.1
-    - _cost: 30
-      _amount: 0.1
     - _cost: 60
       _amount: 0.1
-  - _id: upgrade.mainboard.secondary
-    _requiredStage: 1
-    _titleKey: ui.tree.mainboard
-    _descriptionKey: ui.tree.mainboardDescription
-    _position: {x: 800, y: 610}
-    _icon: {fileID: 0}
-    _effectType: 0
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: upgrade.gpu
-      _requiredLevel: 1
-    _levels:
-    - _cost: 30
-      _amount: 1.5
-    - _cost: 45
-      _amount: 1.5
-    - _cost: 90
-      _amount: 1.5
-  - _id: unlock.element.ice
+    - _cost: 80
+      _amount: 0.1
+    - _cost: 100
+      _amount: 0.1
+    - _cost: 120
+      _amount: 0.1
+    - _cost: 140
+      _amount: 0.1
+  - _id: unlock.behavior.burst
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1200, y: 610}
     _icon: {fileID: 0}
     _effectType: 8
-    _runeId: element.ice
+    _runeId: behavior.burst
     _initialLevel: 0
     _prerequisites:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
-    - _cost: 150
+    - _cost: 50
       _amount: 0
   - _id: unlock.shape.cone
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1000, y: 610}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: shape.cone
@@ -180,110 +184,134 @@ MonoBehaviour:
     - _nodeId: upgrade.gpu
       _requiredLevel: 1
     _levels:
+    - _cost: 50
+      _amount: 0
+  - _id: upgrade.killEnergy
+    _requiredStage: 1
+    _titleKey: ui.tree.killEnergy
+    _descriptionKey: ui.tree.killEnergyDescription
+    _icon: {fileID: 0}
+    _effectType: 10
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.shape.cone
+      _requiredLevel: 1
+    _levels:
+    - _cost: 100
+      _amount: 1
+    - _cost: 120
+      _amount: 1
+    - _cost: 140
+      _amount: 1
+    - _cost: 160
+      _amount: 1
+    - _cost: 180
+      _amount: 1
+  - _id: upgrade.mainboard.secondary
+    _requiredStage: 1
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
+    _icon: {fileID: 0}
+    _effectType: 0
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.gpu
+      _requiredLevel: 1
+    _levels:
+    - _cost: 80
+      _amount: 2
+    - _cost: 100
+      _amount: 2
+    - _cost: 120
+      _amount: 2
+    - _cost: 140
+      _amount: 2
+    - _cost: 160
+      _amount: 2
+  - _id: unlock.element.ice
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.ice
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.secondary
+      _requiredLevel: 1
+    _levels:
+    - _cost: 100
+      _amount: 0
+  - _id: upgrade.scrapGain
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapGain
+    _descriptionKey: ui.tree.scrapGainDescription
+    _icon: {fileID: 0}
+    _effectType: 5
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.secondary
+      _requiredLevel: 1
+    _levels:
+    - _cost: 100
+      _amount: 0.05
+    - _cost: 120
+      _amount: 0.05
+    - _cost: 140
+      _amount: 0.05
+    - _cost: 160
+      _amount: 0.05
+    - _cost: 180
+      _amount: 0.05
+  - _id: upgrade.maxEnergy.final
+    _requiredStage: 1
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _icon: {fileID: 0}
+    _effectType: 1
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.secondary
+      _requiredLevel: 1
+    _levels:
+    - _cost: 100
+      _amount: 5
+    - _cost: 120
+      _amount: 5
+    - _cost: 140
+      _amount: 5
+    - _cost: 160
+      _amount: 5
+    - _cost: 180
+      _amount: 5
+  - _id: unlock.shape.box
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: shape.box
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.maxEnergy.final
+      _requiredLevel: 1
+    _levels:
     - _cost: 150
       _amount: 0
   - _id: unlock.flow.repeat
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 800, y: 800}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.repeat
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: unlock.shape.cone
-      _requiredLevel: 1
-    _levels:
-    - _cost: 200
-      _amount: 0
-  - _id: upgrade.ram.secondary
-    _requiredStage: 1
-    _titleKey: ui.tree.ramCapacity
-    _descriptionKey: ui.tree.ramDescription
-    _position: {x: 1200, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 2
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: unlock.shape.cone
-      _requiredLevel: 1
-    _levels:
-    - _cost: 40
-      _amount: 1
-    - _cost: 60
-      _amount: 1
-    - _cost: 120
-      _amount: 1
-  - _id: upgrade.maxHp
-    _requiredStage: 1
-    _titleKey: ui.tree.maxHp
-    _descriptionKey: ui.tree.maxHpDescription
-    _position: {x: 1400, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 6
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: unlock.shape.cone
-      _requiredLevel: 1
-    _levels:
-    - _cost: 40
-      _amount: 10
-    - _cost: 60
-      _amount: 10
-    - _cost: 120
-      _amount: 10
-  - _id: upgrade.scrapPickupRange
-    _requiredStage: 1
-    _titleKey: ui.tree.scrapPickupRange
-    _descriptionKey: ui.tree.scrapPickupRangeDescription
-    _position: {x: 1000, y: 800}
-    _icon: {fileID: 0}
-    _effectType: 9
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: unlock.shape.cone
-      _requiredLevel: 1
-    _levels:
-    - _cost: 40
-      _amount: 0.1
-    - _cost: 60
-      _amount: 0.1
-    - _cost: 120
-      _amount: 0.1
-  - _id: upgrade.mainboard.final
-    _requiredStage: 1
-    _titleKey: ui.tree.mainboard
-    _descriptionKey: ui.tree.mainboardDescription
-    _position: {x: 800, y: 990}
-    _icon: {fileID: 0}
-    _effectType: 0
-    _runeId: 
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: upgrade.scrapPickupRange
-      _requiredLevel: 1
-    _levels:
-    - _cost: 50
-      _amount: 2
-    - _cost: 75
-      _amount: 2
-    - _cost: 150
-      _amount: 2
-  - _id: unlock.behavior.burst
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 1200, y: 990}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: behavior.burst
-    _initialLevel: 0
-    _prerequisites:
-    - _nodeId: upgrade.scrapPickupRange
+    - _nodeId: upgrade.maxEnergy.final
       _requiredLevel: 1
     _levels:
     - _cost: 200
@@ -292,65 +320,2035 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.moveSpeed
     _descriptionKey: ui.tree.moveSpeedDescription
-    _position: {x: 1000, y: 990}
     _icon: {fileID: 0}
     _effectType: 7
     _runeId: 
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.scrapPickupRange
+    - _nodeId: unlock.flow.repeat
       _requiredLevel: 1
     _levels:
-    - _cost: 50
+    - _cost: 140
       _amount: 0.05
-    - _cost: 75
+    - _cost: 160
       _amount: 0.05
-    - _cost: 150
+    - _cost: 180
       _amount: 0.05
-  - _id: upgrade.maxEnergy.final
+    - _cost: 200
+      _amount: 0.05
+    - _cost: 220
+      _amount: 0.05
+  - _id: upgrade.mainboard.final
     _requiredStage: 1
-    _titleKey: ui.tree.maxEnergy
-    _descriptionKey: ui.tree.maxEnergyDescription
-    _position: {x: 800, y: 1180}
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
     _icon: {fileID: 0}
-    _effectType: 1
+    _effectType: 0
     _runeId: 
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.moveSpeed
+    - _nodeId: upgrade.maxEnergy.final
       _requiredLevel: 1
     _levels:
-    - _cost: 60
-      _amount: 5
-    - _cost: 90
-      _amount: 5
+    - _cost: 120
+      _amount: 2
+    - _cost: 140
+      _amount: 2
+    - _cost: 160
+      _amount: 2
     - _cost: 180
-      _amount: 5
+      _amount: 2
+    - _cost: 200
+      _amount: 2
+  - _id: unlock.behavior.orbit
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: behavior.orbit
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.final
+      _requiredLevel: 1
+    _levels:
+    - _cost: 200
+      _amount: 0
   - _id: upgrade.gpu.final
     _requiredStage: 1
     _titleKey: ui.tree.gpu
     _descriptionKey: ui.tree.gpuDescription
-    _position: {x: 1200, y: 1180}
     _icon: {fileID: 0}
     _effectType: 4
     _runeId: 
     _initialLevel: 0
     _prerequisites:
-    - _nodeId: upgrade.moveSpeed
+    - _nodeId: upgrade.mainboard.final
       _requiredLevel: 1
     _levels:
-    - _cost: 60
+    - _cost: 140
       _amount: 0.1
-    - _cost: 90
+    - _cost: 160
       _amount: 0.1
     - _cost: 180
       _amount: 0.1
+    - _cost: 200
+      _amount: 0.1
+    - _cost: 220
+      _amount: 0.1
+  - _id: upgrade.ram.secondary
+    _requiredStage: 1
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _icon: {fileID: 0}
+    _effectType: 2
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.gpu.final
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 1
+    - _cost: 180
+      _amount: 1
+    - _cost: 200
+      _amount: 1
+    - _cost: 220
+      _amount: 1
+    - _cost: 240
+      _amount: 1
+  - _id: upgrade.scrapPickupRange.secondary
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _icon: {fileID: 0}
+    _effectType: 9
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.ram.secondary
+      _requiredLevel: 1
+    _levels:
+    - _cost: 180
+      _amount: 0.1
+    - _cost: 200
+      _amount: 0.1
+    - _cost: 220
+      _amount: 0.1
+    - _cost: 240
+      _amount: 0.1
+    - _cost: 260
+      _amount: 0.1
+  - _id: unlock.element.lightning
+    _requiredStage: 1
+    _titleKey: ui.tree.unlockRune
+    _descriptionKey: ui.tree.unlockRuneDescription
+    _icon: {fileID: 0}
+    _effectType: 8
+    _runeId: element.lightning
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: upgrade.mainboard.final
+      _requiredLevel: 1
+    _levels:
+    - _cost: 250
+      _amount: 0
+  - _id: upgrade.maxHp.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.maxHp
+    _descriptionKey: ui.tree.maxHpDescription
+    _icon: {fileID: 0}
+    _effectType: 6
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 10
+    - _cost: 180
+      _amount: 10
+    - _cost: 200
+      _amount: 10
+    - _cost: 220
+      _amount: 10
+    - _cost: 240
+      _amount: 10
+    - _cost: 260
+      _amount: 10
+    - _cost: 280
+      _amount: 10
+    - _cost: 300
+      _amount: 10
+    - _cost: 320
+      _amount: 10
+    - _cost: 340
+      _amount: 10
+    - _cost: 360
+      _amount: 10
+    - _cost: 380
+      _amount: 10
+    - _cost: 400
+      _amount: 10
+    - _cost: 420
+      _amount: 10
+    - _cost: 440
+      _amount: 10
+    - _cost: 460
+      _amount: 10
+    - _cost: 480
+      _amount: 10
+    - _cost: 500
+      _amount: 10
+    - _cost: 520
+      _amount: 10
+    - _cost: 540
+      _amount: 10
+    - _cost: 560
+      _amount: 10
+    - _cost: 580
+      _amount: 10
+    - _cost: 600
+      _amount: 10
+    - _cost: 620
+      _amount: 10
+    - _cost: 640
+      _amount: 10
+    - _cost: 660
+      _amount: 10
+    - _cost: 680
+      _amount: 10
+    - _cost: 700
+      _amount: 10
+    - _cost: 720
+      _amount: 10
+    - _cost: 740
+      _amount: 10
+    - _cost: 760
+      _amount: 10
+    - _cost: 780
+      _amount: 10
+    - _cost: 800
+      _amount: 10
+    - _cost: 820
+      _amount: 10
+    - _cost: 840
+      _amount: 10
+    - _cost: 860
+      _amount: 10
+    - _cost: 880
+      _amount: 10
+    - _cost: 900
+      _amount: 10
+    - _cost: 920
+      _amount: 10
+    - _cost: 940
+      _amount: 10
+    - _cost: 960
+      _amount: 10
+    - _cost: 980
+      _amount: 10
+    - _cost: 1000
+      _amount: 10
+    - _cost: 1020
+      _amount: 10
+    - _cost: 1040
+      _amount: 10
+    - _cost: 1060
+      _amount: 10
+    - _cost: 1080
+      _amount: 10
+    - _cost: 1100
+      _amount: 10
+    - _cost: 1120
+      _amount: 10
+    - _cost: 1140
+      _amount: 10
+    - _cost: 1160
+      _amount: 10
+    - _cost: 1180
+      _amount: 10
+    - _cost: 1200
+      _amount: 10
+    - _cost: 1220
+      _amount: 10
+    - _cost: 1240
+      _amount: 10
+    - _cost: 1260
+      _amount: 10
+    - _cost: 1280
+      _amount: 10
+    - _cost: 1300
+      _amount: 10
+    - _cost: 1320
+      _amount: 10
+    - _cost: 1340
+      _amount: 10
+    - _cost: 1360
+      _amount: 10
+    - _cost: 1380
+      _amount: 10
+    - _cost: 1400
+      _amount: 10
+    - _cost: 1420
+      _amount: 10
+    - _cost: 1440
+      _amount: 10
+    - _cost: 1460
+      _amount: 10
+    - _cost: 1480
+      _amount: 10
+    - _cost: 1500
+      _amount: 10
+    - _cost: 1520
+      _amount: 10
+    - _cost: 1540
+      _amount: 10
+    - _cost: 1560
+      _amount: 10
+    - _cost: 1580
+      _amount: 10
+    - _cost: 1600
+      _amount: 10
+    - _cost: 1620
+      _amount: 10
+    - _cost: 1640
+      _amount: 10
+    - _cost: 1660
+      _amount: 10
+    - _cost: 1680
+      _amount: 10
+    - _cost: 1700
+      _amount: 10
+    - _cost: 1720
+      _amount: 10
+    - _cost: 1740
+      _amount: 10
+    - _cost: 1760
+      _amount: 10
+    - _cost: 1780
+      _amount: 10
+    - _cost: 1800
+      _amount: 10
+    - _cost: 1820
+      _amount: 10
+    - _cost: 1840
+      _amount: 10
+    - _cost: 1860
+      _amount: 10
+    - _cost: 1880
+      _amount: 10
+    - _cost: 1900
+      _amount: 10
+    - _cost: 1920
+      _amount: 10
+    - _cost: 1940
+      _amount: 10
+    - _cost: 1960
+      _amount: 10
+    - _cost: 1980
+      _amount: 10
+    - _cost: 2000
+      _amount: 10
+    - _cost: 2020
+      _amount: 10
+    - _cost: 2040
+      _amount: 10
+    - _cost: 2060
+      _amount: 10
+    - _cost: 2080
+      _amount: 10
+    - _cost: 2100
+      _amount: 10
+    - _cost: 2120
+      _amount: 10
+  - _id: upgrade.moveSpeed.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.moveSpeed
+    _descriptionKey: ui.tree.moveSpeedDescription
+    _icon: {fileID: 0}
+    _effectType: 7
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 0.05
+    - _cost: 180
+      _amount: 0.05
+    - _cost: 200
+      _amount: 0.05
+    - _cost: 220
+      _amount: 0.05
+    - _cost: 240
+      _amount: 0.05
+    - _cost: 260
+      _amount: 0.05
+    - _cost: 280
+      _amount: 0.05
+    - _cost: 300
+      _amount: 0.05
+    - _cost: 320
+      _amount: 0.05
+    - _cost: 340
+      _amount: 0.05
+    - _cost: 360
+      _amount: 0.05
+    - _cost: 380
+      _amount: 0.05
+    - _cost: 400
+      _amount: 0.05
+    - _cost: 420
+      _amount: 0.05
+    - _cost: 440
+      _amount: 0.05
+    - _cost: 460
+      _amount: 0.05
+    - _cost: 480
+      _amount: 0.05
+    - _cost: 500
+      _amount: 0.05
+    - _cost: 520
+      _amount: 0.05
+    - _cost: 540
+      _amount: 0.05
+    - _cost: 560
+      _amount: 0.05
+    - _cost: 580
+      _amount: 0.05
+    - _cost: 600
+      _amount: 0.05
+    - _cost: 620
+      _amount: 0.05
+    - _cost: 640
+      _amount: 0.05
+    - _cost: 660
+      _amount: 0.05
+    - _cost: 680
+      _amount: 0.05
+    - _cost: 700
+      _amount: 0.05
+    - _cost: 720
+      _amount: 0.05
+    - _cost: 740
+      _amount: 0.05
+    - _cost: 760
+      _amount: 0.05
+    - _cost: 780
+      _amount: 0.05
+    - _cost: 800
+      _amount: 0.05
+    - _cost: 820
+      _amount: 0.05
+    - _cost: 840
+      _amount: 0.05
+    - _cost: 860
+      _amount: 0.05
+    - _cost: 880
+      _amount: 0.05
+    - _cost: 900
+      _amount: 0.05
+    - _cost: 920
+      _amount: 0.05
+    - _cost: 940
+      _amount: 0.05
+    - _cost: 960
+      _amount: 0.05
+    - _cost: 980
+      _amount: 0.05
+    - _cost: 1000
+      _amount: 0.05
+    - _cost: 1020
+      _amount: 0.05
+    - _cost: 1040
+      _amount: 0.05
+    - _cost: 1060
+      _amount: 0.05
+    - _cost: 1080
+      _amount: 0.05
+    - _cost: 1100
+      _amount: 0.05
+    - _cost: 1120
+      _amount: 0.05
+    - _cost: 1140
+      _amount: 0.05
+    - _cost: 1160
+      _amount: 0.05
+    - _cost: 1180
+      _amount: 0.05
+    - _cost: 1200
+      _amount: 0.05
+    - _cost: 1220
+      _amount: 0.05
+    - _cost: 1240
+      _amount: 0.05
+    - _cost: 1260
+      _amount: 0.05
+    - _cost: 1280
+      _amount: 0.05
+    - _cost: 1300
+      _amount: 0.05
+    - _cost: 1320
+      _amount: 0.05
+    - _cost: 1340
+      _amount: 0.05
+    - _cost: 1360
+      _amount: 0.05
+    - _cost: 1380
+      _amount: 0.05
+    - _cost: 1400
+      _amount: 0.05
+    - _cost: 1420
+      _amount: 0.05
+    - _cost: 1440
+      _amount: 0.05
+    - _cost: 1460
+      _amount: 0.05
+    - _cost: 1480
+      _amount: 0.05
+    - _cost: 1500
+      _amount: 0.05
+    - _cost: 1520
+      _amount: 0.05
+    - _cost: 1540
+      _amount: 0.05
+    - _cost: 1560
+      _amount: 0.05
+    - _cost: 1580
+      _amount: 0.05
+    - _cost: 1600
+      _amount: 0.05
+    - _cost: 1620
+      _amount: 0.05
+    - _cost: 1640
+      _amount: 0.05
+    - _cost: 1660
+      _amount: 0.05
+    - _cost: 1680
+      _amount: 0.05
+    - _cost: 1700
+      _amount: 0.05
+    - _cost: 1720
+      _amount: 0.05
+    - _cost: 1740
+      _amount: 0.05
+    - _cost: 1760
+      _amount: 0.05
+    - _cost: 1780
+      _amount: 0.05
+    - _cost: 1800
+      _amount: 0.05
+    - _cost: 1820
+      _amount: 0.05
+    - _cost: 1840
+      _amount: 0.05
+    - _cost: 1860
+      _amount: 0.05
+    - _cost: 1880
+      _amount: 0.05
+    - _cost: 1900
+      _amount: 0.05
+    - _cost: 1920
+      _amount: 0.05
+    - _cost: 1940
+      _amount: 0.05
+    - _cost: 1960
+      _amount: 0.05
+    - _cost: 1980
+      _amount: 0.05
+    - _cost: 2000
+      _amount: 0.05
+    - _cost: 2020
+      _amount: 0.05
+    - _cost: 2040
+      _amount: 0.05
+    - _cost: 2060
+      _amount: 0.05
+    - _cost: 2080
+      _amount: 0.05
+    - _cost: 2100
+      _amount: 0.05
+    - _cost: 2120
+      _amount: 0.05
+  - _id: upgrade.gpu.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.gpu
+    _descriptionKey: ui.tree.gpuDescription
+    _icon: {fileID: 0}
+    _effectType: 4
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 0.1
+    - _cost: 180
+      _amount: 0.1
+    - _cost: 200
+      _amount: 0.1
+    - _cost: 220
+      _amount: 0.1
+    - _cost: 240
+      _amount: 0.1
+    - _cost: 260
+      _amount: 0.1
+    - _cost: 280
+      _amount: 0.1
+    - _cost: 300
+      _amount: 0.1
+    - _cost: 320
+      _amount: 0.1
+    - _cost: 340
+      _amount: 0.1
+    - _cost: 360
+      _amount: 0.1
+    - _cost: 380
+      _amount: 0.1
+    - _cost: 400
+      _amount: 0.1
+    - _cost: 420
+      _amount: 0.1
+    - _cost: 440
+      _amount: 0.1
+    - _cost: 460
+      _amount: 0.1
+    - _cost: 480
+      _amount: 0.1
+    - _cost: 500
+      _amount: 0.1
+    - _cost: 520
+      _amount: 0.1
+    - _cost: 540
+      _amount: 0.1
+    - _cost: 560
+      _amount: 0.1
+    - _cost: 580
+      _amount: 0.1
+    - _cost: 600
+      _amount: 0.1
+    - _cost: 620
+      _amount: 0.1
+    - _cost: 640
+      _amount: 0.1
+    - _cost: 660
+      _amount: 0.1
+    - _cost: 680
+      _amount: 0.1
+    - _cost: 700
+      _amount: 0.1
+    - _cost: 720
+      _amount: 0.1
+    - _cost: 740
+      _amount: 0.1
+    - _cost: 760
+      _amount: 0.1
+    - _cost: 780
+      _amount: 0.1
+    - _cost: 800
+      _amount: 0.1
+    - _cost: 820
+      _amount: 0.1
+    - _cost: 840
+      _amount: 0.1
+    - _cost: 860
+      _amount: 0.1
+    - _cost: 880
+      _amount: 0.1
+    - _cost: 900
+      _amount: 0.1
+    - _cost: 920
+      _amount: 0.1
+    - _cost: 940
+      _amount: 0.1
+    - _cost: 960
+      _amount: 0.1
+    - _cost: 980
+      _amount: 0.1
+    - _cost: 1000
+      _amount: 0.1
+    - _cost: 1020
+      _amount: 0.1
+    - _cost: 1040
+      _amount: 0.1
+    - _cost: 1060
+      _amount: 0.1
+    - _cost: 1080
+      _amount: 0.1
+    - _cost: 1100
+      _amount: 0.1
+    - _cost: 1120
+      _amount: 0.1
+    - _cost: 1140
+      _amount: 0.1
+    - _cost: 1160
+      _amount: 0.1
+    - _cost: 1180
+      _amount: 0.1
+    - _cost: 1200
+      _amount: 0.1
+    - _cost: 1220
+      _amount: 0.1
+    - _cost: 1240
+      _amount: 0.1
+    - _cost: 1260
+      _amount: 0.1
+    - _cost: 1280
+      _amount: 0.1
+    - _cost: 1300
+      _amount: 0.1
+    - _cost: 1320
+      _amount: 0.1
+    - _cost: 1340
+      _amount: 0.1
+    - _cost: 1360
+      _amount: 0.1
+    - _cost: 1380
+      _amount: 0.1
+    - _cost: 1400
+      _amount: 0.1
+    - _cost: 1420
+      _amount: 0.1
+    - _cost: 1440
+      _amount: 0.1
+    - _cost: 1460
+      _amount: 0.1
+    - _cost: 1480
+      _amount: 0.1
+    - _cost: 1500
+      _amount: 0.1
+    - _cost: 1520
+      _amount: 0.1
+    - _cost: 1540
+      _amount: 0.1
+    - _cost: 1560
+      _amount: 0.1
+    - _cost: 1580
+      _amount: 0.1
+    - _cost: 1600
+      _amount: 0.1
+    - _cost: 1620
+      _amount: 0.1
+    - _cost: 1640
+      _amount: 0.1
+    - _cost: 1660
+      _amount: 0.1
+    - _cost: 1680
+      _amount: 0.1
+    - _cost: 1700
+      _amount: 0.1
+    - _cost: 1720
+      _amount: 0.1
+    - _cost: 1740
+      _amount: 0.1
+    - _cost: 1760
+      _amount: 0.1
+    - _cost: 1780
+      _amount: 0.1
+    - _cost: 1800
+      _amount: 0.1
+    - _cost: 1820
+      _amount: 0.1
+    - _cost: 1840
+      _amount: 0.1
+    - _cost: 1860
+      _amount: 0.1
+    - _cost: 1880
+      _amount: 0.1
+    - _cost: 1900
+      _amount: 0.1
+    - _cost: 1920
+      _amount: 0.1
+    - _cost: 1940
+      _amount: 0.1
+    - _cost: 1960
+      _amount: 0.1
+    - _cost: 1980
+      _amount: 0.1
+    - _cost: 2000
+      _amount: 0.1
+    - _cost: 2020
+      _amount: 0.1
+    - _cost: 2040
+      _amount: 0.1
+    - _cost: 2060
+      _amount: 0.1
+    - _cost: 2080
+      _amount: 0.1
+    - _cost: 2100
+      _amount: 0.1
+    - _cost: 2120
+      _amount: 0.1
+  - _id: upgrade.ram.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.ramCapacity
+    _descriptionKey: ui.tree.ramDescription
+    _icon: {fileID: 0}
+    _effectType: 2
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 1
+    - _cost: 180
+      _amount: 1
+    - _cost: 200
+      _amount: 1
+    - _cost: 220
+      _amount: 1
+    - _cost: 240
+      _amount: 1
+    - _cost: 260
+      _amount: 1
+    - _cost: 280
+      _amount: 1
+    - _cost: 300
+      _amount: 1
+    - _cost: 320
+      _amount: 1
+    - _cost: 340
+      _amount: 1
+    - _cost: 360
+      _amount: 1
+    - _cost: 380
+      _amount: 1
+    - _cost: 400
+      _amount: 1
+    - _cost: 420
+      _amount: 1
+    - _cost: 440
+      _amount: 1
+    - _cost: 460
+      _amount: 1
+    - _cost: 480
+      _amount: 1
+    - _cost: 500
+      _amount: 1
+    - _cost: 520
+      _amount: 1
+    - _cost: 540
+      _amount: 1
+    - _cost: 560
+      _amount: 1
+    - _cost: 580
+      _amount: 1
+    - _cost: 600
+      _amount: 1
+    - _cost: 620
+      _amount: 1
+    - _cost: 640
+      _amount: 1
+    - _cost: 660
+      _amount: 1
+    - _cost: 680
+      _amount: 1
+    - _cost: 700
+      _amount: 1
+    - _cost: 720
+      _amount: 1
+    - _cost: 740
+      _amount: 1
+    - _cost: 760
+      _amount: 1
+    - _cost: 780
+      _amount: 1
+    - _cost: 800
+      _amount: 1
+    - _cost: 820
+      _amount: 1
+    - _cost: 840
+      _amount: 1
+    - _cost: 860
+      _amount: 1
+    - _cost: 880
+      _amount: 1
+    - _cost: 900
+      _amount: 1
+    - _cost: 920
+      _amount: 1
+    - _cost: 940
+      _amount: 1
+    - _cost: 960
+      _amount: 1
+    - _cost: 980
+      _amount: 1
+    - _cost: 1000
+      _amount: 1
+    - _cost: 1020
+      _amount: 1
+    - _cost: 1040
+      _amount: 1
+    - _cost: 1060
+      _amount: 1
+    - _cost: 1080
+      _amount: 1
+    - _cost: 1100
+      _amount: 1
+    - _cost: 1120
+      _amount: 1
+    - _cost: 1140
+      _amount: 1
+    - _cost: 1160
+      _amount: 1
+    - _cost: 1180
+      _amount: 1
+    - _cost: 1200
+      _amount: 1
+    - _cost: 1220
+      _amount: 1
+    - _cost: 1240
+      _amount: 1
+    - _cost: 1260
+      _amount: 1
+    - _cost: 1280
+      _amount: 1
+    - _cost: 1300
+      _amount: 1
+    - _cost: 1320
+      _amount: 1
+    - _cost: 1340
+      _amount: 1
+    - _cost: 1360
+      _amount: 1
+    - _cost: 1380
+      _amount: 1
+    - _cost: 1400
+      _amount: 1
+    - _cost: 1420
+      _amount: 1
+    - _cost: 1440
+      _amount: 1
+    - _cost: 1460
+      _amount: 1
+    - _cost: 1480
+      _amount: 1
+    - _cost: 1500
+      _amount: 1
+    - _cost: 1520
+      _amount: 1
+    - _cost: 1540
+      _amount: 1
+    - _cost: 1560
+      _amount: 1
+    - _cost: 1580
+      _amount: 1
+    - _cost: 1600
+      _amount: 1
+    - _cost: 1620
+      _amount: 1
+    - _cost: 1640
+      _amount: 1
+    - _cost: 1660
+      _amount: 1
+    - _cost: 1680
+      _amount: 1
+    - _cost: 1700
+      _amount: 1
+    - _cost: 1720
+      _amount: 1
+    - _cost: 1740
+      _amount: 1
+    - _cost: 1760
+      _amount: 1
+    - _cost: 1780
+      _amount: 1
+    - _cost: 1800
+      _amount: 1
+    - _cost: 1820
+      _amount: 1
+    - _cost: 1840
+      _amount: 1
+    - _cost: 1860
+      _amount: 1
+    - _cost: 1880
+      _amount: 1
+    - _cost: 1900
+      _amount: 1
+    - _cost: 1920
+      _amount: 1
+    - _cost: 1940
+      _amount: 1
+    - _cost: 1960
+      _amount: 1
+    - _cost: 1980
+      _amount: 1
+    - _cost: 2000
+      _amount: 1
+    - _cost: 2020
+      _amount: 1
+    - _cost: 2040
+      _amount: 1
+    - _cost: 2060
+      _amount: 1
+    - _cost: 2080
+      _amount: 1
+    - _cost: 2100
+      _amount: 1
+    - _cost: 2120
+      _amount: 1
+  - _id: upgrade.maxEnergy.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.maxEnergy
+    _descriptionKey: ui.tree.maxEnergyDescription
+    _icon: {fileID: 0}
+    _effectType: 1
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 5
+    - _cost: 180
+      _amount: 5
+    - _cost: 200
+      _amount: 5
+    - _cost: 220
+      _amount: 5
+    - _cost: 240
+      _amount: 5
+    - _cost: 260
+      _amount: 5
+    - _cost: 280
+      _amount: 5
+    - _cost: 300
+      _amount: 5
+    - _cost: 320
+      _amount: 5
+    - _cost: 340
+      _amount: 5
+    - _cost: 360
+      _amount: 5
+    - _cost: 380
+      _amount: 5
+    - _cost: 400
+      _amount: 5
+    - _cost: 420
+      _amount: 5
+    - _cost: 440
+      _amount: 5
+    - _cost: 460
+      _amount: 5
+    - _cost: 480
+      _amount: 5
+    - _cost: 500
+      _amount: 5
+    - _cost: 520
+      _amount: 5
+    - _cost: 540
+      _amount: 5
+    - _cost: 560
+      _amount: 5
+    - _cost: 580
+      _amount: 5
+    - _cost: 600
+      _amount: 5
+    - _cost: 620
+      _amount: 5
+    - _cost: 640
+      _amount: 5
+    - _cost: 660
+      _amount: 5
+    - _cost: 680
+      _amount: 5
+    - _cost: 700
+      _amount: 5
+    - _cost: 720
+      _amount: 5
+    - _cost: 740
+      _amount: 5
+    - _cost: 760
+      _amount: 5
+    - _cost: 780
+      _amount: 5
+    - _cost: 800
+      _amount: 5
+    - _cost: 820
+      _amount: 5
+    - _cost: 840
+      _amount: 5
+    - _cost: 860
+      _amount: 5
+    - _cost: 880
+      _amount: 5
+    - _cost: 900
+      _amount: 5
+    - _cost: 920
+      _amount: 5
+    - _cost: 940
+      _amount: 5
+    - _cost: 960
+      _amount: 5
+    - _cost: 980
+      _amount: 5
+    - _cost: 1000
+      _amount: 5
+    - _cost: 1020
+      _amount: 5
+    - _cost: 1040
+      _amount: 5
+    - _cost: 1060
+      _amount: 5
+    - _cost: 1080
+      _amount: 5
+    - _cost: 1100
+      _amount: 5
+    - _cost: 1120
+      _amount: 5
+    - _cost: 1140
+      _amount: 5
+    - _cost: 1160
+      _amount: 5
+    - _cost: 1180
+      _amount: 5
+    - _cost: 1200
+      _amount: 5
+    - _cost: 1220
+      _amount: 5
+    - _cost: 1240
+      _amount: 5
+    - _cost: 1260
+      _amount: 5
+    - _cost: 1280
+      _amount: 5
+    - _cost: 1300
+      _amount: 5
+    - _cost: 1320
+      _amount: 5
+    - _cost: 1340
+      _amount: 5
+    - _cost: 1360
+      _amount: 5
+    - _cost: 1380
+      _amount: 5
+    - _cost: 1400
+      _amount: 5
+    - _cost: 1420
+      _amount: 5
+    - _cost: 1440
+      _amount: 5
+    - _cost: 1460
+      _amount: 5
+    - _cost: 1480
+      _amount: 5
+    - _cost: 1500
+      _amount: 5
+    - _cost: 1520
+      _amount: 5
+    - _cost: 1540
+      _amount: 5
+    - _cost: 1560
+      _amount: 5
+    - _cost: 1580
+      _amount: 5
+    - _cost: 1600
+      _amount: 5
+    - _cost: 1620
+      _amount: 5
+    - _cost: 1640
+      _amount: 5
+    - _cost: 1660
+      _amount: 5
+    - _cost: 1680
+      _amount: 5
+    - _cost: 1700
+      _amount: 5
+    - _cost: 1720
+      _amount: 5
+    - _cost: 1740
+      _amount: 5
+    - _cost: 1760
+      _amount: 5
+    - _cost: 1780
+      _amount: 5
+    - _cost: 1800
+      _amount: 5
+    - _cost: 1820
+      _amount: 5
+    - _cost: 1840
+      _amount: 5
+    - _cost: 1860
+      _amount: 5
+    - _cost: 1880
+      _amount: 5
+    - _cost: 1900
+      _amount: 5
+    - _cost: 1920
+      _amount: 5
+    - _cost: 1940
+      _amount: 5
+    - _cost: 1960
+      _amount: 5
+    - _cost: 1980
+      _amount: 5
+    - _cost: 2000
+      _amount: 5
+    - _cost: 2020
+      _amount: 5
+    - _cost: 2040
+      _amount: 5
+    - _cost: 2060
+      _amount: 5
+    - _cost: 2080
+      _amount: 5
+    - _cost: 2100
+      _amount: 5
+    - _cost: 2120
+      _amount: 5
+  - _id: upgrade.mainboard.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.mainboard
+    _descriptionKey: ui.tree.mainboardDescription
+    _icon: {fileID: 0}
+    _effectType: 0
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 2
+    - _cost: 180
+      _amount: 2
+    - _cost: 200
+      _amount: 2
+    - _cost: 220
+      _amount: 2
+    - _cost: 240
+      _amount: 2
+    - _cost: 260
+      _amount: 2
+    - _cost: 280
+      _amount: 2
+    - _cost: 300
+      _amount: 2
+    - _cost: 320
+      _amount: 2
+    - _cost: 340
+      _amount: 2
+    - _cost: 360
+      _amount: 2
+    - _cost: 380
+      _amount: 2
+    - _cost: 400
+      _amount: 2
+    - _cost: 420
+      _amount: 2
+    - _cost: 440
+      _amount: 2
+    - _cost: 460
+      _amount: 2
+    - _cost: 480
+      _amount: 2
+    - _cost: 500
+      _amount: 2
+    - _cost: 520
+      _amount: 2
+    - _cost: 540
+      _amount: 2
+    - _cost: 560
+      _amount: 2
+    - _cost: 580
+      _amount: 2
+    - _cost: 600
+      _amount: 2
+    - _cost: 620
+      _amount: 2
+    - _cost: 640
+      _amount: 2
+    - _cost: 660
+      _amount: 2
+    - _cost: 680
+      _amount: 2
+    - _cost: 700
+      _amount: 2
+    - _cost: 720
+      _amount: 2
+    - _cost: 740
+      _amount: 2
+    - _cost: 760
+      _amount: 2
+    - _cost: 780
+      _amount: 2
+    - _cost: 800
+      _amount: 2
+    - _cost: 820
+      _amount: 2
+    - _cost: 840
+      _amount: 2
+    - _cost: 860
+      _amount: 2
+    - _cost: 880
+      _amount: 2
+    - _cost: 900
+      _amount: 2
+    - _cost: 920
+      _amount: 2
+    - _cost: 940
+      _amount: 2
+    - _cost: 960
+      _amount: 2
+    - _cost: 980
+      _amount: 2
+    - _cost: 1000
+      _amount: 2
+    - _cost: 1020
+      _amount: 2
+    - _cost: 1040
+      _amount: 2
+    - _cost: 1060
+      _amount: 2
+    - _cost: 1080
+      _amount: 2
+    - _cost: 1100
+      _amount: 2
+    - _cost: 1120
+      _amount: 2
+    - _cost: 1140
+      _amount: 2
+    - _cost: 1160
+      _amount: 2
+    - _cost: 1180
+      _amount: 2
+    - _cost: 1200
+      _amount: 2
+    - _cost: 1220
+      _amount: 2
+    - _cost: 1240
+      _amount: 2
+    - _cost: 1260
+      _amount: 2
+    - _cost: 1280
+      _amount: 2
+    - _cost: 1300
+      _amount: 2
+    - _cost: 1320
+      _amount: 2
+    - _cost: 1340
+      _amount: 2
+    - _cost: 1360
+      _amount: 2
+    - _cost: 1380
+      _amount: 2
+    - _cost: 1400
+      _amount: 2
+    - _cost: 1420
+      _amount: 2
+    - _cost: 1440
+      _amount: 2
+    - _cost: 1460
+      _amount: 2
+    - _cost: 1480
+      _amount: 2
+    - _cost: 1500
+      _amount: 2
+    - _cost: 1520
+      _amount: 2
+    - _cost: 1540
+      _amount: 2
+    - _cost: 1560
+      _amount: 2
+    - _cost: 1580
+      _amount: 2
+    - _cost: 1600
+      _amount: 2
+    - _cost: 1620
+      _amount: 2
+    - _cost: 1640
+      _amount: 2
+    - _cost: 1660
+      _amount: 2
+    - _cost: 1680
+      _amount: 2
+    - _cost: 1700
+      _amount: 2
+    - _cost: 1720
+      _amount: 2
+    - _cost: 1740
+      _amount: 2
+    - _cost: 1760
+      _amount: 2
+    - _cost: 1780
+      _amount: 2
+    - _cost: 1800
+      _amount: 2
+    - _cost: 1820
+      _amount: 2
+    - _cost: 1840
+      _amount: 2
+    - _cost: 1860
+      _amount: 2
+    - _cost: 1880
+      _amount: 2
+    - _cost: 1900
+      _amount: 2
+    - _cost: 1920
+      _amount: 2
+    - _cost: 1940
+      _amount: 2
+    - _cost: 1960
+      _amount: 2
+    - _cost: 1980
+      _amount: 2
+    - _cost: 2000
+      _amount: 2
+    - _cost: 2020
+      _amount: 2
+    - _cost: 2040
+      _amount: 2
+    - _cost: 2060
+      _amount: 2
+    - _cost: 2080
+      _amount: 2
+    - _cost: 2100
+      _amount: 2
+    - _cost: 2120
+      _amount: 2
+  - _id: upgrade.killEnergy.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.killEnergy
+    _descriptionKey: ui.tree.killEnergyDescription
+    _icon: {fileID: 0}
+    _effectType: 10
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 1
+    - _cost: 180
+      _amount: 1
+    - _cost: 200
+      _amount: 1
+    - _cost: 220
+      _amount: 1
+    - _cost: 240
+      _amount: 1
+    - _cost: 260
+      _amount: 1
+    - _cost: 280
+      _amount: 1
+    - _cost: 300
+      _amount: 1
+    - _cost: 320
+      _amount: 1
+    - _cost: 340
+      _amount: 1
+    - _cost: 360
+      _amount: 1
+    - _cost: 380
+      _amount: 1
+    - _cost: 400
+      _amount: 1
+    - _cost: 420
+      _amount: 1
+    - _cost: 440
+      _amount: 1
+    - _cost: 460
+      _amount: 1
+    - _cost: 480
+      _amount: 1
+    - _cost: 500
+      _amount: 1
+    - _cost: 520
+      _amount: 1
+    - _cost: 540
+      _amount: 1
+    - _cost: 560
+      _amount: 1
+    - _cost: 580
+      _amount: 1
+    - _cost: 600
+      _amount: 1
+    - _cost: 620
+      _amount: 1
+    - _cost: 640
+      _amount: 1
+    - _cost: 660
+      _amount: 1
+    - _cost: 680
+      _amount: 1
+    - _cost: 700
+      _amount: 1
+    - _cost: 720
+      _amount: 1
+    - _cost: 740
+      _amount: 1
+    - _cost: 760
+      _amount: 1
+    - _cost: 780
+      _amount: 1
+    - _cost: 800
+      _amount: 1
+    - _cost: 820
+      _amount: 1
+    - _cost: 840
+      _amount: 1
+    - _cost: 860
+      _amount: 1
+    - _cost: 880
+      _amount: 1
+    - _cost: 900
+      _amount: 1
+    - _cost: 920
+      _amount: 1
+    - _cost: 940
+      _amount: 1
+    - _cost: 960
+      _amount: 1
+    - _cost: 980
+      _amount: 1
+    - _cost: 1000
+      _amount: 1
+    - _cost: 1020
+      _amount: 1
+    - _cost: 1040
+      _amount: 1
+    - _cost: 1060
+      _amount: 1
+    - _cost: 1080
+      _amount: 1
+    - _cost: 1100
+      _amount: 1
+    - _cost: 1120
+      _amount: 1
+    - _cost: 1140
+      _amount: 1
+    - _cost: 1160
+      _amount: 1
+    - _cost: 1180
+      _amount: 1
+    - _cost: 1200
+      _amount: 1
+    - _cost: 1220
+      _amount: 1
+    - _cost: 1240
+      _amount: 1
+    - _cost: 1260
+      _amount: 1
+    - _cost: 1280
+      _amount: 1
+    - _cost: 1300
+      _amount: 1
+    - _cost: 1320
+      _amount: 1
+    - _cost: 1340
+      _amount: 1
+    - _cost: 1360
+      _amount: 1
+    - _cost: 1380
+      _amount: 1
+    - _cost: 1400
+      _amount: 1
+    - _cost: 1420
+      _amount: 1
+    - _cost: 1440
+      _amount: 1
+    - _cost: 1460
+      _amount: 1
+    - _cost: 1480
+      _amount: 1
+    - _cost: 1500
+      _amount: 1
+    - _cost: 1520
+      _amount: 1
+    - _cost: 1540
+      _amount: 1
+    - _cost: 1560
+      _amount: 1
+    - _cost: 1580
+      _amount: 1
+    - _cost: 1600
+      _amount: 1
+    - _cost: 1620
+      _amount: 1
+    - _cost: 1640
+      _amount: 1
+    - _cost: 1660
+      _amount: 1
+    - _cost: 1680
+      _amount: 1
+    - _cost: 1700
+      _amount: 1
+    - _cost: 1720
+      _amount: 1
+    - _cost: 1740
+      _amount: 1
+    - _cost: 1760
+      _amount: 1
+    - _cost: 1780
+      _amount: 1
+    - _cost: 1800
+      _amount: 1
+    - _cost: 1820
+      _amount: 1
+    - _cost: 1840
+      _amount: 1
+    - _cost: 1860
+      _amount: 1
+    - _cost: 1880
+      _amount: 1
+    - _cost: 1900
+      _amount: 1
+    - _cost: 1920
+      _amount: 1
+    - _cost: 1940
+      _amount: 1
+    - _cost: 1960
+      _amount: 1
+    - _cost: 1980
+      _amount: 1
+    - _cost: 2000
+      _amount: 1
+    - _cost: 2020
+      _amount: 1
+    - _cost: 2040
+      _amount: 1
+    - _cost: 2060
+      _amount: 1
+    - _cost: 2080
+      _amount: 1
+    - _cost: 2100
+      _amount: 1
+    - _cost: 2120
+      _amount: 1
+  - _id: upgrade.scrapPickupRange.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapPickupRange
+    _descriptionKey: ui.tree.scrapPickupRangeDescription
+    _icon: {fileID: 0}
+    _effectType: 9
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 0.1
+    - _cost: 180
+      _amount: 0.1
+    - _cost: 200
+      _amount: 0.1
+    - _cost: 220
+      _amount: 0.1
+    - _cost: 240
+      _amount: 0.1
+    - _cost: 260
+      _amount: 0.1
+    - _cost: 280
+      _amount: 0.1
+    - _cost: 300
+      _amount: 0.1
+    - _cost: 320
+      _amount: 0.1
+    - _cost: 340
+      _amount: 0.1
+    - _cost: 360
+      _amount: 0.1
+    - _cost: 380
+      _amount: 0.1
+    - _cost: 400
+      _amount: 0.1
+    - _cost: 420
+      _amount: 0.1
+    - _cost: 440
+      _amount: 0.1
+    - _cost: 460
+      _amount: 0.1
+    - _cost: 480
+      _amount: 0.1
+    - _cost: 500
+      _amount: 0.1
+    - _cost: 520
+      _amount: 0.1
+    - _cost: 540
+      _amount: 0.1
+    - _cost: 560
+      _amount: 0.1
+    - _cost: 580
+      _amount: 0.1
+    - _cost: 600
+      _amount: 0.1
+    - _cost: 620
+      _amount: 0.1
+    - _cost: 640
+      _amount: 0.1
+    - _cost: 660
+      _amount: 0.1
+    - _cost: 680
+      _amount: 0.1
+    - _cost: 700
+      _amount: 0.1
+    - _cost: 720
+      _amount: 0.1
+    - _cost: 740
+      _amount: 0.1
+    - _cost: 760
+      _amount: 0.1
+    - _cost: 780
+      _amount: 0.1
+    - _cost: 800
+      _amount: 0.1
+    - _cost: 820
+      _amount: 0.1
+    - _cost: 840
+      _amount: 0.1
+    - _cost: 860
+      _amount: 0.1
+    - _cost: 880
+      _amount: 0.1
+    - _cost: 900
+      _amount: 0.1
+    - _cost: 920
+      _amount: 0.1
+    - _cost: 940
+      _amount: 0.1
+    - _cost: 960
+      _amount: 0.1
+    - _cost: 980
+      _amount: 0.1
+    - _cost: 1000
+      _amount: 0.1
+    - _cost: 1020
+      _amount: 0.1
+    - _cost: 1040
+      _amount: 0.1
+    - _cost: 1060
+      _amount: 0.1
+    - _cost: 1080
+      _amount: 0.1
+    - _cost: 1100
+      _amount: 0.1
+    - _cost: 1120
+      _amount: 0.1
+    - _cost: 1140
+      _amount: 0.1
+    - _cost: 1160
+      _amount: 0.1
+    - _cost: 1180
+      _amount: 0.1
+    - _cost: 1200
+      _amount: 0.1
+    - _cost: 1220
+      _amount: 0.1
+    - _cost: 1240
+      _amount: 0.1
+    - _cost: 1260
+      _amount: 0.1
+    - _cost: 1280
+      _amount: 0.1
+    - _cost: 1300
+      _amount: 0.1
+    - _cost: 1320
+      _amount: 0.1
+    - _cost: 1340
+      _amount: 0.1
+    - _cost: 1360
+      _amount: 0.1
+    - _cost: 1380
+      _amount: 0.1
+    - _cost: 1400
+      _amount: 0.1
+    - _cost: 1420
+      _amount: 0.1
+    - _cost: 1440
+      _amount: 0.1
+    - _cost: 1460
+      _amount: 0.1
+    - _cost: 1480
+      _amount: 0.1
+    - _cost: 1500
+      _amount: 0.1
+    - _cost: 1520
+      _amount: 0.1
+    - _cost: 1540
+      _amount: 0.1
+    - _cost: 1560
+      _amount: 0.1
+    - _cost: 1580
+      _amount: 0.1
+    - _cost: 1600
+      _amount: 0.1
+    - _cost: 1620
+      _amount: 0.1
+    - _cost: 1640
+      _amount: 0.1
+    - _cost: 1660
+      _amount: 0.1
+    - _cost: 1680
+      _amount: 0.1
+    - _cost: 1700
+      _amount: 0.1
+    - _cost: 1720
+      _amount: 0.1
+    - _cost: 1740
+      _amount: 0.1
+    - _cost: 1760
+      _amount: 0.1
+    - _cost: 1780
+      _amount: 0.1
+    - _cost: 1800
+      _amount: 0.1
+    - _cost: 1820
+      _amount: 0.1
+    - _cost: 1840
+      _amount: 0.1
+    - _cost: 1860
+      _amount: 0.1
+    - _cost: 1880
+      _amount: 0.1
+    - _cost: 1900
+      _amount: 0.1
+    - _cost: 1920
+      _amount: 0.1
+    - _cost: 1940
+      _amount: 0.1
+    - _cost: 1960
+      _amount: 0.1
+    - _cost: 1980
+      _amount: 0.1
+    - _cost: 2000
+      _amount: 0.1
+    - _cost: 2020
+      _amount: 0.1
+    - _cost: 2040
+      _amount: 0.1
+    - _cost: 2060
+      _amount: 0.1
+    - _cost: 2080
+      _amount: 0.1
+    - _cost: 2100
+      _amount: 0.1
+    - _cost: 2120
+      _amount: 0.1
+  - _id: upgrade.scrapGain.endgame
+    _requiredStage: 1
+    _titleKey: ui.tree.scrapGain
+    _descriptionKey: ui.tree.scrapGainDescription
+    _icon: {fileID: 0}
+    _effectType: 5
+    _runeId: 
+    _initialLevel: 0
+    _prerequisites:
+    - _nodeId: unlock.element.lightning
+      _requiredLevel: 1
+    _levels:
+    - _cost: 160
+      _amount: 0.05
+    - _cost: 180
+      _amount: 0.05
+    - _cost: 200
+      _amount: 0.05
+    - _cost: 220
+      _amount: 0.05
+    - _cost: 240
+      _amount: 0.05
+    - _cost: 260
+      _amount: 0.05
+    - _cost: 280
+      _amount: 0.05
+    - _cost: 300
+      _amount: 0.05
+    - _cost: 320
+      _amount: 0.05
+    - _cost: 340
+      _amount: 0.05
+    - _cost: 360
+      _amount: 0.05
+    - _cost: 380
+      _amount: 0.05
+    - _cost: 400
+      _amount: 0.05
+    - _cost: 420
+      _amount: 0.05
+    - _cost: 440
+      _amount: 0.05
+    - _cost: 460
+      _amount: 0.05
+    - _cost: 480
+      _amount: 0.05
+    - _cost: 500
+      _amount: 0.05
+    - _cost: 520
+      _amount: 0.05
+    - _cost: 540
+      _amount: 0.05
+    - _cost: 560
+      _amount: 0.05
+    - _cost: 580
+      _amount: 0.05
+    - _cost: 600
+      _amount: 0.05
+    - _cost: 620
+      _amount: 0.05
+    - _cost: 640
+      _amount: 0.05
+    - _cost: 660
+      _amount: 0.05
+    - _cost: 680
+      _amount: 0.05
+    - _cost: 700
+      _amount: 0.05
+    - _cost: 720
+      _amount: 0.05
+    - _cost: 740
+      _amount: 0.05
+    - _cost: 760
+      _amount: 0.05
+    - _cost: 780
+      _amount: 0.05
+    - _cost: 800
+      _amount: 0.05
+    - _cost: 820
+      _amount: 0.05
+    - _cost: 840
+      _amount: 0.05
+    - _cost: 860
+      _amount: 0.05
+    - _cost: 880
+      _amount: 0.05
+    - _cost: 900
+      _amount: 0.05
+    - _cost: 920
+      _amount: 0.05
+    - _cost: 940
+      _amount: 0.05
+    - _cost: 960
+      _amount: 0.05
+    - _cost: 980
+      _amount: 0.05
+    - _cost: 1000
+      _amount: 0.05
+    - _cost: 1020
+      _amount: 0.05
+    - _cost: 1040
+      _amount: 0.05
+    - _cost: 1060
+      _amount: 0.05
+    - _cost: 1080
+      _amount: 0.05
+    - _cost: 1100
+      _amount: 0.05
+    - _cost: 1120
+      _amount: 0.05
+    - _cost: 1140
+      _amount: 0.05
+    - _cost: 1160
+      _amount: 0.05
+    - _cost: 1180
+      _amount: 0.05
+    - _cost: 1200
+      _amount: 0.05
+    - _cost: 1220
+      _amount: 0.05
+    - _cost: 1240
+      _amount: 0.05
+    - _cost: 1260
+      _amount: 0.05
+    - _cost: 1280
+      _amount: 0.05
+    - _cost: 1300
+      _amount: 0.05
+    - _cost: 1320
+      _amount: 0.05
+    - _cost: 1340
+      _amount: 0.05
+    - _cost: 1360
+      _amount: 0.05
+    - _cost: 1380
+      _amount: 0.05
+    - _cost: 1400
+      _amount: 0.05
+    - _cost: 1420
+      _amount: 0.05
+    - _cost: 1440
+      _amount: 0.05
+    - _cost: 1460
+      _amount: 0.05
+    - _cost: 1480
+      _amount: 0.05
+    - _cost: 1500
+      _amount: 0.05
+    - _cost: 1520
+      _amount: 0.05
+    - _cost: 1540
+      _amount: 0.05
+    - _cost: 1560
+      _amount: 0.05
+    - _cost: 1580
+      _amount: 0.05
+    - _cost: 1600
+      _amount: 0.05
+    - _cost: 1620
+      _amount: 0.05
+    - _cost: 1640
+      _amount: 0.05
+    - _cost: 1660
+      _amount: 0.05
+    - _cost: 1680
+      _amount: 0.05
+    - _cost: 1700
+      _amount: 0.05
+    - _cost: 1720
+      _amount: 0.05
+    - _cost: 1740
+      _amount: 0.05
+    - _cost: 1760
+      _amount: 0.05
+    - _cost: 1780
+      _amount: 0.05
+    - _cost: 1800
+      _amount: 0.05
+    - _cost: 1820
+      _amount: 0.05
+    - _cost: 1840
+      _amount: 0.05
+    - _cost: 1860
+      _amount: 0.05
+    - _cost: 1880
+      _amount: 0.05
+    - _cost: 1900
+      _amount: 0.05
+    - _cost: 1920
+      _amount: 0.05
+    - _cost: 1940
+      _amount: 0.05
+    - _cost: 1960
+      _amount: 0.05
+    - _cost: 1980
+      _amount: 0.05
+    - _cost: 2000
+      _amount: 0.05
+    - _cost: 2020
+      _amount: 0.05
+    - _cost: 2040
+      _amount: 0.05
+    - _cost: 2060
+      _amount: 0.05
+    - _cost: 2080
+      _amount: 0.05
+    - _cost: 2100
+      _amount: 0.05
+    - _cost: 2120
+      _amount: 0.05
   _unplacedNodes:
   - _id: unlock.behavior.persist
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.persist
@@ -359,24 +2357,10 @@ MonoBehaviour:
     _levels:
     - _cost: 250
       _amount: 0
-  - _id: unlock.shape.box
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: shape.box
-    _initialLevel: 0
-    _prerequisites: []
-    _levels:
-    - _cost: 300
-      _amount: 0
   - _id: unlock.mod.amplify
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.amplify
@@ -389,7 +2373,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.multi
@@ -402,7 +2385,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.pierce
@@ -415,7 +2397,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.homing
@@ -428,7 +2409,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.expand
@@ -441,7 +2421,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.speed
@@ -454,7 +2433,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.delay
@@ -467,7 +2445,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: flow.if
@@ -480,7 +2457,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: spell.call
@@ -493,23 +2469,9 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: mod.duration
-    _initialLevel: 0
-    _prerequisites: []
-    _levels:
-    - _cost: 0
-      _amount: 0
-  - _id: unlock.element.lightning
-    _requiredStage: 1
-    _titleKey: ui.tree.unlockRune
-    _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
-    _icon: {fileID: 0}
-    _effectType: 8
-    _runeId: element.lightning
     _initialLevel: 0
     _prerequisites: []
     _levels:
@@ -519,7 +2481,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: element.healing
@@ -532,7 +2493,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: element.protection
@@ -545,7 +2505,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.unlockRune
     _descriptionKey: ui.tree.unlockRuneDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 8
     _runeId: behavior.apply
@@ -558,7 +2517,6 @@ MonoBehaviour:
     _requiredStage: 1
     _titleKey: ui.tree.cpu
     _descriptionKey: ui.tree.cpuDescription
-    _position: {x: 0, y: 0}
     _icon: {fileID: 0}
     _effectType: 3
     _runeId: 

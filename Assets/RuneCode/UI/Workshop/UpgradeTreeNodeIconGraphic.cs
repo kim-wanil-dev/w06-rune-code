@@ -30,6 +30,7 @@ namespace RuneCode
             Color tint = color;
             if (_effectType == UpgradeEffectType.EnergyRegen) DrawRegenerationIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.MaxEnergy) DrawEnergyIcon(mesh, center, scale, tint);
+            else if (_effectType == UpgradeEffectType.KillEnergy) DrawKillEnergyIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.RamCapacity) DrawMemoryIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.CastSpeed) DrawSpeedIcon(mesh, center, scale, tint);
             else if (_effectType == UpgradeEffectType.Damage) DrawDamageIcon(mesh, center, scale, tint);
@@ -117,6 +118,15 @@ namespace RuneCode
                 center + new Vector2(4, 0) * scale, ICON_LINE_WIDTH * scale, tint);
             RuneMesh.Line(mesh, center + new Vector2(-0.5f, -4.5f) * scale,
                 center + new Vector2(-0.5f, 4.5f) * scale, ICON_LINE_WIDTH * scale, tint);
+        }
+
+        /// <summary>처치 시 전력 회복을 배터리와 모서리의 추가 회복 십자로 표시한다.</summary>
+        private static void DrawKillEnergyIcon(VertexHelper mesh, Vector2 center, float scale, Color tint)
+        {
+            DrawEnergyIcon(mesh, center, scale, tint);
+            Vector2 plus = center + new Vector2(-12, 12) * scale;
+            RuneMesh.Line(mesh, plus + Vector2.left * 4 * scale, plus + Vector2.right * 4 * scale, 2 * scale, tint);
+            RuneMesh.Line(mesh, plus + Vector2.up * 4 * scale, plus + Vector2.down * 4 * scale, 2 * scale, tint);
         }
 
         /// <summary>RAM 용량을 메모리 칩과 네 방향 연결 핀으로 표현한다.</summary>

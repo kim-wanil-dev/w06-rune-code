@@ -1031,6 +1031,14 @@
       "_value": "플레이어 이동 속도 증가"
     },
     {
+      "_key": "ui.tree.killEnergy",
+      "_value": "처치 시 전력 회복"
+    },
+    {
+      "_key": "ui.tree.killEnergyDescription",
+      "_value": "적을 처치할 때 추가로 회복하는 전력 증가"
+    },
+    {
       "_key": "ui.tree.level",
       "_value": "레벨"
     },

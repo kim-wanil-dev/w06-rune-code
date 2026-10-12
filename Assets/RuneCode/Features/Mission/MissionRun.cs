@@ -76,7 +76,8 @@ namespace RuneCode
             _spellName = spellName;
             _simulation = new RuneSimulation(1, true, session.MaxHp, session.MaxEnergy, session.SelectedStage, session.EnergyRegen,
                 session.DamageMultiplier, session.MoveSpeedMultiplier, session.ScrapGainMultiplier,
-                carrier: CarrierSpawnSettings.LoadDefinition(), scrapPickupRangeMultiplier: session.ScrapPickupRangeMultiplier);
+                carrier: CarrierSpawnSettings.LoadDefinition(), scrapPickupRangeMultiplier: session.ScrapPickupRangeMultiplier,
+                killEnergyBonus: session.KillEnergyBonus);
             _simulation.SetLoadout(new[] { spell });
             _simulation.SetUnlockedElements(session.GetUnlockedElements());
             LocalTelemetry.Record(0, "mission.start", session.SelectedStage + ":" + spell.Signature);
