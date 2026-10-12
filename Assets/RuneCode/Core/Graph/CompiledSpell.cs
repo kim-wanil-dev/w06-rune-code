@@ -537,12 +537,14 @@ namespace RuneCode
             _modifierValues = SpellModifierValues.From(mods, modifierNodes, modifierGrades);
             if (_kind == "spawn" || _kind == "buff")
             {
-                // Shape 크기는 노드에서 편집하지 않는다(백서 v7). Sphere 반경·Cone 거리는 Behavior 기준 반경, Beam은 Shape 정의의 고정 폭·길이다.
+                // Sphere·Cone의 기본 반경은 Behavior에서 가져오고 Cone에는 Shape 반지름 배율을 적용한다. Beam은 Shape 정의의 고정 폭·길이를 쓴다.
                 float behaviorRadius = effectForm.Stats.Radius;
+                float coneRadius = _magicType == SpellGrammar.MAGIC_TYPE_CONE && shape != null
+                    ? behaviorRadius * shape.Stats.RadiusMultiplier : behaviorRadius;
                 float boxWidth = shape != null && shape.Stats.BeamWidth > 0f ? shape.Stats.BeamWidth : behaviorRadius * 2f;
                 float boxLength = shape != null && shape.Stats.BeamLength > 0f ? shape.Stats.BeamLength : behaviorRadius * 2f;
                 _stats = new SpellStats(effectForm.Stats, element?.Stats, mods, _form, modifierNodes, modifierGrades,
-                    _magicType, behaviorRadius, boxWidth, boxLength);
+                    _magicType, coneRadius, boxWidth, boxLength);
             }
             ResourceCostSet baseCosts = rune.Costs;
             if (rune.Id == "magic.inline") baseCosts = baseCosts.Add(effectForm.Costs);
