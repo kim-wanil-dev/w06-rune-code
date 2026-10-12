@@ -112,13 +112,13 @@ namespace RuneCode
             return elements;
         }
 
-        /// <summary>노드의 구매 단계를 반환하고, 기존 해금 화면에서 이미 얻은 룬은 트리에서도 완료로 처리한다.</summary>
+        /// <summary>SO의 시작 레벨과 저장된 구매 단계 중 높은 값을 최대 레벨 이내로 반환한다. 이미 얻은 룬은 완료로 처리한다.</summary>
         public int GetUpgradeNodeLevel(string nodeId)
         {
             UpgradeTreeNodeDefinition node = _upgradeTree.FindNode(nodeId);
             if (node == null) return 0;
             if (node.EffectType == UpgradeEffectType.RuneUnlock && _save.UnlockedRunes.Contains(node.RuneId)) return node.MaxLevel;
-            return Math.Min(_save.GetUpgradeNodeLevel(nodeId), node.MaxLevel);
+            return Math.Min(Math.Max(node.InitialLevel, _save.GetUpgradeNodeLevel(nodeId)), node.MaxLevel);
         }
 
         /// <summary>노드의 다음 강화 비용을 반환하고 최대 레벨이거나 등록되지 않은 노드는 -1을 반환한다.</summary>
@@ -237,7 +237,7 @@ namespace RuneCode
             PersistProgress();
         }
 
-        /// <summary>디버그 진행의 배치·미배치 스탯 레벨을 0으로 되돌리고 룬과 일반 저장은 유지한다.</summary>
+        /// <summary>디버그 진행의 배치·미배치 스탯 구매 기록을 0으로 되돌린다. SO 시작 레벨·룬·일반 저장은 유지한다.</summary>
         public void ResetDebugTree()
         {
             if (!_isDebugEnabled) return;
