@@ -128,7 +128,7 @@ TextureImporter:
         height: 109
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 35, y: 35, z: 35, w: 35}
+      border: {x: 37, y: 30, z: 33, w: 38}
       customData: 
       outline: []
       physicsShape: []
@@ -149,8 +149,8 @@ TextureImporter:
         width: 456
         height: 109
       alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 35, y: 35, z: 35, w: 35}
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 38, y: 32, z: 33, w: 39}
       customData: 
       outline: []
       physicsShape: []
@@ -171,7 +171,7 @@ TextureImporter:
         width: 456
         height: 109
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 35, y: 35, z: 35, w: 35}
       customData: 
       outline: []
@@ -180,6 +180,28 @@ TextureImporter:
       bones: []
       spriteID: 709a9886f0082f54d8f0ae2220181615
       internalID: -1518947273
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MechanicRuneUiAtlas_4
+      rect:
+        serializedVersion: 2
+        x: 585
+        y: 100
+        width: 468
+        height: 295
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 50, y: 48, z: 49, w: 50}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f28e0e471055969458d685193091b104
+      internalID: -1962472336
       vertices: []
       indices: 
       edges: []
@@ -202,6 +224,7 @@ TextureImporter:
       MechanicRuneUiAtlas_1: -1695448025
       MechanicRuneUiAtlas_2: 1221434272
       MechanicRuneUiAtlas_3: -1518947273
+      MechanicRuneUiAtlas_4: -1962472336
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

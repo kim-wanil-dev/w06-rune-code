@@ -239,6 +239,10 @@
       "_value": "스크랩"
     },
     {
+      "_key": "ui.fragments.description",
+      "_value": "강화 트리에서 노드를 구매하는 데 사용하는 재화입니다."
+    },
+    {
       "_key": "ui.capacity",
       "_value": "노드 RAM 용량"
     },

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -43,6 +44,7 @@ namespace RuneCode
             _hud.DebugClicked += OpenDebug;
             _result.Bind();
             _result.ImproveClicked += () => _session.RequestScreen(AppScreen.Workshop);
+            _result.NextStageClicked += SelectNextStageAndReturnToWorkshop;
             _result.RetryClicked += RetryStage;
             _result.ClearModifierChoiceClicked += ChooseClearModifier;
         }
@@ -182,38 +184,116 @@ namespace RuneCode
             StartRun();
         }
 
-        /// <summary>정산이 끝난 미션의 결과 문구를 채워 결과 View를 한 번 표시하고 열린 팝업을 닫는다. 클리어 Modifier 선택 후보가 있으면 함께 표시한다.</summary>
+        /// <summary>승리 결과에서 다음 스테이지를 선택하고 노드 강화 작업실로 돌아간다. 클리어나 보상 선택이 끝나지 않았으면 무시한다.</summary>
+        private void SelectNextStageAndReturnToWorkshop()
+        {
+            if (_run == null || !_run.IsFinished || !_run.Simulation.Completed) return;
+            if (_run.HasClearModifierChoices && !_run.IsClearModifierChosen) return;
+            int nextStage = _run.Simulation.StageNumber + 1;
+            _session.SelectStage(nextStage);
+            if (_session.SelectedStage != nextStage) return;
+            _ui.GetView<WorkshopScreen>(UiLayer.Screen).ShowStageSelectionOnNextEntry();
+            _session.RequestScreen(AppScreen.Workshop);
+        }
+
+        /// <summary>정산이 끝난 결과 View를 표시하고 클리어 Modifier 선택 후보가 있으면 모달 팝업을 연다.</summary>
         private void ShowResult()
         {
             _isResultShown = true;
             _ui.CloseAllPopups();
             SetResultSummary();
+            _result.Show();
             if (_run.HasClearModifierChoices)
             {
-                var labels = new System.Collections.Generic.List<string>();
+                var names = new List<string>();
+                var descriptions = new List<string>();
                 foreach (string runeId in _run.ClearModifierChoices)
-                    labels.Add(GameData.Runes.Get(runeId).Name + " (" + _run.ClearModifierGrade + ")");
-                _result.ShowClearModifierChoices(labels);
+                {
+                    RuneDefinition rune = GameData.Runes.Get(runeId);
+                    names.Add(rune.Name);
+                    descriptions.Add(FormatClearModifierDescription(rune, _run.ClearModifierGrade));
+                }
+                _result.ShowClearModifierChoices(GameData.L("result.clearModifierChoice"), names, descriptions, _run.ClearModifierGrade);
             }
             else _result.HideClearModifierChoices();
-            _result.Show();
+        }
+
+        /// <summary>Modifier와 등급의 현재 효과를 보상 카드에 표시할 줄 단위 문구로 반환한다.</summary>
+        private static string FormatClearModifierDescription(RuneDefinition rune, string grade)
+        {
+            var values = new List<string>();
+            ModifierGradeTable grades = GameData.ModifierGrades;
+            object gradeValue = grades.GetGradeValue(rune.Id, grade);
+            switch (grades.GetEffectType(rune.Id))
+            {
+                case "effectMultiplier":
+                    values.Add(GameData.L("ui.gradeDamage") + " ×" + Convert.ToSingle(gradeValue).ToString("0.##"));
+                    break;
+                case "multipleCount":
+                    values.Add(GameData.L("ui.gradeCount") + " " + gradeValue);
+                    break;
+                case "pierceCount":
+                    values.Add(GameData.L("ui.gradePierce") + " " + gradeValue);
+                    break;
+                case "radiusMultiplier":
+                    values.Add(GameData.L("ui.gradeRadius") + " ×" + Convert.ToSingle(gradeValue).ToString("0.##"));
+                    break;
+                case "durationMultiplier":
+                    values.Add(GameData.L("ui.gradeDuration") + " ×" + Convert.ToSingle(gradeValue).ToString("0.##"));
+                    break;
+                case "speedMultiplier":
+                    values.Add(GameData.L("ui.gradeSpeed") + " ×" + Convert.ToSingle(gradeValue).ToString("0.##"));
+                    break;
+                case "homingTier":
+                    string tier = gradeValue as string;
+                    HomingTierDefinition homing = rune.FindHomingTier(tier);
+                    if (homing != null)
+                    {
+                        values.Add(GameData.L("ui.gradeHomingTurn") + " " + homing.HomingTurn.ToString("0.#") + "°");
+                        values.Add(GameData.L("ui.gradeHomingRange") + " " + homing.HomingRange.ToString("0.#"));
+                    }
+                    break;
+            }
+            return string.Join("\n", values);
         }
 
         /// <summary>결과 View에 정산 문구와 스테이지·진행 정보를 채운다.</summary>
         private void SetResultSummary()
         {
             RuneSimulation sim = _run.Simulation;
-            _result.SetContent(_run.LastResult,
-                GameData.L("ui.stage") + " " + sim.StageNumber + "  ·  " + GameData.L("ui.kills") + " " + sim.KillCount,
-                GameData.L("ui.highestStage") + " " + _session.HighestClearedStage + "  ·  " + GameData.L("ui.nextStage") + " " + (_session.HighestClearedStage + 1));
+            int elapsedSeconds = (int)sim.Time;
+            string playTime = "플레이 타임 " + (elapsedSeconds / 60).ToString("00") + ":" + (elapsedSeconds % 60).ToString("00");
+            _result.SetContent(sim.Completed ? "게임 완료" : "게임 종료",
+                GameData.L("ui.stage") + " " + sim.StageNumber,
+                playTime,
+                sim.Completed);
+            SetResultRewards();
+        }
+
+        /// <summary>이번 미션에서 획득한 보상을 아이콘 수량과 Modifier 등급 효과 문구로 변환해 결과 View에 전달한다.</summary>
+        private void SetResultRewards()
+        {
+            var rewards = new List<ResultRewardContent>(_run.Rewards.Count);
+            foreach (MissionReward reward in _run.Rewards)
+            {
+                if (!reward.IsModifier)
+                {
+                    rewards.Add(new ResultRewardContent(false, reward.Count, GameData.L("ui.fragments"), GameData.L("ui.fragments.description")));
+                    continue;
+                }
+                RuneDefinition rune = GameData.Runes.Get(reward.RuneId);
+                string description = reward.Grade + "급\n" + FormatClearModifierDescription(rune, reward.Grade);
+                rewards.Add(new ResultRewardContent(true, reward.Count, rune.Name, description));
+            }
+            _result.SetRewards(rewards);
         }
 
         /// <summary>클리어 Modifier 후보를 지급하고 선택 확정 상태와 결과 문구를 갱신한다. 유효한 선택이 아니면 무시한다.</summary>
         private void ChooseClearModifier(int index)
         {
             if (_run == null || !_run.ChooseClearModifier(index)) return;
-            _result.MarkClearModifierChosen();
             SetResultSummary();
+            _result.HideClearModifierChoices();
         }
 
         /// <summary>세션에서 시전 마법을 준비받아 새 미션을 만들고 HUD·결과 View를 시작 상태로 되돌린다. 실패하면 false를 반환한다.</summary>

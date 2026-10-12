@@ -5,6 +5,29 @@ using UnityEngine.InputSystem;
 
 namespace RuneCode
 {
+    /// <summary>이번 미션에서 획득한 조각 또는 등급별 Modifier의 표시용 원본 정보다.</summary>
+    public sealed class MissionReward
+    {
+        private readonly bool _isModifier;
+        private readonly string _runeId;
+        private readonly string _grade;
+        private readonly int _count;
+
+        public bool IsModifier => _isModifier;
+        public string RuneId => _runeId;
+        public string Grade => _grade;
+        public int Count => _count;
+
+        /// <summary>Modifier ID·등급 또는 조각 유형과 현재 획득 수량을 보관한다.</summary>
+        public MissionReward(bool isModifier, string runeId, string grade, int count)
+        {
+            _isModifier = isModifier;
+            _runeId = runeId;
+            _grade = grade;
+            _count = count;
+        }
+    }
+
     /// <summary>
     /// 미션 전투 한 판의 시뮬레이션, 고정 스텝 입력, 일시정지, 정산을 책임지는 일반 클래스다.
     /// MissionScreen이 소유하며 세이브 반영은 RuneCodeSession.SettleMission으로 위임한다.
@@ -28,6 +51,7 @@ namespace RuneCode
         private bool _settled;
         private string _lastResult;
         private readonly List<SimulationItemDrop> _pickedModifiers = new List<SimulationItemDrop>();
+        private readonly List<MissionReward> _rewards = new List<MissionReward>();
         private List<string> _clearModifierChoices;
         private string _clearModifierGrade;
         private bool _isClearModifierChosen;
@@ -55,6 +79,9 @@ namespace RuneCode
 
         /// <summary>정산 후 표시할 결과 문구를 반환한다.</summary>
         public string LastResult => _lastResult;
+
+        /// <summary>이번 미션에서 획득한 조각과 Modifier 목록을 반환한다.</summary>
+        public IReadOnlyList<MissionReward> Rewards => _rewards;
 
         /// <summary>보스 클리어 Modifier 선택 후보 룬 ID 목록을 반환하고 선택 보상이 없으면 빈 목록이다.</summary>
         public IReadOnlyList<string> ClearModifierChoices => _clearModifierChoices ?? (IReadOnlyList<string>)Array.Empty<string>();
@@ -124,7 +151,28 @@ namespace RuneCode
             {
                 _session.GrantModifier(drop.RuneId, drop.Grade, drop.Count);
                 _pickedModifiers.Add(drop);
+                AddModifierReward(drop.RuneId, drop.Grade, drop.Count);
             }
+        }
+
+        /// <summary>같은 룬과 등급의 이번 미션 획득 수량을 합산한다.</summary>
+        private void AddModifierReward(string runeId, string grade, int count)
+        {
+            if (count <= 0) return;
+            for (int index = 0; index < _rewards.Count; index++)
+            {
+                MissionReward reward = _rewards[index];
+                if (!reward.IsModifier || reward.RuneId != runeId || reward.Grade != grade) continue;
+                _rewards[index] = new MissionReward(true, runeId, grade, reward.Count + count);
+                return;
+            }
+            _rewards.Add(new MissionReward(true, runeId, grade, count));
+        }
+
+        /// <summary>이번 미션 정산으로 획득한 조각을 보상 표시 목록에 기록한다.</summary>
+        private void AddFragmentReward(int count)
+        {
+            if (count > 0) _rewards.Add(new MissionReward(false, null, null, count));
         }
 
         /// <summary>이번 전투에서 주운 Modifier를 룬 ID별로 합산해 결과 문구에 더한다.</summary>
@@ -148,6 +196,14 @@ namespace RuneCode
             bool isFirstClear = _session.HighestClearedStage < _simulation.StageNumber;
             var fragments = _simulation.SettlementFragments;
             var modifierRewards = _session.SettleMission(_simulation.StageNumber, fragments, cleared, _simulation.KillCounts);
+            AddFragmentReward(fragments);
+            foreach (ModifierRewardDefinition reward in modifierRewards)
+            {
+                string grade = string.IsNullOrEmpty(reward.Grade)
+                    ? GameData.ModifierGrades.GetLowestAvailableGrade(reward.RuneId)
+                    : reward.Grade;
+                AddModifierReward(reward.RuneId, grade, reward.Count);
+            }
             var result = cleared ? "clear" : _simulation.IsTimedOut ? "timeout" : "death";
             var resultKey = cleared ? "result.stageCleared" : _simulation.IsTimedOut ? "result.timeout" : "result.dead";
             _lastResult = GameData.L(resultKey) + "\n" + GameData.L("result.fragments") + " " + fragments;
@@ -178,6 +234,7 @@ namespace RuneCode
         {
             if (_clearModifierChoices == null || _isClearModifierChosen || index < 0 || index >= _clearModifierChoices.Count) return false;
             _session.GrantModifier(_clearModifierChoices[index], _clearModifierGrade, 1);
+            AddModifierReward(_clearModifierChoices[index], _clearModifierGrade, 1);
             _isClearModifierChosen = true;
             _lastResult += "\n" + GameData.L("result.modifierReward") + " " + GameData.Runes.Get(_clearModifierChoices[index]).Name + " +1";
             return true;
@@ -191,6 +248,7 @@ namespace RuneCode
             _simulation.CancelPendingSpellExecutions();
             var fragments = (int)Math.Round(_simulation.EarnedFragments * GameData.Balance.Economy.DeathRetention, MidpointRounding.AwayFromZero);
             _session.SettleMission(_simulation.StageNumber, fragments, false, _simulation.KillCounts);
+            AddFragmentReward(fragments);
             _lastResult = GameData.L("result.retreat") + "\n" + GameData.L("result.fragments") + " " + fragments;
             AppendPickedModifiers();
             _isPaused = false;

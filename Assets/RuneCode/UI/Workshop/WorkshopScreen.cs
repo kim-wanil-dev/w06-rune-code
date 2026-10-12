@@ -41,6 +41,7 @@ namespace RuneCode
         [SerializeField] private TextMeshProUGUI _status;
 
         private WorkshopPresenter _presenter;
+        private bool _showStageSelectionOnNextEntry;
 
         public SpellEditorPanel SpellEditor => _spellEditor;
         public DockPanel Dock => _dockPanel;
@@ -94,6 +95,12 @@ namespace RuneCode
             }
         }
 
+        /// <summary>다음 작업실 진입 때 스테이지 선택 UI를 연다.</summary>
+        public void ShowStageSelectionOnNextEntry()
+        {
+            _showStageSelectionOnNextEntry = true;
+        }
+
         /// <summary>스테이지 선택 중 Esc를 누르면 이전 작업실 탭으로 돌아가고 입력 소비 여부를 반환한다.</summary>
         public override bool HandleEscape()
         {
@@ -108,8 +115,14 @@ namespace RuneCode
         /// <summary>하단 상태 문구를 표시한다.</summary>
         public void SetStatus(string text) => _status.text = text;
 
-        /// <summary>작업실에 들어올 때마다 Presenter에 진입을 알린다.</summary>
-        protected override void OnShown() => _presenter.Enter();
+        /// <summary>작업실 진입을 알리고 요청된 경우 스테이지 선택 UI를 연다.</summary>
+        protected override void OnShown()
+        {
+            _presenter.Enter();
+            if (!_showStageSelectionOnNextEntry) return;
+            _showStageSelectionOnNextEntry = false;
+            DeployClicked?.Invoke();
+        }
 
         /// <summary>작업실을 떠날 때 Presenter에 퇴장을 알린다.</summary>
         protected override void OnHidden() => _presenter.Exit();
