@@ -361,10 +361,10 @@ namespace RuneCode
             else SpawnBenchDummy(new SimVector(bench.BenchDummyX, bench.BenchDummyY), bench.BenchHp);
         }
 
-        /// <summary>디버그 기능에서 적을 추가한다. 엘리트는 기본 배율과 반경 2배, 현재 스테이지의 드롭 테이블을 사용한다.</summary>
+        /// <summary>디버그 기능에서 지정한 적을 추가한다. 엘리트는 체력·보상 2배, 속도 1.2배, 반경 2배와 현재 스테이지의 드롭 테이블을 사용한다.</summary>
         public SimulationEnemy DebugSpawn(string id, bool isElite = false)
         {
-            EliteSpawnDefinition elite = isElite ? new EliteSpawnDefinition(id, 2, 2, 1, 2, GetDebugEliteDropTable(id)) : null;
+            EliteSpawnDefinition elite = isElite ? new EliteSpawnDefinition(id, 2, 2, 1.2, 2, GetDebugEliteDropTable(id)) : null;
             return SpawnEnemy(id, _map.NearestFree(_player.Position + _player.AimDirection * 260, 24), false, 0, elite);
         }
 
