@@ -11,6 +11,7 @@ namespace RuneCode
     public sealed class WorkshopPresenter : ISpellEditorHost, IDisposable
     {
         private const int HIGHLIGHT_TICKS = 12;
+        private const string ENCYCLOPEDIA_RESOURCE = "RuneCode/encyclopedia";
 
         private readonly RuneCodeSession _session;
         private readonly UIManager _ui;
@@ -24,6 +25,9 @@ namespace RuneCode
         private string _returnTab = WorkshopScreen.TAB_EDITOR;
         private RuneSimulation _observedDock;
         private int _lastDockEventCount;
+
+        private EncyclopediaData _encyclopedia;
+        private bool _hasLoadedEncyclopedia;
 
         /// <summary>세션·UI 관리자·작업실 View로 도크 구동과 탭 Presenter를 만들고 편집 패널과 탭 이벤트를 연결한다.</summary>
         public WorkshopPresenter(RuneCodeSession session, UIManager ui, WorkshopScreen view)
@@ -39,6 +43,7 @@ namespace RuneCode
             _view.TabClicked += SetTab;
             _view.DeployClicked += OpenDeploy;
             _view.SettingsClicked += OpenSettings;
+            _view.HelpClicked += OpenHelp;
             _view.BackClicked += ReturnFromDeploy;
             _session.Spells.Compiled += RefreshHeader;
         }
@@ -72,6 +77,7 @@ namespace RuneCode
             _view.TabClicked -= SetTab;
             _view.DeployClicked -= OpenDeploy;
             _view.SettingsClicked -= OpenSettings;
+            _view.HelpClicked -= OpenHelp;
             _view.BackClicked -= ReturnFromDeploy;
             _session.Spells.Compiled -= RefreshHeader;
             _dockRun.Dispose();
@@ -121,6 +127,28 @@ namespace RuneCode
         private void OpenSettings()
         {
             _ui.OpenPopup<SettingsPopup>().Configure(_session, _ui, ShowEditorTab, RefreshProgression);
+        }
+
+        /// <summary>처음 도움말을 열 때 Resources JSON을 읽어 보관하고 현재 화면을 유지한 채 공용 팝업에 전달한다.</summary>
+        private void OpenHelp()
+        {
+            if (!_hasLoadedEncyclopedia)
+            {
+                _hasLoadedEncyclopedia = true;
+                TextAsset asset = Resources.Load<TextAsset>(ENCYCLOPEDIA_RESOURCE);
+                if (asset != null)
+                {
+                    try
+                    {
+                        _encyclopedia = JsonUtility.FromJson<EncyclopediaData>(asset.text);
+                    }
+                    catch (ArgumentException exception)
+                    {
+                        Debug.LogWarning("게임 도움말 JSON을 읽을 수 없습니다: " + exception.Message);
+                    }
+                }
+            }
+            _ui.OpenPopup<EncyclopediaPopup>().Configure(_encyclopedia);
         }
 
         /// <summary>도크를 다시 시작한 뒤 에디터 탭으로 전환하고 출격·헤더를 갱신한다.</summary>

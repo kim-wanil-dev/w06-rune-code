@@ -69,11 +69,15 @@ namespace RuneCode
         private void StepWithInput()
         {
             bool isTyping = UiFactory.IsTyping();
-            bool isPointerInside = _view.TryGetPointer(out SimVector point);
-            SimVector aim = isPointerInside ? point - _run.Dock.Player.Position : new SimVector(1, 0);
+            bool isInputBlocked = _isInputBlocked();
+            bool canReadInput = !isTyping && !isInputBlocked;
+            SimVector point = SimVector.Zero;
+            bool isPointerInside = !isInputBlocked && _view.TryGetPointer(out point);
+            SimVector aim = isPointerInside ? point - _run.Dock.Player.Position
+                : isInputBlocked ? _run.Dock.Player.AimDirection : new SimVector(1, 0);
             Mouse mouse = Mouse.current;
-            bool isClicking = !isTyping && isPointerInside && !_isInputBlocked() && mouse != null && mouse.leftButton.isPressed;
-            if (!isTyping && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) _run.ResetDock();
+            bool isClicking = !isTyping && isPointerInside && mouse != null && mouse.leftButton.isPressed;
+            if (canReadInput && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) _run.ResetDock();
             _run.Step(aim, _run.AutoFire || isClicking);
         }
 
