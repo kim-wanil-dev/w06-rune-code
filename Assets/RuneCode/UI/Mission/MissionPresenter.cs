@@ -192,7 +192,7 @@ namespace RuneCode
             {
                 var labels = new System.Collections.Generic.List<string>();
                 foreach (string runeId in _run.ClearModifierChoices)
-                    labels.Add(GameData.Runes.Get(runeId).Name + " (" + _run.ClearModifierGrade + ")");
+                    labels.Add(ModifierGradeText.FormatName(GameData.Runes.Get(runeId).Name, _run.ClearModifierGrade));
                 _result.ShowClearModifierChoices(labels);
             }
             else _result.HideClearModifierChoices();

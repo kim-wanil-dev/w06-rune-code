@@ -146,6 +146,7 @@ namespace RuneCode
             label.font = _font;
             label.fontSize = fontSize;
             label.raycastTarget = false;
+            label.richText = true;
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.horizontalAlignment = HorizontalAlignmentOptions.Left;
@@ -211,7 +212,7 @@ namespace RuneCode
             if (rune.Category == SpellGrammar.CATEGORY_MODIFIER)
             {
                 string grade = SpellGrammar.GetModifierGrade(rune, node, GameData.ModifierGrades);
-                if (!string.IsNullOrEmpty(grade)) name += "(" + grade + ")";
+                name = ModifierGradeText.FormatName(name, grade);
             }
             _builder.Append("<b>").Append(name).Append("</b>  ").Append(GameData.Runes.NodeRam(node)).Append(" RAM");
             string summary = Summary(node, rune, library);
@@ -223,7 +224,8 @@ namespace RuneCode
         private static string BuildPortText(PortDefinition port)
         {
             if (port == null) return string.Empty;
-            return port.IsDeprecated ? "<s>" + port.Id + "</s>" : port.Id;
+            string label = port.Id == SpellGrammar.BODY_PORT ? "shape/method" : port.Id;
+            return port.IsDeprecated ? "<s>" + label + "</s>" : label;
         }
 
         /// <summary>Trigger·Apply·프리셋 호출의 핵심 값(시작 조건, 속성, 호출 대상)을 반환하며 해당 없으면 null을 반환한다. Shape 속성은 붙은 속성 노드로 보인다.</summary>

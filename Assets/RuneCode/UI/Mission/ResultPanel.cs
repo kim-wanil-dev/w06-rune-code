@@ -54,6 +54,7 @@ namespace RuneCode
         /// <summary>결과 문구와 스테이지·진행 문구를 채운다. 표시는 Show로 한다.</summary>
         public void SetContent(string summary, string stage, string progress)
         {
+            _summaryLabel.richText = true;
             _summaryLabel.text = summary;
             _stageLabel.text = stage;
             _progressLabel.text = progress;
@@ -68,7 +69,9 @@ namespace RuneCode
                 _clearChoiceButtons[i].gameObject.SetActive(hasChoice);
                 if (!hasChoice) continue;
                 _clearChoiceButtons[i].interactable = true;
-                _clearChoiceButtons[i].GetComponentInChildren<TextMeshProUGUI>(true).text = labels[i];
+                TextMeshProUGUI label = _clearChoiceButtons[i].GetComponentInChildren<TextMeshProUGUI>(true);
+                label.richText = true;
+                label.text = labels[i];
             }
         }
 

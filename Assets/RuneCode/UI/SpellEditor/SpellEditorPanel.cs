@@ -119,7 +119,11 @@ namespace RuneCode
         public void SetMetrics(string text) => _metricsText.text = text;
 
         /// <summary>도구줄 툴팁 문구를 표시한다.</summary>
-        public void SetTooltip(string text) => _tooltipText.text = text;
+        public void SetTooltip(string text)
+        {
+            _tooltipText.richText = true;
+            _tooltipText.text = text;
+        }
 
         /// <summary>튜토리얼 진행 문구를 표시한다.</summary>
         public void SetTutorial(string text) => _tutorialText.text = text;
